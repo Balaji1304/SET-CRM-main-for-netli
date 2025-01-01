@@ -6,10 +6,15 @@ require('dotenv').config();
 const app = express();
 const config = require('./config');
 
+
 app.use(cors({
-  origin: config.clientURL,
+  origin: [
+    'https://blackenginecrm.netlify.app',
+    'http://localhost:3000'
+  ],
   credentials: true
 }));
+
 // Middleware
 app.use(cors());
 app.use(express.json());
