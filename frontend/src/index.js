@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/globals.css';
 import App from './App';
-import config from 't ../src/config';
+import config from '../src/config';
 
 export const login = async (credentials) => {
   const response = await fetch(`${config.apiURL}/api/auth/login`, {

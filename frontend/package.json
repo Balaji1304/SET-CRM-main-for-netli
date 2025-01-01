@@ -2,22 +2,24 @@
   "name": "set-crm-frontend",
   "version": "1.0.0",
   "private": true,
-  
-    "scripts": {
+  "homepage": "/",
+  "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "cross-env CI=false react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
   "dependencies": {
     "@babel/plugin-proposal-private-property-in-object": "7.21.11",
     "@hookform/resolvers": "^3.9.1",
+    "@radix-ui/react-avatar": "^1.0.4",
     "@radix-ui/react-label": "^2.1.1",
     "@radix-ui/react-slot": "^1.1.1",
     "autoprefixer": "^10.4.16",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",
+    "next-themes": "^0.2.1",
     "postcss": "^8.4.31",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -26,18 +28,23 @@
     "react-scripts": "^5.0.1",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^3.4.1",
-    "zod": "^3.24.1",
-    "@radix-ui/react-avatar": "^1.0.4",
-    "@radix-ui/react-slot": "^1.0.2",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.0.0",
-    "lucide-react": "^0.294.0",
-    "tailwind-merge": "^2.1.0",
-    "next-themes": "^0.2.1"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.26.0",
     "@babel/plugin-transform-private-property-in-object": "^7.23.4",
-    "postcss-cli": "^10.1.0"
+    "@babel/preset-env": "^7.26.0",
+    "@babel/preset-react": "^7.26.3",
+    "babel-loader": "^9.2.1",
+    "cross-env": "^7.0.3",
+    "css-loader": "^7.1.2",
+    "html-webpack-plugin": "^5.6.3",
+    "postcss-cli": "^10.1.0",
+    "postcss-loader": "^8.1.1",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.0"
   },
   "browserslist": {
     "production": [
