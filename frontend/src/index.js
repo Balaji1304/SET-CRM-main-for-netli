@@ -4,7 +4,7 @@ import './styles/globals.css';
 import App from './App';
 import config from './config';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_URL = process.env.REACT_APP_API_URL || 'https://set-crm-main-for-netli.onrender.com';
 
 export const login = async (credentials) => {
   try {
