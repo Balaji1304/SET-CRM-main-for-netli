@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/globals.css';
 import App from './App';
-import config from '../config';
+import config from './config';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
