@@ -9,12 +9,14 @@ const config = require('./config');
 
 app.use(cors({
   origin: [
-    'https://blackenginecrm.netlify.app',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'https://blackenginecrm.netlify.app',  // Replace with your Netlify domain
+    'https://set-crm-main-for-netli.onrender.com'
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
 // Middleware
 app.use(cors());
 app.use(express.json());
