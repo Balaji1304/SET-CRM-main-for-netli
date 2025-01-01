@@ -22,7 +22,7 @@ export default function ProductListPage() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/products');
+      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/products');
       if (!response.ok) {
         throw new Error('Failed to fetch products');
       }
@@ -77,7 +77,7 @@ export default function ProductListPage() {
     formData.append('brochure', selectedFile);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/products/${productId}/brochure`, {
+      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/products/${productId}/brochure`, {
         method: 'POST',
         body: formData
       });

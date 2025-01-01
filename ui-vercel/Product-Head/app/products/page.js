@@ -21,7 +21,7 @@ export default function ProductListPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/products');
+        const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/products');
         if (!response.ok) {
           throw new Error('Failed to fetch products');
         }
@@ -41,7 +41,7 @@ export default function ProductListPage() {
   const handleDeleteProduct = async (productId) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
-        const response = await fetch(`http://localhost:5000/api/products/${productId}`, {
+        const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/products/${productId}`, {
           method: 'DELETE',
         });
         
