@@ -70,7 +70,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const res = await fetch('http://set-crm-main-for-netli.onrender.com/api/auth/login', {
+      const res = await fetch('https://set-crm-main-for-netli.onrender.com/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

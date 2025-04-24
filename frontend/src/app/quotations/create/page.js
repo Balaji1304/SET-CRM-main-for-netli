@@ -29,12 +29,12 @@ export default function CreateQuotationPage() {
     try {
       const token = localStorage.getItem('token');
       const [leadsResponse, productsResponse] = await Promise.all([
-        fetch('http://set-crm-main-for-netli.onrender.com/api/leads', {
+        fetch('https://set-crm-main-for-netli.onrender.com/api/leads', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         }),
-        fetch('http://set-crm-main-for-netli.onrender.com/api/products', {
+        fetch('https://set-crm-main-for-netli.onrender.com/api/products', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -153,7 +153,7 @@ export default function CreateQuotationPage() {
 
       console.log('Sending data:', formattedData); // For debugging
 
-      const response = await fetch('http://set-crm-main-for-netli.onrender.com/api/quotations', {
+      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/quotations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

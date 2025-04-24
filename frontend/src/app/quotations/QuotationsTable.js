@@ -38,7 +38,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
   const fetchQuotations = async () => {
     try {
-      const response = await fetch('http://set-crm-main-for-netli.onrender.com/api/quotations', {
+      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/quotations', {
         headers: getAuthHeaders()
       });
       const data = await response.json();
@@ -82,7 +82,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     try {
       setLoadingQuotations(prev => ({ ...prev, [id]: true }));
 
-      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}/send`, {
+      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/send`, {
         method: 'POST',
         headers: getAuthHeaders()
       });
@@ -107,7 +107,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
   const handleApproveQuotation = async (id) => {
     try {
-      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}/approve`, {
+      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/approve`, {
         method: 'PUT',
         headers: getAuthHeaders()
       });
@@ -132,7 +132,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         throw new Error('Please provide valid payment details');
       }
 
-      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${selectedQuotation._id}/offline-payment`, {
+      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${selectedQuotation._id}/offline-payment`, {
         method: 'POST',
         headers: getAuthHeaders(true), // Using the consistent auth header helper
         body: JSON.stringify({
@@ -163,7 +163,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
   const handleRejectQuotation = async (id) => {
     try {
-      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}/reject`, {
+      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/reject`, {
         method: 'PUT',
         headers: getAuthHeaders()
       });

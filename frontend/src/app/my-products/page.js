@@ -19,7 +19,7 @@ export default function MyProductsPage() {
 
       console.log('Fetching with token:', token);
 
-      const response = await fetch('http://set-crm-main-for-netli.onrender.com/api/quotations/customer-products', {
+      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/quotations/customer-products', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

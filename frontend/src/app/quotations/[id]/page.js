@@ -88,7 +88,7 @@ export default function QuotationDetailsPage() {
   const fetchQuotation = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}`, {
+      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -115,7 +115,7 @@ export default function QuotationDetailsPage() {
         return;
       }
       
-      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}/send`, {
+      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ export default function QuotationDetailsPage() {
   const handleApproveQuotation = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}/approve`, {
+      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/approve`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -155,7 +155,7 @@ export default function QuotationDetailsPage() {
   const handleGenerateInvoice = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/invoices`, {
+      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/invoices`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
