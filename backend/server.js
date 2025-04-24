@@ -11,17 +11,16 @@ const server = http.createServer(app);
 
 app.use(cors({
   origin: [
-    'http://localhost:3000',
-    'https://blackenginecrm.netlify.app',  // Replace with your Netlify domain
-    'https://set-crm-main-for-netli.onrender.com'
+    'http://localhost:3000', // Local development
+    'https://blackenginecrm.netlify.app', // Netlify domain
+    'https://set-crm-main-for-netli.onrender.com' // Render domain
   ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  credentials: true, // Allow cookies and authorization headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed HTTP methods
+  allowedHeaders: ['Content-Type', 'Authorization'] // Allowed headers
 }));
 
 // Middleware
-app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -56,4 +55,4 @@ initWebSocket(server);
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
-}); 
+});
