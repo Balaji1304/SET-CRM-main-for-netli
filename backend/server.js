@@ -13,7 +13,7 @@ app.use(cors({
   origin: [
     'http://localhost:3000', // Local development
     'https://blackenginecrm.netlify.app', // Netlify domain
-    'https://set-crm-main-for-netli.onrender.com' // Render domain
+    //'https://set-crm-main-for-netli.onrender.com'  Render domain
   ],
   credentials: true, // Allow cookies and authorization headers
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed HTTP methods
