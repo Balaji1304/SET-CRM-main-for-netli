@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Invoice - {{invoiceNumber}}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #FF7300;
+    }
+    .header h1 {
+      color: #FF7300;
+      margin: 0;
+      font-size: 28px;
+    }
+    .invoice-details {
+      margin-bottom: 30px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .business-details, .customer-details {
+      flex: 1;
+      padding: 15px;
+    }
+    .section-title {
+      color: #FF7300;
+      font-size: 18px;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+    }
+    .table th {
+      background-color: #FF7300;
+      color: white;
+      padding: 12px;
+      text-align: left;
+    }
+    .table td {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+    }
+    .table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    .totals {
+      float: right;
+      width: 300px;
+    }
+    .totals table {
+      width: 100%;
+    }
+    .totals td {
+      padding: 8px;
+    }
+    .totals .total-row {
+      font-weight: bold;
+      font-size: 1.2em;
+      border-top: 2px solid #FF7300;
+    }
+    .footer {
+      margin-top: 50px;
+      text-align: center;
+      color: #666;
+      border-top: 1px solid #ddd;
+      padding-top: 20px;
+    }
+    .payment-info {
+      margin-top: 30px;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>INVOICE</h1>
+      <p>Invoice #: {{invoiceNumber}}</p>
+      <p>Date: {{formatDate createdDate}}</p>
+    </div>
+
+    <div class="invoice-details">
+      <div class="business-details">
+        <div class="section-title">From</div>
+        <p>
+          <strong>{{businessDetails.name}}</strong><br>
+          {{businessDetails.address}}<br>
+          Phone: {{businessDetails.phone}}<br>
+          Email: {{businessDetails.email}}
+        </p>
+      </div>
+
+      <div class="customer-details">
+        <div class="section-title">Bill To</div>
+        <p>
+          <strong>{{customerDetails.name}}</strong><br>
+          {{customerDetails.address}}<br>
+          Email: {{customerDetails.email}}
+        </p>
+      </div>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Item Description</th>
+          <th>Quantity</th>
+          <th>Unit Price</th>
+          <th>Discount</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each items}}
+        <tr>
+          <td>{{name}}</td>
+          <td>{{quantity}}</td>
+          <td>₹{{formatNumber unitPrice}}</td>
+          <td>{{discount}}%</td>
+          <td>₹{{formatNumber total}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <table>
+        <tr>
+          <td>Subtotal:</td>
+          <td align="right">₹{{formatNumber subtotal}}</td>
+        </tr>
+        <tr>
+          <td>GST (18%):</td>
+          <td align="right">₹{{formatNumber tax}}</td>
+        </tr>
+        <tr class="total-row">
+          <td>Total:</td>
+          <td align="right">₹{{formatNumber total}}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="clear: both;"></div>
+
+    <div class="payment-info">
+      <div class="section-title">Payment Information</div>
+      <p>Due Date: {{formatDate dueDate}}</p>
+      <p><strong>Bank Details:</strong></p>
+      <p>
+        Bank Name: [Your Bank Name]<br>
+        Account Name: [Your Account Name]<br>
+        Account Number: [Your Account Number]<br>
+        IFSC Code: [Your IFSC Code]<br>
+        Branch: [Your Branch Name]
+      </p>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for your business!</p>
+      <p>
+        <small>This is a computer-generated invoice and does not require a signature.</small>
+      </p>
+    </div>
+  </div>
+</body>
+</html> 

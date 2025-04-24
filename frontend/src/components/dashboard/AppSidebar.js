@@ -16,105 +16,159 @@ import {
   Home,
   BookOpen,
   BarChart2,
-  UserPlus
+  UserPlus,
+  CreditCard,
+  Package,
+  ShoppingBag,
+  Bell as BellIcon
 } from 'lucide-react';
 
-const navigation = [
-  {
-    title: 'Main',
-    items: [
-      { name: 'Dashboard', href: '/dashboard', icon: Home },
+const getNavigation = (userRole) => {
+  // Common items for all roles
+  const commonItems = [
+    { name: 'Dashboard', href: '/dashboard', icon: Home }
+  ];
+  
+  // Bottom items common for all roles
+  const bottomItems = [
+    { name: 'Knowledge Base', href: '/dashboard/knowledge-base', icon: BookOpen },
+    { name: 'Reports', href: '/dashboard/reports', icon: BarChart2 }
+  ];
+   
+  // Role-specific items
+  const roleSpecificItems = {
+    customer: [
+      { name: 'Payment & Billing', href: '/dashboard/payments', icon: CreditCard },
+      { name: 'Track Orders', href: '/dashboard/orders', icon: Package },
+      { name: 'My Products', href: '/dashboard/my-products', icon: ShoppingBag },
+      { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
+      { name: 'Tickets', href: '/dashboard/tickets', icon: Ticket },
+    ],
+    sales_person: [
       { name: 'Add Lead', href: '/dashboard/add-lead', icon: UserPlus },
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
+      { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
+    ],
+    inventory_manager: [
       { name: 'Products', href: '/dashboard/products', icon: Box },
     ],
-  },
-  {
-    title: 'Service Engineer',
-    items: [
-      { name: 'Tickets', href: '/dashboard/tickets', icon: Ticket },
+    product_head: [
       { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar },
-      { name: 'Service Customers', href: '/dashboard/service-customers', icon: Users },
-      { name: 'Performance', href: '/dashboard/performance', icon: BarChart2 },
       { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
-    ],
-  },
-  {
-    title: 'Resources',
-    items: [
-      { name: 'Knowledge Base', href: '/dashboard/knowledge', icon: BookOpen },
-      { name: 'Reports', href: '/dashboard/reports', icon: FileText },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
-  }
-];
+    service_engineer: [
+      { name: 'Service Customers', href: '/dashboard/service-customers', icon: Users },
+      { name: 'Performance', href: '/dashboard/performance', icon: BarChart },
+    ],
+  };
 
-const AppSidebar = () => {
+  // For customer role, don't include Reports in bottom items
+  if (userRole === 'customer') {
+    bottomItems.pop();
+  }
+
+  return [
+    {
+      title: '',
+      items: [...commonItems, ...(roleSpecificItems[userRole] || []), ...bottomItems]
+    }
+  ];
+};
+
+const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = false, onToggle = () => {} }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isLeadsSection = (pathname) => {
-    return pathname.startsWith('/dashboard/leads') || pathname.startsWith('/dashboard/edit-lead');
-  };
+  const navigation = getNavigation(user?.role);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleItemClick = (item) => {
+    // If clicking the same active item, only toggle sidebar
+    if (location.pathname === item.href) {
+      onToggle();
+      return;
+    }
+    
+    // If clicking a different item while collapsed, expand first
+    if (isCollapsed) {
+      onToggle();
+    }
+    
+    // Navigate to the new route
+    onItemClick();
+    navigate(item.href);
   };
 
   return (
-    <div className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200">
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">Solar CRM</h2>
-          <p className="text-sm text-gray-500">{user?.role || 'User'}</p>
+    <div className={`
+      ${isMobile ? 'p-4' : `fixed top-0 left-0 h-screen ${isCollapsed ? 'w-16' : 'w-64'} border-r`}
+      transition-all duration-300 ease-in-out
+      bg-white flex flex-col overflow-hidden
+    `}>
+      {!isMobile && (
+        <div className="border-b p-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+              <span className="text-lg font-semibold">{user?.name?.[0] || 'U'}</span>
+            </div>
+            <div className={`flex flex-col transition-opacity duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
+              <span className="font-medium">{user?.name || 'User'}</span>
+              <span className="text-xs text-muted-foreground">{user?.role || 'Role'}</span>
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <nav className="flex-1 px-3 py-4">
           {navigation.map((section) => (
-            <div key={section.title} className="mb-6">
-              <h3 className="px-3 text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">
-                {section.title}
-              </h3>
-              <ul className="space-y-1">
-                {section.items.map((item) => {
-                  const isActive = location.pathname === item.href;
-                  return (
-                    <li key={item.name}>
-                      <Link
-                        to={item.href}
-                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                          isActive
-                            ? 'bg-orange-50 text-[#FF7300]'
-                            : 'text-gray-700 hover:bg-orange-50 hover:text-[#FF7300]'
-                        }`}
-                      >
-                        <item.icon className={`mr-3 h-5 w-5 ${
-                          isActive ? 'text-[#FF7300]' : 'text-gray-400'
-                        }`} />
-                        {item.name}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
+            <div key={section.title} className="mb-8">
+              <div className="space-y-2">
+                {section.items.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    onClick={(e) => {
+                      e.preventDefault(); // Prevent default Link behavior
+                      handleItemClick(item);
+                    }}
+                    className={`
+                      flex items-center rounded-md text-sm font-medium
+                      h-10 px-3
+                      ${location.pathname === item.href
+                        ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                        : 'text-gray-700 hover:bg-orange-50'}
+                    `}
+                    title={isCollapsed ? item.name : ''}
+                  >
+                    <item.icon className="h-5 w-5 shrink-0" />
+                    <span className={`ml-3 truncate transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+                      {item.name}
+                    </span>
+                  </Link>
+                ))}
+              </div>
             </div>
           ))}
         </nav>
+      </div>
 
-        {/* Logout Button */}
-        <div className="p-4 border-t border-gray-200">
-          <button
-            onClick={handleLogout}
-            className="flex items-center w-full px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-orange-50 hover:text-[#FF7300]"
-          >
-            <LogOut className="mr-3 h-5 w-5 text-gray-400" />
+      <div className="border-t px-3 py-4 mt-auto">
+        <button
+          onClick={logout}
+          className={`
+            flex items-center rounded-md text-sm font-medium
+            h-10 px-3
+            text-gray-700 hover:bg-orange-50
+          `}
+          title={isCollapsed ? 'Logout' : ''}
+        >
+          <LogOut className="h-5 w-5 shrink-0" />
+          <span className={`ml-3 truncate transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
             Logout
-          </button>
-        </div>
+          </span>
+        </button>
       </div>
     </div>
   );

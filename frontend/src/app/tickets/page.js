@@ -23,84 +23,94 @@ const TicketsPage = () => {
   ]);
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Tickets</h2>
-      </div>
-
-      <div className="flex items-center space-x-2 mb-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search tickets..."
-            className="pl-8 pr-4 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-          />
+    <div className="flex flex-col h-[calc(100vh-2rem)] relative">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Tickets Management</h2>
+          <p className="text-muted-foreground mt-1">View and manage service tickets</p>
         </div>
-        <button className="p-2 border border-gray-300 rounded-md hover:bg-orange-50">
-          <Filter className="h-4 w-4 text-gray-500" />
+        <button className="px-4 py-2 bg-[#FF7300] text-white rounded-lg hover:bg-orange-600">
+          Create Ticket
         </button>
       </div>
 
-      <div className="rounded-md border">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ticket ID
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Customer
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Issue
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Priority
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Date
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {tickets.map((ticket) => (
-              <tr key={ticket.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {ticket.id}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ticket.customer}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ticket.issue}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${ticket.status === 'Open' ? 'bg-red-100 text-red-800' : 
-                    ticket.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' : 
-                    'bg-green-100 text-green-800'}`}>
-                    {ticket.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${ticket.priority === 'High' ? 'bg-red-100 text-red-800' : 
-                    ticket.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
-                    'bg-green-100 text-green-800'}`}>
-                    {ticket.priority}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {ticket.date}
-                </td>
+      <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
+        <div className="p-4 border-b border-input sticky top-0 bg-white z-20">
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search tickets..."
+                className="pl-10 pr-4 py-2 border border-input rounded-lg w-full sm:w-[300px] focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+            </div>
+            <button className="p-2 border border-input rounded-lg hover:bg-orange-50">
+              <Filter className="h-4 w-4 text-gray-500" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto">
+          <table className="min-w-full">
+            <thead className="bg-orange-500 border-b border-input sticky top-0 z-10">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm font-medium text-white">
+                  Ticket ID
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-white">
+                  Customer
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-white">
+                  Issue
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-white">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-white">
+                  Priority
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-white">
+                  Date
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-input">
+              {tickets.map((ticket) => (
+                <tr key={ticket.id} className="hover:bg-orange-50/50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {ticket.id}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {ticket.customer}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {ticket.issue}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      ${ticket.status === 'Open' ? 'bg-orange-100 text-orange-800' : 
+                      ticket.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 
+                      'bg-green-100 text-green-800'}`}>
+                      {ticket.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      ${ticket.priority === 'High' ? 'bg-orange-100 text-orange-800' : 
+                      ticket.priority === 'Medium' ? 'bg-blue-100 text-blue-800' : 
+                      'bg-green-100 text-green-800'}`}>
+                      {ticket.priority}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {ticket.date}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

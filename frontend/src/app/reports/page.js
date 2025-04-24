@@ -17,7 +17,7 @@ export default function ReportsPage() {
   const [category, setCategory] = useState("all")
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       <h1 className="text-3xl font-bold tracking-tight text-[#FF7300]">Reports and Analytics</h1>
 
       <div className="flex flex-col sm:flex-row gap-4">

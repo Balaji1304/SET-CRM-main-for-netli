@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronDown, Plus, FileText, Edit, Trash2, Upload, Eye } from 'lucide-react'; // Import Lucide icons
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function ProductListPage() {
   const [products, setProducts] = useState([]);
@@ -11,6 +12,8 @@ export default function ProductListPage() {
   const [error, setError] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadingFor, setUploadingFor] = useState(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
   const navigate = useNavigate();
 
   // Fetch products when component mounts
@@ -22,7 +25,7 @@ export default function ProductListPage() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/products');
+      const response = await fetch('http://localhost:5000/api/products');
       if (!response.ok) {
         throw new Error('Failed to fetch products');
       }
@@ -37,22 +40,29 @@ export default function ProductListPage() {
   };
 
   // Function to handle product deletion
-  const handleDeleteProduct = async (productId) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
+  const handleDeleteClick = (product) => {
+    setProductToDelete(product);
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (productToDelete) {
       try {
-        const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/products/${productId}`, {
+        const response = await fetch(`http://localhost:5000/api/products/${productToDelete._id}`, {
           method: 'DELETE',
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to delete product');
         }
 
-        // Refresh the products list after deletion
-        await fetchProducts();
-      } catch (err) {
-        console.error('Error deleting product:', err);
-        alert('Failed to delete product');
+        // Remove product from state
+        setProducts(products.filter(p => p._id !== productToDelete._id));
+        setShowDeleteDialog(false);
+        setProductToDelete(null);
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        alert(error.message);
       }
     }
   };
@@ -77,7 +87,7 @@ export default function ProductListPage() {
     formData.append('brochure', selectedFile);
 
     try {
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/products/${productId}/brochure`, {
+      const response = await fetch(`http://localhost:5000/api/products/${productId}/brochure`, {
         method: 'POST',
         body: formData
       });
@@ -107,9 +117,8 @@ export default function ProductListPage() {
   if (error) return <div className="p-6 text-red-500">Error: {error}</div>;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] relative">
-      {/* Header Section */}
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-7xl mx-auto">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Products Management</h2>
           <p className="text-muted-foreground mt-1">View and manage all your products in one place</p>
@@ -236,7 +245,7 @@ export default function ProductListPage() {
                         <Edit className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => handleDeleteProduct(product._id)}
+                        onClick={() => handleDeleteClick(product)}
                         className="text-red-600 hover:text-red-800 flex items-center gap-1"
                         title="Delete Product"
                       >
@@ -250,6 +259,17 @@ export default function ProductListPage() {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setProductToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Product"
+        message={`Are you sure you want to delete ${productToDelete?.name}? This action cannot be undone.`}
+      />
     </div>
   );
 }

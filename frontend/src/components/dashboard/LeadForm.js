@@ -32,34 +32,6 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) => {
   );
 };
 
-// Product categories and their respective products
-const productOptions = {
-  'solar_panels': [
-    'Mono PERC 540W',
-    'Poly PERC 400W',
-    'Bifacial 600W',
-    'Half-Cut 450W'
-  ],
-  'inverters': [
-    'String Inverter 50kW',
-    'Micro Inverter 2kW',
-    'Hybrid Inverter 10kW',
-    'Central Inverter 100kW'
-  ],
-  'batteries': [
-    'Lithium Ion 10kWh',
-    'Lead Acid 5kWh',
-    'Flow Battery 20kWh',
-    'Salt Water 15kWh'
-  ],
-  'mounting_systems': [
-    'Roof Mount Kit',
-    'Ground Mount System',
-    'Tracking System',
-    'Ballasted Racking'
-  ]
-};
-
 // Constants for form options
 const FORM_OPTIONS = {
   leadTypes: [
@@ -127,7 +99,8 @@ export default function LeadForm() {
         category: '',
         name: '',
         quantity: '',
-        price: ''
+        price: '',
+        productId: ''
       }
     ],
     productRequirements: '',
@@ -156,6 +129,52 @@ export default function LeadForm() {
   const productInfoRef = useRef(null);
   const additionalInfoRef = useRef(null);
 
+  // Add new state for products data
+  const [productsData, setProductsData] = useState({});
+  const [productCategories, setProductCategories] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [productError, setProductError] = useState(null);
+
+  // Fetch products when component mounts
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setIsLoadingProducts(true);
+      try {
+        const response = await fetch('http://localhost:5000/api/products');
+        if (!response.ok) {
+          throw new Error('Failed to fetch products');
+        }
+        const data = await response.json();
+        
+        // Organize products by category
+        const productsByCategory = {};
+        const categories = new Set();
+        
+        data.forEach(product => {
+          categories.add(product.category);
+          if (!productsByCategory[product.category]) {
+            productsByCategory[product.category] = [];
+          }
+          productsByCategory[product.category].push({
+            _id: product._id,
+            name: product.name,
+            price: product.price
+          });
+        });
+
+        setProductsData(productsByCategory);
+        setProductCategories(Array.from(categories));
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        setProductError('Failed to load products');
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
   // Reset form to initial state
   const resetForm = () => {
     setFormData(defaultFormState);
@@ -182,7 +201,8 @@ export default function LeadForm() {
                 category: '',
                 name: '',
                 quantity: '',
-                price: ''
+                price: '',
+                productId: ''
               }
             ]
           };
@@ -212,7 +232,8 @@ export default function LeadForm() {
             category: '',
             name: '',
             quantity: '',
-            price: ''
+            price: '',
+            productId: ''
           }
         ]
       };
@@ -379,8 +400,9 @@ export default function LeadForm() {
         customerType: formData.customerType.toLowerCase(),
         interestStage: formData.interestStage.toLowerCase(),
         products: formData.products
-          .filter(product => product.category && product.name && product.quantity && product.price)
+          .filter(product => product.category && product.name && product.quantity && product.price && product.productId)
           .map(product => ({
+            productId: product.productId,
             category: product.category.toLowerCase(),
             name: product.name,
             quantity: parseInt(product.quantity),
@@ -405,49 +427,57 @@ export default function LeadForm() {
     }
   };
 
+  // Update handleProductChange to include productId
   const handleProductChange = (index, field, value) => {
-    const updatedProducts = formData.products.map((product, i) => {
-      if (i === index) {
-        const updatedProduct = { ...product, [field]: value };
-        // Reset product name when category changes
-        if (field === 'category') {
-          updatedProduct.name = '';
-        }
-        return updatedProduct;
+    const updatedProducts = [...formData.products];
+    updatedProducts[index] = {
+      ...updatedProducts[index],
+      [field]: value
+    };
+    
+    // Clear product name and price when category changes
+    if (field === 'category') {
+      updatedProducts[index].name = '';
+      updatedProducts[index].price = '';
+      updatedProducts[index].productId = '';
+    }
+    
+    // Auto-fill price and productId when product is selected
+    if (field === 'name' && value) {
+      const category = updatedProducts[index].category;
+      const selectedProduct = productsData[category]?.find(p => p.name === value);
+      if (selectedProduct) {
+        updatedProducts[index].price = selectedProduct.price;
+        updatedProducts[index].productId = selectedProduct._id;
       }
-      return product;
-    });
-    setFormData(prev => ({ ...prev, products: updatedProducts }));
+    }
+    
+    setFormData(prevState => ({
+      ...prevState,
+      products: updatedProducts
+    }));
   };
 
+  // Update addProductRow
   const addProductRow = () => {
-    setFormData(prev => ({
-      ...prev,
+    setFormData(prevState => ({
+      ...prevState,
       products: [
-        ...prev.products,
-        {
-          id: Date.now(),
-          category: '',
-          name: '',
-          quantity: '',
-          price: ''
-        }
+        ...prevState.products,
+        { category: '', name: '', quantity: '', price: '', productId: '' }
       ]
     }));
   };
 
   const removeProductRow = (index) => {
-    if (formData.products.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        products: prev.products.filter((_, i) => i !== index)
-      }));
-    }
+    setFormData(prevState => ({
+      ...prevState,
+      products: prevState.products.filter((_, i) => i !== index)
+    }));
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] overflow-auto">
-      {/* Header Section - Matches Dashboard style */}
+    <div className="max-w-7xl mx-auto flex flex-col min-h-screen">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           {id && (
@@ -465,8 +495,7 @@ export default function LeadForm() {
         </div>
       </div>
 
-      {/* Form Container */}
-      <div className="max-w-4xl bg-white rounded-xl shadow-sm p-8 mb-8">
+      <div className="bg-white rounded-xl shadow-sm p-8 mb-8 max-w-5xl mx-auto w-full">
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
             {error}
@@ -679,138 +708,157 @@ export default function LeadForm() {
           </div>
 
           {/* Product Information */}
-          <div className="space-y-4" ref={productInfoRef}>
-            <div className="space-y-2">
-              <h2 className="text-lg font-medium text-foreground">Product Information</h2>
-              {sectionErrors.productInfo && (
-                <p className="text-sm text-red-500 mt-1">{sectionErrors.productInfo}</p>
-              )}
-            </div>
-            <div className="space-y-4">
-              {formData.products.map((product, index) => (
-                <div key={product.id} className="flex gap-4 items-end">
-                  <div className="grid grid-cols-4 gap-4 flex-1">
-                    <div className="relative">
-                      <label className="block text-sm font-medium text-foreground mb-1">
-                        Category <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        name="category"
-                        value={product.category}
-                        onChange={(e) => handleProductChange(index, 'category', e.target.value)}
-                        className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                      >
-                        <option value="">Select Category</option>
-                        {FORM_OPTIONS.productCategories.map(({ value, label }) => (
-                          <option key={value} value={value}>{label}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-[60%] transform -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
-                    </div>
-
-                    <div className="relative">
-                      <label className="block text-sm font-medium text-foreground mb-1">
-                        Product <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        name="name"
-                        value={product.name}
-                        onChange={(e) => handleProductChange(index, 'name', e.target.value)}
-                        className="w-full pl-4 pr-10 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                        disabled={!product.category}
-                      >
-                        <option value="">Select Product</option>
-                        {product.category && productOptions[product.category]?.map(name => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-[60%] transform -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">
-                        Quantity <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        value={product.quantity}
-                        onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
-                        className="w-full pl-4 pr-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        min="1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-foreground mb-1">
-                        Price <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        name="price"
-                        value={product.price}
-                        onChange={(e) => handleProductChange(index, 'price', e.target.value)}
-                        className="w-full pl-4 pr-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        min="0"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 pb-2 ml-4">
-                    {index === formData.products.length - 1 && (
-                      <button
-                        type="button"
-                        onClick={addProductRow}
-                        className="h-[38px] px-3 border border-orange-500 rounded-lg hover:bg-orange-50 transition-colors flex items-center justify-center"
-                        title="Add Product"
-                      >
-                        <Plus className="w-4 h-4 text-orange-500" />
-                      </button>
-                    )}
-                    {formData.products.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeProductRow(index)}
-                        className="h-[38px] px-3 border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-200 transition-colors flex items-center justify-center"
-                        title="Remove Product"
-                      >
-                        <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
-                      </button>
-                    )}
+          <div className="space-y-4 mb-6">
+            <h3 className="text-lg font-semibold">Product Information</h3>
+            
+            {productError && (
+              <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
+                {productError}
+              </div>
+            )}
+            
+            {formData.products.map((product, index) => (
+              <div 
+                key={index} 
+                className="flex flex-col md:flex-row gap-4 mb-4 p-4 border rounded-lg bg-white"
+              >
+                {/* Product Category */}
+                <div className="w-full md:flex-1 mb-4 md:mb-0">
+                  <label className="block text-sm font-medium mb-1">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      name="category"
+                      value={product.category}
+                      onChange={(e) => handleProductChange(index, 'category', e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 appearance-none"
+                      required
+                      disabled={isLoadingProducts}
+                    >
+                      <option value="">Select Category</option>
+                      {productCategories.map(category => (
+                        <option key={category} value={category}>
+                          {category.replace('_', ' ').split(' ').map(word => 
+                            word.charAt(0).toUpperCase() + word.slice(1)
+                          ).join(' ')}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none" />
                   </div>
                 </div>
-              ))}
 
-              {/* Total Budget Display */}
-              <div className="flex justify-end border-t border-input pt-4 mt-6">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">Total Budget:</span>
-                  <span className="text-lg font-semibold text-orange-600">
-                    ${formData.products.reduce((total, product) => {
-                      if (product.quantity && product.price) {
-                        return total + (parseFloat(product.quantity) * parseFloat(product.price));
-                      }
-                      return total;
-                    }, 0).toLocaleString()}
-                  </span>
+                {/* Product Name */}
+                <div className="w-full md:flex-1 mb-4 md:mb-0">
+                  <label className="block text-sm font-medium mb-1">
+                    Product <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      name="name"
+                      value={product.name}
+                      onChange={(e) => handleProductChange(index, 'name', e.target.value)}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 appearance-none"
+                      disabled={!product.category || isLoadingProducts}
+                      required
+                    >
+                      <option value="">Select Product</option>
+                      {product.category && productsData[product.category]?.map(prod => (
+                        <option key={prod.name} value={prod.name}>{prod.name}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none" />
+                  </div>
                 </div>
-              </div>
 
-              {/* Product Requirements */}
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Product Requirements
-                </label>
-                <textarea
-                  name="productRequirements"
-                  value={formData.productRequirements}
-                  onChange={handleChange}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical"
-                  placeholder="Enter any specific requirements or notes about the products..."
-                />
+                {/* Quantity */}
+                <div className="w-full md:w-32 mb-4 md:mb-0">
+                  <label className="block text-sm font-medium mb-1">
+                    Quantity <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="quantity"
+                    value={product.quantity}
+                    onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                    min="1"
+                  />
+                </div>
+
+                {/* Price */}
+                <div className="w-full md:w-40 mb-4 md:mb-0">
+                  <label className="block text-sm font-medium mb-1">
+                    Price <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="price"
+                    value={product.price}
+                    onChange={(e) => handleProductChange(index, 'price', e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
+                    required
+                    min="0"
+                    step="0.01"
+                    readOnly={product.name !== ''}
+                  />
+                </div>
+
+                {/* Remove Product Button */}
+                {formData.products.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeProductRow(index)}
+                    className="w-full md:w-auto p-3 md:mt-6 text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                    <span className="md:hidden">Remove Product</span>
+                  </button>
+                )}
               </div>
+            ))}
+
+            {/* Add Product Button */}
+            <button
+              type="button"
+              onClick={addProductRow}
+              className="w-full p-4 text-orange-500 hover:bg-orange-50 rounded-lg border-2 border-dashed border-orange-200 flex items-center justify-center gap-2"
+            >
+              <Plus className="h-5 w-5" />
+              Add Another Product
+            </button>
+          </div>
+
+          {/* Total Budget Display */}
+          <div className="flex justify-end border-t border-input pt-4 mt-6">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-foreground">Total Budget:</span>
+              <span className="text-lg font-semibold text-orange-600">
+                ${formData.products.reduce((total, product) => {
+                  if (product.quantity && product.price) {
+                    return total + (parseFloat(product.quantity) * parseFloat(product.price));
+                  }
+                  return total;
+                }, 0).toLocaleString()}
+              </span>
             </div>
+          </div>
+
+          {/* Product Requirements */}
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Product Requirements
+            </label>
+            <textarea
+              name="productRequirements"
+              value={formData.productRequirements}
+              onChange={handleChange}
+              rows={4}
+              className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical"
+              placeholder="Enter any specific requirements or notes about the products..."
+            />
           </div>
 
           {/* Additional Information */}
@@ -915,7 +963,8 @@ export default function LeadForm() {
                     category: '',
                     name: '',
                     quantity: '',
-                    price: ''
+                    price: '',
+                    productId: ''
                   }
                 ],
                 productRequirements: '',

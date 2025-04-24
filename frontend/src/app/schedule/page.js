@@ -22,14 +22,20 @@ const SchedulePage = () => {
   ];
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Schedule</h2>
+    <div className="flex flex-col h-[calc(100vh-2rem)] relative">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Service Schedule</h2>
+          <p className="text-muted-foreground mt-1">Manage service appointments and tasks</p>
+        </div>
+        <button className="px-4 py-2 bg-[#FF7300] text-white rounded-lg hover:bg-orange-600">
+          Add Appointment
+        </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="bg-white rounded-lg shadow-sm flex-1 grid gap-4 md:grid-cols-2 lg:grid-cols-3 p-4">
         {/* Calendar Section */}
-        <div className="col-span-2 rounded-lg border bg-white p-4">
+        <div className="col-span-2 rounded-lg border border-input p-4">
           <h3 className="text-lg font-semibold mb-2">Calendar</h3>
           <div className="h-[400px] flex items-center justify-center text-gray-500">
             Calendar component will be integrated here

@@ -30,7 +30,12 @@ exports.createLead = async (req, res) => {
 // @access  Private
 exports.getLeads = async (req, res) => {
   try {
-    const leads = await Lead.find({ createdBy: req.user.id });
+    const leads = await Lead.find({ createdBy: req.user.id })
+      .populate({
+        path: 'products.productId',
+        select: 'name category price specifications _id'
+      });
+
     res.json({
       success: true,
       data: leads.map(lead => ({
@@ -55,6 +60,9 @@ exports.getLead = async (req, res) => {
     const lead = await Lead.findOne({
       _id: req.params.id,
       createdBy: req.user.id
+    }).populate({
+      path: 'products.productId',
+      select: 'name category price specifications'
     });
 
     if (!lead) {

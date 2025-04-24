@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import LeadForm from './components/dashboard/LeadForm';
+import DashboardLayout from './components/dashboard/DashboardLayout';
 
 import ProductListPage from './app/products/page';
 import AddProductPage from './app/products/add/page';
@@ -24,7 +25,14 @@ import SchedulePage from './app/schedule/page';
 import ServiceCustomersPage from './app/service-customers/page';
 import PerformancePage from './app/performance/page';
 import MaintenancePage from './app/maintenance/page';
-
+import KnowledgeBasePage from './app/knowledge-base/page';
+import QuotationsPage from './app/quotations/page';
+import CreateQuotationPage from './app/quotations/create/page';
+import QuotationDetailsPage from './app/quotations/[id]/page';
+import EditQuotationPage from './app/quotations/[id]/edit/page';
+import PaymentsPage from './app/payments/page';
+import OrdersPage from './app/orders/page';
+import MyProductsPage from './app/my-products/page';
 
 function App() {
   return (
@@ -33,36 +41,117 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Login />} />
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'sales_representative', 'inventory_manager', 'product_head', 'service_engineer']}>
-                <Dashboard />
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'inventory_manager', 'product_head', 'service_engineer']}>
+                <DashboardLayout />
               </ProtectedRoute>
             }
           >
+            <Route index element={<Dashboard />} />
+            
+            {/* Customer routes */}
+            <Route path="payments" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <PaymentsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="orders" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <OrdersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="my-products" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <MyProductsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="notifications" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <NotificationsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="tickets" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <TicketsPage />
+              </ProtectedRoute>
+            } />
 
-            <Route path="leads" element={<Leads />} />
-            <Route path="add-lead" element={<LeadForm />} />
-            <Route path="edit-lead/:id" element={<LeadForm />} />
-
-            <Route path="products" element={<ProductListPage />} />
-            <Route path="products/add" element={<AddProductPage />} />
-            <Route path="products/:id/edit" element={<EditProductPage />} />
-            <Route path="products/:id/brochure" element={<ProductBrochurePage />} />
-            <Route path="products/:id" element={<ProductDetailsPage />} />
-
-            <Route path='add-lead' element={<LeadForm />} />
-            <Route path="leads" element={<Leads />} />
-            <Route path="edit-lead/:id" element={<LeadForm />} />
-            <Route path="/dashboard/notifications" element={<NotificationsPage />} />
+            {/* Other routes... */}
             <Route path="reports" element={<ReportsPage />} />
-            <Route path="tickets" element={<TicketsPage />} />
-            <Route path="schedule" element={<SchedulePage />} />
-            <Route path="service-customers" element={<ServiceCustomersPage />} />
-            <Route path="performance" element={<PerformancePage />} />
-            <Route path="maintenance" element={<MaintenancePage />} />
-
+            <Route path="knowledge-base" element={<KnowledgeBasePage />} />
+            <Route path="add-lead" element={
+              <ProtectedRoute allowedRoles={['sales_person']}>
+                <LeadForm />
+              </ProtectedRoute>
+            } />
+            <Route path="leads" element={
+              <ProtectedRoute allowedRoles={['sales_person']}>
+                <Leads />
+              </ProtectedRoute>
+            } />
+            <Route path="edit-lead/:id" element={
+              <ProtectedRoute allowedRoles={['sales_person']}>
+                <LeadForm />
+              </ProtectedRoute>
+            } />
+            <Route path="products" element={
+              <ProtectedRoute allowedRoles={['inventory_manager']}>
+                <ProductListPage />
+              </ProtectedRoute>
+            } />
+            <Route path="products/add" element={
+              <ProtectedRoute allowedRoles={['inventory_manager']}>
+                <AddProductPage />
+              </ProtectedRoute>
+            } />
+            <Route path="products/:id/edit" element={
+              <ProtectedRoute allowedRoles={['inventory_manager']}>
+                <EditProductPage />
+              </ProtectedRoute>
+            } />
+            <Route path="schedule" element={
+              <ProtectedRoute allowedRoles={['product_head']}>
+                <SchedulePage />
+              </ProtectedRoute>
+            } />
+            <Route path="maintenance" element={
+              <ProtectedRoute allowedRoles={['product_head']}>
+                <MaintenancePage />
+              </ProtectedRoute>
+            } />
+            <Route path="service-customers" element={
+              <ProtectedRoute allowedRoles={['service_engineer']}>
+                <ServiceCustomersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="performance" element={
+              <ProtectedRoute allowedRoles={['service_engineer']}>
+                <PerformancePage />
+              </ProtectedRoute>
+            } />
+            <Route path="quotations" element={
+              <ProtectedRoute allowedRoles={['sales_person']}>
+                <QuotationsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="quotations/create" element={
+              <ProtectedRoute allowedRoles={['sales_person']}>
+                <CreateQuotationPage />
+              </ProtectedRoute>
+            } />
+            <Route path="quotations/:id" element={
+              <ProtectedRoute allowedRoles={['sales_person']}>
+                <QuotationDetailsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="quotations/:id/edit" element={
+              <ProtectedRoute allowedRoles={['sales_person']}>
+                <EditQuotationPage />
+              </ProtectedRoute>
+            } />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>

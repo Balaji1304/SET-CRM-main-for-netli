@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 100%;
+            max-width: 100%;
+            font-family: Arial, sans-serif;
+            line-height: 1.8;
+            padding: 0;
+            margin: 0;
+            font-size: 16px;
+        }
+        .container {
+            width: 100%;
+            padding: 20px 25px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .back-button {
+            color: #666;
+            text-decoration: none;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            background-color: #f3f4f6;
+        }
+        .status-draft { background-color: #f3f4f6; color: #1f2937; }
+        .status-sent { background-color: #dbeafe; color: #1e40af; }
+        .status-approved { background-color: #d1fae5; color: #065f46; }
+        
+        .quotation-info {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .lead-info {
+            margin: 25px 0;
+            font-size: 16px;
+            line-height: 1.6;
+            width: 100%;
+        }
+        .lead-info-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .lead-info-table td {
+            padding: 4px 0;
+            vertical-align: top;
+        }
+        .lead-info-table td:first-child {
+            width: 40px; /* Width for "To" label */
+        }
+        .info-group label {
+            display: block;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+            font-size: 17px;
+            border: 2px solid #000;
+            table-layout: fixed;
+        }
+        .items-table th:nth-child(1) { width: 35%; }
+        .items-table th:nth-child(2) { width: 15%; }
+        .items-table th:nth-child(3) { width: 20%; }
+        .items-table th:nth-child(4) { width: 15%; }
+        .items-table th:nth-child(5) { width: 15%; }
+        .items-table th {
+            font-size: 18px;
+            background-color: #f3f3f3;
+            font-weight: bold;
+            border: 1px solid #000;
+        }
+        .items-table th,
+        .items-table td {
+            padding: 15px;
+            border: 1px solid #000;
+            text-align: left;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .items-table tr.total-row {
+            background-color: #f3f3f3;
+            font-weight: bold;
+        }
+        .items-table td.amount-cell {
+            text-align: right;
+        }
+        .totals {
+            margin: 30px 0;
+            width: 350px;
+            margin-left: auto;
+            font-size: 17px;
+        }
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .totals-row.final {
+            font-weight: bold;
+            font-size: 18px;
+            border-top: 2px solid #e5e7eb;
+            border-bottom: none;
+        }
+        .terms-and-conditions {
+            margin: 40px 0;
+            page-break-inside: avoid;
+        }
+        .terms-and-conditions h3 {
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: right;
+            page-break-inside: avoid;
+            font-size: 17px;
+            line-height: 1.8;
+        }
+        .company-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #FF7300;
+            padding-bottom: 10px;
+        }
+        .company-logo {
+            width: 180px;
+        }
+        .iso-text {
+            color: #fff;
+            background: #FF7300;
+            padding: 5px 10px;
+            font-size: 18px;
+        }
+        .ref-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .product-description {
+            margin: 30px 0;
+            padding: 20px 25px;
+            background: #ffffff;
+            border-radius: 8px;
+            width: 100%;
+            border: 1px solid #e5e7eb;
+        }
+        .product-heading {
+            text-align: center;
+            color: #FF7300;
+            margin-bottom: 25px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            border-bottom: 2px solid #FF7300;
+            padding-bottom: 10px;
+        }
+        .gallery-container {
+            width: 100%;
+            text-align: center;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .gallery-table {
+            width: 100%;
+            border-spacing: 20px;
+            margin: 0 auto;
+            table-layout: fixed;
+        }
+        .gallery-table td {
+            text-align: center;
+            padding: 10px;
+            vertical-align: middle;
+            word-wrap: break-word;
+            width: 33.33%; /* Equal width for 3 columns */
+        }
+        .gallery-image {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+            max-height: 200px; /* Fixed height for consistency */
+        }
+        .specs-section {
+            margin-top: 15px;
+        }
+        .specs-content {
+            margin: 15px 0;
+            font-size: 17px;
+            line-height: 1.6;
+            color: #000;
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            -ms-word-break: break-all;
+            word-break: break-word;
+        }
+        .specifications-table {
+            margin-top: 20px;
+            margin-bottom: 30px;
+            width: 100%;
+        }
+        .specs-heading {
+            font-size: 15px;
+            font-weight: bold;
+            color: #FF7300;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #FF7300;
+            padding-bottom: 5px;
+        }
+        .specs-details {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 17px;
+            margin-top: 10px;
+            border: 1px solid #e5e7eb;
+        }
+        .specs-details tr {
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .specs-details tr:last-child {
+            border-bottom: none;
+        }
+        .spec-name {
+            padding: 8px 16px;
+            font-weight: 600;
+            color: #000000;
+            width: 40%;
+            text-transform: capitalize;
+            background-color: #f9fafb;
+            font-size: 17px;
+        }
+        .spec-value {
+            padding: 8px 16px;
+            color: #000000;
+            font-size: 17px;
+        }
+        .subject-line {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .salutation-line {
+            font-size: 16px;
+            margin: 20px 0;
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            -ms-word-break: break-all;
+            word-break: break-word;
+            line-height: 1.6;
+        }
+        /* Base responsive styles */
+        @media screen and (max-width: 768px) {
+            .container {
+                padding: 10px 15px;
+            }
+            
+            .company-header {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+            
+            /* Consistent font sizes for all text elements */
+            .lead-info,
+            .subject-line,
+            .salutation-line,
+            .specs-content,
+            .spec-name,
+            .spec-value,
+            .items-table th,
+            .items-table td,
+            .terms-and-conditions,
+            .footer,
+            .ref-section {
+                font-size: 15px;
+            }
+            
+            .product-description {
+                padding: 15px;
+            }
+            
+            .product-heading {
+                font-size: 18px;
+            }
+            
+            .specs-heading {
+                font-size: 16px;
+            }
+            
+            /* Consistent padding */
+            .spec-name, 
+            .spec-value,
+            .items-table th,
+            .items-table td {
+                padding: 8px 12px;
+            }
+            
+            /* Adjust ISO text size */
+            .iso-text {
+                font-size: 15px;
+            }
+            
+            .items-table {
+                font-size: 13px;
+            }
+            
+            .items-table th,
+            .items-table td {
+                padding: 6px 8px;
+            }
+            
+            .items-table th:nth-child(1) { width: 30%; }
+            .items-table th:nth-child(2) { width: 15%; }
+            .items-table th:nth-child(3) { width: 20%; }
+            .items-table th:nth-child(4) { width: 15%; }
+            .items-table th:nth-child(5) { width: 20%; }
+            
+            .amount-cell {
+                white-space: nowrap;
+                font-size: 12px;
+            }
+            
+            .gallery-table {
+                border-spacing: 10px;
+            }
+            
+            .gallery-table td {
+                padding: 5px;
+            }
+            
+            /* Adjust image sizes for mobile */
+            .gallery-image {
+                max-height: 150px;
+            }
+        }
+        
+        @media screen and (max-width: 480px) {
+            .gallery-image {
+                max-width: 150px !important;
+            }
+            
+            /* Stack images vertically on very small screens */
+            .gallery-table td {
+                display: block;
+                width: 100% !important;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="company-header">
+            <img src="" alt="Sunlit" class="company-logo">
+            <span class="iso-text">An ISO Certificate Company</span>
+        </div>
+
+        <div class="ref-section">
+            <div>
+                <p>Ref. No. – {{quotationNumber}}</p>
+                <p>{{createdDate}}</p>
+            </div>
+        </div>
+
+        <div class="lead-info">
+            <table class="lead-info-table">
+                <tr>
+                    <td>To</td>
+                    <td>{{lead.firstName}} {{lead.lastName}}</td>
+                </tr>
+                {{#if lead.businessName}}
+                <tr>
+                    <td></td>
+                    <td>{{lead.businessName}}</td>
+                </tr>
+                {{/if}}
+                <tr>
+                    <td></td>
+                    <td>{{lead.address}}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="subject-line">
+            <p><strong>Sub: Quotation for Solar Products – Reg.</strong></p>
+        </div>
+
+        <div class="salutation-line">
+            <p>Dear Sir/Madam,</p>
+            <p>Thank you very much for the keen interest shown by you in our Solar Products. We are pleased to enclose herewith the offer.</p>
+        </div>
+        
+
+        {{#each items}}
+        <div class="product-description">
+            <div class="product-heading">{{product.name}}</div>
+            {{#if product.images.length}}
+                <div class="gallery-container">
+                    <table class="gallery-table" cellpadding="0" cellspacing="0">
+                        {{#imageRows product.images}}
+                        <tr>
+                            {{#each images}}
+                            <td style="width: {{multiply 100 (divide 1 ../rowSize)}}%;">
+                                <img 
+                                    src="{{this.url}}"
+                                    alt="Product Image"
+                                    class="gallery-image"
+                                    style="max-width: 100%; height: auto; max-height: 200px;"
+                                />
+                            </td>
+                            {{/each}}
+                        </tr>
+                        {{/imageRows}}
+                    </table>
+                </div>
+            {{/if}}
+            <div class="specs-section">
+                <div class="specs-content">{{product.description}}</div>
+                <div class="specifications-table">
+                    <h4 class="specs-heading">Specifications</h4>
+                    <table class="specs-details">
+                        <tbody>
+                            {{#each product.specifications as |spec|}}
+                            <tr>
+                                <td class="spec-name">{{spec.name}}</td>
+                                <td class="spec-value">{{spec.value}}</td>
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {{/each}}
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Unit Rate</th>
+                    <th>Discount</th>
+                    <th style="text-align: right">Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each items}}
+                <tr>
+                    <td>{{product.name}}</td>
+                    <td>{{quantity}}</td>
+                    <td>Rs. {{unitPrice}}</td>
+                    <td>{{discount}}%</td>
+                    <td class="amount-cell">Rs. {{formatNumber total 2}}</td>
+                </tr>
+                {{/each}}
+                <tr>
+                    <td colspan="4" style="text-align: right"><strong>Subtotal</strong></td>
+                    <td class="amount-cell">Rs. {{formatNumber subtotal 2}}</td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="text-align: right"><strong>GST @18% (+)</strong></td>
+                    <td class="amount-cell">Rs. {{formatNumber tax 2}}</td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="4" style="text-align: right"><strong>TOTAL AMOUNT</strong></td>
+                    <td class="amount-cell">Rs. {{formatNumber total 2}}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="terms-and-conditions">
+            <h3>Terms and Conditions:</h3>
+            <div>{{terms}}</div>
+        </div>
+
+        <div class="footer">
+            <p>For Sunlit Solar</p>
+            <p>Authorized Signatory</p>
+        </div>
+    </div>
+</body>
+</html> 

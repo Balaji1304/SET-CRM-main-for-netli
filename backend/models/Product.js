@@ -12,37 +12,35 @@ const productSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
-  stockStatus: {
+  description: {
     type: String,
-    enum: ['In Stock', 'Low Stock', 'Out of Stock'],
-    default: 'In Stock'
+    required: [true, 'Please add a product description'],
+    trim: true,
+    maxLength: [10000, 'Description cannot be more than 10000 characters']
   },
   price: {
     type: Number,
     required: [true, 'Please add a price'],
     min: 0
   },
-  availability: {
+  category: {
     type: String,
-    enum: ['Available', 'Limited', 'Unavailable'],
-    default: 'Available'
+    required: [true, 'Please add a product category'],
+    trim: true
   },
   specifications: {
-    type: String,
-    trim: true
+    type: Object,
+    default: {
+      power: '',
+      efficiency: '',
+      warranty: '',
+      dimensions: ''
+    },
+    required: true
   },
-  warrantyPeriod: {
-    type: String,
-    trim: true
-  },
-  leadTime: {
-    type: String,
-    trim: true
-  },
-  brochureUrl: {
-    type: String,
-    trim: true
-  },
+  imageUrls: [{
+    type: String
+  }],
   createdAt: {
     type: Date,
     default: Date.now
@@ -50,7 +48,7 @@ const productSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
-  }
+  },
 });
 
 // Update the 'updatedAt' field before saving

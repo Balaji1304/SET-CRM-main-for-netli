@@ -17,20 +17,39 @@ exports.protect = async (req, res, next) => {
     }
 
     try {
-      // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Check token expiration
+      if (decoded.exp < Date.now() / 1000) {
+        return res.status(401).json({
+          success: false,
+          message: 'Token has expired'
+        });
+      }
+
       req.user = await User.findById(decoded.id);
+      
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+      
       next();
     } catch (err) {
+      console.error('Token verification error:', err);
+      console.error('Auth error:', err);
       return res.status(401).json({
         success: false,
-        message: 'Not authorized to access this route'
+        message: err.message || 'Authentication failed'
       });
     }
   } catch (error) {
-    res.status(500).json({
+    console.error('Protect middleware error:', error);
+    return res.status(401).json({
       success: false,
-      message: 'Server Error'
+      message: 'Not authorized to access this route'
     });
   }
 };
