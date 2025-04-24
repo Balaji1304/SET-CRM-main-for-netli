@@ -25,9 +25,9 @@ export default function EditQuotationPage() {
     try {
       // Fetch quotation, leads, and products in parallel
       const [quotationRes, leadsRes, productsRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/quotations/${id}`),
-        fetch('http://localhost:5000/api/leads'),
-        fetch('http://localhost:5000/api/products')
+        fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}`),
+        fetch('http://set-crm-main-for-netli.onrender.com/api/leads'),
+        fetch('http://set-crm-main-for-netli.onrender.com/api/products')
       ]);
 
       const [quotationData, leadsData, productsData] = await Promise.all([
@@ -97,7 +97,7 @@ export default function EditQuotationPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch(`http://localhost:5000/api/quotations/${id}`, {
+      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

@@ -35,7 +35,7 @@ export default function QuotationDetailsPage() {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    const socket = new WebSocket(`ws://localhost:5000?token=Bearer ${token}`);
+    const socket = new WebSocket(`ws://set-crm-main-for-netli.onrender.com?token=Bearer ${token}`);
     
     socket.onopen = () => {
       console.log('WebSocket connected');
@@ -88,7 +88,7 @@ export default function QuotationDetailsPage() {
   const fetchQuotation = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/quotations/${id}`, {
+      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -115,7 +115,7 @@ export default function QuotationDetailsPage() {
         return;
       }
       
-      const response = await fetch(`http://localhost:5000/api/quotations/${id}/send`, {
+      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}/send`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ export default function QuotationDetailsPage() {
   const handleApproveQuotation = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/quotations/${id}/approve`, {
+      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/quotations/${id}/approve`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -155,7 +155,7 @@ export default function QuotationDetailsPage() {
   const handleGenerateInvoice = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/invoices`, {
+      const response = await fetch(`http://set-crm-main-for-netli.onrender.com/api/invoices`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

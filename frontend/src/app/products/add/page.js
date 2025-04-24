@@ -100,7 +100,7 @@ export default function AddProductPage() {
         throw new Error(`Please fill in all required fields: ${missingFieldNames.join(', ')}`);
       }
 
-      const response = await fetch('http://localhost:5000/api/products', {
+      const response = await fetch('http://set-crm-main-for-netli.onrender.com/api/products', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

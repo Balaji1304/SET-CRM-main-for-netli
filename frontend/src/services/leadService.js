@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://set-crm-main-for-netli.onrender.com/api';
 
 export const createLead = async (leadData) => {
   const token = localStorage.getItem('token');

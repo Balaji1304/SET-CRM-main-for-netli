@@ -19,7 +19,7 @@ export default function PaymentsPage() {
       }
 
       // Fetch quotations with pending payments
-      const response = await fetch('http://localhost:5000/api/quotations/pending-payments', {
+      const response = await fetch('http://set-crm-main-for-netli.onrender.com/api/quotations/pending-payments', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
