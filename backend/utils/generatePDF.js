@@ -38,9 +38,9 @@ const generatePDF = async (template, data) => {
       templateCache.set(cacheKey, compiledTemplate);
     }
 
-    // Launch browser once and reuse it
+    // Launch browser with proper configuration for Render.com
     if (!global.browser) {
-      global.browser = await puppeteer.launch({
+      const options = {
         headless: 'new',
         args: [
           '--no-sandbox',
@@ -49,7 +49,19 @@ const generatePDF = async (template, data) => {
           '--disable-gpu',
           '--js-flags=--max-old-space-size=512'
         ]
-      });
+      };
+
+      // Add executable path if running on Render.com
+      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        options.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+      }
+
+      try {
+        global.browser = await puppeteer.launch(options);
+      } catch (error) {
+        console.error('Browser launch error:', error);
+        throw new Error(`Failed to launch browser: ${error.message}`);
+      }
     }
 
     // Generate HTML from template and data
@@ -94,11 +106,11 @@ const generatePDF = async (template, data) => {
       return buffer;
     } catch (error) {
       console.error('PDF generation error:', error);
-      throw error;
+      throw new Error(`Error generating PDF: ${error.message}`);
     }
   } catch (error) {
     console.error('Template compilation error:', error);
-    throw new Error('Error generating PDF: ' + error.message);
+    throw new Error(`Error generating PDF: ${error.message}`);
   }
 };
 
