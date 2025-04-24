@@ -35,7 +35,7 @@ export default function QuotationDetailsPage() {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    const socket = new WebSocket(`ws://set-crm-main-for-netli.onrender.com?token=Bearer ${token}`);
+    const socket = new WebSocket(`wss://set-crm-main-for-netli.onrender.com?token=Bearer ${token}`);
     
     socket.onopen = () => {
       console.log('WebSocket connected');
