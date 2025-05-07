@@ -73,10 +73,17 @@ export const AuthProvider = ({ children }) => {
       const res = await fetch('https://set-crm-main-for-netli.onrender.com/api/auth/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ email, password })
       });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
 
       const data = await res.json();
 
@@ -90,7 +97,7 @@ export const AuthProvider = ({ children }) => {
       return false;
     } catch (error) {
       console.error('Login error:', error);
-      return false;
+      throw error;
     }
   };
 
