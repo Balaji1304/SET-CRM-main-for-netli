@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const https = require('https');
-const fs = require('fs');
+const http = require('http');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -9,20 +8,16 @@ const { initWebSocket } = require('./utils/websocket');
 
 const app = express();
 
-// HTTPS Server Configuration
-const httpsOptions = {
-  key: fs.readFileSync('/path/to/ssl/key.pem'), // Replace with your SSL key path
-  cert: fs.readFileSync('/path/to/ssl/cert.pem') // Replace with your SSL certificate path
-};
-const server = https.createServer(httpsOptions, app);
+// Create HTTP server
+const server = http.createServer(app);
 
 // CORS Configuration
 app.use(cors({
   origin: [
     'http://localhost:3000', // Local development
     'https://blackenginecrm.netlify.app', // Netlify domain
-   // 'https://set-crm-main-for-netli.onrender.com' // Render domain
-  ],
+    process.env.FRONTEND_URL // Dynamic frontend URL from environment
+  ].filter(Boolean),
   credentials: true, // Allow cookies and authorization headers
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Allowed HTTP methods
   allowedHeaders: ['Content-Type', 'Authorization'] // Allowed headers
@@ -61,7 +56,7 @@ app.use('/api/invoices', require('./routes/invoices'));
 // Initialize WebSocket
 initWebSocket(server);
 
-// Start the HTTPS Server
+// Start the Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
