@@ -1,4 +1,4 @@
-const puppeteer = require('puppeteer');
+const htmlPdf = require('html-pdf-node');
 const handlebars = require('handlebars');
 const fs = require('fs');
 const path = require('path');
@@ -8,20 +8,6 @@ const NodeCache = require('node-cache');
 
 // Cache for compiled templates (30 mins expiry)
 const templateCache = new NodeCache({ stdTTL: 1800 });
-
-// Helper function to wait for all images to load
-const waitForImages = async (page) => {
-  await page.evaluate(async () => {
-    const selectors = Array.from(document.getElementsByTagName('img'));
-    await Promise.all(selectors.map(img => {
-      if (img.complete) return;
-      return new Promise((resolve, reject) => {
-        img.addEventListener('load', resolve);
-        img.addEventListener('error', reject);
-      });
-    }));
-  });
-};
 
 const generatePDF = async (template, data) => {
   try {
@@ -38,88 +24,36 @@ const generatePDF = async (template, data) => {
       templateCache.set(cacheKey, compiledTemplate);
     }
 
-    // Launch browser with proper configuration for Render.com
-    if (!global.browser) {
-      const options = {
-        headless: 'new',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--js-flags=--max-old-space-size=512'
-        ]
-      };
-
-      // Add executable path if running on Render.com
-      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-        options.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-      }
-
-      try {
-        global.browser = await puppeteer.launch(options);
-      } catch (error) {
-        console.error('Browser launch error:', error);
-        throw new Error(`Failed to launch browser: ${error.message}`);
-      }
-    }
-
     // Generate HTML from template and data
     const html = compiledTemplate(data);
 
+    // PDF generation options optimized for html-pdf-node
+    const options = {
+      format: 'A4',
+      margin: {
+        top: '10mm',
+        right: '10mm',
+        bottom: '10mm',
+        left: '10mm'
+      },
+      printBackground: true,
+      preferCSSPageSize: true,
+      scale: 0.7
+    };
+
+    // Generate PDF using html-pdf-node
+    const file = { content: html };
     try {
-      const page = await global.browser.newPage();
-      
-      // Optimize memory usage
-      await page.setCacheEnabled(false);
-      await page.setRequestInterception(true);
-      page.on('request', (request) => {
-        if (request.resourceType() === 'image') {
-          request.continue();
-        } else {
-          request.abort();
-        }
-      });
-
-      await page.setContent(html, {
-        waitUntil: ['domcontentloaded'],
-        timeout: 5000
-      });
-
-      // Only wait for critical resources
-      await Promise.race([
-        waitForImages(page),
-        new Promise(resolve => setTimeout(resolve, 3000))
-      ]);
-
-      const buffer = await page.pdf({
-        format: 'A4',
-        scale: 0.7,
-        compress: true,
-        printBackground: true,
-        preferCSSPageSize: true,
-        omitBackground: true,
-        margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' }
-      });
-
-      await page.close();
+      const buffer = await htmlPdf.generatePdf(file, options);
       return buffer;
     } catch (error) {
       console.error('PDF generation error:', error);
-      throw new Error(`Error generating PDF: ${error.message}`);
+      throw new Error(`Failed to generate PDF: ${error.message}`);
     }
   } catch (error) {
-    console.error('Template compilation error:', error);
-    throw new Error(`Error generating PDF: ${error.message}`);
+    console.error('Template processing error:', error);
+    throw new Error(`Failed to process template: ${error.message}`);
   }
 };
-
-// Cleanup browser on process exit
-process.on('SIGINT', async () => {
-  if (global.browser) {
-    await global.browser.close();
-  }
-  process.exit();
-});
 
 module.exports = generatePDF; 
