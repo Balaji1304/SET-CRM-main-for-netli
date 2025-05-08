@@ -273,13 +273,33 @@ exports.sendQuotation = async (req, res) => {
 
     try {
       // Create payment link
+      console.log('Creating Razorpay payment link with options:', {
+        ...paymentLinkOptions,
+        amount: paymentLinkOptions.amount,
+        currency: paymentLinkOptions.currency,
+        customer: {
+          name: paymentLinkOptions.customer.name,
+          email: paymentLinkOptions.customer.email
+        }
+      });
+      
       paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
+      console.log('Payment link created successfully:', {
+        id: paymentLink.id,
+        status: paymentLink.status,
+        short_url: paymentLink.short_url
+      });
     } catch (error) {
-      console.error('Error creating payment link:', error);
+      console.error('Error creating payment link:', {
+        error: error.message,
+        stack: error.stack,
+        statusCode: error.statusCode,
+        razorpayError: error.error
+      });
       notifyClient(req.user.id, quotation._id, 'draft');
       return res.status(400).json({
         success: false,
-        message: 'Failed to create payment link'
+        message: 'Failed to create payment link. Please check Razorpay credentials and configuration.'
       });
     }
 
