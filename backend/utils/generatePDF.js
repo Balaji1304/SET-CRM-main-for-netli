@@ -20,10 +20,10 @@ const generatePDF = async (template, data) => {
       format: 'A4',
       orientation: 'portrait',
       border: {
-        top: '20mm',
-        right: '20mm',
-        bottom: '20mm',
-        left: '20mm'
+        top: '10mm',
+        right: '10mm',
+        bottom: '10mm',
+        left: '10mm'
       },
       header: {
         height: '15mm'
