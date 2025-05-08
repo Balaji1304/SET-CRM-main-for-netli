@@ -148,6 +148,7 @@
             margin-bottom: 30px;
             border-bottom: 2px solid #FF7300;
             padding-bottom: 15px;
+            min-height: 120px;  /* Added to ensure proper spacing */
         }
         .logo-section {
             display: inline-block;
@@ -159,14 +160,12 @@
             display: block;
         }
         .company-info {
-            display: inline-block;
+            float: right;
             text-align: right;
             font-size: 14px;
             line-height: 1.6;
             color: #333;
-            position: absolute;
-            right: 0;
-            top: 0;
+            margin-left: auto;
         }
         .company-info strong {
             color: #000;
@@ -230,13 +229,13 @@
             max-width: 100%;
             height: auto;
             object-fit: contain;
-            max-height: 250px; /* Increased from 200px */
+            max-height: 300px; /* Increased from 250px */
         }
         .specs-section {
             margin-top: 15px;
         }
         .specs-content {
-            margin: 12px 0;
+            margin: 15px 0;
             font-size: 16px;
             line-height: 1.8;
             color: #000;
@@ -262,7 +261,7 @@
         .specs-details {
             width: 100%;
             border-collapse: collapse;
-            font-size: 16px;
+            font-size: 16px;  /* Increased from previous size */
             margin-top: 8px;
             border: 1px solid #e5e7eb;
         }
@@ -273,18 +272,18 @@
             border-bottom: none;
         }
         .spec-name {
-            padding: 6px 12px;
+            padding: 8px 16px;
             font-weight: 600;
             color: #000000;
             width: 40%;
             text-transform: capitalize;
             background-color: #f9fafb;
-            font-size: 11px;
+            font-size: 16px;  /* Increased to match */
         }
         .spec-value {
-            padding: 6px 12px;
+            padding: 8px 16px;
             color: #000000;
-            font-size: 11px;
+            font-size: 16px;  /* Increased to match */
         }
         .subject-line {
             font-size: 16px;
@@ -412,6 +411,7 @@
                 position: relative;
                 width: 100%;
                 margin-bottom: 20px;
+                min-height: 80px;
             }
             .logo-section {
                 display: inline-block;
@@ -421,12 +421,10 @@
                 width: 120px !important;
             }
             .company-info {
-                display: inline-block;
+                float: right;
                 font-size: 7px !important;
                 line-height: 1.4 !important;
-                position: absolute;
-                right: 0;
-                top: 0;
+                margin-left: auto;
             }
             .iso-text {
                 font-size: 9px !important;
@@ -477,7 +475,7 @@
                 line-height: 1.5 !important;
             }
             .gallery-image {
-                max-height: 150px !important;
+                max-height: 200px !important; /* Increased from 150px */
             }
             .product-description {
                 margin: 15px 0 !important;
@@ -491,6 +489,15 @@
             }
             .totals-row.final {
                 font-size: 9px !important;
+            }
+            .specs-details,
+            .spec-name,
+            .spec-value {
+                font-size: 8px !important;
+            }
+            .specs-content {
+                font-size: 8px !important;
+                line-height: 1.5 !important;
             }
         }
     </style>
