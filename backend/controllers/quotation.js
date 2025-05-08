@@ -193,88 +193,112 @@ exports.sendQuotation = async (req, res) => {
       });
     }
 
+    // Fetch quotation with populated data first
+    const quotation = await Quotation.findById(req.params.id)
+      .populate('lead')
+      .populate('items.product');
+
+    if (!quotation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
+    // Notify sending status
+    notifyClient(req.user.id, quotation._id, 'sending');
+
+    // Calculate advance payment amount (20% of total)
+    const advanceAmount = Number((quotation.total * 0.20).toFixed(2));
+
+    // Create payment link options
+    const paymentLinkOptions = {
+      amount: advanceAmount * 100,
+      currency: "INR",
+      accept_partial: false,
+      description: `Advance Payment (20%) for Quotation #${quotation.quotationNumber}`,
+      customer: {
+        name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
+        email: quotation.lead.email
+      },
+      notify: {
+        sms: true,
+        email: true
+      },
+      reminder_enable: true,
+      notes: {
+        quotationId: quotation._id.toString()
+      },
+      callback_url: `${process.env.FRONTEND_URL}/dashboard/quotations/${quotation._id}/payment-status`,
+      callback_method: 'get'
+    };
+
+    // Process email data
+    const emailData = {
+      quotationNumber: quotation.quotationNumber,
+      createdDate: new Date(quotation.createdAt).toLocaleDateString(),
+      validUntil: new Date(quotation.validUntil).toLocaleDateString(),
+      status: quotation.status,
+      lead: {
+        firstName: quotation.lead.firstName,
+        lastName: quotation.lead.lastName,
+        businessName: quotation.lead.businessName,
+        address: quotation.lead.address,
+        email: quotation.lead.email
+      },
+      items: await Promise.all(
+        quotation.items.map(async (item) => ({
+          ...item.toObject(),
+          product: {
+            ...item.product.toObject(),
+            specifications: Object.entries(item.product.specifications || {}).map(([key, value]) => ({
+              name: key,
+              value: value
+            })),
+            images: (item.product.imageUrls || []).map(url => ({ url }))
+          },
+          total: Number((item.quantity * item.unitPrice * (1 - item.discount/100)).toFixed(2))
+        }))
+      ),
+      subtotal: quotation.subtotal,
+      tax: quotation.tax,
+      total: quotation.total,
+      terms: quotation.terms,
+      notes: quotation.notes,
+      advanceAmount: advanceAmount
+    };
+
+    let paymentLink;
+    let pdfBuffer;
+
     try {
-      // Fetch quotation with populated data first
-      const quotation = await Quotation.findById(req.params.id)
-        .populate('lead')
-        .populate('items.product');
+      // Create payment link
+      paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
+    } catch (error) {
+      console.error('Error creating payment link:', error);
+      notifyClient(req.user.id, quotation._id, 'draft');
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create payment link'
+      });
+    }
 
-      if (!quotation) {
-        throw new Error('Quotation not found');
-      }
+    try {
+      // Generate PDF
+      pdfBuffer = await generatePDF('quotation', emailData);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      notifyClient(req.user.id, quotation._id, 'draft');
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to generate PDF'
+      });
+    }
 
-      // Notify sending status
-      notifyClient(req.user.id, quotation._id, 'sending');
+    // Update emailData with payment link
+    emailData.paymentLink = paymentLink.short_url;
 
-      // Calculate advance payment amount (20% of total)
-      const advanceAmount = Number((quotation.total * 0.20).toFixed(2));
-
-      // Create payment link options
-      const paymentLinkOptions = {
-        amount: advanceAmount * 100,
-        currency: "INR",
-        accept_partial: false,
-        description: `Advance Payment (20%) for Quotation #${quotation.quotationNumber}`,
-        customer: {
-          name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
-          email: quotation.lead.email
-        },
-        notify: {
-          sms: true,
-          email: true
-        },
-        reminder_enable: true,
-        notes: {
-          quotationId: quotation._id.toString()
-        },
-        callback_url: `${process.env.FRONTEND_URL}/dashboard/quotations/${quotation._id}/payment-status`,
-        callback_method: 'get'
-      };
-
-      // Process email data
-      const emailData = {
-        quotationNumber: quotation.quotationNumber,
-        createdDate: new Date(quotation.createdAt).toLocaleDateString(),
-        validUntil: new Date(quotation.validUntil).toLocaleDateString(),
-        status: quotation.status,
-        lead: {
-          firstName: quotation.lead.firstName,
-          lastName: quotation.lead.lastName,
-          businessName: quotation.lead.businessName,
-          address: quotation.lead.address,
-          email: quotation.lead.email
-        },
-        items: await Promise.all(
-          quotation.items.map(async (item) => ({
-            ...item.toObject(),
-            product: {
-              ...item.product.toObject(),
-              specifications: Object.entries(item.product.specifications || {}).map(([key, value]) => ({
-                name: key,
-                value: value
-              })),
-              images: (item.product.imageUrls || []).map(url => ({ url }))
-            },
-            total: Number((item.quantity * item.unitPrice * (1 - item.discount/100)).toFixed(2))
-          }))
-        ),
-        subtotal: quotation.subtotal,
-        tax: quotation.tax,
-        total: quotation.total,
-        terms: quotation.terms,
-        notes: quotation.notes,
-        advanceAmount: advanceAmount
-      };
-
-      // Run these operations in parallel
-      const [paymentLink, pdfBuffer] = await Promise.all([
-        razorpay.paymentLink.create(paymentLinkOptions),
-        generatePDF('quotation', emailData)
-      ]);
-
-      // Update emailData with payment link
-      emailData.paymentLink = paymentLink.short_url;
-
+    try {
       // Update quotation and send email in parallel
       const [updatedQuotation] = await Promise.all([
         Quotation.findByIdAndUpdate(
@@ -303,26 +327,26 @@ exports.sendQuotation = async (req, res) => {
       // Notify sent status
       notifyClient(req.user.id, updatedQuotation._id, 'sent');
 
-      res.json({
+      return res.json({
         success: true,
         data: updatedQuotation
       });
-
     } catch (error) {
-      console.error('Detailed error:', error);
-      // Revert status to draft if there's an error
-      await Quotation.findByIdAndUpdate(req.params.id, { status: 'draft' }, { new: false });
-      notifyClient(req.user.id, req.params.id, 'draft');
-      throw error;
+      console.error('Error updating quotation or sending email:', error);
+      // Revert status to draft
+      await Quotation.findByIdAndUpdate(quotation._id, { status: 'draft' }, { new: false });
+      notifyClient(req.user.id, quotation._id, 'draft');
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update quotation or send email'
+      });
     }
   } catch (error) {
     console.error('Send quotation error:', error);
-    if (!res.headersSent) {
-      res.status(400).json({
-        success: false,
-        message: error.message || 'Error sending quotation'
-      });
-    }
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
   }
 };
 
