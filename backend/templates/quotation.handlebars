@@ -145,20 +145,23 @@
         .company-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             margin-bottom: 30px;
             border-bottom: 2px solid #FF7300;
-            padding-bottom: 10px;
+            padding-bottom: 15px;
         }
         .company-logo {
-            width: 180px;
+            width: 140px;
             height: auto;
         }
-        .iso-text {
-            color: #fff;
-            background: #FF7300;
-            padding: 4px 8px;
-            font-size: 16px;
+        .company-info {
+            text-align: right;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .company-info strong {
+            color: #000;
         }
         .ref-section {
             display: flex;
@@ -210,7 +213,7 @@
             max-width: 100%;
             height: auto;
             object-fit: contain;
-            max-height: 200px; /* Fixed height for consistency */
+            max-height: 250px; /* Increased from 200px */
         }
         .specs-section {
             margin-top: 15px;
@@ -392,7 +395,7 @@
                 margin-bottom: 15px !important;
             }
             .company-logo {
-                width: 120px !important;
+                width: 100px !important;
             }
             .iso-text {
                 font-size: 9px !important;
@@ -443,7 +446,7 @@
                 line-height: 1.5 !important;
             }
             .gallery-image {
-                max-height: 100px !important;
+                max-height: 150px !important;
             }
             .product-description {
                 margin: 15px 0 !important;
@@ -458,6 +461,10 @@
             .totals-row.final {
                 font-size: 9px !important;
             }
+            .company-info {
+                font-size: 7px !important;
+                line-height: 1.4 !important;
+            }
         }
     </style>
 </head>
@@ -465,7 +472,15 @@
     <div class="container">
         <div class="company-header">
             <img src="https://res.cloudinary.com/dcua87ney/image/upload/v1746715647/logo2_kmndu4.png" alt="Sunlit" class="company-logo">
-            <span class="iso-text">An ISO Certificate Company</span>
+            <div class="company-info">
+                <strong>Contact Us</strong><br>
+                Phone: +91 98422-91069<br>
+                Email: info@sunlitsolarindia.com<br>
+                <strong>Address:</strong><br>
+                Sunlit Systems, #27, Dr. Jaganatha Nagar,<br>
+                Near CIT, Opp. to CMC,<br>
+                Coimbatore - 641 014
+            </div>
         </div>
 
         <div class="ref-section">
