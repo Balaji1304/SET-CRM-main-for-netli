@@ -12,11 +12,12 @@ const {
   handleRazorpayWebhook,
   confirmOfflinePayment,
   getCustomerProducts,
-  getPendingPayments
+  getPendingPayments,
+  checkPaymentStatus
 } = require('../controllers/quotation');
 
 // Webhook route (unprotected)
-router.post('/webhook', handleRazorpayWebhook);
+router.post('/webhook', express.raw({ type: 'application/json' }), handleRazorpayWebhook);
 
 // Protected routes
 router.use(protect);
@@ -39,5 +40,6 @@ router.route('/:id')
 router.post('/:id/send', sendQuotation);
 router.put('/:id/approve', approveQuotation);
 router.post('/:id/offline-payment', confirmOfflinePayment);
+router.get('/:id/payment-status', checkPaymentStatus);
 
 module.exports = router; 

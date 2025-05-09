@@ -442,45 +442,209 @@ exports.approveQuotation = async (req, res) => {
 // Update the webhook handler to include signature verification
 exports.handleRazorpayWebhook = async (req, res) => {
   try {
+    // Parse the raw body
+    let webhookBody;
+    try {
+      if (req.body instanceof Buffer) {
+        webhookBody = JSON.parse(req.body.toString());
+      } else {
+        webhookBody = req.body;
+      }
+      console.log('Parsed webhook body successfully');
+    } catch (error) {
+      console.error('Error parsing webhook body:', {
+        error: error.message,
+        bodyType: typeof req.body,
+        isBuffer: req.body instanceof Buffer,
+        bodyLength: req.body ? (req.body instanceof Buffer ? req.body.length : JSON.stringify(req.body).length) : 0
+      });
+      return res.status(400).json({ error: 'Invalid request body format' });
+    }
+
     // Verify webhook signature
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
     const signature = req.headers['x-razorpay-signature'];
     
+    if (!webhookSecret || !signature) {
+      console.error('Webhook secret or signature missing', {
+        hasSecret: !!webhookSecret,
+        hasSignature: !!signature
+      });
+      return res.status(400).json({ error: 'Webhook signature verification failed' });
+    }
+    
     const shasum = crypto.createHmac('sha256', webhookSecret);
-    shasum.update(JSON.stringify(req.body));
+    shasum.update(req.body instanceof Buffer ? req.body : JSON.stringify(webhookBody));
     const digest = shasum.digest('hex');
 
     if (signature !== digest) {
-      console.error('Invalid webhook signature');
+      console.error('Invalid webhook signature', {
+        receivedSignature: signature,
+        computedDigest: digest
+      });
       return res.status(400).json({ error: 'Invalid webhook signature' });
     }
 
-    const { payload } = req.body;
+    console.log('Webhook signature verified successfully');
+    
+    // Log the received webhook event
+    console.log('Received Razorpay webhook:', {
+      event: webhookBody.event,
+      payloadSummary: webhookBody.payload ? {
+        paymentLinkId: webhookBody.payload.payment_link?.id,
+        paymentId: webhookBody.payload.payment_link?.payment_id,
+        status: webhookBody.payload.payment_link?.status
+      } : 'No payload'
+    });
+
+    const { payload, event } = webhookBody;
+    
+    if (!payload || !payload.payment_link) {
+      console.error('Invalid webhook payload structure', { body: webhookBody });
+      return res.status(400).json({ error: 'Invalid payload structure' });
+    }
+
     const { payment_link } = payload;
 
-    if (payload.event === 'payment_link.paid') {
+    if (event === 'payment_link.paid') {
+      console.log('Processing payment_link.paid event', {
+        paymentLinkId: payment_link.id,
+        paymentId: payment_link.payment_id
+      });
+      
       const quotation = await Quotation.findOne({ 
         razorpayPaymentLinkId: payment_link.id 
       }).populate('lead');
 
-      if (quotation) {
-        // Update payment status
-        quotation.advancePaymentStatus = 'CONFIRMED';
-        quotation.advancePaymentConfirmedAt = new Date();
-        quotation.razorpayPaymentId = payment_link.payment_id;
-        await quotation.save();
-
-        // Automatically create customer account and approve quotation
-        await approveQuotation(quotation);
-
-        console.log('Quotation automatically approved after online payment:', quotation._id);
+      if (!quotation) {
+        console.error('Quotation not found for payment link', { paymentLinkId: payment_link.id });
+        return res.json({ status: 'error', message: 'Quotation not found' });
       }
-    }
 
-    res.json({ status: 'ok' });
+      console.log('Found quotation for payment', {
+        quotationId: quotation._id,
+        quotationNumber: quotation.quotationNumber,
+        leadEmail: quotation.lead.email
+      });
+
+      // Update payment status
+      quotation.advancePaymentStatus = 'CONFIRMED';
+      quotation.advancePaymentConfirmedAt = new Date();
+      quotation.razorpayPaymentId = payment_link.payment_id;
+      await quotation.save();
+      
+      console.log('Updated quotation payment status to CONFIRMED');
+
+      try {
+        // Use the helper function to create customer and approve quotation
+        const approvedQuotation = await approveQuotation(quotation);
+        console.log('Quotation automatically approved after online payment:', {
+          quotationId: approvedQuotation._id,
+          status: approvedQuotation.status
+        });
+        
+        // Notify client about the status change if websocket utils are available
+        if (typeof notifyClient === 'function') {
+          const userId = quotation.createdBy;
+          notifyClient(userId, quotation._id, 'approved');
+        }
+        
+        return res.json({ status: 'success', message: 'Payment processed and quotation approved' });
+      } catch (error) {
+        console.error('Error in auto-approval process:', {
+          error: error.message,
+          stack: error.stack,
+          quotationId: quotation._id
+        });
+        return res.json({ 
+          status: 'partial', 
+          message: 'Payment recorded but approval failed',
+          error: error.message
+        });
+      }
+    } else {
+      console.log('Ignoring non-payment webhook event', { event });
+      return res.json({ status: 'ignored', message: 'Event type not handled' });
+    }
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('Webhook processing error:', {
+      message: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ error: error.message });
+  }
+};
+
+// Helper function for approval process
+const approveQuotation = async (quotation) => {
+  try {
+    console.log('Starting approval process for quotation', {
+      quotationId: quotation._id,
+      leadEmail: quotation.lead.email
+    });
+    
+    // Check if user already exists with this email
+    const existingUser = await User.findOne({ email: quotation.lead.email });
+    
+    if (existingUser) {
+      console.log('User already exists for this lead email', {
+        userId: existingUser._id,
+        email: existingUser.email
+      });
+      
+      // Just update the quotation status
+      quotation.status = 'approved';
+      await quotation.save();
+      
+      return quotation;
+    }
+    
+    // Create customer account with random password
+    const password = Math.random().toString(36).slice(-8);
+    
+    const customer = await User.create({
+      name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
+      email: quotation.lead.email,
+      password,
+      role: 'customer'
+    });
+    
+    console.log('Created new customer account', {
+      customerId: customer._id,
+      email: customer.email
+    });
+
+    // Send credentials email
+    await sendEmail({
+      email: customer.email,
+      subject: 'Welcome to Solar CRM - Your Account Details',
+      template: 'welcome',
+      data: {
+        name: customer.name,
+        email: customer.email,
+        password
+      }
+    });
+    
+    console.log('Sent welcome email with credentials');
+
+    // Update quotation status
+    quotation.status = 'approved';
+    await quotation.save();
+    
+    console.log('Updated quotation status to approved', {
+      quotationId: quotation._id,
+      status: quotation.status
+    });
+
+    return quotation;
+  } catch (error) {
+    console.error('Error in approval process:', {
+      message: error.message,
+      stack: error.stack,
+      quotationId: quotation._id
+    });
+    throw error;
   }
 };
 
@@ -534,42 +698,6 @@ exports.confirmOfflinePayment = async (req, res) => {
       success: false,
       message: error.message
     });
-  }
-};
-
-// Helper function for approval process
-const approveQuotation = async (quotation) => {
-  try {
-    // Create customer account
-    const password = Math.random().toString(36).slice(-8);
-    
-    const customer = await User.create({
-      name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
-      email: quotation.lead.email,
-      password,
-      role: 'customer'
-    });
-
-    // Send credentials email
-    await sendEmail({
-      email: customer.email,
-      subject: 'Welcome to Solar CRM - Your Account Details',
-      template: 'welcome',
-      data: {
-        name: customer.name,
-        email: customer.email,
-        password
-      }
-    });
-
-    // Update quotation status
-    quotation.status = 'approved';
-    await quotation.save();
-
-    return quotation;
-  } catch (error) {
-    console.error('Error in approval process:', error);
-    throw error;
   }
 };
 
@@ -761,6 +889,39 @@ exports.getPendingPayments = async (req, res) => {
   }
 };
 
+// Add a new controller to check payment status
+exports.checkPaymentStatus = async (req, res) => {
+  try {
+    const quotation = await Quotation.findById(req.params.id)
+      .select('quotationNumber advancePaymentStatus razorpayPaymentId status');
+      
+    if (!quotation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+    
+    // Respond with payment status
+    res.json({
+      success: true,
+      data: {
+        quotationId: quotation._id,
+        quotationNumber: quotation.quotationNumber,
+        paymentStatus: quotation.advancePaymentStatus,
+        paymentId: quotation.razorpayPaymentId,
+        quotationStatus: quotation.status
+      }
+    });
+  } catch (error) {
+    console.error('Error checking payment status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking payment status'
+    });
+  }
+};
+
 // Remove the duplicate exports at the bottom and replace with:
 module.exports = {
   getQuotations: exports.getQuotations,
@@ -773,5 +934,6 @@ module.exports = {
   handleRazorpayWebhook: exports.handleRazorpayWebhook,
   confirmOfflinePayment: exports.confirmOfflinePayment,
   getCustomerProducts: exports.getCustomerProducts,
-  getPendingPayments: exports.getPendingPayments
+  getPendingPayments: exports.getPendingPayments,
+  checkPaymentStatus: exports.checkPaymentStatus
 }; 

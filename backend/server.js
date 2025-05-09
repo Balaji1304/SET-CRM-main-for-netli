@@ -22,6 +22,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// Special route for Razorpay webhooks that needs raw body
+app.post('/api/payments/webhook', 
+  express.raw({ type: 'application/json' }), 
+  require('./controllers/quotation').handleRazorpayWebhook
+);
+
 // CORS Configuration
 app.use(cors({
   origin: ['https://blackenginecrm.netlify.app', 'http://localhost:3000'],
@@ -70,6 +76,7 @@ app.use('/api/leads', require('./routes/leads'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/tickets', require('./routes/tickets'));
 app.use('/api/quotations', require('./routes/quotations'));
+app.use('/api/payments', require('./routes/quotation')); // Payment related routes
 app.use('/api/invoices', require('./routes/invoices'));
 
 // Error handling middleware
