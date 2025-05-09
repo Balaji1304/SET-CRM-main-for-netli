@@ -13,11 +13,15 @@ const {
   confirmOfflinePayment,
   getCustomerProducts,
   getPendingPayments,
-  checkPaymentStatus
+  checkPaymentStatus,
+  checkPublicPaymentStatus
 } = require('../controllers/quotation');
 
 // Webhook route (unprotected)
 router.post('/webhook', express.raw({ type: 'application/json' }), handleRazorpayWebhook);
+
+// Public routes (no authentication required)
+router.get('/public/payment-status', checkPublicPaymentStatus);
 
 // Protected routes
 router.use(protect);

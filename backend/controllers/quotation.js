@@ -229,7 +229,7 @@ exports.sendQuotation = async (req, res) => {
       notes: {
         quotationId: quotation._id.toString()
       },
-      callback_url: `${process.env.FRONTEND_URL}/dashboard/quotations/${quotation._id}/payment-status`,
+      callback_url: `${process.env.FRONTEND_URL}/quotations/${quotation._id}/payment-status`,
       callback_method: 'get'
     };
 
@@ -922,6 +922,68 @@ exports.checkPaymentStatus = async (req, res) => {
   }
 };
 
+// Add a new controller for public payment status
+exports.checkPublicPaymentStatus = async (req, res) => {
+  try {
+    const { paymentId, quotationId } = req.query;
+    
+    if (!paymentId || !quotationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing payment ID or quotation ID'
+      });
+    }
+    
+    // Find the quotation using payment ID and quotation ID
+    const quotation = await Quotation.findOne({
+      _id: quotationId,
+      razorpayPaymentId: paymentId
+    }).select('quotationNumber advancePaymentStatus advancePaymentAmount razorpayPaymentId status');
+    
+    // If no quotation is found, check if payment might be in progress
+    if (!quotation) {
+      // Try to find the quotation without payment ID (payment might be in process)
+      const pendingQuotation = await Quotation.findById(quotationId);
+      
+      if (!pendingQuotation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Quotation not found'
+        });
+      }
+      
+      return res.json({
+        success: true,
+        data: {
+          quotationId: pendingQuotation._id,
+          quotationNumber: pendingQuotation.quotationNumber,
+          paymentStatus: 'PENDING',
+          quotationStatus: pendingQuotation.status
+        }
+      });
+    }
+    
+    // Return payment details
+    res.json({
+      success: true,
+      data: {
+        quotationId: quotation._id,
+        quotationNumber: quotation.quotationNumber,
+        paymentStatus: quotation.advancePaymentStatus,
+        paymentAmount: quotation.advancePaymentAmount,
+        paymentId: quotation.razorpayPaymentId,
+        quotationStatus: quotation.status
+      }
+    });
+  } catch (error) {
+    console.error('Error checking public payment status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error checking payment status'
+    });
+  }
+};
+
 // Remove the duplicate exports at the bottom and replace with:
 module.exports = {
   getQuotations: exports.getQuotations,
@@ -935,5 +997,6 @@ module.exports = {
   confirmOfflinePayment: exports.confirmOfflinePayment,
   getCustomerProducts: exports.getCustomerProducts,
   getPendingPayments: exports.getPendingPayments,
-  checkPaymentStatus: exports.checkPaymentStatus
+  checkPaymentStatus: exports.checkPaymentStatus,
+  checkPublicPaymentStatus: exports.checkPublicPaymentStatus
 }; 

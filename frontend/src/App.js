@@ -43,6 +43,10 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Login />} />
+          
+          {/* Public routes */}
+          <Route path="/quotations/:id/payment-status" element={<PaymentStatusPage />} />
+          
           <Route
             path="/dashboard"
             element={
@@ -151,11 +155,6 @@ function App() {
             <Route path="quotations/:id/edit" element={
               <ProtectedRoute allowedRoles={['sales_person']}>
                 <EditQuotationPage />
-              </ProtectedRoute>
-            } />
-            <Route path="quotations/:id/payment-status" element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person']}>
-                <PaymentStatusPage />
               </ProtectedRoute>
             } />
           </Route>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle, AlertTriangle, Loader } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Loader, Mail } from 'lucide-react';
 
 export default function PaymentStatusPage() {
   const { id } = useParams();
@@ -22,27 +22,18 @@ export default function PaymentStatusPage() {
       return;
     }
     
-    // Call the backend to check payment status
+    // Call the backend to check payment status (no authentication required)
     const checkPaymentStatus = async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          navigate('/login');
-          return;
-        }
-        
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://set-crm-main-for-netli.onrender.com'}/api/quotations/${id}/payment-status`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://set-crm-main-for-netli.onrender.com'}/api/payments/public/payment-status?paymentId=${razorpayPaymentId}&quotationId=${id}`, {
+          method: 'GET'
         });
         
         const data = await response.json();
         
         if (data.success) {
           setPaymentDetails(data.data);
-          setStatus(data.data.paymentStatus === 'CONFIRMED' ? 'success' : 'error');
+          setStatus('success');
         } else {
           setStatus('error');
           setError(data.message || 'Could not verify payment status');
@@ -57,78 +48,71 @@ export default function PaymentStatusPage() {
     checkPaymentStatus();
   }, [id, location.search, navigate]);
   
-  const handleContinue = () => {
-    // Redirect to appropriate page based on user role
-    // For customers, go to my payments
-    // For admin/sales, go to quotation details
-    const userRole = localStorage.getItem('userRole');
-    
-    if (userRole === 'customer') {
-      navigate('/dashboard/payments');
-    } else {
-      navigate(`/dashboard/quotations/${id}`);
-    }
+  const goToLogin = () => {
+    navigate('/login');
   };
   
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] p-6">
-      {status === 'loading' && (
-        <div className="flex flex-col items-center space-y-4">
-          <Loader className="h-16 w-16 text-orange-500 animate-spin" />
-          <h2 className="text-2xl font-bold">Verifying Payment...</h2>
-          <p className="text-gray-500">Please wait while we confirm your payment.</p>
-        </div>
-      )}
-      
-      {status === 'success' && (
-        <div className="flex flex-col items-center space-y-4 text-center">
-          <CheckCircle className="h-16 w-16 text-green-500" />
-          <h2 className="text-2xl font-bold">Payment Successful!</h2>
-          <p className="text-gray-500 max-w-md">
-            Your payment of ₹{paymentDetails?.paymentAmount} has been confirmed. The quotation has been approved.
-          </p>
-          {paymentDetails?.quotationNumber && (
-            <p className="text-sm">
-              Quotation Number: <span className="font-semibold">{paymentDetails.quotationNumber}</span>
+    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gray-50">
+      <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-lg">
+        {status === 'loading' && (
+          <div className="flex flex-col items-center space-y-4">
+            <Loader className="h-16 w-16 text-orange-500 animate-spin" />
+            <h2 className="text-2xl font-bold text-center">Verifying Payment...</h2>
+            <p className="text-gray-500 text-center">Please wait while we confirm your payment.</p>
+          </div>
+        )}
+        
+        {status === 'success' && (
+          <div className="flex flex-col items-center space-y-6 text-center">
+            <CheckCircle className="h-16 w-16 text-green-500" />
+            <h2 className="text-2xl font-bold">Payment Successful!</h2>
+            <p className="text-gray-600">
+              Thank you for your payment. Your quotation has been approved.
             </p>
-          )}
-          {paymentDetails?.paymentId && (
-            <p className="text-sm">
-              Payment ID: <span className="font-semibold">{paymentDetails.paymentId}</span>
-            </p>
-          )}
-          <button
-            onClick={handleContinue}
-            className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50"
-          >
-            Continue
-          </button>
-        </div>
-      )}
-      
-      {status === 'error' && (
-        <div className="flex flex-col items-center space-y-4 text-center">
-          <AlertTriangle className="h-16 w-16 text-red-500" />
-          <h2 className="text-2xl font-bold">Payment Failed</h2>
-          <p className="text-gray-500 max-w-md">
-            {error || 'There was a problem with your payment. Please try again or contact support.'}
-          </p>
-          <div className="flex space-x-4">
+            
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 w-full">
+              <div className="flex items-center space-x-3 mb-2">
+                <Mail className="h-5 w-5 text-blue-500" />
+                <h3 className="font-semibold text-blue-700">Check Your Email</h3>
+              </div>
+              <p className="text-blue-600 text-sm">
+                We've sent your login credentials to your email address. 
+                Please check your inbox to access your customer dashboard.
+              </p>
+            </div>
+            
+            {paymentDetails?.quotationNumber && (
+              <p className="text-sm">
+                Quotation Number: <span className="font-semibold">{paymentDetails.quotationNumber}</span>
+              </p>
+            )}
+            
             <button
-              onClick={() => navigate(`/dashboard/quotations/${id}`)}
-              className="mt-4 px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-opacity-50"
+              onClick={goToLogin}
+              className="mt-4 px-6 py-2 w-full bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50"
             >
-              View Quotation
-            </button>
-            <button
-              onClick={() => window.location.href = `/dashboard`}
-              className="mt-4 px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50"
-            >
-              Go to Dashboard
+              Go to Login
             </button>
           </div>
-        </div>
-      )}
+        )}
+        
+        {status === 'error' && (
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <AlertTriangle className="h-16 w-16 text-red-500" />
+            <h2 className="text-2xl font-bold">Payment Issue</h2>
+            <p className="text-gray-600">
+              {error || 'There was a problem verifying your payment. Please contact support.'}
+            </p>
+            <button
+              onClick={() => window.location.href = '/'}
+              className="mt-4 px-6 py-2 w-full bg-orange-500 text-white rounded-lg hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-opacity-50"
+            >
+              Return to Homepage
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 } 
