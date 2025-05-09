@@ -16,20 +16,39 @@ export default function PaymentStatusPage() {
     const razorpayPaymentId = params.get('razorpay_payment_id');
     const razorpayStatus = params.get('razorpay_status');
     
+    console.log('Payment status from Razorpay:', {
+      razorpayPaymentId,
+      razorpayStatus,
+      allParams: Object.fromEntries([...params])
+    });
+    
     if (!razorpayPaymentId || razorpayStatus === 'failed') {
       setStatus('error');
-      setError('Payment failed or was cancelled. Please try again.');
+      setError(`Payment failed or was cancelled. ${!razorpayPaymentId ? 'Missing payment ID.' : 'Payment status: ' + razorpayStatus}`);
       return;
     }
     
     // Call the backend to check payment status (no authentication required)
     const checkPaymentStatus = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://set-crm-main-for-netli.onrender.com'}/api/payments/public/payment-status?paymentId=${razorpayPaymentId}&quotationId=${id}`, {
+        // Properly format the API URL to avoid protocol duplication
+        const apiBaseUrl = process.env.REACT_APP_API_URL || 'https://set-crm-main-for-netli.onrender.com';
+        // Remove any trailing slashes from the base URL
+        const cleanBaseUrl = apiBaseUrl.replace(/\/+$/, '');
+        
+        const apiUrl = `${cleanBaseUrl}/api/payments/public/payment-status?paymentId=${razorpayPaymentId}&quotationId=${id}`;
+        console.log('Fetching payment status from:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
           method: 'GET'
         });
         
+        if (!response.ok) {
+          throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
+        console.log('Payment status response:', data);
         
         if (data.success) {
           setPaymentDetails(data.data);
@@ -41,7 +60,7 @@ export default function PaymentStatusPage() {
       } catch (error) {
         console.error('Error checking payment status:', error);
         setStatus('error');
-        setError('Failed to verify payment. Please contact support.');
+        setError(`Failed to verify payment: ${error.message}. Please contact support.`);
       }
     };
     

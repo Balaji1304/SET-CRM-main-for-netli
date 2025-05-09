@@ -79,6 +79,20 @@ app.use('/api/quotations', require('./routes/quotations'));
 app.use('/api/payments', require('./routes/quotation')); // Payment related routes
 app.use('/api/invoices', require('./routes/invoices'));
 
+// Diagnostic endpoint to check route access
+app.get('/api/debug-routes', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Diagnostic route is accessible',
+    routes: {
+      '/api/payments/public/payment-status': 'Public payment status check',
+      '/api/payments/webhook': 'Razorpay webhook handler'
+    },
+    query: req.query,
+    headers: req.headers
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
