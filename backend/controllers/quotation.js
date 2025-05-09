@@ -445,6 +445,8 @@ exports.approveQuotation = async (req, res) => {
 // Update the webhook handler to include signature verification
 exports.handleRazorpayWebhook = async (req, res) => {
   try {
+    console.log('⚡ WEBHOOK RECEIVED: Starting webhook processing');
+    
     // Parse the raw body
     let webhookBody;
     try {
@@ -562,7 +564,10 @@ exports.handleRazorpayWebhook = async (req, res) => {
       quotation.razorpayPaymentId = payment_link.payment_id;
       await quotation.save();
       
-      console.log('Updated quotation payment status to CONFIRMED');
+      console.log('✅ WEBHOOK: Updated quotation payment status to CONFIRMED', {
+        quotationId: quotation._id,
+        quotationNumber: quotation.quotationNumber
+      });
 
       try {
         // Use the helper function to create customer and approve quotation
@@ -1053,6 +1058,8 @@ exports.checkPublicPaymentStatus = async (req, res) => {
 // Manual payment confirmation when webhook fails
 exports.manualConfirmPayment = async (req, res) => {
   try {
+    console.log('🔄 MANUAL CONFIRMATION: Started manual payment confirmation process');
+    
     const { quotationId, paymentId, paymentLinkId, signature } = req.body;
     
     if (!quotationId || !paymentId || !paymentLinkId) {
@@ -1103,7 +1110,7 @@ exports.manualConfirmPayment = async (req, res) => {
       const paymentVerification = await razorpay.verifyPaymentStatus(paymentId);
       
       if (!paymentVerification.verified) {
-        console.log('Payment verification failed:', paymentVerification);
+        console.log('❌ API VERIFICATION: Payment verification failed:', paymentVerification);
         return res.status(400).json({
           success: false,
           message: `Payment verification failed. Razorpay status: ${paymentVerification.payment.status}`,
@@ -1111,7 +1118,7 @@ exports.manualConfirmPayment = async (req, res) => {
         });
       }
       
-      console.log('Payment verified with Razorpay API:', {
+      console.log('✅ API VERIFICATION: Payment verified with Razorpay API:', {
         paymentId,
         status: paymentVerification.payment.status,
         amount: paymentVerification.payment.amount
@@ -1140,7 +1147,7 @@ exports.manualConfirmPayment = async (req, res) => {
       }
       
       await quotation.save();
-      console.log('Updated quotation payment status to CONFIRMED after API verification');
+      console.log('✅ MANUAL CONFIRMATION: Updated quotation payment status to CONFIRMED after API verification');
       
       // Approve the quotation
       try {
