@@ -10,7 +10,7 @@ if (missingEnvVars.length > 0) {
 }
 
 // Initialize Razorpay with required credentials
-const razorpay = new Razorpay({
+const razorpayInstance = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET
 });
@@ -19,7 +19,7 @@ const razorpay = new Razorpay({
 const verifyConnection = async () => {
   try {
     // Try to fetch a simple API endpoint to verify credentials
-    await razorpay.payments.all({ count: 1 });
+    await razorpayInstance.payments.all({ count: 1 });
     console.log('Razorpay connection verified successfully');
   } catch (error) {
     console.error('Razorpay connection verification failed:', error);
@@ -37,7 +37,7 @@ const verifyPaymentStatus = async (paymentId) => {
     }
     
     // Fetch payment details from Razorpay API
-    const payment = await razorpay.payments.fetch(paymentId);
+    const payment = await razorpayInstance.payments.fetch(paymentId);
     
     console.log('Payment verification result:', {
       id: payment.id,
@@ -82,7 +82,7 @@ const verifyPaymentLinkStatus = async (paymentLinkId) => {
     }
     
     // Fetch payment link details from Razorpay API
-    const paymentLink = await razorpay.paymentLink.fetch(paymentLinkId);
+    const paymentLink = await razorpayInstance.paymentLink.fetch(paymentLinkId);
     
     console.log('Payment link verification result:', {
       id: paymentLink.id,
@@ -120,8 +120,16 @@ const verifyPaymentLinkStatus = async (paymentLinkId) => {
 // Verify connection on startup
 verifyConnection().catch(console.error);
 
+// Export for backwards compatibility
 module.exports = {
-  instance: razorpay,
+  instance: razorpayInstance,
   verifyPaymentStatus,
-  verifyPaymentLinkStatus
+  verifyPaymentLinkStatus,
+  // For backward compatibility with existing code
+  payments: razorpayInstance.payments,
+  customers: razorpayInstance.customers,
+  orders: razorpayInstance.orders,
+  invoices: razorpayInstance.invoices,
+  paymentLink: razorpayInstance.paymentLink,
+  refunds: razorpayInstance.refunds
 }; 
