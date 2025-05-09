@@ -8,8 +8,6 @@ exports.createLead = async (req, res) => {
     // Add the user ID to the lead data
     req.body.createdBy = req.user.id;
 
-    console.log('Attempting to create lead with data:', req.body);
-
     const lead = await Lead.create(req.body);
 
     res.status(201).json({

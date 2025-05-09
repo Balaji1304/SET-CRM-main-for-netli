@@ -129,7 +129,6 @@ const leadSchema = new mongoose.Schema({
 });
 
 leadSchema.pre('save', function(next) {
-  console.log('Validating lead:', this);
   next();
 });
 

@@ -89,11 +89,6 @@ exports.createQuotation = async (req, res) => {
       advancePaymentStatus: 'PENDING'
     });
 
-    // Populate the response data
-    // const populatedQuotation = await Quotation.findById(quotation._id)
-    //   .populate('lead')
-    //   .populate('items.product');
-
     res.status(201).json({
       success: true,
       data: quotation
@@ -276,29 +271,9 @@ exports.sendQuotation = async (req, res) => {
 
     try {
       // Create payment link
-      console.log('Creating Razorpay payment link with options:', {
-        ...paymentLinkOptions,
-        amount: paymentLinkOptions.amount,
-        currency: paymentLinkOptions.currency,
-        customer: {
-          name: paymentLinkOptions.customer.name,
-          email: paymentLinkOptions.customer.email
-        }
-      });
-      
       paymentLink = await razorpay.paymentLink.create(paymentLinkOptions);
-      console.log('Payment link created successfully:', {
-        id: paymentLink.id,
-        status: paymentLink.status,
-        short_url: paymentLink.short_url
-      });
     } catch (error) {
-      console.error('Error creating payment link:', {
-        error: error.message,
-        stack: error.stack,
-        statusCode: error.statusCode,
-        razorpayError: error.error
-      });
+      console.error('Error creating payment link:', error.message);
       notifyClient(req.user.id, quotation._id, 'draft');
       return res.status(400).json({
         success: false,
@@ -445,8 +420,6 @@ exports.approveQuotation = async (req, res) => {
 // Update the webhook handler to include signature verification
 exports.handleRazorpayWebhook = async (req, res) => {
   try {
-    console.log('⚡ WEBHOOK RECEIVED: Starting webhook processing');
-    
     // Parse the raw body
     let webhookBody;
     try {
@@ -455,14 +428,8 @@ exports.handleRazorpayWebhook = async (req, res) => {
       } else {
         webhookBody = req.body;
       }
-      console.log('Parsed webhook body successfully');
     } catch (error) {
-      console.error('Error parsing webhook body:', {
-        error: error.message,
-        bodyType: typeof req.body,
-        isBuffer: req.body instanceof Buffer,
-        bodyLength: req.body ? (req.body instanceof Buffer ? req.body.length : JSON.stringify(req.body).length) : 0
-      });
+      console.error('Error parsing webhook body:', error.message);
       return res.status(400).json({ error: 'Invalid request body format' });
     }
 
@@ -471,10 +438,7 @@ exports.handleRazorpayWebhook = async (req, res) => {
     const signature = req.headers['x-razorpay-signature'];
     
     if (!webhookSecret || !signature) {
-      console.error('Webhook secret or signature missing', {
-        hasSecret: !!webhookSecret,
-        hasSignature: !!signature
-      });
+      console.error('Webhook signature verification failed: Missing secret or signature');
       return res.status(400).json({ error: 'Webhook signature verification failed' });
     }
     
@@ -483,64 +447,26 @@ exports.handleRazorpayWebhook = async (req, res) => {
     const digest = shasum.digest('hex');
 
     if (signature !== digest) {
-      console.error('Invalid webhook signature', {
-        receivedSignature: signature,
-        computedDigest: digest
-      });
+      console.error('Invalid webhook signature');
       return res.status(400).json({ error: 'Invalid webhook signature' });
     }
-
-    console.log('Webhook signature verified successfully');
     
-    // Log the received webhook event
-    console.log('Received Razorpay webhook:', {
-      event: webhookBody.event,
-      payloadSummary: webhookBody.payload ? {
-        paymentLinkId: webhookBody.payload.payment_link?.id,
-        paymentId: webhookBody.payload.payment_link?.payment_id,
-        status: webhookBody.payload.payment_link?.status
-      } : 'No payload'
-    });
-
     const { payload, event } = webhookBody;
     
     if (!payload || !payload.payment_link) {
-      console.error('Invalid webhook payload structure', { body: webhookBody });
+      console.error('Invalid webhook payload structure');
       return res.status(400).json({ error: 'Invalid payload structure' });
     }
 
     const { payment_link } = payload;
 
     if (event === 'payment_link.paid') {
-      console.log('Processing payment_link.paid event', {
-        paymentLinkId: payment_link.id,
-        paymentId: payment_link.payment_id
-      });
-      
       // Extra verification with Razorpay API
-      let paymentVerified = false;
       try {
         const paymentVerification = await razorpay.verifyPaymentStatus(payment_link.payment_id);
-        paymentVerified = paymentVerification.verified;
-        
-        if (paymentVerified) {
-          console.log('Payment verified with Razorpay API:', {
-            paymentId: payment_link.payment_id,
-            status: paymentVerification.payment.status
-          });
-        } else {
-          console.warn('Webhook received but payment verification failed:', {
-            paymentId: payment_link.payment_id,
-            razorpayStatus: paymentVerification.payment.status
-          });
-          
-          // Even if API verification fails, we'll continue with the webhook data
-          // since webhook is signed and verified with HMAC
-          console.log('Continuing with webhook data despite API verification failure');
-        }
+        // Continue even if verification fails, since webhook is signed and verified
       } catch (verificationError) {
         console.error('Error verifying payment with API (continuing with webhook):', verificationError.message);
-        // Continue with webhook data even if API verification fails
       }
       
       const quotation = await Quotation.findOne({ 
@@ -548,34 +474,19 @@ exports.handleRazorpayWebhook = async (req, res) => {
       }).populate('lead');
 
       if (!quotation) {
-        console.error('Quotation not found for payment link', { paymentLinkId: payment_link.id });
+        console.error('Quotation not found for payment link');
         return res.json({ status: 'error', message: 'Quotation not found' });
       }
-
-      console.log('Found quotation for payment', {
-        quotationId: quotation._id,
-        quotationNumber: quotation.quotationNumber,
-        leadEmail: quotation.lead.email
-      });
 
       // Update payment status
       quotation.advancePaymentStatus = 'CONFIRMED';
       quotation.advancePaymentConfirmedAt = new Date();
       quotation.razorpayPaymentId = payment_link.payment_id;
       await quotation.save();
-      
-      console.log('✅ WEBHOOK: Updated quotation payment status to CONFIRMED', {
-        quotationId: quotation._id,
-        quotationNumber: quotation.quotationNumber
-      });
 
       try {
         // Use the helper function to create customer and approve quotation
         const approvedQuotation = await approveQuotation(quotation);
-        console.log('Quotation automatically approved after online payment:', {
-          quotationId: approvedQuotation._id,
-          status: approvedQuotation.status
-        });
         
         // Notify client about the status change if websocket utils are available
         if (typeof notifyClient === 'function') {
@@ -585,11 +496,7 @@ exports.handleRazorpayWebhook = async (req, res) => {
         
         return res.json({ status: 'success', message: 'Payment processed and quotation approved' });
       } catch (error) {
-        console.error('Error in auto-approval process:', {
-          error: error.message,
-          stack: error.stack,
-          quotationId: quotation._id
-        });
+        console.error('Error in auto-approval process:', error.message);
         return res.json({ 
           status: 'partial', 
           message: 'Payment recorded but approval failed',
@@ -597,35 +504,21 @@ exports.handleRazorpayWebhook = async (req, res) => {
         });
       }
     } else {
-      console.log('Ignoring non-payment webhook event', { event });
       return res.json({ status: 'ignored', message: 'Event type not handled' });
     }
   } catch (error) {
-    console.error('Webhook processing error:', {
-      message: error.message,
-      stack: error.stack
-    });
+    console.error('Webhook processing error:', error.message);
     res.status(500).json({ error: error.message });
   }
 };
 
-// Helper function for approval process
+// Simplify helper function for approval process
 const approveQuotation = async (quotation) => {
   try {
-    console.log('Starting approval process for quotation', {
-      quotationId: quotation._id,
-      leadEmail: quotation.lead.email
-    });
-    
     // Check if user already exists with this email
     const existingUser = await User.findOne({ email: quotation.lead.email });
     
     if (existingUser) {
-      console.log('User already exists for this lead email', {
-        userId: existingUser._id,
-        email: existingUser.email
-      });
-      
       // Just update the quotation status
       quotation.status = 'approved';
       await quotation.save();
@@ -642,11 +535,6 @@ const approveQuotation = async (quotation) => {
       password,
       role: 'customer'
     });
-    
-    console.log('Created new customer account', {
-      customerId: customer._id,
-      email: customer.email
-    });
 
     // Send credentials email
     await sendEmail({
@@ -659,25 +547,14 @@ const approveQuotation = async (quotation) => {
         password
       }
     });
-    
-    console.log('Sent welcome email with credentials');
 
     // Update quotation status
     quotation.status = 'approved';
     await quotation.save();
-    
-    console.log('Updated quotation status to approved', {
-      quotationId: quotation._id,
-      status: quotation.status
-    });
 
     return quotation;
   } catch (error) {
-    console.error('Error in approval process:', {
-      message: error.message,
-      stack: error.stack,
-      quotationId: quotation._id
-    });
+    console.error('Error in approval process:', error.message);
     throw error;
   }
 };
@@ -738,16 +615,9 @@ exports.confirmOfflinePayment = async (req, res) => {
 // Add this new controller function
 exports.getCustomerProducts = async (req, res) => {
   try {
-    console.log('User requesting products:', {
-      id: req.user.id,
-      email: req.user.email,
-      role: req.user.role
-    });
-
     // Verify user exists
     const user = await User.findById(req.user.id);
     if (!user) {
-      console.log('User not found in database');
       return res.status(404).json({
         success: false,
         message: 'User not found'
@@ -756,11 +626,6 @@ exports.getCustomerProducts = async (req, res) => {
 
     // Find lead by email
     const lead = await Lead.findOne({ email: user.email });
-    console.log('Lead search result:', lead ? {
-      id: lead._id,
-      email: lead.email,
-      name: `${lead.firstName} ${lead.lastName}`
-    } : 'No lead found');
 
     if (!lead) {
       return res.json({
@@ -779,20 +644,11 @@ exports.getCustomerProducts = async (req, res) => {
         select: 'name category description specifications price images'
       });
 
-      console.log('Found quotations:', {
-        count: quotations.length,
-        quotationIds: quotations.map(q => q._id)
-      });
-
       // Extract and format products from quotations
       const products = quotations.flatMap(quotation => {
         try {
           return quotation.items.map(item => {
             if (!item.product) {
-              console.log('Missing product in quotation:', {
-                quotationId: quotation._id,
-                itemId: item._id
-              });
               return null;
             }
 
@@ -814,20 +670,9 @@ exports.getCustomerProducts = async (req, res) => {
             };
           }).filter(Boolean); // Remove null items
         } catch (err) {
-          console.error('Error processing quotation:', {
-            quotationId: quotation._id,
-            error: err.message
-          });
+          console.error('Error processing quotation:', err.message);
           return [];
         }
-      });
-
-      console.log('Processed products:', {
-        count: products.length,
-        sampleProduct: products[0] ? {
-          quotationNumber: products[0].quotationNumber,
-          productName: products[0].product.name
-        } : null
       });
       
       res.json({
@@ -839,10 +684,7 @@ exports.getCustomerProducts = async (req, res) => {
       throw error;
     }
   } catch (error) {
-    console.error('Error in getCustomerProducts:', {
-      message: error.message,
-      stack: error.stack
-    });
+    console.error('Error in getCustomerProducts:', error.message);
     res.status(500).json({
       success: false,
       message: 'Error fetching customer products',
@@ -857,15 +699,8 @@ exports.getCustomerProducts = async (req, res) => {
 // Add this new controller function
 exports.getPendingPayments = async (req, res) => {
   try {
-    console.log('User requesting payments:', {
-      id: req.user.id,
-      email: req.user.email,
-      role: req.user.role
-    });
-
     // Find the lead associated with the user
     const lead = await Lead.findOne({ email: req.user.email });
-    console.log('Lead found:', lead ? { id: lead._id, email: lead.email } : 'No lead found');
     
     if (!lead) {
       return res.json({
@@ -883,11 +718,6 @@ exports.getPendingPayments = async (req, res) => {
       'advancePaymentConfirmedAt razorpayPaymentLink razorpayPaymentId ' +
       'offlineTransactionNo createdAt'
     );
-
-    console.log('Found quotations:', {
-      count: quotations.length,
-      quotationIds: quotations.map(q => q._id)
-    });
 
     // Format the response data
     const formattedQuotations = quotations.map(q => ({
@@ -908,10 +738,7 @@ exports.getPendingPayments = async (req, res) => {
       data: formattedQuotations
     });
   } catch (error) {
-    console.error('Error fetching pending payments:', {
-      error: error.message,
-      stack: error.stack
-    });
+    console.error('Error fetching pending payments:', error.message);
     res.status(500).json({
       success: false,
       message: 'Error fetching pending payments',
@@ -993,13 +820,7 @@ exports.checkPublicPaymentStatus = async (req, res) => {
           const paymentVerification = await razorpay.verifyPaymentStatus(paymentId);
           
           // If payment is verified successfully and quotation is still in "sent" status
-          if (paymentVerification.verified) {
-            console.log('Payment verified with Razorpay API but not recorded in system:', {
-              quotationId: pendingQuotation._id,
-              paymentId,
-              status: paymentVerification.payment.status
-            });
-            
+          if (paymentVerification.verified) {            
             // Return a special status indicating the payment is verified with Razorpay 
             // but not yet processed in our system
             return res.json({
@@ -1016,7 +837,7 @@ exports.checkPublicPaymentStatus = async (req, res) => {
             });
           }
         } catch (error) {
-          console.error('Error verifying payment with Razorpay API:', error);
+          console.error('Error verifying payment with Razorpay API:', error.message);
           // Continue with normal flow even if verification fails
         }
       }
@@ -1046,7 +867,7 @@ exports.checkPublicPaymentStatus = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error checking public payment status:', error);
+    console.error('Error checking public payment status:', error.message);
     res.status(500).json({
       success: false,
       message: 'Error checking payment status',
@@ -1055,12 +876,10 @@ exports.checkPublicPaymentStatus = async (req, res) => {
   }
 };
 
-// Manual payment confirmation when webhook fails
+// Simplify manual payment confirmation
 exports.manualConfirmPayment = async (req, res) => {
   try {
-    console.log('🔄 MANUAL CONFIRMATION: Started manual payment confirmation process');
-    
-    const { quotationId, paymentId, paymentLinkId, signature } = req.body;
+    const { quotationId, paymentId, paymentLinkId } = req.body;
     
     if (!quotationId || !paymentId || !paymentLinkId) {
       return res.status(400).json({
@@ -1068,12 +887,6 @@ exports.manualConfirmPayment = async (req, res) => {
         message: 'Missing required parameters'
       });
     }
-    
-    console.log('Manual payment confirmation attempt:', {
-      quotationId,
-      paymentId,
-      paymentLinkId
-    });
     
     // Find the quotation
     const quotation = await Quotation.findById(quotationId).populate('lead');
@@ -1087,11 +900,6 @@ exports.manualConfirmPayment = async (req, res) => {
     
     // If payment is already confirmed and approved, just return success
     if (quotation.advancePaymentStatus === 'CONFIRMED' && quotation.status === 'approved') {
-      console.log('Payment already confirmed and quotation approved:', {
-        quotationId: quotation._id,
-        quotationNumber: quotation.quotationNumber
-      });
-      
       return res.json({
         success: true,
         message: 'Payment already confirmed',
@@ -1110,7 +918,7 @@ exports.manualConfirmPayment = async (req, res) => {
       const paymentVerification = await razorpay.verifyPaymentStatus(paymentId);
       
       if (!paymentVerification.verified) {
-        console.log('❌ API VERIFICATION: Payment verification failed:', paymentVerification);
+        console.error('Payment verification failed');
         return res.status(400).json({
           success: false,
           message: `Payment verification failed. Razorpay status: ${paymentVerification.payment.status}`,
@@ -1118,21 +926,11 @@ exports.manualConfirmPayment = async (req, res) => {
         });
       }
       
-      console.log('✅ API VERIFICATION: Payment verified with Razorpay API:', {
-        paymentId,
-        status: paymentVerification.payment.status,
-        amount: paymentVerification.payment.amount
-      });
-      
       // Also verify payment link if possible
       try {
-        const linkVerification = await razorpay.verifyPaymentLinkStatus(paymentLinkId);
-        console.log('Payment link verification result:', {
-          linkId: paymentLinkId,
-          status: linkVerification.paymentLink.status
-        });
+        await razorpay.verifyPaymentLinkStatus(paymentLinkId);
       } catch (linkError) {
-        // Non-blocking error, just log it
+        // Non-blocking error, continue
         console.error('Error verifying payment link (non-blocking):', linkError.message);
       }
       
@@ -1147,15 +945,10 @@ exports.manualConfirmPayment = async (req, res) => {
       }
       
       await quotation.save();
-      console.log('✅ MANUAL CONFIRMATION: Updated quotation payment status to CONFIRMED after API verification');
       
       // Approve the quotation
       try {
         const approvedQuotation = await approveQuotation(quotation);
-        console.log('Quotation approved after API verification:', {
-          quotationId: approvedQuotation._id,
-          status: approvedQuotation.status
-        });
         
         // Notify the sales person if websocket utils are available
         if (typeof notifyClient === 'function') {
@@ -1175,7 +968,7 @@ exports.manualConfirmPayment = async (req, res) => {
           }
         });
       } catch (error) {
-        console.error('Error in approval after API verification:', error);
+        console.error('Error in approval after API verification:', error.message);
         return res.status(500).json({
           success: false,
           message: 'Payment verified but approval failed',
@@ -1183,18 +976,12 @@ exports.manualConfirmPayment = async (req, res) => {
         });
       }
     } catch (verificationError) {
-      console.error('Razorpay API verification failed:', verificationError);
+      console.error('Razorpay API verification failed:', verificationError.message);
       
       // Fallback to signature verification if API verification fails
-      console.log('Falling back to previous verification method');
       
       // Check if the payment is already registered but quotation not approved
       if (quotation.razorpayPaymentId === paymentId || quotation.razorpayPaymentLinkId === paymentLinkId) {
-        console.log('Payment details match, updating payment status for quotation:', {
-          quotationId: quotation._id,
-          quotationNumber: quotation.quotationNumber
-        });
-        
         // Update payment details if not already set
         if (quotation.advancePaymentStatus !== 'CONFIRMED') {
           quotation.advancePaymentStatus = 'CONFIRMED';
@@ -1206,7 +993,6 @@ exports.manualConfirmPayment = async (req, res) => {
           }
           
           await quotation.save();
-          console.log('Updated payment status to CONFIRMED via fallback method');
         }
         
         // Approve quotation if not already approved
@@ -1214,10 +1000,6 @@ exports.manualConfirmPayment = async (req, res) => {
           try {
             // Use the helper function to create customer and approve quotation
             const approvedQuotation = await approveQuotation(quotation);
-            console.log('Quotation manually approved after payment confirmation:', {
-              quotationId: approvedQuotation._id,
-              status: approvedQuotation.status
-            });
             
             // Notify the sales person if websocket utils are available
             if (typeof notifyClient === 'function') {
@@ -1237,7 +1019,7 @@ exports.manualConfirmPayment = async (req, res) => {
               }
             });
           } catch (error) {
-            console.error('Error in fallback approval process:', error);
+            console.error('Error in fallback approval process:', error.message);
             return res.status(500).json({
               success: false,
               message: 'Payment confirmed but approval failed',
@@ -1269,7 +1051,7 @@ exports.manualConfirmPayment = async (req, res) => {
       }
     }
   } catch (error) {
-    console.error('Manual payment confirmation error:', error);
+    console.error('Manual payment confirmation error:', error.message);
     res.status(500).json({
       success: false,
       message: 'Error processing manual payment confirmation',
