@@ -145,14 +145,16 @@
         .company-header {
             position: relative;
             width: 100%;
-            margin-bottom: 10px;
+            margin-bottom: 30px;
             border-bottom: 2px solid #FF7300;
-            padding-bottom: 15px;
+            padding-bottom: 25px;
             min-height: 120px;
+            overflow: hidden;
         }
         .logo-section {
             display: inline-block;
             vertical-align: top;
+            width: 30%;
         }
         .company-logo {
             width: 180px;
@@ -166,6 +168,8 @@
             line-height: 1.6;
             color: #333;
             margin-left: auto;
+            width: 65%;
+            padding-bottom: 10px;
         }
         .quotation-title {
             font-size: 16px;
@@ -181,7 +185,7 @@
             margin-bottom: 2px;
         }
         .company-info p {
-            margin: 2px 0;
+            margin: 0 0 2px 0;
         }
         .company-info a {
             color: #0066cc;
@@ -311,29 +315,39 @@
         /* Base responsive styles */
         @media screen and (max-width: 768px) {
             .container {
-                padding: 10px 15px;
+                padding: 10px;
             }
             
             .company-header {
                 min-height: auto;
+                margin-bottom: 25px;
+                padding-bottom: 20px;
+            }
+
+            .logo-section {
+                width: 35%;
             }
 
             .company-logo {
-                width: 120px;  /* Smaller logo for mobile */
+                width: 100%;
+                max-width: 120px;
             }
             
             .company-info {
-                font-size: 11px;  /* Smaller text for mobile */
-                line-height: 1.4;
+                width: 60%;
+                font-size: 11px;
+                line-height: 1.3;
+                padding-bottom: 5px;
             }
 
             .company-info p {
-                margin: 2px 0;  /* Tighter spacing between lines */
+                margin: 0 0 1px 0;
             }
 
             .quotation-title {
                 font-size: 14px;
                 margin: 15px 0;
+                clear: both;
             }
             
             .lead-info,
