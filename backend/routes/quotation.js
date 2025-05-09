@@ -23,8 +23,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), handleRazorpa
 router.use(protect);
 
 // Customer specific routes
-router.get('/customer-products', getCustomerProducts);
-router.get('/pending-payments', getPendingPayments);
+router.get('/customer/products', getCustomerProducts);
+router.get('/customer/pending-payments', getPendingPayments);
 
 // Base routes
 router.route('/')

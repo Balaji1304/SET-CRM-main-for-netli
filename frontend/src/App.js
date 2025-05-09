@@ -30,6 +30,7 @@ import QuotationsPage from './app/quotations/page';
 import CreateQuotationPage from './app/quotations/create/page';
 import QuotationDetailsPage from './app/quotations/[id]/page';
 import EditQuotationPage from './app/quotations/[id]/edit/page';
+import PaymentStatusPage from './app/quotations/[id]/payment-status';
 import PaymentsPage from './app/payments/page';
 import OrdersPage from './app/orders/page';
 import MyProductsPage from './app/my-products/page';
@@ -150,6 +151,11 @@ function App() {
             <Route path="quotations/:id/edit" element={
               <ProtectedRoute allowedRoles={['sales_person']}>
                 <EditQuotationPage />
+              </ProtectedRoute>
+            } />
+            <Route path="quotations/:id/payment-status" element={
+              <ProtectedRoute allowedRoles={['customer', 'sales_person']}>
+                <PaymentStatusPage />
               </ProtectedRoute>
             } />
           </Route>
