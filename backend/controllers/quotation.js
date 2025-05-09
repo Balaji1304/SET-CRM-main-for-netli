@@ -212,9 +212,8 @@ exports.sendQuotation = async (req, res) => {
     const advanceAmount = Number((quotation.total * 0.20).toFixed(2));
 
     // Create payment link options
-    const frontendUrl = process.env.FRONTEND_URL || 'https://blackenginecrm.netlify.app';
-    // Remove any trailing slashes
-    const cleanFrontendUrl = frontendUrl.replace(/\/+$/, '');
+    // Always use a hardcoded domain without any protocol to prevent URL issues
+    const frontendDomain = 'blackenginecrm.netlify.app';
     
     const paymentLinkOptions = {
       amount: advanceAmount * 100,
@@ -233,7 +232,7 @@ exports.sendQuotation = async (req, res) => {
       notes: {
         quotationId: quotation._id.toString()
       },
-      callback_url: `${cleanFrontendUrl}/quotations/${quotation._id}/payment-status`,
+      callback_url: `https://${frontendDomain}/quotations/${quotation._id}/payment-status`,
       callback_method: 'get'
     };
 

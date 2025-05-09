@@ -31,12 +31,11 @@ export default function PaymentStatusPage() {
     // Call the backend to check payment status (no authentication required)
     const checkPaymentStatus = async () => {
       try {
-        // Properly format the API URL to avoid protocol duplication
-        const apiBaseUrl = process.env.REACT_APP_API_URL || 'https://set-crm-main-for-netli.onrender.com';
-        // Remove any trailing slashes from the base URL
-        const cleanBaseUrl = apiBaseUrl.replace(/\/+$/, '');
+        // Always use a hardcoded domain without any protocol
+        const apiDomain = 'set-crm-main-for-netli.onrender.com';
         
-        const apiUrl = `${cleanBaseUrl}/api/payments/public/payment-status?paymentId=${razorpayPaymentId}&quotationId=${id}`;
+        // Construct URL with a single explicit protocol
+        const apiUrl = `https://${apiDomain}/api/payments/public/payment-status?paymentId=${razorpayPaymentId}&quotationId=${id}`;
         console.log('Fetching payment status from:', apiUrl);
         
         const response = await fetch(apiUrl, {
