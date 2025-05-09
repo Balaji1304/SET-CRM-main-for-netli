@@ -145,10 +145,10 @@
         .company-header {
             position: relative;
             width: 100%;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             border-bottom: 2px solid #FF7300;
             padding-bottom: 15px;
-            min-height: 120px;  /* Added to ensure proper spacing */
+            min-height: 120px;
         }
         .logo-section {
             display: inline-block;
@@ -167,13 +167,21 @@
             color: #333;
             margin-left: auto;
         }
+        .quotation-title {
+            font-size: 16px;
+            color: #333;
+            margin: 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
         .company-info strong {
             color: #000;
             display: block;
             margin-bottom: 2px;
         }
         .company-info p {
-            margin: 0;
+            margin: 2px 0;
         }
         .company-info a {
             color: #0066cc;
@@ -307,12 +315,27 @@
             }
             
             .company-header {
-                flex-direction: column;
-                gap: 10px;
-                text-align: center;
+                min-height: auto;
+            }
+
+            .company-logo {
+                width: 120px;  /* Smaller logo for mobile */
             }
             
-            /* Consistent font sizes for all text elements */
+            .company-info {
+                font-size: 11px;  /* Smaller text for mobile */
+                line-height: 1.4;
+            }
+
+            .company-info p {
+                margin: 2px 0;  /* Tighter spacing between lines */
+            }
+
+            .quotation-title {
+                font-size: 14px;
+                margin: 15px 0;
+            }
+            
             .lead-info,
             .subject-line,
             .salutation-line,
@@ -499,6 +522,10 @@
                 font-size: 8px !important;
                 line-height: 1.5 !important;
             }
+            .quotation-title {
+                font-size: 14px !important;
+                margin: 15px 0 !important;
+            }
         }
     </style>
 </head>
@@ -517,6 +544,10 @@
                 <p>Near CIT, Opp. to CMC,</p>
                 <p>Coimbatore - 641 014</p>
             </div>
+        </div>
+
+        <div class="quotation-title">
+            <p><strong>SALES QUOTATION</strong></p>
         </div>
 
         <div class="ref-section">
@@ -543,10 +574,6 @@
                     <td>{{lead.address}}</td>
                 </tr>
             </table>
-        </div>
-
-        <div class="subject-line">
-            <p><strong>Sub: Quotation for Solar Products – Reg.</strong></p>
         </div>
 
         <div class="salutation-line">
