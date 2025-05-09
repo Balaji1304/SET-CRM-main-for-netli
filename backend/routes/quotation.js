@@ -14,7 +14,8 @@ const {
   getCustomerProducts,
   getPendingPayments,
   checkPaymentStatus,
-  checkPublicPaymentStatus
+  checkPublicPaymentStatus,
+  manualConfirmPayment
 } = require('../controllers/quotation');
 
 // Webhook route (unprotected)
@@ -22,6 +23,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), handleRazorpa
 
 // Public routes (no authentication required)
 router.get('/public/payment-status', checkPublicPaymentStatus);
+router.post('/manual-confirm', manualConfirmPayment);
 
 // Protected routes
 router.use(protect);

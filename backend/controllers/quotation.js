@@ -987,6 +987,186 @@ exports.checkPublicPaymentStatus = async (req, res) => {
   }
 };
 
+// Manual payment confirmation when webhook fails
+exports.manualConfirmPayment = async (req, res) => {
+  try {
+    const { quotationId, paymentId, paymentLinkId, signature } = req.body;
+    
+    if (!quotationId || !paymentId || !paymentLinkId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters'
+      });
+    }
+    
+    console.log('Manual payment confirmation attempt:', {
+      quotationId,
+      paymentId,
+      paymentLinkId
+    });
+    
+    // Find the quotation
+    const quotation = await Quotation.findById(quotationId).populate('lead');
+    
+    if (!quotation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+    
+    // If payment is already confirmed and approved, just return success
+    if (quotation.advancePaymentStatus === 'CONFIRMED' && quotation.status === 'approved') {
+      console.log('Payment already confirmed and quotation approved:', {
+        quotationId: quotation._id,
+        quotationNumber: quotation.quotationNumber
+      });
+      
+      return res.json({
+        success: true,
+        message: 'Payment already confirmed',
+        data: {
+          quotationId: quotation._id,
+          quotationNumber: quotation.quotationNumber,
+          paymentStatus: quotation.advancePaymentStatus,
+          quotationStatus: quotation.status
+        }
+      });
+    }
+    
+    // Check if the payment is already registered but quotation not approved
+    if (quotation.razorpayPaymentId === paymentId || quotation.razorpayPaymentLinkId === paymentLinkId) {
+      console.log('Payment details match, updating payment status for quotation:', {
+        quotationId: quotation._id,
+        quotationNumber: quotation.quotationNumber
+      });
+      
+      // Update payment details if not already set
+      if (quotation.advancePaymentStatus !== 'CONFIRMED') {
+        quotation.advancePaymentStatus = 'CONFIRMED';
+        quotation.advancePaymentConfirmedAt = new Date();
+        
+        // Set payment ID if not already set
+        if (!quotation.razorpayPaymentId) {
+          quotation.razorpayPaymentId = paymentId;
+        }
+        
+        await quotation.save();
+        console.log('Updated payment status to CONFIRMED via manual confirmation');
+      }
+      
+      // Approve quotation if not already approved
+      if (quotation.status !== 'approved') {
+        try {
+          // Use the helper function to create customer and approve quotation
+          const approvedQuotation = await approveQuotation(quotation);
+          console.log('Quotation manually approved after payment confirmation:', {
+            quotationId: approvedQuotation._id,
+            status: approvedQuotation.status
+          });
+          
+          // Notify the sales person if websocket utils are available
+          if (typeof notifyClient === 'function') {
+            const userId = quotation.createdBy;
+            notifyClient(userId, quotation._id, 'approved');
+          }
+          
+          return res.json({
+            success: true,
+            message: 'Payment confirmed and quotation approved',
+            data: {
+              quotationId: approvedQuotation._id,
+              quotationNumber: approvedQuotation.quotationNumber,
+              paymentStatus: 'CONFIRMED',
+              quotationStatus: 'approved'
+            }
+          });
+        } catch (error) {
+          console.error('Error in manual approval process:', error);
+          return res.status(500).json({
+            success: false,
+            message: 'Payment confirmed but approval failed',
+            error: error.message
+          });
+        }
+      } else {
+        // Already approved, just return success
+        return res.json({
+          success: true,
+          message: 'Payment confirmed and quotation already approved',
+          data: {
+            quotationId: quotation._id,
+            quotationNumber: quotation.quotationNumber,
+            paymentStatus: 'CONFIRMED',
+            quotationStatus: 'approved'
+          }
+        });
+      }
+    } else {
+      // This is a new payment ID not matching what's in the quotation
+      console.log('Manual confirmation with new payment details:', {
+        existingPaymentId: quotation.razorpayPaymentId,
+        newPaymentId: paymentId,
+        existingLinkId: quotation.razorpayPaymentLinkId,
+        newLinkId: paymentLinkId
+      });
+      
+      // Update payment details
+      quotation.advancePaymentStatus = 'CONFIRMED';
+      quotation.advancePaymentConfirmedAt = new Date();
+      quotation.razorpayPaymentId = paymentId;
+      
+      // If payment link ID doesn't match but we have a new one, update it
+      if (paymentLinkId && quotation.razorpayPaymentLinkId !== paymentLinkId) {
+        quotation.razorpayPaymentLinkId = paymentLinkId;
+      }
+      
+      await quotation.save();
+      console.log('Updated payment status with new payment details');
+      
+      // Approve the quotation
+      try {
+        const approvedQuotation = await approveQuotation(quotation);
+        console.log('Quotation approved with new payment details:', {
+          quotationId: approvedQuotation._id,
+          status: approvedQuotation.status
+        });
+        
+        // Notify the sales person if websocket utils are available
+        if (typeof notifyClient === 'function') {
+          const userId = quotation.createdBy;
+          notifyClient(userId, quotation._id, 'approved');
+        }
+        
+        return res.json({
+          success: true,
+          message: 'Payment confirmed with new details and quotation approved',
+          data: {
+            quotationId: approvedQuotation._id,
+            quotationNumber: approvedQuotation.quotationNumber,
+            paymentStatus: 'CONFIRMED',
+            quotationStatus: 'approved'
+          }
+        });
+      } catch (error) {
+        console.error('Error in approval with new payment details:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Payment recorded with new details but approval failed',
+          error: error.message
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Manual payment confirmation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error processing manual payment confirmation',
+      error: error.message
+    });
+  }
+};
+
 // Remove the duplicate exports at the bottom and replace with:
 module.exports = {
   getQuotations: exports.getQuotations,
@@ -1001,5 +1181,6 @@ module.exports = {
   getCustomerProducts: exports.getCustomerProducts,
   getPendingPayments: exports.getPendingPayments,
   checkPaymentStatus: exports.checkPaymentStatus,
-  checkPublicPaymentStatus: exports.checkPublicPaymentStatus
+  checkPublicPaymentStatus: exports.checkPublicPaymentStatus,
+  manualConfirmPayment: exports.manualConfirmPayment
 }; 
