@@ -63,6 +63,11 @@ export default function PaymentStatusPage() {
             
             // Manually confirm the payment
             await confirmPayment(razorpayPaymentId, razorpayPaymentLinkId, razorpaySignature);
+          } else if (paymentStatus === 'RAZORPAY_VERIFIED') {
+            console.log('Payment verified by Razorpay API but not yet processed in system. Confirming payment...');
+            
+            // Manually confirm the payment based on Razorpay API verification
+            await confirmPayment(razorpayPaymentId, razorpayPaymentLinkId, razorpaySignature);
           } else {
             setStatus(paymentStatus === 'CONFIRMED' ? 'success' : 'pending');
           }
