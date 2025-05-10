@@ -270,15 +270,13 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                 inputMode="decimal"
                 value={paymentDetails.amount}
                 onChange={(e) => {
-                  // Allow only numbers and decimal point
                   const value = e.target.value;
-                  // Regex to only allow numbers and one decimal point
-                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                    setPaymentDetails(prev => ({
-                      ...prev,
+                  // Only allow numbers and one decimal point
+                  if (/^$|^\d*\.?\d*$/.test(value)) {
+                    setPaymentDetails({
+                      ...paymentDetails,
                       amount: value
-                    }));
-                    // Clear error when user types
+                    });
                     setPaymentError('');
                   }
                 }}
@@ -298,10 +296,10 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               <select
                 value={paymentDetails.paymentMethod}
                 onChange={(e) => {
-                  setPaymentDetails(prev => ({
-                    ...prev,
+                  setPaymentDetails({
+                    ...paymentDetails,
                     paymentMethod: e.target.value
-                  }));
+                  });
                 }}
                 className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
                 required
@@ -321,11 +319,10 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                 type="text"
                 value={paymentDetails.transactionNo}
                 onChange={(e) => {
-                  // Don't trim while typing, only when submitting
-                  setPaymentDetails(prev => ({
-                    ...prev,
+                  setPaymentDetails({
+                    ...paymentDetails,
                     transactionNo: e.target.value
-                  }));
+                  });
                 }}
                 className={`w-full p-2 border ${paymentError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-orange-500 focus:border-orange-500`}
                 placeholder="Enter transaction reference number"
@@ -341,10 +338,10 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                 type="date"
                 value={paymentDetails.paymentDate}
                 onChange={(e) => {
-                  setPaymentDetails(prev => ({
-                    ...prev,
+                  setPaymentDetails({
+                    ...paymentDetails,
                     paymentDate: e.target.value
-                  }));
+                  });
                 }}
                 className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
                 required
@@ -358,10 +355,10 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               <textarea
                 value={paymentDetails.notes}
                 onChange={(e) => {
-                  setPaymentDetails(prev => ({
-                    ...prev,
+                  setPaymentDetails({
+                    ...paymentDetails,
                     notes: e.target.value
-                  }));
+                  });
                 }}
                 rows="3"
                 className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
