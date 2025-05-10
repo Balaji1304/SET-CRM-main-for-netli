@@ -140,42 +140,56 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
           {navigation.map((section) => (
             <div key={section.title} className="mb-8">
               <div className="space-y-2">
-                {section.items.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={(e) => {
-                      e.preventDefault(); // Prevent default Link behavior
-                      handleItemClick(item);
-                    }}
-                    className={`
-                      flex items-center rounded-md text-sm font-medium
-                      h-10 px-3 transition-all duration-300 ease-in-out
-                      ${location.pathname === item.href
-                        ? 'bg-orange-500 text-white hover:bg-orange-600' 
-                        : 'text-gray-700 hover:bg-orange-50'}
-                    `}
-                    title={isCollapsed ? item.name : ''}
-                  >
-                    <item.icon className="h-5 w-5 shrink-0" />
-                    <span className={`ml-3 truncate transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
-                      {item.name}
-                    </span>
-                  </Link>
-                ))}
+                {section.items.map((item) => {
+                  // Check if current path should highlight this navigation item
+                  const isActive = 
+                    location.pathname === item.href || 
+                    // Quotations-related pages
+                    (item.href === '/dashboard/quotations' && 
+                     (location.pathname === '/dashboard/quotations/create' || 
+                      location.pathname.startsWith('/dashboard/quotations/'))) ||
+                    // Leads-related pages  
+                    (item.href === '/dashboard/leads' && 
+                     (location.pathname.startsWith('/dashboard/edit-lead/') ||
+                      location.pathname === '/dashboard/add-lead'));
+                  
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      onClick={(e) => {
+                        e.preventDefault(); // Prevent default Link behavior
+                        handleItemClick(item);
+                      }}
+                      className={`
+                        flex items-center rounded-md text-sm font-medium
+                        h-10 px-3 transition-all duration-300 ease-in-out
+                        ${isActive
+                          ? 'bg-orange-500 text-white hover:bg-orange-600' 
+                          : 'text-gray-700 hover:bg-orange-50'}
+                      `}
+                      title={isCollapsed ? item.name : ''}
+                    >
+                      <item.icon className="h-5 w-5 shrink-0" />
+                      <span className={`ml-3 truncate transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
+                        {item.name}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           ))}
         </nav>
       </div>
 
-      <div className="border-t px-3 py-4 mt-auto">
+      <div className="border-t px-3 py-4 mt-auto w-full">
         <button
           onClick={handleLogout}
           className={`
             flex items-center rounded-md text-sm font-medium
             h-10 px-3 transition-all duration-300 ease-in-out
-            text-gray-700 hover:bg-orange-50
+            text-gray-700 hover:bg-orange-50 w-full
           `}
           title={isCollapsed ? 'Logout' : ''}
         >
