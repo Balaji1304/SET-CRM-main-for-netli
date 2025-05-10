@@ -604,7 +604,9 @@ const approveQuotation = async (quotation) => {
 exports.confirmOfflinePayment = async (req, res) => {
   try {
     const { amount, transactionNo, paymentMethod, paymentDate, notes } = req.body;
-    const quotation = await Quotation.findById(req.params.id);
+    
+    // Populate the lead data to ensure we have the email for user creation
+    const quotation = await Quotation.findById(req.params.id).populate('lead');
 
     if (!quotation) {
       return res.status(404).json({
@@ -630,6 +632,14 @@ exports.confirmOfflinePayment = async (req, res) => {
       });
     }
 
+    // Check if lead data is complete before proceeding
+    if (!quotation.lead || !quotation.lead.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lead data is incomplete. Email is required.'
+      });
+    }
+
     // Update quotation with payment details
     quotation.advancePaymentStatus = 'CONFIRMED';
     quotation.advancePaymentAmount = amount;
@@ -643,13 +653,23 @@ exports.confirmOfflinePayment = async (req, res) => {
     
     await quotation.save();
 
-    // Automatically trigger approval process
-    await approveQuotation(quotation);
-
-    res.json({
-      success: true,
-      data: quotation
-    });
+    try {
+      // Automatically trigger approval process
+      await approveQuotation(quotation);
+      
+      res.json({
+        success: true,
+        data: quotation
+      });
+    } catch (error) {
+      // If approval fails, still return success for the payment part
+      console.error('Error in approval process after offline payment:', error);
+      res.json({
+        success: true,
+        message: 'Payment recorded successfully, but automatic approval failed: ' + error.message,
+        data: quotation
+      });
+    }
   } catch (error) {
     console.error('Error in confirmOfflinePayment:', error);
     res.status(400).json({

@@ -18,6 +18,11 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     notes: ''
   });
   const [loadingQuotations, setLoadingQuotations] = useState({});
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmMessage, setConfirmMessage] = useState('');
+  const [actionInProgress, setActionInProgress] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -111,10 +116,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
   const handleApproveQuotation = async (id) => {
     try {
-      // Show confirmation dialog or loading state
-      if (!window.confirm('Are you sure you want to approve this quotation?')) {
-        return;
-      }
+      setActionInProgress(true);
       
       const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/approve`, {
         method: 'PUT',
@@ -123,26 +125,39 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       const data = await response.json();
       if (data.success) {
         fetchQuotations();
-        alert('Quotation approved successfully');
       } else {
         throw new Error(data.message || 'Failed to approve quotation');
       }
     } catch (error) {
       console.error('Error approving quotation:', error);
-      alert(error.message || 'Failed to approve quotation');
+    } finally {
+      setActionInProgress(false);
+      setShowConfirmDialog(false);
     }
   };
 
   const handleOfflinePayment = async () => {
     try {
+      // Clear any previous errors
+      setPaymentError('');
+      
       // Input validation
       if (!selectedQuotation?._id) {
         throw new Error('No quotation selected');
       }
 
       const amount = parseFloat(paymentDetails.amount);
-      if (!paymentDetails.transactionNo?.trim() || isNaN(amount) || amount <= 0) {
+      const trimmedTransactionNo = paymentDetails.transactionNo.trim();
+      
+      if (!trimmedTransactionNo || isNaN(amount) || amount <= 0) {
         throw new Error('Please provide valid payment details');
+      }
+
+      // Validate minimum payment amount (20% of total)
+      const minimumAdvance = selectedQuotation.total * 0.20;
+      if (amount < minimumAdvance) {
+        setPaymentError(`Advance payment must be at least ${minimumAdvance.toFixed(2)} (20% of total amount)`);
+        return;
       }
 
       const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${selectedQuotation._id}/offline-payment`, {
@@ -150,10 +165,10 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         headers: getAuthHeaders(true), // Using the consistent auth header helper
         body: JSON.stringify({
           amount,
-          transactionNo: paymentDetails.transactionNo.trim(),
+          transactionNo: trimmedTransactionNo,
           paymentMethod: paymentDetails.paymentMethod,
           paymentDate: paymentDetails.paymentDate,
-          notes: paymentDetails.notes
+          notes: paymentDetails.notes?.trim()
         })
       });
 
@@ -175,20 +190,16 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         });
         setSelectedQuotation(null);
         await fetchQuotations(); // Refresh the quotations list
-        alert('Payment confirmed successfully');
       }
     } catch (error) {
       console.error('Payment confirmation error:', error);
-      alert(error.message || 'Failed to confirm payment');
+      setPaymentError(error.message || 'Failed to confirm payment');
     }
   };
 
   const handleRejectQuotation = async (id) => {
     try {
-      // Confirm before closing quotation
-      if (!window.confirm('Are you sure you want to close this quotation? This indicates the quotation was not accepted by the lead.')) {
-        return;
-      }
+      setActionInProgress(true);
       
       const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/close`, {
         method: 'PUT',
@@ -197,14 +208,49 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       const data = await response.json();
       if (data.success) {
         fetchQuotations();
-        alert('Quotation closed successfully');
       } else {
         throw new Error(data.message || 'Failed to close quotation');
       }
     } catch (error) {
       console.error('Error closing quotation:', error);
-      alert(error.message || 'Failed to close quotation');
+    } finally {
+      setActionInProgress(false);
+      setShowConfirmDialog(false);
     }
+  };
+
+  // Add a new ConfirmDialog component
+  const ConfirmDialog = () => {
+    if (!showConfirmDialog) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <h3 className="text-lg font-semibold mb-2">Confirm Action</h3>
+          <p className="text-gray-600 mb-4">
+            {confirmMessage}
+          </p>
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowConfirmDialog(false)}
+              className="px-4 py-2 border border-input rounded-lg text-sm font-medium hover:bg-orange-50"
+              disabled={actionInProgress}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (confirmAction) confirmAction();
+              }}
+              className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50"
+              disabled={actionInProgress}
+            >
+              {actionInProgress ? 'Processing...' : 'Yes'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const PaymentModal = () => {
@@ -220,24 +266,29 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                 Amount <span className="text-red-500">*</span>
               </label>
               <input
-                type="number"
-                min="0"
-                step="0.01"
-                inputMode="numeric"
+                type="text"
+                inputMode="decimal"
                 value={paymentDetails.amount}
                 onChange={(e) => {
+                  // Allow only numbers and decimal point
                   const value = e.target.value;
-                  if (value === '' || !isNaN(value)) {
+                  // Regex to only allow numbers and one decimal point
+                  if (value === '' || /^\d*\.?\d*$/.test(value)) {
                     setPaymentDetails(prev => ({
                       ...prev,
                       amount: value
                     }));
+                    // Clear error when user types
+                    setPaymentError('');
                   }
                 }}
-                className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
+                className={`w-full p-2 border ${paymentError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-orange-500 focus:border-orange-500`}
                 placeholder="Enter payment amount"
                 required
               />
+              {paymentError && (
+                <p className="mt-1 text-sm text-red-600">{paymentError}</p>
+              )}
             </div>
             
             <div>
@@ -270,12 +321,13 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                 type="text"
                 value={paymentDetails.transactionNo}
                 onChange={(e) => {
+                  // Don't trim while typing, only when submitting
                   setPaymentDetails(prev => ({
                     ...prev,
                     transactionNo: e.target.value
                   }));
                 }}
-                className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
+                className={`w-full p-2 border ${paymentError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-orange-500 focus:border-orange-500`}
                 placeholder="Enter transaction reference number"
                 required
               />
@@ -337,7 +389,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               <button
                 onClick={() => {
                   if (!paymentDetails.amount || !paymentDetails.transactionNo || !paymentDetails.paymentDate) {
-                    alert('Please fill in all required fields');
+                    setPaymentError('Please fill in all required fields');
                     return;
                   }
                   handleOfflinePayment();
@@ -393,6 +445,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
   return (
     <div className="flex-1 overflow-auto">
       <PaymentModal />
+      <ConfirmDialog />
       <table className="min-w-full">
         <thead className="bg-orange-500 text-white">
           <tr>
@@ -489,14 +542,22 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                       {quotation.advancePaymentStatus !== 'CONFIRMED' && (
                         <>
                           <button
-                            onClick={() => handleApproveQuotation(quotation._id)}
+                            onClick={() => {
+                              setConfirmMessage('Are you sure you want to approve this quotation?');
+                              setConfirmAction(() => () => handleApproveQuotation(quotation._id));
+                              setShowConfirmDialog(true);
+                            }}
                             className="text-green-600 hover:text-green-900"
                             title="Approve Quotation"
                           >
                             <Check className="h-5 w-5" />
                           </button>
                           <button
-                            onClick={() => handleRejectQuotation(quotation._id)}
+                            onClick={() => {
+                              setConfirmMessage('Are you sure you want to close this quotation? This indicates the quotation was not accepted by the lead.');
+                              setConfirmAction(() => () => handleRejectQuotation(quotation._id));
+                              setShowConfirmDialog(true);
+                            }}
                             className="text-red-600 hover:text-red-900"
                             title="Close Quotation"
                           >
