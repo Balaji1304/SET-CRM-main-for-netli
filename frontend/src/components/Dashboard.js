@@ -1,19 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { AppSidebar } from './dashboard/AppSidebar';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Menu, X, Clock, CheckCircle2, Star, Ticket } from 'lucide-react';
-import { useState } from 'react';
+import ConfirmDialog from './ConfirmDialog';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
   const isMainDashboard = location.pathname === '/dashboard';
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const toggleSidebar = () => {
     setIsCollapsed(prev => !prev);
+  };
+  
+  const handleLogout = () => {
+    setShowLogoutDialog(true);
+  };
+  
+  const confirmLogout = () => {
+    setShowLogoutDialog(false);
+    logout();
   };
 
   const renderDashboardContent = () => {
@@ -105,7 +115,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white relative">
+    <div className="min-h-screen bg-white relative flex">
       {/* Mobile Header - Only show on mobile */}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-input z-50 px-4">
         <div className="flex items-center justify-between h-full">
@@ -123,8 +133,12 @@ const Dashboard = () => {
       </header>
 
       {/* Desktop Layout */}
-      <div className="hidden lg:block">
-        <AppSidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
+      <div className={`hidden lg:block w-${isCollapsed ? '16' : '64'} flex-shrink-0`}>
+        <AppSidebar 
+          isCollapsed={isCollapsed} 
+          onToggle={toggleSidebar} 
+          onLogout={handleLogout}
+        />
       </div>
 
       {/* Mobile Navigation - Full Screen */}
@@ -157,16 +171,16 @@ const Dashboard = () => {
           <div className="flex-1 overflow-y-auto">
             <AppSidebar 
               isMobile={true} 
-              onItemClick={() => setSidebarOpen(false)} 
+              onItemClick={() => setSidebarOpen(false)}
+              onLogout={handleLogout}
             />
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <main className={`transition-all duration-300 ease-in-out pt-16 lg:pt-0 min-h-screen bg-white
-        ${isCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
-        <div className="max-w-7xl mx-auto p-4 md:p-8">
+      <main className="flex-1 transition-all duration-300 ease-in-out pt-16 lg:pt-0 min-h-screen bg-white">
+        <div className="max-w-7xl p-4 md:p-8">
           {isMainDashboard && (
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
@@ -175,6 +189,15 @@ const Dashboard = () => {
           {renderDashboardContent()}
         </div>
       </main>
+      
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showLogoutDialog}
+        onClose={() => setShowLogoutDialog(false)}
+        onConfirm={confirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to log out?"
+      />
     </div>
   );
 };

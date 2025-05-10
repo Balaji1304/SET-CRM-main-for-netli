@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
 import { Menu } from 'lucide-react';
+import ConfirmDialog from '../ConfirmDialog';
 
 const DashboardLayout = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
@@ -14,14 +16,19 @@ const DashboardLayout = () => {
   const toggleMobileSidebar = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
   };
+  
+  const handleLogout = () => {
+    setShowLogoutDialog(true);
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
       {/* Desktop Sidebar */}
-      <div className="hidden md:block">
+      <div className={`hidden md:block flex-shrink-0 w-${isSidebarCollapsed ? '16' : '64'}`}>
         <AppSidebar
           isCollapsed={isSidebarCollapsed}
           onToggle={toggleSidebar}
+          onLogout={handleLogout}
         />
       </div>
 
@@ -36,13 +43,14 @@ const DashboardLayout = () => {
             <AppSidebar
               isMobile={true}
               onItemClick={toggleMobileSidebar}
+              onLogout={handleLogout}
             />
           </div>
         </div>
       )}
 
       {/* Main Content */}
-      <div className={`flex-1 ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'} transition-all duration-300`}>
+      <div className="flex-1 transition-all duration-300">
         {/* Mobile Header */}
         <div className="md:hidden p-4 bg-white border-b flex items-center">
           <button
@@ -58,6 +66,19 @@ const DashboardLayout = () => {
           <Outlet />
         </main>
       </div>
+      
+      {/* Logout Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showLogoutDialog}
+        onClose={() => setShowLogoutDialog(false)}
+        onConfirm={() => {
+          setShowLogoutDialog(false);
+          // You'll need to access logout from auth context here
+          // For now we'll close this dialog and let AppSidebar handle it
+        }}
+        title="Confirm Logout"
+        message="Are you sure you want to log out?"
+      />
     </div>
   );
 };

@@ -76,8 +76,8 @@ const getNavigation = (userRole) => {
   ];
 };
 
-const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = false, onToggle = () => {} }) => {
-  const { user, logout } = useAuth();
+const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = false, onToggle = () => {}, onLogout = () => {} }) => {
+  const { user, logout: authLogout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -100,11 +100,20 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
     navigate(item.href);
   };
 
+  // Handle logout, using the provided onLogout if available
+  const handleLogout = () => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      authLogout();
+    }
+  };
+
   return (
     <div className={`
-      ${isMobile ? 'p-4' : `fixed top-0 left-0 h-screen ${isCollapsed ? 'w-16' : 'w-64'} border-r`}
+      ${isMobile ? 'p-4 w-full' : `fixed top-0 left-0 h-screen ${isCollapsed ? 'w-16' : 'w-64'} border-r z-10`}
       transition-all duration-300 ease-in-out
-      bg-white flex flex-col overflow-hidden
+      bg-white flex flex-col
     `}>
       {!isMobile && (
         <div className="border-b p-4 flex items-center justify-between">
@@ -112,7 +121,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
             <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
               <span className="text-lg font-semibold">{user?.name?.[0] || 'U'}</span>
             </div>
-            <div className={`flex flex-col transition-opacity duration-300 ${isCollapsed ? 'opacity-0 w-0' : 'opacity-100'}`}>
+            <div className={`flex flex-col transition-opacity duration-300 ${isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
               <span className="font-medium">{user?.name || 'User'}</span>
               <span className="text-xs text-muted-foreground">{user?.role || 'Role'}</span>
             </div>
@@ -143,7 +152,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
                     title={isCollapsed ? item.name : ''}
                   >
                     <item.icon className="h-5 w-5 shrink-0" />
-                    <span className={`ml-3 truncate transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+                    <span className={`ml-3 truncate transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>
                       {item.name}
                     </span>
                   </Link>
@@ -156,7 +165,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
 
       <div className="border-t px-3 py-4 mt-auto">
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className={`
             flex items-center rounded-md text-sm font-medium
             h-10 px-3
@@ -165,7 +174,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
           title={isCollapsed ? 'Logout' : ''}
         >
           <LogOut className="h-5 w-5 shrink-0" />
-          <span className={`ml-3 truncate transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+          <span className={`ml-3 truncate transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>
             Logout
           </span>
         </button>
