@@ -95,6 +95,12 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
       onToggle();
     }
     
+    // Special case for Dashboard - don't call onItemClick to prevent duplicate renders
+    if (item.href === '/dashboard' && location.pathname.startsWith('/dashboard/')) {
+      navigate(item.href);
+      return;
+    }
+    
     // Navigate to the new route
     onItemClick();
     navigate(item.href);
