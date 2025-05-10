@@ -477,7 +477,7 @@ export default function LeadForm() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] overflow-y-auto">
+    <div className="flex flex-col min-h-0">
       {/* Header Section */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -502,8 +502,8 @@ export default function LeadForm() {
       </div>
 
       {/* Main Content */}
-      <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
-        <div className="p-6 overflow-y-auto flex-1">
+      <div className="bg-white rounded-lg shadow-sm flex-1">
+        <div className="p-6">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
               {error}
