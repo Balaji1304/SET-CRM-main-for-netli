@@ -121,7 +121,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
             <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
               <span className="text-lg font-semibold">{user?.name?.[0] || 'U'}</span>
             </div>
-            <div className={`flex flex-col transition-opacity duration-300 ${isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+            <div className={`flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
               <span className="font-medium">{user?.name || 'User'}</span>
               <span className="text-xs text-muted-foreground">{user?.role || 'Role'}</span>
             </div>
@@ -144,7 +144,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
                     }}
                     className={`
                       flex items-center rounded-md text-sm font-medium
-                      h-10 px-3
+                      h-10 px-3 transition-all duration-300 ease-in-out
                       ${location.pathname === item.href
                         ? 'bg-orange-500 text-white hover:bg-orange-600' 
                         : 'text-gray-700 hover:bg-orange-50'}
@@ -152,7 +152,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
                     title={isCollapsed ? item.name : ''}
                   >
                     <item.icon className="h-5 w-5 shrink-0" />
-                    <span className={`ml-3 truncate transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>
+                    <span className={`ml-3 truncate transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
                       {item.name}
                     </span>
                   </Link>
@@ -168,13 +168,13 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
           onClick={handleLogout}
           className={`
             flex items-center rounded-md text-sm font-medium
-            h-10 px-3
+            h-10 px-3 transition-all duration-300 ease-in-out
             text-gray-700 hover:bg-orange-50
           `}
           title={isCollapsed ? 'Logout' : ''}
         >
           <LogOut className="h-5 w-5 shrink-0" />
-          <span className={`ml-3 truncate transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>
+          <span className={`ml-3 truncate transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
             Logout
           </span>
         </button>

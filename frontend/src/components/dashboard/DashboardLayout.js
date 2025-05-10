@@ -22,9 +22,9 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-gray-100 flex overflow-x-hidden">
       {/* Desktop Sidebar */}
-      <div className={`hidden md:block flex-shrink-0 w-${isSidebarCollapsed ? '16' : '64'}`}>
+      <div className={`hidden md:block flex-shrink-0 w-${isSidebarCollapsed ? '16' : '64'} transition-all duration-300 ease-in-out`}>
         <AppSidebar
           isCollapsed={isSidebarCollapsed}
           onToggle={toggleSidebar}
@@ -50,7 +50,7 @@ const DashboardLayout = () => {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 transition-all duration-300">
+      <div className="flex-1 transition-all duration-300 ease-in-out">
         {/* Mobile Header */}
         <div className="md:hidden p-4 bg-white border-b flex items-center">
           <button

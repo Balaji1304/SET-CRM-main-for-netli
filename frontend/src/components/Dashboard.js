@@ -133,7 +133,7 @@ const Dashboard = () => {
       </header>
 
       {/* Desktop Layout */}
-      <div className={`hidden lg:block w-${isCollapsed ? '16' : '64'} flex-shrink-0`}>
+      <div className={`hidden lg:block w-${isCollapsed ? '16' : '64'} flex-shrink-0 transition-all duration-300 ease-in-out`}>
         <AppSidebar 
           isCollapsed={isCollapsed} 
           onToggle={toggleSidebar} 
@@ -179,7 +179,7 @@ const Dashboard = () => {
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 transition-all duration-300 ease-in-out pt-16 lg:pt-0 min-h-screen bg-white">
+      <main className="flex-1 transition-all duration-300 ease-in-out pt-16 lg:pt-0 min-h-screen bg-white overflow-x-hidden">
         <div className="max-w-7xl p-4 md:p-8">
           {isMainDashboard && (
             <div className="flex items-center justify-between mb-6">
