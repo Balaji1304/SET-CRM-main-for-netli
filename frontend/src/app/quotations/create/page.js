@@ -181,170 +181,228 @@ export default function CreateQuotationPage() {
   const selectedLead = leads.find(lead => lead._id === formData.leadId);
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => setShowConfirmDialog(true)}
-          className="p-2 hover:bg-gray-100 rounded-lg"
-        >
-          <ArrowLeft className="h-6 w-6 text-gray-600" />
-        </button>
+    <div className="flex flex-col min-h-0">
+      {/* Header Section */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Create Quotation</h2>
-          <p className="text-muted-foreground">Create a new quotation for a lead</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowConfirmDialog(true)}
+              className="p-2 hover:bg-gray-100 rounded-md"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <h2 className="text-3xl font-bold tracking-tight">Create Quotation</h2>
+          </div>
+          <p className="text-muted-foreground mt-1">Create a new quotation for a lead</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Lead Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Lead
-          </label>
-          <select
-            value={formData.leadId}
-            onChange={(e) => handleLeadSelect(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            required
-          >
-            <option value="">Select a lead</option>
-            {leads.map(lead => (
-              <option key={lead._id} value={lead._id}>
-                {lead.firstName} {lead.lastName} - {lead.businessName}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Items */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">Items</h3>
-            <button
-              type="button"
-              onClick={handleAddItem}
-              className="flex items-center gap-2 text-orange-600 hover:text-orange-700"
-            >
-              <Plus className="h-4 w-4" />
-              Add Item
-            </button>
-          </div>
-
-          {formData.items.map((item, index) => (
-            <div key={index} className="grid grid-cols-12 gap-4 items-start p-4 border rounded-lg">
-              <div className="col-span-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
+      {/* Main Content */}
+      <div className="bg-white rounded-lg shadow-sm flex-1">
+        <div className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Lead Selection */}
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h2 className="text-lg font-medium text-foreground">Lead Information</h2>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Select Lead <span className="text-red-500">*</span>
+                </label>
                 <select
-                  value={item.productId}
-                  onChange={(e) => handleItemChange(index, 'productId', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  value={formData.leadId}
+                  onChange={(e) => handleLeadSelect(e.target.value)}
+                  className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   required
                 >
-                  <option value="">Select Product</option>
-                  {selectedLead?.products.map(product => (
-                    <option key={product.id} value={product.id}>
-                      {product.name}
+                  <option value="">Select a lead</option>
+                  {leads.map(lead => (
+                    <option key={lead._id} value={lead._id}>
+                      {lead.firstName} {lead.lastName} - {lead.businessName}
                     </option>
                   ))}
                 </select>
               </div>
+            </div>
 
-              <div className="col-span-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                <input
-                  type="number"
-                  value={item.quantity}
-                  onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))}
-                  min="1"
-                  placeholder="Qty"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div className="col-span-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                <input
-                  type="number"
-                  value={item.unitPrice}
-                  onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value))}
-                  min="0"
-                  step="0.01"
-                  placeholder="Price"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div className="col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Discount</label>
-                <input
-                  type="number"
-                  value={item.discount}
-                  onChange={(e) => handleItemChange(index, 'discount', parseInt(e.target.value))}
-                  min="0"
-                  max="100"
-                  placeholder="%"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="col-span-1 pt-7">
+            {/* Items */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-medium text-foreground">Items</h2>
                 <button
                   type="button"
-                  onClick={() => handleRemoveItem(index)}
-                  className="p-2 text-red-600 hover:text-red-700"
+                  onClick={handleAddItem}
+                  className="flex items-center gap-2 text-orange-500 hover:text-orange-600"
                 >
-                  <Trash2 className="h-5 w-5" />
+                  <Plus className="h-4 w-4" />
+                  Add Item
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {formData.items.map((item, index) => (
+                  <div key={index} className="flex flex-col md:flex-row gap-4 mb-4 p-4 border rounded-lg bg-white">
+                    <div className="w-full md:flex-1 mb-4 md:mb-0">
+                      <label className="block text-sm font-medium mb-1">
+                        Product <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={item.productId}
+                        onChange={(e) => handleItemChange(index, 'productId', e.target.value)}
+                        className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="">Select Product</option>
+                        {selectedLead?.products.map(product => (
+                          <option key={product.id} value={product.id}>
+                            {product.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="w-full md:w-32 mb-4 md:mb-0">
+                      <label className="block text-sm font-medium mb-1">
+                        Quantity <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))}
+                        min="1"
+                        placeholder="Qty"
+                        className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+
+                    <div className="w-full md:w-40 mb-4 md:mb-0">
+                      <label className="block text-sm font-medium mb-1">
+                        Price <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={item.unitPrice}
+                        onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value))}
+                        min="0"
+                        step="0.01"
+                        placeholder="Price"
+                        className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+
+                    <div className="w-full md:w-24 mb-4 md:mb-0">
+                      <label className="block text-sm font-medium mb-1">
+                        Discount
+                      </label>
+                      <input
+                        type="number"
+                        value={item.discount}
+                        onChange={(e) => handleItemChange(index, 'discount', parseInt(e.target.value))}
+                        min="0"
+                        max="100"
+                        placeholder="%"
+                        className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {formData.items.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(index)}
+                        className="w-full md:w-auto p-3 md:mt-6 text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center gap-2"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                        <span className="md:hidden">Remove Item</span>
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {/* Add Item Button */}
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="w-full p-4 text-orange-500 hover:bg-orange-50 rounded-lg border-2 border-dashed border-orange-200 flex items-center justify-center gap-2"
+                >
+                  <Plus className="h-5 w-5" />
+                  Add Another Item
                 </button>
               </div>
             </div>
-          ))}
-        </div>
 
-        {/* Terms and Notes */}
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Terms
-            </label>
-            <textarea
-              value={formData.terms}
-              onChange={(e) => setFormData(prev => ({ ...prev, terms: e.target.value }))}
-              rows="4"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
-            </label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              rows="4"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            />
-          </div>
-        </div>
+            {/* Total Amount Display */}
+            <div className="flex justify-end border-t border-input pt-4 mt-6">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">Total Amount:</span>
+                <span className="text-lg font-semibold text-orange-600">
+                  ${formData.items.reduce((total, item) => {
+                    if (item.quantity && item.unitPrice) {
+                      const itemTotal = item.quantity * item.unitPrice;
+                      const discount = item.discount ? (itemTotal * item.discount / 100) : 0;
+                      return total + (itemTotal - discount);
+                    }
+                    return total;
+                  }, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
 
-        {/* Submit Button */}
-        <div className="flex justify-end space-x-4 pt-6 border-t">
-          <button
-            type="button"
-            onClick={() => setShowConfirmDialog(true)}
-            className="px-6 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-6 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600"
-          >
-            Create Quotation
-          </button>
+            {/* Additional Information */}
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h2 className="text-lg font-medium text-foreground">Additional Information</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Terms
+                  </label>
+                  <textarea
+                    value={formData.terms}
+                    onChange={(e) => setFormData(prev => ({ ...prev, terms: e.target.value }))}
+                    rows="4"
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical"
+                    placeholder="Enter terms and conditions for this quotation..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    rows="4"
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical"
+                    placeholder="Enter any additional notes for the client..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Form Actions */}
+            <div className="sticky bottom-0 left-0 right-0 flex justify-end space-x-4 pt-4 pb-4 border-t border-input bg-white">
+              <button
+                type="button"
+                onClick={() => setShowConfirmDialog(true)}
+                className="px-6 py-2 border border-input rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Create Quotation
+              </button>
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
 
       <ConfirmDialog
         isOpen={showConfirmDialog}
