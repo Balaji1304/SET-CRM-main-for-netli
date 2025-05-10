@@ -3,8 +3,10 @@ import { Outlet } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
 import { Menu } from 'lucide-react';
 import ConfirmDialog from '../ConfirmDialog';
+import { useAuth } from '../../context/AuthContext';
 
 const DashboardLayout = () => {
+  const { logout } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -19,6 +21,11 @@ const DashboardLayout = () => {
   
   const handleLogout = () => {
     setShowLogoutDialog(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutDialog(false);
+    logout(); // This will use the logout function from AuthContext
   };
 
   return (
@@ -71,11 +78,7 @@ const DashboardLayout = () => {
       <ConfirmDialog
         isOpen={showLogoutDialog}
         onClose={() => setShowLogoutDialog(false)}
-        onConfirm={() => {
-          setShowLogoutDialog(false);
-          // You'll need to access logout from auth context here
-          // For now we'll close this dialog and let AppSidebar handle it
-        }}
+        onConfirm={confirmLogout}
         title="Confirm Logout"
         message="Are you sure you want to log out?"
       />
