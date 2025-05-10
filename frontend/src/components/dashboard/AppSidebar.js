@@ -45,7 +45,6 @@ const getNavigation = (userRole) => {
       { name: 'Tickets', href: '/dashboard/tickets', icon: Ticket },
     ],
     sales_person: [
-      { name: 'Add Lead', href: '/dashboard/add-lead', icon: UserPlus },
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
     ],

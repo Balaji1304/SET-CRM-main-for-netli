@@ -603,7 +603,7 @@ const approveQuotation = async (quotation) => {
 // Add this new controller function
 exports.confirmOfflinePayment = async (req, res) => {
   try {
-    const { amount, transactionNo } = req.body;
+    const { amount, transactionNo, paymentMethod, paymentDate, notes } = req.body;
     const quotation = await Quotation.findById(req.params.id);
 
     if (!quotation) {
@@ -635,6 +635,12 @@ exports.confirmOfflinePayment = async (req, res) => {
     quotation.advancePaymentAmount = amount;
     quotation.advancePaymentConfirmedAt = new Date();
     quotation.offlineTransactionNo = transactionNo;
+    
+    // Add the new payment details
+    if (paymentMethod) quotation.paymentMethod = paymentMethod;
+    if (paymentDate) quotation.paymentDate = new Date(paymentDate);
+    if (notes) quotation.paymentNotes = notes;
+    
     await quotation.save();
 
     // Automatically trigger approval process
@@ -1101,6 +1107,49 @@ exports.manualConfirmPayment = async (req, res) => {
   }
 };
 
+// Close quotation when lead does not accept it
+exports.closeQuotation = async (req, res) => {
+  try {
+    const quotation = await Quotation.findById(req.params.id);
+    
+    if (!quotation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
+    // Only allow closing sent quotations
+    if (quotation.status !== 'sent') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only close quotations that have been sent'
+      });
+    }
+
+    // Update quotation status
+    quotation.status = 'closed';
+    quotation.closedAt = new Date();
+    quotation.closedBy = req.user.id;
+    if (req.body.closeReason) {
+      quotation.closeReason = req.body.closeReason;
+    }
+    
+    await quotation.save();
+
+    res.json({
+      success: true,
+      data: quotation
+    });
+  } catch (error) {
+    console.error('Close quotation error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Error closing quotation'
+    });
+  }
+};
+
 // Remove the duplicate exports at the bottom and replace with:
 module.exports = {
   getQuotations: exports.getQuotations,
@@ -1116,5 +1165,6 @@ module.exports = {
   getPendingPayments: exports.getPendingPayments,
   checkPaymentStatus: exports.checkPaymentStatus,
   checkPublicPaymentStatus: exports.checkPublicPaymentStatus,
-  manualConfirmPayment: exports.manualConfirmPayment
+  manualConfirmPayment: exports.manualConfirmPayment,
+  closeQuotation: exports.closeQuotation
 }; 

@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, Plus } from 'lucide-react';
 import LeadsTable from './LeadsTable';
+import { useNavigate } from 'react-router-dom';
 
 export default function Leads() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const navigate = useNavigate();
 
   return (
     <div className="flex flex-col h-[calc(100vh-2rem)] relative">
@@ -15,6 +17,13 @@ export default function Leads() {
           <h2 className="text-3xl font-bold tracking-tight">Leads Management</h2>
           <p className="text-muted-foreground mt-1">View and manage all your leads in one place</p>
         </div>
+        <button
+          onClick={() => navigate('/dashboard/add-lead')}
+          className="inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Lead
+        </button>
       </div>
 
       {/* Main Content */}

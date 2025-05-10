@@ -45,7 +45,7 @@ const quotationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'sent', 'approved', 'rejected', 'expired'],
+    enum: ['draft', 'sent', 'approved', 'rejected', 'expired', 'closed'],
     default: 'draft'
   },
   validUntil: {
@@ -98,6 +98,27 @@ const quotationSchema = new mongoose.Schema({
     type: Date
   },
   offlineTransactionNo: {
+    type: String
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'check', 'bank_transfer', 'other'],
+    default: 'cash'
+  },
+  paymentDate: {
+    type: Date
+  },
+  paymentNotes: {
+    type: String
+  },
+  closedAt: {
+    type: Date
+  },
+  closedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  closeReason: {
     type: String
   }
 });

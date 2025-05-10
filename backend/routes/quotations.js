@@ -9,7 +9,9 @@ const {
   updateQuotation,
   deleteQuotation,
   approveQuotation,
-  sendQuotation
+  sendQuotation,
+  confirmOfflinePayment,
+  closeQuotation
 } = require('../controllers/quotation');
 
 // Protect all routes
@@ -27,5 +29,7 @@ router.route('/:id')
 
 router.post('/:id/send', sendQuotation);
 router.put('/:id/approve', approveQuotation);
+router.put('/:id/close', closeQuotation);
+router.post('/:id/offline-payment', confirmOfflinePayment);
 
 module.exports = router; 
