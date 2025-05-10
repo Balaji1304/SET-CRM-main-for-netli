@@ -18,15 +18,32 @@ registerHelpers();
 // @route   GET /api/quotations
 exports.getQuotations = async (req, res) => {
   try {
-    const quotations = await Quotation.find()
+    let query = {};
+    
+    // If user is a sales person, only show their quotations
+    if (req.user.role === 'sales_person') {
+      query.createdBy = req.user.id;
+    }
+    
+    // If user is a customer, only show quotations related to their leads
+    if (req.user.role === 'customer') {
+      // Find leads associated with this customer's email
+      const leads = await Lead.find({ email: req.user.email });
+      const leadIds = leads.map(lead => lead._id);
+      query.lead = { $in: leadIds };
+    }
+
+    const quotations = await Quotation.find(query)
       .populate('lead', 'firstName lastName email')
-      .populate('createdBy', 'name');
+      .populate('createdBy', 'name')
+      .sort({ createdAt: -1 }); // Sort by newest first
 
     res.json({
       success: true,
       data: quotations
     });
   } catch (error) {
+    console.error('Error fetching quotations:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -49,11 +66,35 @@ exports.getQuotation = async (req, res) => {
       });
     }
 
+    // Check access permissions
+    if (req.user.role === 'sales_person' && quotation.createdBy.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access this quotation'
+      });
+    }
+
+    // For customers, check if the quotation is related to their leads
+    if (req.user.role === 'customer') {
+      const lead = await Lead.findOne({ 
+        _id: quotation.lead._id,
+        email: req.user.email 
+      });
+      
+      if (!lead) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not authorized to access this quotation'
+        });
+      }
+    }
+
     res.json({
       success: true,
       data: quotation
     });
   } catch (error) {
+    console.error('Error fetching quotation:', error);
     res.status(500).json({
       success: false,
       message: 'Server Error'
