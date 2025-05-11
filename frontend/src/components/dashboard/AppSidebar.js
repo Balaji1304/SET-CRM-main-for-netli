@@ -118,7 +118,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
   // Special styling for mobile view
   if (isMobile) {
     return (
-      <div className="h-full bg-white flex flex-col overflow-y-auto pt-14">
+      <div className="h-full bg-white flex flex-col overflow-y-auto">
         {/* User Profile Header for Mobile - Styled like desktop but for mobile */}
         <div className="p-4 border-b">
           <div className="flex items-center gap-4">

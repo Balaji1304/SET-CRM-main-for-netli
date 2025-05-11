@@ -47,14 +47,19 @@ const DashboardLayout = () => {
 
       {/* Main Content with Mobile Sidebar */}
       <div className="flex-1 transition-all duration-300 ease-in-out">
-        {/* Mobile Header - always visible */}
-        <div className="md:hidden p-4 bg-white border-b flex items-center sticky top-0 z-30">
+        {/* Mobile Header - Fixed at top */}
+        <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b shadow-sm flex items-center justify-between p-4 z-30">
           <button
             onClick={toggleMobileSidebar}
             className="p-2 hover:bg-gray-100 rounded-lg"
           >
             <Menu className="h-6 w-6" />
           </button>
+          
+          <h1 className="text-lg font-semibold text-gray-800">Sunlit Solar</h1>
+          
+          {/* Empty div to balance the layout */}
+          <div className="w-10"></div>
         </div>
 
         {/* Mobile Sidebar and Content Container */}
@@ -68,11 +73,12 @@ const DashboardLayout = () => {
             `}
             style={{ height: '100dvh' }} 
           >
-            {/* Mobile Sidebar Close Button */}
-            <div className="absolute top-4 right-4 z-50">
+            {/* Mobile Sidebar Header with App Name and Close Button */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h1 className="text-xl font-bold text-orange-500">SET</h1>
               <button
                 onClick={toggleMobileSidebar}
-                className="p-2 bg-white hover:bg-gray-100 rounded-full"
+                className="p-2 hover:bg-gray-100 rounded-full"
               >
                 <X className="h-6 w-6 text-gray-700" />
               </button>
@@ -93,10 +99,10 @@ const DashboardLayout = () => {
             />
           )}
 
-          {/* Page Content - Push Right when Sidebar Opens */}
+          {/* Page Content - Push Right when Sidebar Opens and add top padding for fixed header */}
           <div 
             className={`
-              w-full min-h-screen transition-transform duration-300 ease-in-out
+              w-full min-h-screen pt-16 transition-transform duration-300 ease-in-out
               ${isMobileSidebarOpen ? 'transform translate-x-64' : 'transform translate-x-0'}
             `}
           >
