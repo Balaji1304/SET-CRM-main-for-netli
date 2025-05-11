@@ -20,7 +20,8 @@ import {
   CreditCard,
   Package,
   ShoppingBag,
-  Bell as BellIcon
+  Bell as BellIcon,
+  Settings
 } from 'lucide-react';
 
 const getNavigation = (userRole) => {
@@ -114,25 +115,105 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
     }
   };
 
+  // Special styling for mobile view
+  if (isMobile) {
+    return (
+      <div className="h-full bg-white flex flex-col overflow-y-auto pt-14">
+        {/* User Profile for Mobile */}
+        <div className="p-6 border-b bg-gray-50">
+          <div className="mb-2">
+            <h2 className="text-xl font-bold text-purple-700">Welcome {user?.name || 'User'}</h2>
+          </div>
+          
+          <div className="flex items-center justify-between mt-3">
+            <div>
+              <div className="text-sm text-gray-600">Balance</div>
+              <div className="text-lg font-semibold">${user?.balance || '32.49'}</div>
+            </div>
+            <div className="bg-gray-300 text-gray-700 text-xs px-3 py-1 rounded-full">
+              {user?.tier || 'Scoot Plus'}
+            </div>
+          </div>
+          
+          {/* Gift/Promo Banner */}
+          <div className="mt-4 bg-black text-white rounded-md p-3 flex items-center gap-3">
+            <div className="text-xl">🎁</div>
+            <span className="text-sm font-medium">Unlock a free ride!</span>
+          </div>
+        </div>
+        
+        {/* Navigation Items - Styled more like the template */}
+        <div className="flex-1 py-2">
+          <nav className="px-4 space-y-1">
+            {navigation.flatMap(section => 
+              section.items.map(item => {
+                const isActive = 
+                  location.pathname === item.href || 
+                  (item.href === '/dashboard/quotations' && 
+                   (location.pathname === '/dashboard/quotations/create' || 
+                    location.pathname.startsWith('/dashboard/quotations/'))) ||
+                  (item.href === '/dashboard/leads' && 
+                   (location.pathname.startsWith('/dashboard/edit-lead/') ||
+                    location.pathname === '/dashboard/add-lead'));
+                
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleItemClick(item);
+                    }}
+                    className={`
+                      flex items-center rounded-md py-3 px-4
+                      ${isActive
+                        ? 'bg-orange-500 text-white' 
+                        : 'text-gray-700 hover:bg-gray-50'}
+                    `}
+                  >
+                    <item.icon className="h-5 w-5 mr-3" />
+                    <span className="text-sm font-medium">{item.name}</span>
+                  </Link>
+                );
+              })
+            )}
+          </nav>
+        </div>
+        
+        {/* Bottom Actions */}
+        <div className="border-t mt-auto">
+          <div className="px-4 py-2">
+            <button
+              onClick={handleLogout}
+              className="flex items-center rounded-md py-3 px-4 w-full text-gray-700 hover:bg-gray-50"
+            >
+              <LogOut className="h-5 w-5 mr-3" />
+              <span className="text-sm font-medium">Logout</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop view remains the same
   return (
     <div className={`
-      ${isMobile ? 'p-4 w-full' : `fixed top-0 left-0 h-screen ${isCollapsed ? 'w-16' : 'w-64'} border-r z-10`}
+      fixed top-0 left-0 h-screen ${isCollapsed ? 'w-16' : 'w-64'} border-r z-10
       transition-all duration-300 ease-in-out
       bg-white flex flex-col
     `}>
-      {!isMobile && (
-        <div className="border-b p-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-              <span className="text-lg font-semibold">{user?.name?.[0] || 'U'}</span>
-            </div>
-            <div className={`flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
-              <span className="font-medium">{user?.name || 'User'}</span>
-              <span className="text-xs text-muted-foreground">{user?.role || 'Role'}</span>
-            </div>
+      <div className="border-b p-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+            <span className="text-lg font-semibold">{user?.name?.[0] || 'U'}</span>
+          </div>
+          <div className={`flex flex-col transition-all duration-300 ease-in-out ${isCollapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100 w-auto'}`}>
+            <span className="font-medium">{user?.name || 'User'}</span>
+            <span className="text-xs text-muted-foreground">{user?.role || 'Role'}</span>
           </div>
         </div>
-      )}
+      </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <nav className="flex-1 px-3 py-4">

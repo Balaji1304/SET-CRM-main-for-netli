@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
-import { Menu } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import ConfirmDialog from '../ConfirmDialog';
 import { useAuth } from '../../context/AuthContext';
 
@@ -39,27 +39,10 @@ const DashboardLayout = () => {
         />
       </div>
 
-      {/* Mobile Sidebar */}
-      {isMobileSidebarOpen && (
-        <div className="md:hidden fixed inset-0 z-50">
-          <div 
-            className="absolute inset-0 bg-black bg-opacity-50"
-            onClick={toggleMobileSidebar}
-          />
-          <div className="relative w-64 h-full">
-            <AppSidebar
-              isMobile={true}
-              onItemClick={toggleMobileSidebar}
-              onLogout={handleLogout}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
+      {/* Main Content with Mobile Sidebar */}
       <div className="flex-1 transition-all duration-300 ease-in-out">
-        {/* Mobile Header */}
-        <div className="md:hidden p-4 bg-white border-b flex items-center">
+        {/* Mobile Header - always visible */}
+        <div className="md:hidden p-4 bg-white border-b flex items-center sticky top-0 z-30">
           <button
             onClick={toggleMobileSidebar}
             className="p-2 hover:bg-gray-100 rounded-lg"
@@ -68,10 +51,52 @@ const DashboardLayout = () => {
           </button>
         </div>
 
-        {/* Page Content */}
-        <main className="p-6">
-          <Outlet />
-        </main>
+        {/* Mobile Sidebar and Content Container */}
+        <div className="md:hidden relative">
+          {/* Mobile Sidebar - Slide in from left */}
+          <div 
+            className={`
+              fixed top-0 left-0 h-full bg-white shadow-lg w-64 z-50
+              transform transition-transform duration-300 ease-in-out
+              ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            `}
+          >
+            {/* Mobile Sidebar Close Button */}
+            <div className="absolute top-4 right-4 z-50">
+              <button
+                onClick={toggleMobileSidebar}
+                className="p-2 bg-white hover:bg-gray-100 rounded-full"
+              >
+                <X className="h-6 w-6 text-gray-700" />
+              </button>
+            </div>
+            
+            <AppSidebar
+              isMobile={true}
+              onItemClick={toggleMobileSidebar}
+              onLogout={handleLogout}
+            />
+          </div>
+
+          {/* Page Content - Push Right when Sidebar Opens */}
+          <div 
+            className={`
+              w-full min-h-screen transition-transform duration-300 ease-in-out
+              ${isMobileSidebarOpen ? 'transform translate-x-64' : 'transform translate-x-0'}
+            `}
+          >
+            <div className="p-6 pt-4">
+              <Outlet />
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Page Content */}
+        <div className="hidden md:block">
+          <main className="p-6">
+            <Outlet />
+          </main>
+        </div>
       </div>
       
       {/* Logout Confirmation Dialog */}

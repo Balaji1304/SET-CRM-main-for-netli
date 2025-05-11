@@ -229,83 +229,83 @@ exports.sendQuotation = async (req, res) => {
       });
     }
 
-    // Fetch quotation with populated data first
-    const quotation = await Quotation.findById(req.params.id)
-      .populate('lead')
-      .populate('items.product');
+      // Fetch quotation with populated data first
+      const quotation = await Quotation.findById(req.params.id)
+        .populate('lead')
+        .populate('items.product');
 
-    if (!quotation) {
+      if (!quotation) {
       return res.status(404).json({
         success: false,
         message: 'Quotation not found'
       });
-    }
+      }
 
-    // Notify sending status
-    notifyClient(req.user.id, quotation._id, 'sending');
+      // Notify sending status
+      notifyClient(req.user.id, quotation._id, 'sending');
 
-    // Calculate advance payment amount (20% of total)
-    const advanceAmount = Number((quotation.total * 0.20).toFixed(2));
+      // Calculate advance payment amount (20% of total)
+      const advanceAmount = Number((quotation.total * 0.20).toFixed(2));
 
-    // Create payment link options
+      // Create payment link options
     // Always use a hardcoded domain without any protocol to prevent URL issues
     const frontendDomain = 'blackenginecrm.netlify.app';
     
-    const paymentLinkOptions = {
-      amount: advanceAmount * 100,
-      currency: "INR",
-      accept_partial: false,
-      description: `Advance Payment (20%) for Quotation #${quotation.quotationNumber}`,
-      customer: {
-        name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
-        email: quotation.lead.email
-      },
-      notify: {
-        sms: true,
-        email: true
-      },
-      reminder_enable: true,
-      notes: {
-        quotationId: quotation._id.toString()
-      },
+      const paymentLinkOptions = {
+        amount: advanceAmount * 100,
+        currency: "INR",
+        accept_partial: false,
+        description: `Advance Payment (20%) for Quotation #${quotation.quotationNumber}`,
+        customer: {
+          name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
+          email: quotation.lead.email
+        },
+        notify: {
+          sms: true,
+          email: true
+        },
+        reminder_enable: true,
+        notes: {
+          quotationId: quotation._id.toString()
+        },
       callback_url: `https://${frontendDomain}/quotations/${quotation._id}/payment-status`,
-      callback_method: 'get'
-    };
+        callback_method: 'get'
+      };
 
-    // Process email data
-    const emailData = {
-      quotationNumber: quotation.quotationNumber,
-      createdDate: new Date(quotation.createdAt).toLocaleDateString(),
-      validUntil: new Date(quotation.validUntil).toLocaleDateString(),
-      status: quotation.status,
-      lead: {
-        firstName: quotation.lead.firstName,
-        lastName: quotation.lead.lastName,
-        businessName: quotation.lead.businessName,
-        address: quotation.lead.address,
-        email: quotation.lead.email
-      },
-      items: await Promise.all(
-        quotation.items.map(async (item) => ({
-          ...item.toObject(),
-          product: {
-            ...item.product.toObject(),
-            specifications: Object.entries(item.product.specifications || {}).map(([key, value]) => ({
-              name: key,
-              value: value
-            })),
-            images: (item.product.imageUrls || []).map(url => ({ url }))
-          },
-          total: Number((item.quantity * item.unitPrice * (1 - item.discount/100)).toFixed(2))
-        }))
-      ),
-      subtotal: quotation.subtotal,
-      tax: quotation.tax,
-      total: quotation.total,
-      terms: quotation.terms,
-      notes: quotation.notes,
-      advanceAmount: advanceAmount
-    };
+      // Process email data
+      const emailData = {
+        quotationNumber: quotation.quotationNumber,
+        createdDate: new Date(quotation.createdAt).toLocaleDateString(),
+        validUntil: new Date(quotation.validUntil).toLocaleDateString(),
+        status: quotation.status,
+        lead: {
+          firstName: quotation.lead.firstName,
+          lastName: quotation.lead.lastName,
+          businessName: quotation.lead.businessName,
+          address: quotation.lead.address,
+          email: quotation.lead.email
+        },
+        items: await Promise.all(
+          quotation.items.map(async (item) => ({
+            ...item.toObject(),
+            product: {
+              ...item.product.toObject(),
+              specifications: Object.entries(item.product.specifications || {}).map(([key, value]) => ({
+                name: key,
+                value: value
+              })),
+              images: (item.product.imageUrls || []).map(url => ({ url }))
+            },
+            total: Number((item.quantity * item.unitPrice * (1 - item.discount/100)).toFixed(2))
+          }))
+        ),
+        subtotal: quotation.subtotal,
+        tax: quotation.tax,
+        total: quotation.total,
+        terms: quotation.terms,
+        notes: quotation.notes,
+        advanceAmount: advanceAmount
+      };
 
     let paymentLink;
     let pdfBuffer;
@@ -334,8 +334,8 @@ exports.sendQuotation = async (req, res) => {
       });
     }
 
-    // Update emailData with payment link
-    emailData.paymentLink = paymentLink.short_url;
+      // Update emailData with payment link
+      emailData.paymentLink = paymentLink.short_url;
 
     try {
       // Update quotation and send email in parallel
@@ -383,9 +383,9 @@ exports.sendQuotation = async (req, res) => {
   } catch (error) {
     console.error('Send quotation error:', error);
     return res.status(500).json({
-      success: false,
+        success: false,
       message: 'Internal server error'
-    });
+      });
   }
 };
 
@@ -491,7 +491,7 @@ exports.handleRazorpayWebhook = async (req, res) => {
       console.error('Invalid webhook signature');
       return res.status(400).json({ error: 'Invalid webhook signature' });
     }
-    
+
     const { payload, event } = webhookBody;
     
     if (!payload || !payload.payment_link) {
@@ -519,16 +519,16 @@ exports.handleRazorpayWebhook = async (req, res) => {
         return res.json({ status: 'error', message: 'Quotation not found' });
       }
 
-      // Update payment status
-      quotation.advancePaymentStatus = 'CONFIRMED';
-      quotation.advancePaymentConfirmedAt = new Date();
-      quotation.razorpayPaymentId = payment_link.payment_id;
-      await quotation.save();
+        // Update payment status
+        quotation.advancePaymentStatus = 'CONFIRMED';
+        quotation.advancePaymentConfirmedAt = new Date();
+        quotation.razorpayPaymentId = payment_link.payment_id;
+        await quotation.save();
 
       try {
         // Use the helper function to create customer and approve quotation
         const approvedQuotation = await approveQuotation(quotation);
-        
+
         // Notify client about the status change if websocket utils are available
         if (typeof notifyClient === 'function') {
           const userId = quotation.createdBy;
@@ -536,7 +536,7 @@ exports.handleRazorpayWebhook = async (req, res) => {
         }
         
         return res.json({ status: 'success', message: 'Payment processed and quotation approved' });
-      } catch (error) {
+  } catch (error) {
         console.error('Error in auto-approval process:', error.message);
         return res.json({ 
           status: 'partial', 
@@ -654,13 +654,13 @@ exports.confirmOfflinePayment = async (req, res) => {
     await quotation.save();
 
     try {
-      // Automatically trigger approval process
-      await approveQuotation(quotation);
-      
-      res.json({
-        success: true,
-        data: quotation
-      });
+    // Automatically trigger approval process
+    await approveQuotation(quotation);
+
+    res.json({
+      success: true,
+      data: quotation
+    });
     } catch (error) {
       // If approval fails, still return success for the payment part
       console.error('Error in approval process after offline payment:', error);
