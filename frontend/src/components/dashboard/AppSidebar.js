@@ -119,30 +119,20 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, isCollapsed = fa
   if (isMobile) {
     return (
       <div className="h-full bg-white flex flex-col overflow-y-auto pt-14">
-        {/* User Profile for Mobile */}
-        <div className="p-6 border-b bg-gray-50">
-          <div className="mb-2">
-            <h2 className="text-xl font-bold text-purple-700">Welcome {user?.name || 'User'}</h2>
-          </div>
-          
-          <div className="flex items-center justify-between mt-3">
-            <div>
-              <div className="text-sm text-gray-600">Balance</div>
-              <div className="text-lg font-semibold">${user?.balance || '32.49'}</div>
+        {/* User Profile Header for Mobile - Styled like desktop but for mobile */}
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-orange-500 flex items-center justify-center text-white">
+              <span className="text-lg font-semibold">{user?.name?.[0] || 'U'}</span>
             </div>
-            <div className="bg-gray-300 text-gray-700 text-xs px-3 py-1 rounded-full">
-              {user?.tier || 'Scoot Plus'}
+            <div className="flex flex-col">
+              <span className="font-medium">{user?.name || 'User'}</span>
+              <span className="text-xs text-gray-500">{user?.role?.replace('_', ' ') || 'Role'}</span>
             </div>
-          </div>
-          
-          {/* Gift/Promo Banner */}
-          <div className="mt-4 bg-black text-white rounded-md p-3 flex items-center gap-3">
-            <div className="text-xl">🎁</div>
-            <span className="text-sm font-medium">Unlock a free ride!</span>
           </div>
         </div>
         
-        {/* Navigation Items - Styled more like the template */}
+        {/* Navigation Items - Match the desktop styling but with mobile sizing */}
         <div className="flex-1 py-2">
           <nav className="px-4 space-y-1">
             {navigation.flatMap(section => 

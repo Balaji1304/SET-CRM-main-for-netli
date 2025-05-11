@@ -17,6 +17,12 @@ const DashboardLayout = () => {
 
   const toggleMobileSidebar = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
+    // When opening the sidebar, prevent body scrolling to avoid sidebar cutoff issues
+    if (!isMobileSidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
   };
   
   const handleLogout = () => {
@@ -56,10 +62,11 @@ const DashboardLayout = () => {
           {/* Mobile Sidebar - Slide in from left */}
           <div 
             className={`
-              fixed top-0 left-0 h-full bg-white shadow-lg w-64 z-50
+              fixed top-0 left-0 h-screen w-64 bg-white shadow-lg overflow-hidden z-50
               transform transition-transform duration-300 ease-in-out
               ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
             `}
+            style={{ height: '100dvh' }} 
           >
             {/* Mobile Sidebar Close Button */}
             <div className="absolute top-4 right-4 z-50">
@@ -77,6 +84,14 @@ const DashboardLayout = () => {
               onLogout={handleLogout}
             />
           </div>
+
+          {/* Overlay to prevent interaction with background when sidebar is open */}
+          {isMobileSidebarOpen && (
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-30 z-40"
+              onClick={toggleMobileSidebar}
+            />
+          )}
 
           {/* Page Content - Push Right when Sidebar Opens */}
           <div 
