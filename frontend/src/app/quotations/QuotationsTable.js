@@ -153,10 +153,13 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         throw new Error('Please provide valid payment details');
       }
 
-      // Validate minimum payment amount (20% of total)
-      const minimumAdvance = selectedQuotation.total * 0.20;
+      // Get advance payment percentage (default to 20% if not set)
+      const advancePercentage = selectedQuotation.advancePaymentPercentage || 20;
+      
+      // Validate minimum payment amount based on the quotation's advance payment percentage
+      const minimumAdvance = selectedQuotation.total * (advancePercentage / 100);
       if (amount < minimumAdvance) {
-        setPaymentError(`Advance payment must be at least ${minimumAdvance.toFixed(2)} (20% of total amount)`);
+        setPaymentError(`Advance payment must be at least ${minimumAdvance.toLocaleString('en-IN')} (${advancePercentage}% of total amount)`);
         return;
       }
 
@@ -255,12 +258,25 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
   const PaymentModal = () => {
     if (!showPaymentModal) return null;
+    
+    // Calculate the minimum advance amount
+    const advancePercentage = selectedQuotation?.advancePaymentPercentage || 20;
+    const minimumAdvance = selectedQuotation?.total * (advancePercentage / 100) || 0;
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white p-6 rounded-lg shadow-lg w-[500px] max-h-[90vh] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4">Confirm Offline Payment</h2>
           <div className="space-y-4">
+            <div className="bg-orange-50 p-3 rounded-md mb-4">
+              <p className="text-sm font-medium text-gray-700">
+                Advance Payment Required: {advancePercentage}% of total amount
+              </p>
+              <p className="text-sm font-medium text-gray-700">
+                Minimum Amount: ₹{minimumAdvance.toLocaleString('en-IN')}
+              </p>
+            </div>
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Amount <span className="text-red-500">*</span>

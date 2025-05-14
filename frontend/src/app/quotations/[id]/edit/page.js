@@ -14,7 +14,8 @@ export default function EditQuotationPage() {
     leadId: '',
     items: [],
     terms: '',
-    notes: ''
+    notes: '',
+    advancePaymentPercentage: 20 // Default to 20%
   });
 
   useEffect(() => {
@@ -55,7 +56,7 @@ export default function EditQuotationPage() {
       ]);
 
       if (quotationData.success) {
-        const { lead, items, terms, notes } = quotationData.data;
+        const { lead, items, terms, notes, advancePaymentPercentage } = quotationData.data;
         setFormData({
           leadId: lead._id,
           items: items.map(item => ({
@@ -65,7 +66,8 @@ export default function EditQuotationPage() {
             discount: item.discount
           })),
           terms: terms || '',
-          notes: notes || ''
+          notes: notes || '',
+          advancePaymentPercentage: advancePaymentPercentage || 20
         });
       }
 
@@ -155,7 +157,8 @@ export default function EditQuotationPage() {
           discount: parseInt(item.discount) || 0
         })),
         terms: formData.terms || '',
-        notes: formData.notes || ''
+        notes: formData.notes || '',
+        advancePaymentPercentage: parseInt(formData.advancePaymentPercentage) || 20
       };
 
       const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}`, {
@@ -393,6 +396,30 @@ export default function EditQuotationPage() {
                     placeholder="Enter any additional notes for the client..."
                   />
                 </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Advance Payment Percentage <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center">
+                  <input
+                    type="number"
+                    value={formData.advancePaymentPercentage}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (!isNaN(value) && value >= 1 && value <= 100) {
+                        setFormData(prev => ({ ...prev, advancePaymentPercentage: value }));
+                      }
+                    }}
+                    min="1"
+                    max="100"
+                    className="w-24 px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    required
+                  />
+                  <span className="ml-2">%</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Minimum advance payment required from client before approval (1-100%)</p>
               </div>
             </div>
 

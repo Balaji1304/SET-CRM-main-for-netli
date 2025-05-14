@@ -209,9 +209,9 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '', sourceF
                         {formatEnumValue(lead.source)}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
-                        ${lead.products?.reduce((total, product) => 
+                        ₹{lead.products?.reduce((total, product) => 
                           total + (parseFloat(product.quantity) * parseFloat(product.price) || 0), 
-                        0).toLocaleString()}
+                        0).toLocaleString('en-IN')}
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
                         {new Date(lead.dateCollected).toLocaleDateString()}

@@ -359,6 +359,22 @@ export default function QuotationDetailsPage() {
               </tr>
             </tfoot>
           </table>
+
+          {/* Advance Payment Information */}
+          {quotation.advancePaymentPercentage && (
+            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+              <h4 className="text-sm font-medium text-gray-700 mb-1">Advance Payment Required:</h4>
+              <p className="text-sm">
+                {quotation.advancePaymentPercentage}% of total amount 
+                (₹{((quotation.total * quotation.advancePaymentPercentage / 100) || 0).toLocaleString('en-IN')})
+              </p>
+              {quotation.status === 'sent' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  This amount must be paid before the quotation can be approved and processed.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Terms and Notes */}

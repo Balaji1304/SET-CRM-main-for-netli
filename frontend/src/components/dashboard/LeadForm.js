@@ -844,12 +844,12 @@ export default function LeadForm() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-foreground">Total Budget:</span>
                 <span className="text-lg font-semibold text-orange-600">
-                  ${formData.products.reduce((total, product) => {
+                  ₹{formData.products.reduce((total, product) => {
                     if (product.quantity && product.price) {
                       return total + (parseFloat(product.quantity) * parseFloat(product.price));
                     }
                     return total;
-                  }, 0).toLocaleString()}
+                  }, 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>

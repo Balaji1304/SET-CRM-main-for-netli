@@ -106,7 +106,16 @@ exports.getQuotation = async (req, res) => {
 // @route   POST /api/quotations
 exports.createQuotation = async (req, res) => {
   try {
-    const { leadId, items, terms, notes } = req.body;
+    const { leadId, items, terms, notes, advancePaymentPercentage } = req.body;
+
+    // Validate advance payment percentage
+    const percentage = parseInt(advancePaymentPercentage) || 20;
+    if (percentage < 1 || percentage > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Advance payment percentage must be between 1 and 100'
+      });
+    }
 
     // Calculate totals
     const subtotal = items.reduce((sum, item) => 
@@ -127,7 +136,8 @@ exports.createQuotation = async (req, res) => {
       validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       createdBy: req.user.id,
       status: 'draft',
-      advancePaymentStatus: 'PENDING'
+      advancePaymentStatus: 'PENDING',
+      advancePaymentPercentage: percentage
     });
 
     res.status(201).json({
@@ -165,7 +175,16 @@ exports.updateQuotation = async (req, res) => {
     }
 
     // Extract data from request body
-    const { items, terms, notes } = req.body;
+    const { items, terms, notes, advancePaymentPercentage } = req.body;
+
+    // Validate advance payment percentage
+    const percentage = parseInt(advancePaymentPercentage) || quotation.advancePaymentPercentage || 20;
+    if (percentage < 1 || percentage > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Advance payment percentage must be between 1 and 100'
+      });
+    }
 
     // Recalculate totals based on updated items
     const subtotal = items.reduce((sum, item) => 
@@ -180,7 +199,8 @@ exports.updateQuotation = async (req, res) => {
       notes,
       subtotal,
       tax,
-      total
+      total,
+      advancePaymentPercentage: percentage
     };
 
     const updatedQuotation = await Quotation.findByIdAndUpdate(
@@ -263,8 +283,9 @@ exports.sendQuotation = async (req, res) => {
       // Notify sending status
       notifyClient(req.user.id, quotation._id, 'sending');
 
-      // Calculate advance payment amount (20% of total)
-      const advanceAmount = Number((quotation.total * 0.20).toFixed(2));
+      // Calculate advance payment amount based on user-defined percentage (default to 20% if not set)
+      const advancePercentage = quotation.advancePaymentPercentage || 20;
+      const advanceAmount = Number((quotation.total * (advancePercentage/100)).toFixed(2));
 
       // Create payment link options
     // Always use a hardcoded domain without any protocol to prevent URL issues
@@ -274,7 +295,7 @@ exports.sendQuotation = async (req, res) => {
         amount: advanceAmount * 100,
         currency: "INR",
         accept_partial: false,
-        description: `Advance Payment (20%) for Quotation #${quotation.quotationNumber}`,
+        description: `Advance Payment (${advancePercentage}%) for Quotation #${quotation.quotationNumber}`,
         customer: {
           name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
           email: quotation.lead.email
@@ -287,7 +308,7 @@ exports.sendQuotation = async (req, res) => {
         notes: {
           quotationId: quotation._id.toString()
         },
-      callback_url: `https://${frontendDomain}/quotations/${quotation._id}/payment-status`,
+        callback_url: `https://${frontendDomain}/quotations/${quotation._id}/payment-status`,
         callback_method: 'get'
       };
 
@@ -323,7 +344,8 @@ exports.sendQuotation = async (req, res) => {
         total: quotation.total,
         terms: quotation.terms,
         notes: quotation.notes,
-        advanceAmount: advanceAmount
+        advanceAmount: advanceAmount,
+        advancePercentage: advancePercentage
       };
 
     let paymentLink;
@@ -619,7 +641,8 @@ const approveQuotation = async (quotation) => {
   }
 };
 
-// Add this new controller function
+// @desc    Confirm offline payment
+// @route   POST /api/quotations/:id/offline-payment
 exports.confirmOfflinePayment = async (req, res) => {
   try {
     const { amount, transactionNo, paymentMethod, paymentDate, notes } = req.body;
@@ -642,12 +665,15 @@ exports.confirmOfflinePayment = async (req, res) => {
       });
     }
 
-    // Validate advance payment amount (should be at least 20% of total)
-    const minimumAdvance = quotation.total * 0.20;
+    // Get the advance percentage from the quotation (default to 20% if not set)
+    const advancePercentage = quotation.advancePaymentPercentage || 20;
+    
+    // Validate advance payment amount (should be at least the specified percentage of total)
+    const minimumAdvance = quotation.total * (advancePercentage/100);
     if (amount < minimumAdvance) {
       return res.status(400).json({
         success: false,
-        message: `Advance payment must be at least ${minimumAdvance} (20% of total amount)`
+        message: `Advance payment must be at least ${minimumAdvance.toFixed(2)} (${advancePercentage}% of total amount)`
       });
     }
 

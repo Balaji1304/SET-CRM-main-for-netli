@@ -673,6 +673,15 @@
             </tbody>
         </table>
 
+        <div style="border: 1px solid #ddd; padding: 10px; margin: 15px 0; background-color: #f9f9f9;">
+            <p style="font-weight: bold; margin-bottom: 5px;">Payment Information:</p>
+            <p>Advance Payment Required: {{advancePercentage}}% of Total Amount (Rs. {{formatNumber advanceAmount 2}})</p>
+            {{#if paymentLink}}
+            <p>To proceed with your order, please complete the advance payment using the link below:</p>
+            <p><a href="{{paymentLink}}" style="color: #FF7300; text-decoration: underline;">{{paymentLink}}</a></p>
+            {{/if}}
+        </div>
+        
         <div class="terms-and-conditions">
             <h3>Terms and Conditions:</h3>
             <div>{{terms}}</div>
