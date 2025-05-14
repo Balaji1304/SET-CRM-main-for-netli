@@ -138,34 +138,15 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
   const handleOfflinePayment = async () => {
     try {
-      // Clear any previous errors
-      setPaymentError('');
+      // All validation is now done in the button click handler
+      // so we can directly proceed with making the API call
       
-      // Input validation
-      if (!selectedQuotation?._id) {
-        throw new Error('No quotation selected');
-      }
-
       const amount = parseFloat(paymentDetails.amount);
       const trimmedTransactionNo = paymentDetails.transactionNo.trim();
       
-      if (!trimmedTransactionNo || isNaN(amount) || amount <= 0) {
-        throw new Error('Please provide valid payment details');
-      }
-
-      // Get advance payment percentage (default to 20% if not set)
-      const advancePercentage = selectedQuotation.advancePaymentPercentage || 20;
-      
-      // Validate minimum payment amount based on the quotation's advance payment percentage
-      const minimumAdvance = selectedQuotation.total * (advancePercentage / 100);
-      if (amount < minimumAdvance) {
-        setPaymentError(`Advance payment must be at least ${minimumAdvance.toLocaleString('en-IN')} (${advancePercentage}% of total amount)`);
-        return;
-      }
-
       const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${selectedQuotation._id}/offline-payment`, {
         method: 'POST',
-        headers: getAuthHeaders(true), // Using the consistent auth header helper
+        headers: getAuthHeaders(true),
         body: JSON.stringify({
           amount,
           transactionNo: trimmedTransactionNo,
@@ -192,6 +173,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
           notes: ''
         });
         setSelectedQuotation(null);
+        setPaymentError('');
         await fetchQuotations(); // Refresh the quotations list
       }
     } catch (error) {
@@ -285,16 +267,12 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                 type="text"
                 inputMode="decimal"
                 value={paymentDetails.amount}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (/^\d*\.?\d*$/.test(value)) {
-                    setPaymentDetails(prev => ({
-                      ...prev,
-                      amount: value
-                    }));
-                    setPaymentError('');
-                  }
-                }}
+                onChange={(e) => 
+                  setPaymentDetails(prev => ({
+                    ...prev,
+                    amount: e.target.value
+                  }))
+                }
                 className={`w-full p-2 border ${paymentError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-orange-500 focus:border-orange-500`}
                 placeholder="Enter payment amount"
                 required
@@ -392,6 +370,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                     paymentDate: new Date().toISOString().split('T')[0],
                     notes: ''
                   });
+                  setPaymentError('');
                 }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 type="button"
@@ -400,15 +379,40 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               </button>
               <button
                 onClick={() => {
+                  // Clear previous errors
+                  setPaymentError('');
+                  
+                  // Validate all fields here instead of during input
+                  if (!selectedQuotation?._id) {
+                    setPaymentError('No quotation selected');
+                    return;
+                  }
+                  
                   if (!paymentDetails.amount || !paymentDetails.transactionNo || !paymentDetails.paymentDate) {
                     setPaymentError('Please fill in all required fields');
                     return;
                   }
+                  
+                  // Validate amount is a valid number
+                  const amount = parseFloat(paymentDetails.amount);
+                  if (isNaN(amount) || amount <= 0) {
+                    setPaymentError('Please enter a valid payment amount');
+                    return;
+                  }
+                  
+                  // Check minimum payment amount
+                  const advancePercentage = selectedQuotation.advancePaymentPercentage || 20;
+                  const minimumAdvance = selectedQuotation.total * (advancePercentage / 100);
+                  if (amount < minimumAdvance) {
+                    setPaymentError(`Advance payment must be at least ₹${minimumAdvance.toLocaleString('en-IN')} (${advancePercentage}% of total amount)`);
+                    return;
+                  }
+                  
+                  // If all validations pass, call the handleOfflinePayment function
                   handleOfflinePayment();
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700"
                 type="submit"
-                disabled={!paymentDetails.amount || !paymentDetails.transactionNo || !paymentDetails.paymentDate}
               >
                 Confirm Payment
               </button>
