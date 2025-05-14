@@ -339,7 +339,7 @@ export default function CreateQuotationPage() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-foreground">Total Amount:</span>
                 <span className="text-lg font-semibold text-orange-600">
-                  ${formData.items.reduce((total, item) => {
+                  ₹{formData.items.reduce((total, item) => {
                     if (item.quantity && item.unitPrice) {
                       const itemTotal = item.quantity * item.unitPrice;
                       const discount = item.discount ? (itemTotal * item.discount / 100) : 0;

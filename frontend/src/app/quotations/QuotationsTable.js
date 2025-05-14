@@ -479,7 +479,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                 {quotation.lead.firstName} {quotation.lead.lastName}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                ${quotation.total.toFixed(2)}
+                ₹{quotation.total.toFixed(2)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusBadgeClass(quotation.status)}`}>

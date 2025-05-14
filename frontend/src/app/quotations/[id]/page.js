@@ -329,10 +329,10 @@ export default function QuotationDetailsPage() {
                       {item.product ? item.product.name : 'Product Name Not Available'}
                     </td>
                     <td>{item.quantity}</td>
-                    <td>${item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td>₹{item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     <td>{item.discount}%</td>
                     <td className="text-right">
-                      ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      ₹{total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                 );
@@ -342,19 +342,19 @@ export default function QuotationDetailsPage() {
               <tr>
                 <td colSpan="4" className="py-2 text-right font-medium">Subtotal</td>
                 <td className="py-2 text-right">
-                  ${quotation.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  ₹{quotation.subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
               <tr>
                 <td colSpan="4" className="py-2 text-right font-medium">Tax (18%)</td>
                 <td className="py-2 text-right">
-                  ${quotation.tax.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  ₹{quotation.tax.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
               <tr className="font-bold">
                 <td colSpan="4" className="py-2 text-right">Total</td>
                 <td className="py-2 text-right">
-                  ${quotation.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  ₹{quotation.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
             </tfoot>
