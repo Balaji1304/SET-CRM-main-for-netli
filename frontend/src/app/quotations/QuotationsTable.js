@@ -287,12 +287,11 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                 value={paymentDetails.amount}
                 onChange={(e) => {
                   const value = e.target.value;
-                  // Only allow numbers and one decimal point
-                  if (/^$|^\d*\.?\d*$/.test(value)) {
-                    setPaymentDetails({
-                      ...paymentDetails,
+                  if (/^\d*\.?\d*$/.test(value)) {
+                    setPaymentDetails(prev => ({
+                      ...prev,
                       amount: value
-                    });
+                    }));
                     setPaymentError('');
                   }
                 }}
@@ -311,12 +310,12 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               </label>
               <select
                 value={paymentDetails.paymentMethod}
-                onChange={(e) => {
-                  setPaymentDetails({
-                    ...paymentDetails,
+                onChange={(e) => 
+                  setPaymentDetails(prev => ({
+                    ...prev,
                     paymentMethod: e.target.value
-                  });
-                }}
+                  }))
+                }
                 className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
                 required
               >
@@ -334,12 +333,12 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               <input
                 type="text"
                 value={paymentDetails.transactionNo}
-                onChange={(e) => {
-                  setPaymentDetails({
-                    ...paymentDetails,
+                onChange={(e) => 
+                  setPaymentDetails(prev => ({
+                    ...prev,
                     transactionNo: e.target.value
-                  });
-                }}
+                  }))
+                }
                 className={`w-full p-2 border ${paymentError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-orange-500 focus:border-orange-500`}
                 placeholder="Enter transaction reference number"
                 required
@@ -353,12 +352,12 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               <input
                 type="date"
                 value={paymentDetails.paymentDate}
-                onChange={(e) => {
-                  setPaymentDetails({
-                    ...paymentDetails,
+                onChange={(e) => 
+                  setPaymentDetails(prev => ({
+                    ...prev,
                     paymentDate: e.target.value
-                  });
-                }}
+                  }))
+                }
                 className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
                 required
               />
@@ -370,12 +369,12 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               </label>
               <textarea
                 value={paymentDetails.notes}
-                onChange={(e) => {
-                  setPaymentDetails({
-                    ...paymentDetails,
+                onChange={(e) => 
+                  setPaymentDetails(prev => ({
+                    ...prev,
                     notes: e.target.value
-                  });
-                }}
+                  }))
+                }
                 rows="3"
                 className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
                 placeholder="Additional payment notes (optional)"
