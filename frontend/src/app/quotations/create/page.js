@@ -346,7 +346,7 @@ export default function CreateQuotationPage() {
                       return total + (itemTotal - discount);
                     }
                     return total;
-                  }, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  }, 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>

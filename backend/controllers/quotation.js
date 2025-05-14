@@ -164,9 +164,28 @@ exports.updateQuotation = async (req, res) => {
       });
     }
 
+    // Extract data from request body
+    const { items, terms, notes } = req.body;
+
+    // Recalculate totals based on updated items
+    const subtotal = items.reduce((sum, item) => 
+      sum + Number((item.quantity * item.unitPrice * (1 - item.discount/100)).toFixed(2)), 0);
+    const tax = Number((subtotal * 0.18).toFixed(2));
+    const total = Number((subtotal + tax).toFixed(2));
+
+    // Update with recalculated values
+    const updatedData = {
+      items,
+      terms,
+      notes,
+      subtotal,
+      tax,
+      total
+    };
+
     const updatedQuotation = await Quotation.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updatedData,
       { new: true, runValidators: true }
     );
 
