@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Toast from '../../../components/Toast';
+import { getQuotation, sendQuotation, approveQuotation } from '../../../services/quotationService';
+import { createInvoice } from '../../../services/invoiceService';
+import { API_URL } from '../../../services/apiConfig';
 
 export default function QuotationDetailsPage() {
   const { id } = useParams();
@@ -26,16 +29,26 @@ export default function QuotationDetailsPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    fetchQuotation();
+    if (!hasFetchedRef.current) {
+      fetchQuotation();
+      hasFetchedRef.current = true;
+    }
   }, [id]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    const socket = new WebSocket(`wss://set-crm-main-for-netli.onrender.com?token=Bearer ${token}`);
+    // Create WebSocket URL based on API_URL
+    // Extract the base URL without /api and use appropriate protocol
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const apiUrlWithoutProtocol = API_URL.replace(/^https?:\/\//, '').split('/api')[0];
+    const wsUrl = `${wsProtocol}//${apiUrlWithoutProtocol}`;
+    
+    const socket = new WebSocket(`${wsUrl}?token=Bearer ${token}`);
     
     socket.onopen = () => {
       console.log('WebSocket connected');
@@ -51,7 +64,8 @@ export default function QuotationDetailsPage() {
           case 'QUOTATION_STATUS':
             if (data.quotationId === id) {
               if (data.status === 'sent') {
-                fetchQuotation();
+                // Update quotation state locally instead of refetching
+                setQuotation(prev => prev ? { ...prev, status: 'sent' } : prev);
                 const endTime = Date.now();
                 setEmailSentTime(endTime - startTime.current);
                 setToastMessage('Quotation sent successfully!');
@@ -79,24 +93,20 @@ export default function QuotationDetailsPage() {
     setWs(socket);
     
     return () => {
-      if (socket.readyState === WebSocket.OPEN) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
         socket.close();
       }
     };
-  }, [id]);
+  }, [id, API_URL]);
 
   const fetchQuotation = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      if (data.success) {
-        console.log('Quotation data:', data.data);
-        setQuotation(data.data);
+      const response = await getQuotation(id);
+      if (response.success) {
+        console.log('Quotation data:', response.data);
+        setQuotation(response.data);
+      } else {
+        throw new Error(response.message || 'Failed to fetch quotation');
       }
     } catch (error) {
       console.error('Error fetching quotation:', error);
@@ -109,23 +119,11 @@ export default function QuotationDetailsPage() {
     try {
       setIsSending(true);
       startTime.current = Date.now();
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No authentication token found');
-        return;
-      }
       
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.message);
+      const response = await sendQuotation(id);
+      
+      if (!response.success) {
+        throw new Error(response.message || 'Failed to send quotation');
       }
     } catch (error) {
       console.error('Error sending quotation:', error);
@@ -136,16 +134,12 @@ export default function QuotationDetailsPage() {
 
   const handleApproveQuotation = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/approve`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await response.json();
-      if (data.success) {
+      const response = await approveQuotation(id);
+      
+      if (response.success) {
         fetchQuotation();
+      } else {
+        throw new Error(response.message || 'Failed to approve quotation');
       }
     } catch (error) {
       console.error('Error approving quotation:', error);
@@ -154,18 +148,12 @@ export default function QuotationDetailsPage() {
 
   const handleGenerateInvoice = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/invoices`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ quotationId: id })
-      });
-      const data = await response.json();
-      if (data.success) {
-        navigate(`/dashboard/invoices/${data.data._id}`);
+      const response = await createInvoice(id);
+      
+      if (response.success) {
+        navigate(`/dashboard/invoices/${response.data._id}`);
+      } else {
+        throw new Error(response.message || 'Failed to generate invoice');
       }
     } catch (error) {
       console.error('Error generating invoice:', error);

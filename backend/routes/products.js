@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const { protect } = require('../middleware/auth');
 const {
   getProducts,
   createProduct,
@@ -29,16 +30,14 @@ if (!fs.existsSync(uploadDir)){
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Product routes
-router.route('/')
-  .get(getProducts)
-  .post(createProduct);
+// Public routes that don't require auth
+router.get('/', getProducts);
+router.get('/:id', getProduct);
 
-router.route('/:id')
-  .get(getProduct)
-  .put(updateProduct)
-  .delete(deleteProduct);
-
-router.post('/:id/brochure', upload.single('brochure'), uploadBrochure);
+// Protected routes
+router.post('/', protect, createProduct);
+router.put('/:id', protect, updateProduct);
+router.delete('/:id', protect, deleteProduct);
+router.post('/:id/brochure', protect, upload.single('brochure'), uploadBrochure);
 
 module.exports = router;

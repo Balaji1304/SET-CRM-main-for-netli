@@ -1,17 +1,21 @@
 import { createContext, useState, useContext, useEffect } from 'react';
+import { API_URL } from '../services/apiConfig';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [lastActivity, setLastActivity] = useState(Date.now());
 
   // Initial user check
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
@@ -36,41 +40,55 @@ export const AuthProvider = ({ children }) => {
     const activityCheck = setInterval(() => {
       const lastActivityTime = parseInt(localStorage.getItem('lastActivity') || Date.now());
       const currentTime = Date.now();
-      const inactiveTime = currentTime - lastActivityTime;
       
       // Auto logout after 30 minutes of inactivity
-      if (inactiveTime > 30 * 60 * 1000) {
+      if (currentTime - lastActivityTime > 30 * 60 * 1000) {
         handleLogout();
       }
-    }, 1000); // Check every second
+    }, 60000); // Check every minute
 
     return () => clearInterval(activityCheck);
   }, []);
 
-  // Update last activity timestamp on user interaction
+  // Update last activity timestamp on user interaction with throttling
   useEffect(() => {
+    let timeout;
+    let lastUpdate = Date.now();
+    
     const updateActivity = () => {
-      const currentTime = Date.now();
-      localStorage.setItem('lastActivity', currentTime);
-      setLastActivity(currentTime);
+      const now = Date.now();
+      // Only update if it's been more than 1 minute since the last update
+      if (now - lastUpdate > 60000) {
+        localStorage.setItem('lastActivity', now);
+        lastUpdate = now;
+      } else if (!timeout) {
+        // Schedule an update for later if none is scheduled
+        timeout = setTimeout(() => {
+          localStorage.setItem('lastActivity', Date.now());
+          lastUpdate = Date.now();
+          timeout = null;
+        }, 60000);
+      }
     };
 
-    window.addEventListener('mousemove', updateActivity);
-    window.addEventListener('keydown', updateActivity);
-    window.addEventListener('click', updateActivity);
-    window.addEventListener('scroll', updateActivity);
+    // Use passive event listeners for better performance
+    window.addEventListener('mousemove', updateActivity, { passive: true });
+    window.addEventListener('keydown', updateActivity, { passive: true });
+    window.addEventListener('click', updateActivity, { passive: true });
+    window.addEventListener('scroll', updateActivity, { passive: true });
 
     return () => {
       window.removeEventListener('mousemove', updateActivity);
       window.removeEventListener('keydown', updateActivity);
       window.removeEventListener('click', updateActivity);
       window.removeEventListener('scroll', updateActivity);
+      if (timeout) clearTimeout(timeout);
     };
   }, []);
 
   const login = async (email, password) => {
     try {
-      const res = await fetch('https://set-crm-main-for-netli.onrender.com/api/auth/login', {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -96,7 +114,6 @@ export const AuthProvider = ({ children }) => {
       }
       return false;
     } catch (error) {
-      console.error('Login error:', error);
       throw error;
     }
   };

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { getProduct } from '../../../services/productService'
 
 export default function ProductDetailsPage() {
   const { id } = useParams()
@@ -14,12 +15,12 @@ export default function ProductDetailsPage() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/products/${id}`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch product')
+        const response = await getProduct(id)
+        if (response.success) {
+          setProduct(response.data)
+        } else {
+          throw new Error(response.message || 'Failed to fetch product')
         }
-        const data = await response.json()
-        setProduct(data)
       } catch (error) {
         setError(error.message)
         console.error("Error fetching product:", error)

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronDown, Plus, FileText, Edit, Trash2, Upload, Eye } from 'lucide-react'; // Import Lucide icons
 import ConfirmDialog from '../../components/ConfirmDialog';
+import { getProducts, deleteProduct, uploadProductBrochure } from '../../services/productService';
 
 export default function ProductListPage() {
   const [products, setProducts] = useState([]);
@@ -24,15 +25,17 @@ export default function ProductListPage() {
   // Function to fetch products
   const fetchProducts = async () => {
     setLoading(true);
+    setError(null);
+    
     try {
-      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/products');
-      if (!response.ok) {
-        throw new Error('Failed to fetch products');
+      const response = await getProducts();
+      if (response.success) {
+        setProducts(response.data);
+      } else {
+        throw new Error(response.message || 'Failed to fetch products');
       }
-      const data = await response.json();
-      setProducts(data);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'An error occurred while loading products. Please try again.');
       console.error('Error fetching products:', err);
     } finally {
       setLoading(false);
@@ -48,18 +51,16 @@ export default function ProductListPage() {
   const handleConfirmDelete = async () => {
     if (productToDelete) {
       try {
-        const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/products/${productToDelete._id}`, {
-          method: 'DELETE',
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to delete product');
+        const response = await deleteProduct(productToDelete._id);
+        
+        if (response.success) {
+          // Remove product from state
+          setProducts(products.filter(p => p._id !== productToDelete._id));
+          setShowDeleteDialog(false);
+          setProductToDelete(null);
+        } else {
+          throw new Error(response.message || 'Failed to delete product');
         }
-
-        // Remove product from state
-        setProducts(products.filter(p => p._id !== productToDelete._id));
-        setShowDeleteDialog(false);
-        setProductToDelete(null);
       } catch (error) {
         console.error('Error deleting product:', error);
         alert(error.message);
@@ -87,20 +88,17 @@ export default function ProductListPage() {
     formData.append('brochure', selectedFile);
 
     try {
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/products/${productId}/brochure`, {
-        method: 'POST',
-        body: formData
-      });
+      const response = await uploadProductBrochure(productId, formData);
 
-      if (!response.ok) {
-        throw new Error('Failed to upload brochure');
+      if (response.success) {
+        // Refresh products list after successful upload
+        await fetchProducts();
+        setSelectedFile(null);
+        setUploadingFor(null);
+        alert('Brochure uploaded successfully');
+      } else {
+        throw new Error(response.message || 'Failed to upload brochure');
       }
-
-      // Refresh products list after successful upload
-      await fetchProducts();
-      setSelectedFile(null);
-      setUploadingFor(null);
-      alert('Brochure uploaded successfully');
     } catch (err) {
       console.error('Error uploading brochure:', err);
       alert('Failed to upload brochure');

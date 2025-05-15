@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import ConfirmDialog from '../../../../components/ConfirmDialog';
+import { getQuotation, updateQuotation } from '../../../../services/quotationService';
+import { getLeads } from '../../../../services/leadService';
+import { getProducts } from '../../../../services/productService';
 
 export default function EditQuotationPage() {
   const { id } = useParams();
@@ -12,47 +15,24 @@ export default function EditQuotationPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [formData, setFormData] = useState({
     leadId: '',
-    items: [],
+    items: [{ productId: '', quantity: 1, unitPrice: 0, discount: 0 }],
     terms: '',
     notes: '',
-    advancePaymentPercentage: 20 // Default to 20%
+    advancePaymentPercentage: 20
   });
 
   useEffect(() => {
     fetchData();
   }, [id]);
 
-  const getAuthHeaders = (contentType = true) => {
-    const token = localStorage.getItem('token');
-    const headers = {
-      'Authorization': `Bearer ${token}`
-    };
-    if (contentType) {
-      headers['Content-Type'] = 'application/json';
-    }
-    return headers;
-  };
-
   const fetchData = async () => {
     try {
       setLoading(true);
       // Fetch quotation, leads, and products in parallel
-      const [quotationRes, leadsRes, productsRes] = await Promise.all([
-        fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}`, {
-          headers: getAuthHeaders(false)
-        }),
-        fetch('https://set-crm-main-for-netli.onrender.com/api/leads', {
-          headers: getAuthHeaders(false)
-        }),
-        fetch('https://set-crm-main-for-netli.onrender.com/api/products', {
-          headers: getAuthHeaders(false)
-        })
-      ]);
-
       const [quotationData, leadsData, productsData] = await Promise.all([
-        quotationRes.json(),
-        leadsRes.json(),
-        productsRes.json()
+        getQuotation(id),
+        getLeads(),
+        getProducts()
       ]);
 
       if (quotationData.success) {
@@ -161,17 +141,12 @@ export default function EditQuotationPage() {
         advancePaymentPercentage: parseInt(formData.advancePaymentPercentage) || 20
       };
 
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(formattedData)
-      });
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await updateQuotation(id, formattedData);
+      
+      if (response.success) {
         navigate(`/dashboard/quotations/${id}`);
       } else {
-        console.error('Error updating quotation:', data.message);
+        console.error('Error updating quotation:', response.message);
       }
     } catch (error) {
       console.error('Error updating quotation:', error);

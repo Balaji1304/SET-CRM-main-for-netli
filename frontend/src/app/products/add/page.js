@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { ArrowLeft, Trash2 } from 'lucide-react';
+import { createProduct } from '../../../services/productService';
 
 export default function AddProductPage() {
   const navigate = useNavigate();
@@ -100,21 +101,14 @@ export default function AddProductPage() {
         throw new Error(`Please fill in all required fields: ${missingFieldNames.join(', ')}`);
       }
 
-      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/products', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      });
+      const response = await createProduct(formData);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create product');
+      if (response.success) {
+        setHasUnsavedChanges(false);
+        navigate('/dashboard/products');
+      } else {
+        throw new Error(response.message || 'Failed to create product');
       }
-
-      setHasUnsavedChanges(false);
-      navigate('/dashboard/products');
     } catch (err) {
       console.error('Error creating product:', err);
       alert(err.message || 'Failed to create product');

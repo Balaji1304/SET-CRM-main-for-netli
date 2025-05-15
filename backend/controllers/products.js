@@ -13,9 +13,15 @@ const searchFolders = promisify(cloudinary.api.sub_folders.bind(cloudinary.api))
 exports.getProducts = async (req, res) => {
   try {
     const products = await Product.find();
-    res.json(products);
+    res.json({
+      success: true,
+      data: products
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching products'
+    });
   }
 };
 
@@ -50,7 +56,7 @@ exports.createProduct = async (req, res) => {
               resource_type: 'image',
               type: 'upload',
               overwrite: true,
-              create_folder: true // Ensure folder is created
+              create_folder: true
             },
             (error, result) => {
               if (error) reject(error);
@@ -74,7 +80,6 @@ exports.createProduct = async (req, res) => {
       data: product
     });
   } catch (error) {
-    console.error('Product creation error:', error);
     res.status(400).json({
       success: false,
       message: error.message
@@ -87,11 +92,21 @@ exports.getProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
     if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Product not found' 
+      });
     }
-    res.json(product);
+    res.json({
+      success: true,
+      data: product
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error fetching product:', error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message || 'Error fetching product'
+    });
   }
 };
 

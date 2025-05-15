@@ -9,13 +9,6 @@ import DashboardLayout from './components/dashboard/DashboardLayout';
 import ProductListPage from './app/products/page';
 import AddProductPage from './app/products/add/page';
 import ProductDetailsPage from './app/products/[id]/page';
-import { useParams } from 'react-router-dom';
-// import { Input } from '../../components/ui/input';
-// import { Button } from '../../components/ui/button';
-// import { Label } from '../../components/ui/label';
-// import { Textarea } from '../../components/ui/textarea';
-
-import Leads from './components/dashboard/Leads';
 import EditProductPage from './app/products/[id]/edit/page';
 import ProductBrochurePage from './app/products/[id]/brochure/page';
 import NotificationsPage from './app/notifications/page';
@@ -34,6 +27,7 @@ import PaymentStatusPage from './app/quotations/[id]/payment-status';
 import PaymentsPage from './app/payments/page';
 import OrdersPage from './app/orders/page';
 import MyProductsPage from './app/my-products/page';
+import Leads from './components/dashboard/Leads';
 
 function App() {
   return (

@@ -1,13 +1,27 @@
 const Razorpay = require('razorpay');
 
+// Print current environment mode for debugging
+console.log(`Initializing Razorpay in ${process.env.NODE_ENV || 'unknown'} environment`);
+
 // Validate required environment variables
 const requiredEnvVars = ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
   console.error('Missing required environment variables:', missingEnvVars);
-  throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  
+  // In development, continue with a warning instead of crashing
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('WARNING: Running in development mode with missing Razorpay credentials. Some payment features will not work properly.');
+  } else {
+    throw new Error(`Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  }
 }
+
+// Log keys (not the full secrets) for debugging
+console.log('Razorpay Key ID (first 4 chars):', process.env.RAZORPAY_KEY_ID ? process.env.RAZORPAY_KEY_ID.substring(0, 4) + '...' : 'undefined');
+console.log('Razorpay Key Secret exists:', !!process.env.RAZORPAY_KEY_SECRET);
+console.log('Razorpay Webhook Secret exists:', !!process.env.RAZORPAY_WEBHOOK_SECRET);
 
 // Initialize Razorpay with required credentials
 const razorpayInstance = new Razorpay({
@@ -22,7 +36,7 @@ const verifyConnection = async () => {
     await razorpayInstance.payments.all({ count: 1 });
     console.log('Razorpay connection verified successfully');
   } catch (error) {
-    console.error('Razorpay connection verification failed:', error);
+    console.error('Razorpay connection verification failed:', error.message);
     throw new Error('Failed to verify Razorpay connection. Please check your credentials.');
   }
 };
@@ -93,6 +107,21 @@ const verifyPaymentLinkStatus = async (paymentLinkId) => {
     console.error('Payment link verification failed:', error.message);
     throw new Error(`Failed to verify payment link: ${error.message}`);
   }
+};
+
+// Enhanced paymentLink.create method with minimal validation to fix amount issues
+const originalPaymentLinkCreate = razorpayInstance.paymentLink.create;
+razorpayInstance.paymentLink.create = async (options) => {
+  // Fix common amount issues before sending to Razorpay
+  if (options.amount && !Number.isInteger(options.amount)) {
+    options.amount = Math.round(options.amount);
+  }
+  
+  if (options.amount && options.amount < 100) {
+    options.amount = 100; // Minimum 100 paise (₹1)
+  }
+  
+  return await originalPaymentLinkCreate.call(razorpayInstance.paymentLink, options);
 };
 
 // Verify connection on startup

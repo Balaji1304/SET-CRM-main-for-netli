@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, AlertCircle } from 'lucide-react';
+import { getCustomerProducts } from '../../services/quotationService';
 
 export default function MyProductsPage() {
   const [products, setProducts] = useState([]);
@@ -17,31 +18,17 @@ export default function MyProductsPage() {
         throw new Error('No authentication token found');
       }
 
-      console.log('Fetching with token:', token);
+      console.log('Fetching customer products with token');
 
-      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/quotations/customer-products', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await getCustomerProducts();
 
-      console.log('Response status:', response.status);
+      console.log('Response received from service');
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
-        throw new Error(errorData.message || errorData.error || 'Failed to fetch products');
-      }
-
-      const data = await response.json();
-      console.log('Response data:', data);
-
-      if (data.success) {
-        console.log('Received products:', data.data);
-        setProducts(data.data);
+      if (response.success) {
+        console.log('Received products:', response.data);
+        setProducts(response.data);
       } else {
-        throw new Error(data.message || 'Failed to fetch products');
+        throw new Error(response.message || 'Failed to fetch products');
       }
     } catch (error) {
       console.error('Error fetching products:', error);

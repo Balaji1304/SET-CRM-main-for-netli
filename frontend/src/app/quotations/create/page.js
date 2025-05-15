@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import { createQuotation } from '../../../services/quotationService';
+import { getLeads } from '../../../services/leadService';
+import { getProducts } from '../../../services/productService';
 
 export default function CreateQuotationPage() {
   const navigate = useNavigate();
@@ -28,22 +31,10 @@ export default function CreateQuotationPage() {
 
   const fetchLeadsAndProducts = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const [leadsResponse, productsResponse] = await Promise.all([
-        fetch('https://set-crm-main-for-netli.onrender.com/api/leads', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }),
-        fetch('https://set-crm-main-for-netli.onrender.com/api/products', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
+      const [leadsData, productsData] = await Promise.all([
+        getLeads(),
+        getProducts()
       ]);
-
-      const leadsData = await leadsResponse.json();
-      const productsData = await productsResponse.json();
 
       if (leadsData.success) {
         // Map leads with their associated products
@@ -137,8 +128,6 @@ export default function CreateQuotationPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      
       // Format the data to match server expectations
       const formattedData = {
         leadId: formData.leadId,
@@ -153,23 +142,12 @@ export default function CreateQuotationPage() {
         advancePaymentPercentage: parseInt(formData.advancePaymentPercentage) || 20
       };
 
-      console.log('Sending data:', formattedData); // For debugging
-
-      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/quotations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formattedData)
-      });
-
-      const data = await response.json();
+      const response = await createQuotation(formattedData);
       
-      if (data.success) {
+      if (response.success) {
         navigate('/dashboard/quotations');
       } else {
-        console.error('Error creating quotation:', data.message);
+        console.error('Error creating quotation:', response.message);
       }
     } catch (error) {
       console.error('Error creating quotation:', error);

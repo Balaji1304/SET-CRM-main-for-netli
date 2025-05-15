@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, AlertCircle, ExternalLink } from 'lucide-react';
+import { getPendingPayments } from '../../services/quotationService';
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState([]);
@@ -19,26 +20,17 @@ export default function PaymentsPage() {
       }
 
       // Fetch quotations with pending payments
-      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/quotations/pending-payments', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await getPendingPayments();
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch payments');
-      }
-
-      const data = await response.json();
-      if (data.success) {
+      if (response.success) {
         // Separate pending and completed payments
-        const pending = data.data.filter(q => q.advancePaymentStatus === 'PENDING');
-        const completed = data.data.filter(q => q.advancePaymentStatus === 'CONFIRMED');
+        const pending = response.data.filter(q => q.advancePaymentStatus === 'PENDING');
+        const completed = response.data.filter(q => q.advancePaymentStatus === 'CONFIRMED');
         
         setPendingPayments(pending);
         setPayments(completed);
+      } else {
+        throw new Error(response.message || 'Failed to fetch payments');
       }
     } catch (error) {
       console.error('Error fetching payments:', error);

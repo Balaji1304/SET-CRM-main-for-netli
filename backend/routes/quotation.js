@@ -25,6 +25,10 @@ router.post('/webhook', express.raw({ type: 'application/json' }), handleRazorpa
 router.get('/public/payment-status', checkPublicPaymentStatus);
 router.post('/manual-confirm', manualConfirmPayment);
 
+// Alternative paths for backward compatibility
+router.get('/public-payment-status', checkPublicPaymentStatus);
+router.get('/payment-status', checkPublicPaymentStatus);
+
 // Protected routes
 router.use(protect);
 
@@ -47,5 +51,13 @@ router.post('/:id/send', sendQuotation);
 router.put('/:id/approve', approveQuotation);
 router.post('/:id/offline-payment', confirmOfflinePayment);
 router.get('/:id/payment-status', checkPaymentStatus);
+
+// Simple 404 handler
+router.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Endpoint not found'
+  });
+});
 
 module.exports = router; 

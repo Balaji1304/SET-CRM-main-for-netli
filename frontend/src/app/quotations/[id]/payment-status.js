@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle, AlertTriangle, Loader, Mail } from 'lucide-react';
+import { API_URL } from '../../../services/apiConfig';
 
 export default function PaymentStatusPage() {
   const { id } = useParams();
@@ -26,6 +27,9 @@ export default function PaymentStatusPage() {
       allParams: Object.fromEntries([...params])
     });
     
+    // Log environment variable for debugging
+    console.log('Current API_URL from environment:', API_URL);
+    
     if (!razorpayPaymentId) {
       setStatus('error');
       setError(`Payment failed or was cancelled. Missing payment ID.`);
@@ -35,23 +39,46 @@ export default function PaymentStatusPage() {
     // Call the backend to check payment status
     const checkPaymentStatus = async () => {
       try {
-        // Always use a hardcoded domain without any protocol
-        const apiDomain = 'set-crm-main-for-netli.onrender.com';
+        // Ensure we're using the correct API URL
+        // Make sure it doesn't have a trailing slash before adding the path
+        const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+        const apiUrl = `${baseUrl}/payments/public/payment-status?paymentId=${razorpayPaymentId}&quotationId=${id}`;
         
-        // Construct URL with a single explicit protocol
-        const apiUrl = `https://${apiDomain}/api/payments/public/payment-status?paymentId=${razorpayPaymentId}&quotationId=${id}`;
-        console.log('Fetching payment status from:', apiUrl);
+        console.log('Fetching payment status from (constructed URL):', apiUrl);
         
-        const response = await fetch(apiUrl, {
-          method: 'GET'
-        });
+        // First try without extra headers to avoid CORS issues
+        let response;
+        try {
+          response = await fetch(apiUrl, { method: 'GET' });
+        } catch (corsError) {
+          console.log('Simple fetch failed, trying with minimal headers:', corsError);
+          // If simple fetch fails, try with only the Accept header
+          response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+          });
+        }
         
         if (!response.ok) {
-          throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+          console.error('Payment status response not OK:', {
+            status: response.status,
+            statusText: response.statusText
+          });
+          
+          // Try to get any error message if available
+          let errorMessage;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || `Server returned ${response.status}: ${response.statusText}`;
+          } catch (e) {
+            errorMessage = `Server returned ${response.status}: ${response.statusText}`;
+          }
+          
+          throw new Error(errorMessage);
         }
         
         const data = await response.json();
-        console.log('Payment status response:', data);
+        console.log('Payment status response data:', data);
         
         if (data.success) {
           setPaymentDetails(data.data);
@@ -85,29 +112,46 @@ export default function PaymentStatusPage() {
     // Function to manually confirm payment if webhook didn't process it
     const confirmPayment = async (paymentId, paymentLinkId, signature) => {
       try {
-        const apiDomain = 'set-crm-main-for-netli.onrender.com';
-        const confirmUrl = `https://${apiDomain}/api/payments/manual-confirm`;
+        // Ensure we're using the correct API URL
+        const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+        const confirmUrl = `${baseUrl}/payments/manual-confirm`;
         
         console.log('Manually confirming payment:', {
+          url: confirmUrl,
           quotationId: id,
           paymentId,
           paymentLinkId
         });
         
-        const confirmResponse = await fetch(confirmUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            quotationId: id,
-            paymentId,
-            paymentLinkId,
-            signature
-          })
+        const requestBody = JSON.stringify({
+          quotationId: id,
+          paymentId,
+          paymentLinkId,
+          signature
         });
         
+        // Try with minimal headers first to avoid CORS issues
+        let confirmResponse;
+        try {
+          confirmResponse = await fetch(confirmUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: requestBody
+          });
+        } catch (corsError) {
+          console.log('Simple confirm fetch failed, trying alternative approach:', corsError);
+          confirmResponse = await fetch(confirmUrl, {
+            method: 'POST',
+            body: requestBody
+          });
+        }
+        
         if (!confirmResponse.ok) {
+          console.error('Payment confirmation response not OK:', {
+            status: confirmResponse.status,
+            statusText: confirmResponse.statusText
+          });
+          
           throw new Error(`Server returned ${confirmResponse.status}: ${confirmResponse.statusText}`);
         }
         

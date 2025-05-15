@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createLead, getLead, updateLead } from '../../services/leadService';
+import { getProducts } from '../../services/productService';
 
 const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) => {
   if (!isOpen) return null;
@@ -139,34 +140,34 @@ export default function LeadForm() {
   useEffect(() => {
     const fetchProducts = async () => {
       setIsLoadingProducts(true);
+      setProductError(null);
       try {
-        const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/products');
-        if (!response.ok) {
-          throw new Error('Failed to fetch products');
-        }
-        const data = await response.json();
-        
-        // Organize products by category
-        const productsByCategory = {};
-        const categories = new Set();
-        
-        data.forEach(product => {
-          categories.add(product.category);
-          if (!productsByCategory[product.category]) {
-            productsByCategory[product.category] = [];
-          }
-          productsByCategory[product.category].push({
-            _id: product._id,
-            name: product.name,
-            price: product.price
+        const response = await getProducts();
+        if (response.success) {
+          // Organize products by category
+          const productsByCategory = {};
+          const categories = new Set();
+          
+          response.data.forEach(product => {
+            categories.add(product.category);
+            if (!productsByCategory[product.category]) {
+              productsByCategory[product.category] = [];
+            }
+            productsByCategory[product.category].push({
+              _id: product._id,
+              name: product.name,
+              price: product.price
+            });
           });
-        });
 
-        setProductsData(productsByCategory);
-        setProductCategories(Array.from(categories));
+          setProductsData(productsByCategory);
+          setProductCategories(Array.from(categories));
+        } else {
+          throw new Error(response.message || 'Failed to fetch products');
+        }
       } catch (error) {
         console.error('Error fetching products:', error);
-        setProductError('Failed to load products');
+        setProductError('Failed to load products. Please try refreshing the page.');
       } finally {
         setIsLoadingProducts(false);
       }

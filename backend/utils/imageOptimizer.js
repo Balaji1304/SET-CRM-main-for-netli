@@ -2,7 +2,7 @@ const sharp = require('sharp');
 
 const optimizeImage = async (buffer) => {
   try {
-    const optimizedBuffer = await sharp(buffer)
+    return await sharp(buffer)
       .jpeg({
         quality: 80,
         chromaSubsampling: '4:4:4',
@@ -15,10 +15,7 @@ const optimizeImage = async (buffer) => {
         withoutEnlargement: true
       })
       .toBuffer();
-
-    return optimizedBuffer;
   } catch (error) {
-    console.error('Image optimization error:', error);
     return buffer; // Return original buffer if optimization fails
   }
 };

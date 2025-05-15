@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Edit2, FileText, Send, Check, X, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
+import { 
+  getQuotations, 
+  sendQuotation, 
+  approveQuotation, 
+  closeQuotation, 
+  confirmOfflinePayment 
+} from '../../services/quotationService';
 
 export default function QuotationsTable({ searchTerm, statusFilter }) {
   const navigate = useNavigate();
@@ -33,25 +40,12 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     fetchQuotations();
   }, [navigate]);
 
-  const getAuthHeaders = (contentType = false) => {
-    const token = localStorage.getItem('token');
-    const headers = {
-      'Authorization': `Bearer ${token}`
-    };
-    if (contentType) {
-      headers['Content-Type'] = 'application/json';
-    }
-    return headers;
-  };
-
   const fetchQuotations = async () => {
     try {
-      const response = await fetch('https://set-crm-main-for-netli.onrender.com/api/quotations', {
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      if (data.success) {
-        setQuotations(data.data);
+      setLoading(true);
+      const response = await getQuotations();
+      if (response.success) {
+        setQuotations(response.data);
       }
     } catch (error) {
       console.error('Error fetching quotations:', error);
@@ -86,26 +80,20 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     }
   }, []);
 
-
   const handleSendQuotation = async (id) => {
     try {
       setLoadingQuotations(prev => ({ ...prev, [id]: true }));
 
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/send`, {
-        method: 'POST',
-        headers: getAuthHeaders()
-      });
-
-      const data = await response.json();
+      const response = await sendQuotation(id);
       
-      if (data.success) {
+      if (response.success) {
         setQuotations(prevQuotations => 
           prevQuotations.map(q => 
-            q._id === id ? data.data : q
+            q._id === id ? response.data : q
           )
         );
       } else {
-        throw new Error(data.message || 'Failed to send quotation');
+        throw new Error(response.message || 'Failed to send quotation');
       }
     } catch (error) {
       console.error('Error sending quotation:', error);
@@ -118,15 +106,17 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     try {
       setActionInProgress(true);
       
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/approve`, {
-        method: 'PUT',
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      if (data.success) {
-        fetchQuotations();
+      const response = await approveQuotation(id);
+      
+      if (response.success) {
+        // Update the quotation in the local state
+        setQuotations(prevQuotations => 
+          prevQuotations.map(q => 
+            q._id === id ? { ...q, status: 'approved' } : q
+          )
+        );
       } else {
-        throw new Error(data.message || 'Failed to approve quotation');
+        throw new Error(response.message || 'Failed to approve quotation');
       }
     } catch (error) {
       console.error('Error approving quotation:', error);
@@ -144,25 +134,17 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       const amount = parseFloat(paymentDetails.amount);
       const trimmedTransactionNo = paymentDetails.transactionNo.trim();
       
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${selectedQuotation._id}/offline-payment`, {
-        method: 'POST',
-        headers: getAuthHeaders(true),
-        body: JSON.stringify({
-          amount,
-          transactionNo: trimmedTransactionNo,
-          paymentMethod: paymentDetails.paymentMethod,
-          paymentDate: paymentDetails.paymentDate,
-          notes: paymentDetails.notes?.trim()
-        })
-      });
+      const paymentData = {
+        amount,
+        transactionNo: trimmedTransactionNo,
+        paymentMethod: paymentDetails.paymentMethod,
+        paymentDate: paymentDetails.paymentDate,
+        notes: paymentDetails.notes?.trim()
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Payment confirmation failed');
-      }
+      const response = await confirmOfflinePayment(selectedQuotation._id, paymentData);
 
-      const data = await response.json();
-      if (data.success) {
+      if (response.success) {
         // Reset form and refresh data
         setShowPaymentModal(false);
         setPaymentDetails({
@@ -186,15 +168,17 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     try {
       setActionInProgress(true);
       
-      const response = await fetch(`https://set-crm-main-for-netli.onrender.com/api/quotations/${id}/close`, {
-        method: 'PUT',
-        headers: getAuthHeaders()
-      });
-      const data = await response.json();
-      if (data.success) {
-        fetchQuotations();
+      const response = await closeQuotation(id);
+      
+      if (response.success) {
+        // Update the quotation in the local state
+        setQuotations(prevQuotations => 
+          prevQuotations.map(q => 
+            q._id === id ? { ...q, status: 'closed' } : q
+          )
+        );
       } else {
-        throw new Error(data.message || 'Failed to close quotation');
+        throw new Error(response.message || 'Failed to close quotation');
       }
     } catch (error) {
       console.error('Error closing quotation:', error);

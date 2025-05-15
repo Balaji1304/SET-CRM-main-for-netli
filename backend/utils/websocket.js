@@ -6,9 +6,9 @@ const initWebSocket = (server) => {
   wss = new WebSocket.Server({ server });
   
   wss.on('connection', (ws, req) => {
-    // Verify JWT token from query parameter
+    // Extract and verify token
     const url = new URL(req.url, 'http://localhost');
-    const token = url.searchParams.get('token');
+    const token = url.searchParams.get('token')?.replace('Bearer ', '');
     
     if (!token) {
       ws.close(1008, 'Authentication failed');
@@ -16,27 +16,23 @@ const initWebSocket = (server) => {
     }
 
     try {
-      // Remove 'Bearer ' prefix if present
-      const cleanToken = token.replace('Bearer ', '');
-      const decoded = jwt.verify(cleanToken, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
       ws.userId = decoded.id;
       ws.isAlive = true;
       
       // Send connection confirmation
       ws.send(JSON.stringify({ type: 'CONNECTED' }));
       
-      // Handle pong messages to keep connection alive
+      // Handle pong messages
       ws.on('pong', () => {
         ws.isAlive = true;
       });
     } catch (err) {
-      console.error('WebSocket auth error:', err);
       ws.close(1008, 'Invalid token');
-      return;
     }
   });
   
-  // Implement heartbeat to keep connections alive
+  // Implement heartbeat (30 second interval)
   const interval = setInterval(() => {
     wss.clients.forEach((ws) => {
       if (!ws.isAlive) return ws.terminate();
