@@ -42,10 +42,17 @@ const quotationItemSchema = new mongoose.Schema({
 
 // Calculate subtotal before saving
 quotationItemSchema.pre('save', function(next) {
-  // If subtotal isn't already set, calculate it
-  if (!this.subtotal) {
-    this.subtotal = (this.quantity * this.unitPrice) - (this.discount || 0);
-  }
+  // The controller now correctly calculates and sets subtotal.
+  // This pre-save hook for subtotal calculation is no longer strictly necessary
+  // if the controller always provides it. However, it can serve as a fallback
+  // or for direct model manipulations if any occur elsewhere.
+  // For clarity and to rely on controller logic, we can comment it out or ensure it only runs if subtotal is missing.
+
+  // if (this.isNew && typeof this.subtotal !== 'number') { // Or simply remove if controller is sole source
+  //   const discountAmount = (this.unitPrice * (this.discount || 0) / 100) * this.quantity;
+  //   this.subtotal = (this.quantity * this.unitPrice) - discountAmount;
+  // }
+  
   this.updatedAt = Date.now();
   next();
 });

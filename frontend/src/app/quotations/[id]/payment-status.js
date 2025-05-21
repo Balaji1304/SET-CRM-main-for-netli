@@ -42,7 +42,7 @@ export default function PaymentStatusPage() {
         // Ensure we're using the correct API URL
         // Make sure it doesn't have a trailing slash before adding the path
         const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-        const apiUrl = `${baseUrl}/payments/public/payment-status?paymentId=${razorpayPaymentId}&quotationId=${id}`;
+        const apiUrl = `${baseUrl}/quotations/public/payment-status?paymentId=${razorpayPaymentId}&quotationId=${id}`;
         
         console.log('Fetching payment status from (constructed URL):', apiUrl);
         
@@ -114,7 +114,7 @@ export default function PaymentStatusPage() {
       try {
         // Ensure we're using the correct API URL
         const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-        const confirmUrl = `${baseUrl}/payments/manual-confirm`;
+        const confirmUrl = `${baseUrl}/quotations/manual-confirm`;
         
         console.log('Manually confirming payment:', {
           url: confirmUrl,

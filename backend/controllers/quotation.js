@@ -168,17 +168,28 @@ exports.createQuotation = async (req, res) => {
       throw new AppError('Advance payment percentage must be between 1 and 100', 400);
     }
 
-    // Calculate totals
-    const subtotal = quotationItems.reduce((sum, item) => 
-      sum + Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2)), 0);
-    const tax = Number((subtotal * 0.18).toFixed(2));
-    const total = Number((subtotal + tax).toFixed(2));
+    // Calculate totals for Quotation (overall)
+    // This requires individual quotation item subtotals to be calculated first
+    let calculatedQuotationSubtotal = 0;
+    for (const item of quotationItems) {
+      const quantity = Number(item.quantity);
+      const unitPrice = Number(item.unitPrice);
+      const discountPercentage = Number(item.discount || 0);
+      if (isNaN(quantity) || isNaN(unitPrice) || isNaN(discountPercentage)) {
+        throw new AppError('Invalid item quantity, unit price, or discount percentage.', 400);
+      }
+      calculatedQuotationSubtotal += quantity * unitPrice * (1 - discountPercentage / 100);
+    }
+    calculatedQuotationSubtotal = Number(calculatedQuotationSubtotal.toFixed(2));
+
+    const tax = Number((calculatedQuotationSubtotal * 0.18).toFixed(2)); // Assuming 18% tax on the corrected subtotal
+    const total = Number((calculatedQuotationSubtotal + tax).toFixed(2));
 
     // Create quotation
     const quotation = await Quotation.create({
       lead: leadId,
       quotationNumber: await generateQuotationNumber(),
-      subtotal,
+      subtotal: calculatedQuotationSubtotal, // Use the correctly calculated subtotal
       tax,
       total,
       terms,
@@ -196,14 +207,20 @@ exports.createQuotation = async (req, res) => {
       if (!item.productId) {
         throw new AppError('Product ID is required for each item', 400);
       }
+      const quantity = Number(item.quantity);
+      const unitPrice = Number(item.unitPrice);
+      const discountPercentage = Number(item.discount || 0); // Assuming item.discount is percentage
+
+      // Calculate subtotal for this specific QuotationItem
+      const itemSubtotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
       
       const quotationItem = await QuotationItem.create({
         quotationId: quotation._id,
         productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discount: item.discount || 0,
-        subtotal: (item.quantity * item.unitPrice) - (item.discount || 0)
+        quantity: quantity,
+        unitPrice: unitPrice,
+        discount: discountPercentage, // Store discount as percentage
+        subtotal: itemSubtotal // Store correctly calculated item subtotal
       });
       createdQuotationItems.push(quotationItem);
     }
@@ -248,17 +265,27 @@ exports.updateQuotation = async (req, res) => {
       throw new AppError('Advance payment percentage must be between 1 and 100', 400);
     }
 
-    // Recalculate totals based on updated items
-    const subtotal = quotationItems.reduce((sum, item) => 
-      sum + Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2)), 0);
-    const tax = Number((subtotal * 0.18).toFixed(2));
-    const total = Number((subtotal + tax).toFixed(2));
+    // Recalculate totals for Quotation (overall) based on updated items
+    let calculatedQuotationSubtotal = 0;
+    for (const item of quotationItems) {
+      const quantity = Number(item.quantity);
+      const unitPrice = Number(item.unitPrice);
+      const discountPercentage = Number(item.discount || 0);
+      if (isNaN(quantity) || isNaN(unitPrice) || isNaN(discountPercentage)) {
+        throw new AppError('Invalid item quantity, unit price, or discount percentage.', 400);
+      }
+      calculatedQuotationSubtotal += quantity * unitPrice * (1 - discountPercentage / 100);
+    }
+    calculatedQuotationSubtotal = Number(calculatedQuotationSubtotal.toFixed(2));
+    
+    const tax = Number((calculatedQuotationSubtotal * 0.18).toFixed(2)); // Assuming 18% tax
+    const total = Number((calculatedQuotationSubtotal + tax).toFixed(2));
 
     // Update quotation
     const updatedData = {
       terms,
       notes,
-      subtotal,
+      subtotal: calculatedQuotationSubtotal, // Use the correctly calculated subtotal
       tax,
       total,
       advancePaymentPercentage: percentage,
@@ -280,14 +307,20 @@ exports.updateQuotation = async (req, res) => {
       if (!item.productId) {
         throw new AppError('Product ID is required for each item', 400);
       }
-      
+      const quantity = Number(item.quantity);
+      const unitPrice = Number(item.unitPrice);
+      const discountPercentage = Number(item.discount || 0); // Assuming item.discount is percentage
+
+      // Calculate subtotal for this specific QuotationItem
+      const itemSubtotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
+
       const quotationItem = await QuotationItem.create({
         quotationId: quotation._id,
         productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discount: item.discount || 0,
-        subtotal: (item.quantity * item.unitPrice) - (item.discount || 0)
+        quantity: quantity,
+        unitPrice: unitPrice,
+        discount: discountPercentage, // Store discount as percentage
+        subtotal: itemSubtotal // Store correctly calculated item subtotal
       });
       createdQuotationItems.push(quotationItem);
     }
@@ -723,39 +756,31 @@ const approveQuotation = async (quotation) => {
     let userId;
     
     if (existingUser) {
-      // Use existing user
       userId = existingUser._id;
     } else {
-    // Create customer account with random password
-    const password = Math.random().toString(36).slice(-8);
-    
+      const password = Math.random().toString(36).slice(-8);
       const newUser = await User.create({
-      name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
-      email: quotation.lead.email,
-      password,
-      role: 'customer'
-    });
-      
+        name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
+        email: quotation.lead.email,
+        password,
+        role: 'customer'
+      });
       userId = newUser._id;
-
-    // Send credentials email
-    await sendEmail({
+      await sendEmail({
         email: newUser.email,
-      subject: 'Welcome to Solar CRM - Your Account Details',
-      template: 'welcome',
-      data: {
+        subject: 'Welcome to Solar CRM - Your Account Details',
+        template: 'welcome',
+        data: {
           name: newUser.name,
           email: newUser.email,
-        password
-      }
-    });
+          password
+        }
+      });
     }
     
-    // Check if customer record already exists
     let customer = await Customer.findOne({ email: quotation.lead.email });
     
     if (!customer) {
-      // Create Customer record
       console.log(`Creating new customer record for ${quotation.lead.email}`);
       customer = await Customer.create({
         leadId: quotation.lead._id,
@@ -771,45 +796,55 @@ const approveQuotation = async (quotation) => {
       console.log(`Created customer with ID: ${customer._id}`);
     }
     
-    // Calculate values for CustomerPurchase
+    // Financials from Quotation - Subtotal is net of item discounts
+    const purchaseSubtotal = quotation.subtotal; // This is already calculated correctly
+    const purchaseTaxPercentage = 18; // Hardcoded 18% tax rate for consistency
+    const purchaseTaxAmount = Number((purchaseSubtotal * (purchaseTaxPercentage / 100)).toFixed(2));
+    // quotation.total should already reflect subtotal + 18% tax from its own creation
+    const purchaseTotalAmount = quotation.total; 
+
+    // Validate if quotation.total matches our new calculation to be sure
+    if (Math.abs(purchaseTotalAmount - (purchaseSubtotal + purchaseTaxAmount)) > 0.01) {
+        console.warn(`Discrepancy in Quotation total vs. re-calculated total for CustomerPurchase. Quotation ID: ${quotation._id}. Quotation.total: ${quotation.total}, Calculated: ${purchaseSubtotal + purchaseTaxAmount}`);
+        // Potentially use the re-calculated total if quotation.total is deemed unreliable, or throw error
+        // For now, we trust quotation.total as it was also set using 18% rule.
+    }
+
     const advanceAmount = quotation.advancePaymentAmount || 
-                         (quotation.total * (quotation.advancePaymentPercentage / 100));
-    const remainingAmount = quotation.total - advanceAmount;
+                         (purchaseTotalAmount * (quotation.advancePaymentPercentage / 100));
+    const remainingAmount = purchaseTotalAmount - advanceAmount;
+    const actualAdvancePercentage = Math.round((advanceAmount / purchaseTotalAmount) * 100);
     
-    // Calculate actual advance payment percentage
-    const actualAdvancePercentage = Math.round((advanceAmount / quotation.total) * 100);
-    
-    // Check if CustomerPurchase already exists for this quotation
     let customerPurchase = await CustomerPurchase.findOne({ 
       customerId: customer._id,
       quotationId: quotation._id
     });
     
     if (!customerPurchase) {
-      // Generate a unique purchase ID
       const purchaseCount = await CustomerPurchase.countDocuments();
       const purchaseID = `PO-${String(purchaseCount + 1).padStart(5, '0')}`;
       
-      // Create CustomerPurchase record with purchaseID
       console.log(`Creating CustomerPurchase for quotation ${quotation._id} and customer ${customer._id}`);
-      console.log(`Payment details: Advance: ${advanceAmount}, Total: ${quotation.total}, Remaining: ${remainingAmount}, Actual Advance %: ${actualAdvancePercentage}%`);
+      console.log(`Payment details: Advance: ${advanceAmount}, Total: ${purchaseTotalAmount}, Remaining: ${remainingAmount}, Actual Advance %: ${actualAdvancePercentage}%`);
       
       customerPurchase = await CustomerPurchase.create({
-        purchaseID, // Unique purchase identifier
+        purchaseID, 
         customerId: customer._id,
         quotationId: quotation._id,
+        subtotal: purchaseSubtotal, // Store from quotation
+        taxPercentage: purchaseTaxPercentage, // Store defined percentage
+        taxAmount: purchaseTaxAmount, // Store calculated tax amount
         advancePaid: advanceAmount,
-        totalAmount: quotation.total,
+        totalAmount: purchaseTotalAmount, // Use quotation.total
         remainingAmount: remainingAmount,
         isFullyPaid: remainingAmount <= 0,
         paymentMethod: quotation.paymentMethod || 'cash',
         status: 'active',
         purchaseDate: quotation.advancePaymentConfirmedAt || new Date(),
-        advancePaymentPercentage: actualAdvancePercentage // Store the actual percentage paid
+        advancePaymentPercentage: actualAdvancePercentage 
       });
       console.log(`Created CustomerPurchase with ID: ${customerPurchase._id}`);
       
-      // Create a Payment record for the advance payment
       await Payment.create({
         customerPurchaseId: customerPurchase._id,
         amountPaid: advanceAmount,
@@ -820,14 +855,12 @@ const approveQuotation = async (quotation) => {
       });
     }
 
-    // Update quotation status
     quotation.status = 'approved';
     await quotation.save();
 
     return quotation;
   } catch (error) {
     console.error('Error in approval process:', error.message, error.stack);
-    // Add more detailed error logging
     if (error.code === 11000) {
       console.error('Duplicate key error. This might be due to a race condition.');
     }
@@ -1134,10 +1167,10 @@ exports.checkPublicPaymentStatus = async (req, res) => {
     const { paymentId, quotationId } = req.query;
     
     // Log all query parameters for debugging
-    console.log('Public payment status check with query parameters:', req.query);
+    console.log('Public payment status check. Received query parameters:', req.query);
     
     if (!paymentId || !quotationId) {
-      console.error('Public payment status check failed: Missing required parameters', req.query);
+      console.error('Public payment status check failed: Missing required paymentId or quotationId.', req.query);
       return res.status(400).json({
         success: false,
         message: 'Missing payment ID or quotation ID',
@@ -1145,19 +1178,24 @@ exports.checkPublicPaymentStatus = async (req, res) => {
       });
     }
     
-    console.log(`Public payment status check for quotation: ${quotationId}, paymentId: ${paymentId}`);
+    console.log(`Public payment status check for quotation: '${quotationId}', paymentId: '${paymentId}'`);
+    
+    const mongoose = require('mongoose'); // Ensure mongoose is available
+
+    if (typeof quotationId !== 'string' || !mongoose.Types.ObjectId.isValid(quotationId)) {
+      console.error(`Invalid Quotation ID format: '${quotationId}'. Must be a 24-character hex string.`);
+      return res.status(400).json({
+        success: false,
+        message: `Invalid Quotation ID format: ${quotationId}`,
+        quotationId
+      });
+    }
+    
+    const cleanQuotationId = new mongoose.Types.ObjectId(quotationId);
+    console.log(`Searching for quotation with ObjectId: '${cleanQuotationId.toString()}'`);
     
     try {
       // Find the quotation using payment ID and quotation ID
-      // First try to convert string to ObjectId if needed
-      let cleanQuotationId = quotationId;
-      const mongoose = require('mongoose');
-      if (mongoose.Types.ObjectId.isValid(quotationId)) {
-        cleanQuotationId = new mongoose.Types.ObjectId(quotationId);
-      }
-      
-      console.log(`Searching for quotation with ID: ${cleanQuotationId}`);
-      
       const quotation = await Quotation.findOne({
         _id: cleanQuotationId,
         razorpayPaymentId: paymentId
@@ -1165,19 +1203,20 @@ exports.checkPublicPaymentStatus = async (req, res) => {
       
       // If no quotation is found with matching payment ID, check if it exists at all
       if (!quotation) {
-        console.log(`No quotation found with payment ID: ${paymentId}, checking if quotation exists`);
+        console.log(`No quotation found with _id: '${cleanQuotationId.toString()}' AND razorpayPaymentId: '${paymentId}'. Checking for quotation by ID only.`);
         // Try to find the quotation without payment ID (payment might be in process)
-        const pendingQuotation = await Quotation.findById(cleanQuotationId);
+        const pendingQuotation = await Quotation.findById(cleanQuotationId)
+          .select('quotationNumber advancePaymentStatus advancePaymentAmount razorpayPaymentId status lead'); // Added lead for potential email
         
         if (!pendingQuotation) {
-          console.error(`Quotation not found: ${quotationId}`);
+          console.error(`Quotation not found by ID: '${cleanQuotationId.toString()}'. Original query quotationId was: '${quotationId}'.`);
           return res.status(404).json({
             success: false,
             message: 'Quotation not found',
-            quotationId,
+            quotationId: quotationId, // Return original id from query
             debug: { 
-              isValid: mongoose.Types.ObjectId.isValid(quotationId),
-              cleanQuotationId: cleanQuotationId.toString() 
+              searchedObjectId: cleanQuotationId.toString(),
+              isValidOriginalId: mongoose.Types.ObjectId.isValid(quotationId)
             }
           });
         }
@@ -1185,48 +1224,51 @@ exports.checkPublicPaymentStatus = async (req, res) => {
         // If payment ID is provided but doesn't match the quotation, verify payment with Razorpay API
         if (paymentId && pendingQuotation.status === 'sent') {
           try {
-            console.log(`Verifying payment with Razorpay API: ${paymentId}`);
+            console.log(`Verifying payment with Razorpay API for paymentId: '${paymentId}' as it's not yet on quotation '${pendingQuotation._id}'.`);
             // Verify payment status directly with Razorpay API
             const paymentVerification = await razorpay.verifyPaymentStatus(paymentId);
             
             // If payment is verified successfully and quotation is still in "sent" status
             if (paymentVerification.verified) {      
-              console.log(`Payment verified with Razorpay API but not yet recorded in system. Payment status: ${paymentVerification.payment.status}`);      
+              console.log(`Payment '${paymentId}' verified with Razorpay API. Payment status: ${paymentVerification.payment.status}. Quotation '${pendingQuotation._id}' status: '${pendingQuotation.status}'.`);
               // Return a special status indicating the payment is verified with Razorpay 
               // but not yet processed in our system
               return res.json({
                 success: true,
-                message: 'Payment verified with Razorpay API but not yet recorded in system',
+                message: 'Payment verified with Razorpay API but not yet recorded in system. Webhook will process shortly.',
                 data: {
                   quotationId: pendingQuotation._id,
                   quotationNumber: pendingQuotation.quotationNumber,
-                  paymentStatus: 'RAZORPAY_VERIFIED',
+                  paymentStatus: 'RAZORPAY_VERIFIED', // Custom status
                   quotationStatus: pendingQuotation.status,
                   razorpayPaymentStatus: paymentVerification.payment.status,
-                  paymentAmount: paymentVerification.payment.amount
+                  paymentAmount: paymentVerification.payment.amount // Amount in paise
                 }
               });
+            } else {
+              console.warn(`Razorpay API verification failed or payment not successful for paymentId '${paymentId}'. Status: ${paymentVerification.payment?.status}`);
             }
           } catch (error) {
-            console.error('Error verifying payment with Razorpay API:', error.message);
-            // Continue with normal flow even if verification fails
+            console.error('Error verifying payment with Razorpay API during public status check:', error.message);
+            // Continue with normal flow (return PENDING) even if API verification fails, 
+            // as webhook is the source of truth for updates.
           }
         }
         
-        console.log(`Returning pending status for quotation: ${quotationId}`);
+        console.log(`Returning current status for quotation: '${pendingQuotation._id}'. Payment Status: '${pendingQuotation.advancePaymentStatus}', Quotation Status: '${pendingQuotation.status}'.`);
         // Return normal status if API verification fails or is not applicable
         return res.json({
           success: true,
           data: {
             quotationId: pendingQuotation._id,
             quotationNumber: pendingQuotation.quotationNumber,
-            paymentStatus: 'PENDING',
+            paymentStatus: pendingQuotation.advancePaymentStatus || 'PENDING', // Fallback to PENDING
             quotationStatus: pendingQuotation.status
           }
         });
       }
       
-      console.log(`Found quotation with payment information. Status: ${quotation.status}, Payment status: ${quotation.advancePaymentStatus}`);
+      console.log(`Found quotation with matching _id and razorpayPaymentId. Quotation Status: '${quotation.status}', Payment status: '${quotation.advancePaymentStatus}'.`);
       // Return payment details from our database for existing payments
       return res.json({
         success: true,
@@ -1248,7 +1290,7 @@ exports.checkPublicPaymentStatus = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error checking public payment status:', error.message, error.stack);
+    console.error('Unexpected error in checkPublicPaymentStatus controller:', error.message, error.stack);
     return res.status(500).json({
       success: false,
       message: 'Error checking payment status',

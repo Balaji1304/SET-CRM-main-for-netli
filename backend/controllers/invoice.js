@@ -253,10 +253,10 @@ exports.sendExistingInvoiceEmail = async (req, res) => {
   try {
     const { invoiceId } = req.params;
     const invoice = await Invoice.findById(invoiceId)
-      .populate('customer', 'name email phone') // Added phone
-      .populate('items.product', 'name description') // Added description
+      .populate('customer', 'name email phone') 
+      .populate('items.product', 'name description') 
       .populate('quotation', 'quotationNumber')
-      .populate('customerPurchase', 'purchaseID purchaseDate'); // Added purchaseDate
+      .populate('customerPurchase', 'purchaseID purchaseDate');
 
     if (!invoice) {
       throw new AppError('Invoice not found', 404);
@@ -270,37 +270,34 @@ exports.sendExistingInvoiceEmail = async (req, res) => {
     const emailData = {
       invoiceNumber: invoice.invoiceNumber,
       issueDate: invoice.issueDate,
-      companyDetails: invoice.companyDetails, // Assumes companyDetails includes logoUrl, taxId etc.
+      companyDetails: invoice.companyDetails, 
       customerDetails: {
         name: invoice.customer.name,
         email: invoice.customer.email,
-        phone: invoice.customer.phone || 'N/A', // Added phone
-        billingAddress: invoice.customerDetails?.billingAddress || 'N/A',
+        phone: invoice.customer.phone || 'N/A',
+        billingAddress: invoice.customerDetails?.billingAddress || invoice.customer?.billingAddress || 'N/A', // Check both invoice.customerDetails and invoice.customer
       },
       items: invoice.items.map(item => ({
-        name: item.name || item.product?.name,
-        description: item.product?.description || '', // Added description
+        name: item.name || item.product?.name, // item.name on InvoiceItem should be the definitive one
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         discountPercentage: item.discountPercentage || 0,
-        itemTotal: item.itemTotal
+        itemTotal: item.itemTotal // This is the net total for the item, after discount
       })),
-      subtotal: invoice.subtotal,
+      subtotal: invoice.subtotal, // This is sum of all itemTotals
       taxAmount: invoice.taxAmount,
-      taxPercentage: invoice.taxPercentage || 0, // Added taxPercentage
+      taxPercentage: invoice.taxPercentage || 0, 
       totalAmount: invoice.totalAmount,
-      paidAmount: invoice.paidAmount || 0, // Added paidAmount
-      paymentStatus: invoice.paymentStatus || 'N/A', // Added paymentStatus
-      notes: invoice.notes, // Added notes
+      paidAmount: invoice.paidAmount || 0, 
+      paymentStatus: invoice.paymentStatus || 'N/A', 
+      notes: invoice.notes,
       quotation: {
         quotationNumber: invoice.quotation?.quotationNumber || 'N/A'
       },
       customerPurchase: {
         purchaseID: invoice.customerPurchase?.purchaseID || 'N/A',
-        purchaseDate: invoice.customerPurchase?.purchaseDate // Will be formatted by Handlebars helper
+        purchaseDate: invoice.customerPurchase?.purchaseDate 
       },
-      // businessDetails are now part of companyDetails from the invoice model
-      // dueDate is removed to align with frontend page
     };
 
     // Generate PDF.

@@ -29,9 +29,12 @@ const sendEmail = async (options) => {
   try {
     let compiledTemplate;
     const cacheKey = `email_${options.template}`;
+    const isDevelopment = process.env.NODE_ENV === 'development';
 
-    // Try to get compiled template from cache
-    compiledTemplate = emailTemplateCache.get(cacheKey);
+    // Try to get compiled template from cache (unless in development)
+    if (!isDevelopment) {
+      compiledTemplate = emailTemplateCache.get(cacheKey);
+    }
 
     if (!compiledTemplate) {
       const templatePath = path.join(__dirname, `../templates/${options.template}.handlebars`);
@@ -39,7 +42,9 @@ const sendEmail = async (options) => {
       
       // Compile template
       compiledTemplate = handlebars.compile(source);
-      emailTemplateCache.set(cacheKey, compiledTemplate);
+      if (!isDevelopment) {
+        emailTemplateCache.set(cacheKey, compiledTemplate);
+      }
     }
 
     const html = compiledTemplate(options.data);

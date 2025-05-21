@@ -15,29 +15,53 @@ export default function PaymentsPage() {
   }, []);
 
   const fetchPaymentData = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error('No authentication token found');
+        setError('No authentication token found. Please login.');
+        setLoading(false);
+        return;
       }
 
-      // Fetch customer purchases with pending payments
-      const purchasesResponse = await getCustomerPurchases();
-      
-      // Fetch payment history
-      const paymentsResponse = await getPaymentHistory();
+      const [purchasesResponse, paymentsResponse] = await Promise.all([
+        getCustomerPurchases(),
+        getPaymentHistory()
+      ]);
 
       if (purchasesResponse.success && paymentsResponse.success) {
-        // Filter purchases that have remaining payments
-        const pendingPurchases = purchasesResponse.data.filter(p => !p.isFullyPaid);
+        const allPurchases = purchasesResponse.data;
+        const pendingPurchases = allPurchases.filter(p => !p.isFullyPaid);
         setPurchases(pendingPurchases);
-        setPayments(paymentsResponse.data);
+
+        const purchasesMap = new Map(allPurchases.map(p => [p._id, p]));
+
+        const enhancedPayments = paymentsResponse.data.map(payment => {
+          const purchaseDetails = purchasesMap.get(payment.customerPurchaseId);
+          return {
+            ...payment,
+            purchaseDate: purchaseDetails?.purchaseDate,
+            isFullyPaid: purchaseDetails?.isFullyPaid || false,
+            _purchaseTotalAmount: purchaseDetails?.totalAmount,
+            _purchaseAdvancePaid: purchaseDetails?.advancePaid,
+          };
+        });
+        
+        setPayments(enhancedPayments);
       } else {
-        throw new Error(purchasesResponse.message || paymentsResponse.message || 'Failed to fetch payment data');
+        let errorMessage = 'Failed to fetch payment data.';
+        if (!purchasesResponse.success) {
+          errorMessage += ` Purchases: ${purchasesResponse.message || 'Unknown error'}`;
+        }
+        if (!paymentsResponse.success) {
+          errorMessage += ` Payments: ${paymentsResponse.message || 'Unknown error'}`;
+        }
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Error fetching payment data:', error);
-      setError(error.message);
+      setError(error.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -48,7 +72,9 @@ export default function PaymentsPage() {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
+    if (!dateString || new Date(dateString).toString() === 'Invalid Date') {
+      return 'N/A';
+    }
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
@@ -75,6 +101,11 @@ export default function PaymentsPage() {
       <div className="flex flex-col items-center justify-center h-screen text-red-500">
         <AlertCircle className="h-12 w-12 mb-2" />
         <p>{error}</p>
+        <button 
+          onClick={fetchPaymentData} 
+          className="mt-4 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors">
+          Retry
+        </button>
       </div>
     );
   }
@@ -163,10 +194,12 @@ export default function PaymentsPage() {
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Purchase ID</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Quotation #</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Date</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Payment Date</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Purchase Date</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Amount</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Payment Method</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Transaction ID</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Invoice</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -175,14 +208,48 @@ export default function PaymentsPage() {
                     <td className="px-4 py-3 text-sm">{payment.purchaseID || 'N/A'}</td>
                     <td className="px-4 py-3 text-sm">{payment.quotationNumber}</td>
                     <td className="px-4 py-3 text-sm">
-                      {formatDate(payment.paymentDate)}
+                      {formatDate(payment.paidAt)}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {formatDate(payment.purchaseDate)} 
                     </td>
                     <td className="px-4 py-3 text-sm">{formatCurrency(payment.amountPaid)}</td>
                     <td className="px-4 py-3 text-sm">
-                      <span className="capitalize">{payment.paymentMethod?.replace('_', ' ')}</span>
+                      <span className="capitalize">{payment.paymentMethod?.replace('_', ' ') || 'N/A'}</span>
                     </td>
                     <td className="px-4 py-3 text-sm font-mono">
                       {payment.transactionId || 'N/A'}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {(() => {
+                        if (!payment.isFullyPaid) {
+                          return <span className="text-gray-500 italic">Payment pending</span>;
+                        } else {
+                          const wasThisTheAdvancePayment = 
+                            typeof payment._purchaseAdvancePaid === 'number' &&
+                            payment.amountPaid === payment._purchaseAdvancePaid &&
+                            payment._purchaseAdvancePaid > 0 &&
+                            typeof payment._purchaseTotalAmount === 'number' &&
+                            payment._purchaseAdvancePaid < payment._purchaseTotalAmount;
+
+                          if (wasThisTheAdvancePayment) {
+                            return <span className="text-gray-500 italic">Advance Cleared</span>;
+                          } else {
+                            if (payment.customerPurchaseId) {
+                              return (
+                                <button
+                                  onClick={() => navigate(`/invoice/${payment.customerPurchaseId}`)}
+                                  className="text-orange-600 hover:text-orange-800 hover:underline flex items-center gap-1"
+                                >
+                                  <FileText size={16} /> View Invoice
+                                </button>
+                              );
+                            } else {
+                              return <span className="text-gray-500 italic">Invoice link error</span>; 
+                            }
+                          }
+                        }
+                      })()}
                     </td>
                   </tr>
                 ))}

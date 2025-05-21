@@ -77,7 +77,7 @@ export default function MyProductsPage() {
     }
     
     // Navigate to the payment page with the purchase ID
-    window.location.href = `/payments/remaining?purchase=${purchaseId}`;
+    window.location.href = `/dashboard/payments/remaining?purchase=${purchaseId}`;
   };
 
   const viewInvoice = (customerPurchaseId) => {
@@ -132,9 +132,18 @@ export default function MyProductsPage() {
           </div>
         ) : (
           Object.values(quotations).map((quotation) => (
-            <div key={quotation.quotationNumber} className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <div 
+              key={quotation.quotationNumber} 
+              className={`bg-white rounded-lg shadow-sm overflow-hidden ${
+                quotation.paymentStatus === 'FULLY_PAID' ? 'border-l-4 border-green-500' : ''
+              }`}
+            >
               {/* Order header - similar to Amazon's header */}
-              <div className="bg-gray-50 p-4 border-b grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div 
+                className={`p-4 border-b grid grid-cols-1 md:grid-cols-3 gap-4 ${
+                  quotation.paymentStatus === 'FULLY_PAID' ? 'bg-green-50' : 'bg-gray-50'
+                }`}
+              >
                 <div>
                   <p className="text-xs text-gray-500">ORDER PLACED</p>
                   <p className="font-medium">{formatDate(quotation.purchaseDate)}</p>
@@ -263,7 +272,7 @@ export default function MyProductsPage() {
                 {quotation.paymentStatus === 'FULLY_PAID' ? (
                   <button 
                     onClick={() => viewInvoice(quotation.purchaseId)}
-                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded flex items-center gap-1 transition-colors"
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded flex items-center gap-1 transition-colors"
                   >
                     <FileText className="h-4 w-4" />
                     View Invoice

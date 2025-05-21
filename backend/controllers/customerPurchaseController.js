@@ -68,9 +68,21 @@ exports.convertLeadToCustomer = async (req, res) => {
       });
     }
 
-    // Calculate values
-    const calculatedAdvanceAmount = advanceAmount || (quotation.total * (quotation.advancePaymentPercentage / 100));
-    const remainingAmount = quotation.total - calculatedAdvanceAmount;
+    // Financials from Quotation
+    const purchaseSubtotal = quotation.subtotal; // Assumes quotation.subtotal is correct
+    const purchaseTaxPercentage = 18; // Hardcoded 18% tax rate
+    const purchaseTaxAmount = Number((purchaseSubtotal * (purchaseTaxPercentage / 100)).toFixed(2));
+    // quotation.total should already reflect subtotal + 18% tax
+    const purchaseTotalAmount = quotation.total; 
+
+    // Validate if quotation.total matches our new calculation
+    if (Math.abs(purchaseTotalAmount - (purchaseSubtotal + purchaseTaxAmount)) > 0.01) {
+        console.warn(`Discrepancy in Quotation total vs. re-calculated total during lead conversion. Quotation ID: ${quotation._id}. Quotation.total: ${quotation.total}, Calculated: ${purchaseSubtotal + purchaseTaxAmount}`);
+        // Consider using the re-calculated total if quotation.total is deemed unreliable.
+    }
+
+    const calculatedAdvanceAmount = advanceAmount || (purchaseTotalAmount * (quotation.advancePaymentPercentage / 100));
+    const remainingAmount = purchaseTotalAmount - calculatedAdvanceAmount;
 
     // Generate a unique purchase ID
     const purchaseCount = await CustomerPurchase.countDocuments();
@@ -81,12 +93,15 @@ exports.convertLeadToCustomer = async (req, res) => {
       purchaseID,
       customerId: customer._id,
       quotationId: quotation._id,
+      subtotal: purchaseSubtotal,         // Store subtotal from quotation
+      taxPercentage: purchaseTaxPercentage, // Store defined percentage (18%)
+      taxAmount: purchaseTaxAmount,         // Store calculated tax amount
       advancePaid: calculatedAdvanceAmount,
-      totalAmount: quotation.total,
+      totalAmount: purchaseTotalAmount,     // Use quotation.total
       remainingAmount: remainingAmount,
       isFullyPaid: remainingAmount <= 0,
       paymentMethod: paymentMethod || 'cash',
-      status: 'active'
+      status: 'active' // purchaseDate will default to Date.now() via schema
     });
 
     // Create payment record for advance

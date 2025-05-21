@@ -12,10 +12,16 @@ const {
   sendQuotation,
   confirmOfflinePayment,
   closeQuotation,
-  handleApproveQuotation
+  handleApproveQuotation,
+  checkPublicPaymentStatus,
+  manualConfirmPayment
 } = require('../controllers/quotation');
 
-// Protect all routes
+// Public routes (no auth needed)
+router.get('/public/payment-status', checkPublicPaymentStatus);
+router.post('/manual-confirm', manualConfirmPayment);
+
+// Protect all subsequent routes
 router.use(protect);
 router.use(checkRolePermission);
 

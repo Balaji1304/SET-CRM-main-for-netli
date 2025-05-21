@@ -430,28 +430,18 @@ exports.verifyRazorpayPayment = async (req, res) => {
 
 // Helper function to create an invoice if the purchase is fully paid
 async function createInvoiceIfFullyPaid(purchaseId, userId) {
-  // Implementation as described in the problem description
-  // Fetch CustomerPurchase, Quotation, QuotationItems
-  // Generate Invoice Number
-  // Construct itemsForInvoice
-  // Calculate totals
-  // Populate company/customer details
-  // Create and save Invoice
-  // (This function's body was detailed in the initial problem description)
-  // For now, I'll assume it's correctly implemented as per the description.
-
-  const Invoice = require('../models/Invoice'); // Ensure Invoice model is required
+  const Invoice = require('../models/Invoice');
+  const CustomerPurchase = require('../models/CustomerPurchase');
+  const QuotationItem = require('../models/QuotationItem');
+  const Product = require('../models/Product');
 
   const purchase = await CustomerPurchase.findById(purchaseId)
     .populate('customerId')
-    .populate({
-      path: 'quotationId',
-      populate: { path: 'lead' } // Populate lead within quotationId
-    });
+    .populate('quotationId', 'lead taxPercentage');
 
   if (!purchase) {
     console.error(`createInvoiceIfFullyPaid: Purchase not found for ID ${purchaseId}`);
-    return; // Or throw an error
+    return;
   }
 
   if (!purchase.isFullyPaid) {
@@ -459,7 +449,6 @@ async function createInvoiceIfFullyPaid(purchaseId, userId) {
     return;
   }
 
-  // Check if an invoice already exists
   const existingInvoice = await Invoice.findOne({ customerPurchase: purchaseId });
   if (existingInvoice) {
     console.log(`createInvoiceIfFullyPaid: Invoice already exists for purchase ${purchaseId}.`);
@@ -467,84 +456,59 @@ async function createInvoiceIfFullyPaid(purchaseId, userId) {
   }
 
   const quotationItems = await QuotationItem.find({ quotationId: purchase.quotationId._id })
-    .populate('productId');
+    .populate('productId', 'name description');
 
   if (!quotationItems || quotationItems.length === 0) {
-    console.error(`createInvoiceIfFullyPaid: No quotation items found for quotation ${purchase.quotationId._id}`);
-    // Potentially throw an error or handle as a critical issue
-    // For now, returning to prevent invoice creation without items
-    return; 
+    console.error(`createInvoiceIfFullyPaid: No quotation items found for quotation ${purchase.quotationId._id}. Cannot generate invoice items.`);
+    return;
   }
 
   const invoiceNumber = await Invoice.generateInvoiceNumber();
 
-  const itemsForInvoice = quotationItems.map(item => ({
-    product: item.productId._id,
-    name: item.productId.name, // Denormalized
-    description: item.productId.description, // Denormalized
-    quantity: item.quantity,
-    unitPrice: item.unitPrice,
-    discountPercentage: item.discountPercentage || 0,
-    itemTotal: item.subtotal // Use subtotal from QuotationItem
+  const itemsForInvoice = quotationItems.map(qItem => ({
+    product: qItem.productId._id,
+    name: qItem.productId.name,
+    description: qItem.productId.description,
+    quantity: qItem.quantity,
+    unitPrice: qItem.unitPrice,
+    discountPercentage: qItem.discount || 0,
+    itemTotal: qItem.subtotal
   }));
 
-  const subtotal = itemsForInvoice.reduce((sum, item) => sum + (item.itemTotal || 0), 0);
+  const invoiceSubtotal = purchase.subtotal;
+  const invoiceTaxPercentage = purchase.taxPercentage;
+  const invoiceTaxAmount = purchase.taxAmount;
+  const invoiceTotalAmount = purchase.totalAmount;
   
-  // Assuming tax is calculated based on quotation's tax percentage if available
-  // or a default/global setting. For simplicity, let's use quotation's tax.
-  const taxPercentage = purchase.quotationId.taxPercentage || 0; // Assuming taxPercentage is on Quotation model
-  const taxAmount = subtotal * (taxPercentage / 100);
-  const finalTotalAmount = subtotal + taxAmount;
-
-  // Validate calculated total against purchase total amount for consistency
-  if (Math.abs(finalTotalAmount - purchase.totalAmount) > 0.01) { // Using a small tolerance for float comparison
-    console.warn(
-      `Discrepancy in calculated total for invoice vs purchase total. Purchase: ${purchase.totalAmount}, Calculated: ${finalTotalAmount}. Purchase ID: ${purchaseId}`
-    );
-    // Depending on business rules, this might be a critical error.
-    // For now, we'll proceed but log a warning.
+  const sumOfItemTotals = itemsForInvoice.reduce((sum, item) => sum + (item.itemTotal || 0), 0);
+  if (Math.abs(sumOfItemTotals - invoiceSubtotal) > 0.01) {
+      console.warn(`Discrepancy: Sum of invoice item totals (${sumOfItemTotals}) does not match CustomerPurchase subtotal (${invoiceSubtotal}) for CP ID ${purchaseId}.`);
   }
-  
+
   const companyDetails = {
     name: process.env.COMPANY_NAME || "Sunlit Systems",
     address: process.env.COMPANY_ADDRESS || "#27, Dr. Jaganatha Nagar, Near CIT, Opp. to CMC, Coimbatore - 641 014",
     phone: process.env.COMPANY_PHONE || " +919842291069",
     email: process.env.COMPANY_EMAIL || "info@sunlitsolarindia.com",
-    logoUrl: process.env.COMPANY_LOGO_URL || "https://res.cloudinary.com/dcua87ney/image/upload/v1746715647/logo2_kmndu4.png", // Make sure this logo is accessible
+    logoUrl: process.env.COMPANY_LOGO_URL || "https://res.cloudinary.com/dcua87ney/image/upload/v1746715647/logo2_kmndu4.png",
     taxId: process.env.COMPANY_TAX_ID || "GSTIN1234567890"
   };
 
-  // Populate customer details
   let customerDetails = {
-    name: '',
-    email: '',
-    phone: '',
-    billingAddress: '',
-    shippingAddress: ''
+    name: purchase.customerId?.name || `${purchase.customerId?.firstName} ${purchase.customerId?.lastName}`.trim() || 'N/A',
+    email: purchase.customerId?.email || 'N/A',
+    phone: purchase.customerId?.phone || 'N/A',
+    billingAddress: purchase.customerId?.billingAddress || purchase.customerId?.address || (purchase.quotationId?.lead ? purchase.quotationId.lead.address : 'N/A'),
+    shippingAddress: purchase.customerId?.shippingAddress || purchase.customerId?.billingAddress || purchase.customerId?.address || (purchase.quotationId?.lead ? purchase.quotationId.lead.address : 'N/A')
   };
-
-  if (purchase.customerId) {
-    customerDetails.name = `${purchase.customerId.firstName} ${purchase.customerId.lastName}`.trim();
-    customerDetails.email = purchase.customerId.email;
-    customerDetails.phone = purchase.customerId.phone;
-    customerDetails.billingAddress = purchase.customerId.billingAddress || purchase.customerId.address || (purchase.quotationId.lead ? purchase.quotationId.lead.address : '');
-    customerDetails.shippingAddress = purchase.customerId.shippingAddress || customerDetails.billingAddress; // Default shipping to billing
-  } else if (purchase.quotationId && purchase.quotationId.lead) {
-    // Fallback to lead details if direct customer details are not fully populated
-    // This case should be rare if customerId is always populated correctly on purchase
+  
+  if (purchase.customerId && purchase.quotationId && purchase.quotationId.lead && customerDetails.name === 'N/A') {
     const lead = purchase.quotationId.lead;
-    customerDetails.name = `${lead.firstName} ${lead.lastName}`;
+    customerDetails.name = `${lead.firstName} ${lead.lastName}`.trim();
     customerDetails.email = lead.email;
     customerDetails.phone = lead.phone;
     customerDetails.billingAddress = lead.address;
-    customerDetails.shippingAddress = lead.address; // Default shipping to billing
-  } else {
-    console.error(`createInvoiceIfFullyPaid: Cannot determine customer details for purchase ${purchaseId}.`);
-    // This is a critical issue, invoice cannot be properly generated.
-    // Consider throwing an error to halt or notify.
-    return; 
   }
-
 
   const newInvoice = new Invoice({
     invoiceNumber,
@@ -552,12 +516,12 @@ async function createInvoiceIfFullyPaid(purchaseId, userId) {
     quotation: purchase.quotationId._id,
     customerPurchase: purchaseId,
     items: itemsForInvoice,
-    subtotal,
-    taxAmount,
-    taxPercentage, // Storing the applied tax percentage
-    totalAmount: finalTotalAmount, 
-    paidAmount: purchase.totalAmount, // Assuming totalAmount of purchase is the amount paid for this invoice
-    paymentStatus: 'PAID', // Since this is generated upon full payment
+    subtotal: invoiceSubtotal,
+    taxPercentage: invoiceTaxPercentage,
+    taxAmount: invoiceTaxAmount,
+    totalAmount: invoiceTotalAmount,
+    paidAmount: invoiceTotalAmount,
+    paymentStatus: 'PAID',
     issueDate: new Date(),
     companyDetails,
     customerDetails,
@@ -565,8 +529,5 @@ async function createInvoiceIfFullyPaid(purchaseId, userId) {
   });
 
   await newInvoice.save();
-  console.log(`Invoice ${invoiceNumber} generated successfully for purchase ${purchaseId}`);
-  
-  // Add a log to confirm invoice generation
-  // console.log(\`Invoice generation attempt for purchaseId: \${purchaseId}\`);
+  console.log(`Invoice ${invoiceNumber} generated successfully for purchase ${purchaseId} using CustomerPurchase financials.`);
 } 

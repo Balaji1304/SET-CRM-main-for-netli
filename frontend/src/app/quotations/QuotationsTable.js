@@ -9,6 +9,189 @@ import {
   confirmOfflinePayment 
 } from '../../services/quotationService';
 
+// Standalone Payment Modal Component
+function StandalonePaymentModal({
+  showModal,
+  onClose,
+  selectedQuotation,
+  paymentDetails,
+  onPaymentDetailsChange,
+  onSubmit,
+  paymentError,
+  onSetPaymentError // Renamed from onClearPaymentError for clarity, maps to setPaymentError
+}) {
+  if (!showModal || !selectedQuotation) return null;
+
+  const advancePercentage = selectedQuotation.advancePaymentPercentage || 20;
+  const minimumAdvance = selectedQuotation.total * (advancePercentage / 100) || 0;
+
+  const internalHandleSubmit = () => {
+    onSetPaymentError(''); // Clear previous errors
+
+    if (!selectedQuotation._id) {
+      onSetPaymentError('No quotation selected');
+      return;
+    }
+
+    if (!paymentDetails.amount || !paymentDetails.transactionNo || !paymentDetails.paymentDate) {
+      onSetPaymentError('Please fill in all required fields');
+      return;
+    }
+
+    const amount = parseFloat(paymentDetails.amount);
+    if (isNaN(amount) || amount <= 0) {
+      onSetPaymentError('Please enter a valid payment amount');
+      return;
+    }
+
+    if (amount < minimumAdvance) {
+      onSetPaymentError(`Advance payment must be at least ₹${minimumAdvance.toLocaleString('en-IN')} (${advancePercentage}% of total amount)`);
+      return;
+    }
+    onSubmit(); // Calls handleOfflinePayment in parent
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-[500px] max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl font-semibold mb-4">Confirm Offline Payment</h2>
+        <div className="space-y-4">
+          <div className="bg-orange-50 p-3 rounded-md mb-4">
+            <p className="text-sm font-medium text-gray-700">
+              Advance Payment Required: {advancePercentage}% of total amount
+            </p>
+            <p className="text-sm font-medium text-gray-700">
+              Minimum Amount: ₹{minimumAdvance.toLocaleString('en-IN')}
+            </p>
+            {selectedQuotation.quotationItems && selectedQuotation.quotationItems.length > 0 && (
+              <p className="text-xs text-gray-500 mt-1">
+                {selectedQuotation.quotationItems.length} product{selectedQuotation.quotationItems.length !== 1 ? 's' : ''} included
+              </p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Amount <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={paymentDetails.amount}
+              onChange={(e) => 
+                onPaymentDetailsChange(prev => ({
+                  ...prev,
+                  amount: e.target.value
+                }))
+              }
+              className={`w-full p-2 border ${paymentError && paymentDetails.amount === '' ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-orange-500 focus:border-orange-500`}
+              placeholder="Enter payment amount"
+              required
+            />
+            {paymentError && (
+              <p className="mt-1 text-sm text-red-600">{paymentError}</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Payment Method <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={paymentDetails.paymentMethod}
+              onChange={(e) => 
+                onPaymentDetailsChange(prev => ({
+                  ...prev,
+                  paymentMethod: e.target.value
+                }))
+              }
+              className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
+              required
+            >
+              <option value="cash">Cash</option>
+              <option value="check">Check</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Transaction Number / Reference <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={paymentDetails.transactionNo}
+              onChange={(e) => 
+                onPaymentDetailsChange(prev => ({
+                  ...prev,
+                  transactionNo: e.target.value
+                }))
+              }
+              className={`w-full p-2 border ${paymentError && paymentDetails.transactionNo === '' ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-orange-500 focus:border-orange-500`}
+              placeholder="Enter transaction reference number"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Payment Date <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="date"
+              value={paymentDetails.paymentDate}
+              onChange={(e) => 
+                onPaymentDetailsChange(prev => ({
+                  ...prev,
+                  paymentDate: e.target.value
+                }))
+              }
+              className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
+              required
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Notes
+            </label>
+            <textarea
+              value={paymentDetails.notes}
+              onChange={(e) => 
+                onPaymentDetailsChange(prev => ({
+                  ...prev,
+                  notes: e.target.value
+                }))
+              }
+              rows="3"
+              className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
+              placeholder="Additional payment notes (optional)"
+            />
+          </div>
+          
+          <div className="flex justify-end space-x-2 mt-4">
+            <button
+              onClick={onClose} // Use onClose prop
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={internalHandleSubmit} // Use the internal submit handler
+              className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700"
+              type="button" // Changed to type="button" to prevent default form submission if wrapped in a form later
+            >
+              Confirm Payment
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function QuotationsTable({ searchTerm, statusFilter }) {
   const navigate = useNavigate();
   const [quotations, setQuotations] = useState([]);
@@ -128,10 +311,22 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     }
   };
 
+  const handleClosePaymentModal = () => {
+    setShowPaymentModal(false);
+    setPaymentDetails({
+      amount: '',
+      transactionNo: '',
+      paymentMethod: 'cash',
+      paymentDate: new Date().toISOString().split('T')[0],
+      notes: ''
+    });
+    setPaymentError('');
+    // setSelectedQuotation(null); // Keep selectedQuotation if needed for context, or clear if not
+  };
+
   const handleOfflinePayment = async () => {
     try {
-      // All validation is now done in the button click handler
-      // so we can directly proceed with making the API call
+      // Validation is now done in StandalonePaymentModal before this is called
       
       const amount = parseFloat(paymentDetails.amount);
       const trimmedTransactionNo = paymentDetails.transactionNo.trim();
@@ -148,7 +343,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
       if (response.success) {
         // Reset form and refresh data
-        setShowPaymentModal(false);
+        setShowPaymentModal(false); // This will trigger onClose via prop eventually if structured that way
         setPaymentDetails({
           amount: '',
           transactionNo: '',
@@ -156,9 +351,12 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
           paymentDate: new Date().toISOString().split('T')[0],
           notes: ''
         });
-        setSelectedQuotation(null);
+        setSelectedQuotation(null); // Clear selected quotation after successful payment
         setPaymentError('');
         await fetchQuotations(); // Refresh the quotations list
+      } else {
+        // If API call itself fails after validation passes
+        setPaymentError(response.message || 'Failed to confirm payment (API error)');
       }
     } catch (error) {
       console.error('Payment confirmation error:', error);
@@ -224,196 +422,6 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     );
   };
 
-  const PaymentModal = () => {
-    if (!showPaymentModal) return null;
-    
-    // Calculate the minimum advance amount
-    const advancePercentage = selectedQuotation?.advancePaymentPercentage || 20;
-    const minimumAdvance = selectedQuotation?.total * (advancePercentage / 100) || 0;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg shadow-lg w-[500px] max-h-[90vh] overflow-y-auto">
-          <h2 className="text-xl font-semibold mb-4">Confirm Offline Payment</h2>
-          <div className="space-y-4">
-            <div className="bg-orange-50 p-3 rounded-md mb-4">
-              <p className="text-sm font-medium text-gray-700">
-                Advance Payment Required: {advancePercentage}% of total amount
-              </p>
-              <p className="text-sm font-medium text-gray-700">
-                Minimum Amount: ₹{minimumAdvance.toLocaleString('en-IN')}
-              </p>
-              {selectedQuotation?.quotationItems && selectedQuotation.quotationItems.length > 0 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {selectedQuotation.quotationItems.length} product{selectedQuotation.quotationItems.length !== 1 ? 's' : ''} included
-                </p>
-              )}
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Amount <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={paymentDetails.amount}
-                onChange={(e) => 
-                  setPaymentDetails(prev => ({
-                    ...prev,
-                    amount: e.target.value
-                  }))
-                }
-                className={`w-full p-2 border ${paymentError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-orange-500 focus:border-orange-500`}
-                placeholder="Enter payment amount"
-                required
-              />
-              {paymentError && (
-                <p className="mt-1 text-sm text-red-600">{paymentError}</p>
-              )}
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Payment Method <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={paymentDetails.paymentMethod}
-                onChange={(e) => 
-                  setPaymentDetails(prev => ({
-                    ...prev,
-                    paymentMethod: e.target.value
-                  }))
-                }
-                className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
-                required
-              >
-                <option value="cash">Cash</option>
-                <option value="check">Check</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Transaction Number / Reference <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={paymentDetails.transactionNo}
-                onChange={(e) => 
-                  setPaymentDetails(prev => ({
-                    ...prev,
-                    transactionNo: e.target.value
-                  }))
-                }
-                className={`w-full p-2 border ${paymentError ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-orange-500 focus:border-orange-500`}
-                placeholder="Enter transaction reference number"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Payment Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={paymentDetails.paymentDate}
-                onChange={(e) => 
-                  setPaymentDetails(prev => ({
-                    ...prev,
-                    paymentDate: e.target.value
-                  }))
-                }
-                className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notes
-              </label>
-              <textarea
-                value={paymentDetails.notes}
-                onChange={(e) => 
-                  setPaymentDetails(prev => ({
-                    ...prev,
-                    notes: e.target.value
-                  }))
-                }
-                rows="3"
-                className="w-full p-2 border rounded-md focus:ring-orange-500 focus:border-orange-500"
-                placeholder="Additional payment notes (optional)"
-              />
-            </div>
-            
-            <div className="flex justify-end space-x-2 mt-4">
-              <button
-                onClick={() => {
-                  setShowPaymentModal(false);
-                  setPaymentDetails({
-                    amount: '',
-                    transactionNo: '',
-                    paymentMethod: 'cash',
-                    paymentDate: new Date().toISOString().split('T')[0],
-                    notes: ''
-                  });
-                  setPaymentError('');
-                }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  // Clear previous errors
-                  setPaymentError('');
-                  
-                  // Validate all fields here instead of during input
-                  if (!selectedQuotation?._id) {
-                    setPaymentError('No quotation selected');
-                    return;
-                  }
-                  
-                  if (!paymentDetails.amount || !paymentDetails.transactionNo || !paymentDetails.paymentDate) {
-                    setPaymentError('Please fill in all required fields');
-                    return;
-                  }
-                  
-                  // Validate amount is a valid number
-                  const amount = parseFloat(paymentDetails.amount);
-                  if (isNaN(amount) || amount <= 0) {
-                    setPaymentError('Please enter a valid payment amount');
-                    return;
-                  }
-                  
-                  // Check minimum payment amount
-                  const advancePercentage = selectedQuotation.advancePaymentPercentage || 20;
-                  const minimumAdvance = selectedQuotation.total * (advancePercentage / 100);
-                  if (amount < minimumAdvance) {
-                    setPaymentError(`Advance payment must be at least ₹${minimumAdvance.toLocaleString('en-IN')} (${advancePercentage}% of total amount)`);
-                    return;
-                  }
-                  
-                  // If all validations pass, call the handleOfflinePayment function
-                  handleOfflinePayment();
-                }}
-                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700"
-                type="submit"
-              >
-                Confirm Payment
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // Filter and pagination logic
   const filteredQuotations = quotations.filter(quotation => {
     const matchesSearch = searchTerm === '' || 
@@ -451,7 +459,16 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
   return (
     <div className="flex-1 overflow-auto">
-      <PaymentModal />
+      <StandalonePaymentModal
+        showModal={showPaymentModal}
+        onClose={handleClosePaymentModal}
+        selectedQuotation={selectedQuotation}
+        paymentDetails={paymentDetails}
+        onPaymentDetailsChange={setPaymentDetails}
+        onSubmit={handleOfflinePayment}
+        paymentError={paymentError}
+        onSetPaymentError={setPaymentError}
+      />
       <ConfirmDialog />
       <table className="min-w-full">
         <thead className="bg-orange-500 text-white">
