@@ -5,182 +5,362 @@
   <title>Invoice - {{invoiceNumber}}</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
       line-height: 1.6;
-      color: #333;
+      color: #374151; /* gray-700 */
       margin: 0;
-      padding: 20px;
+      padding: 0;
+      background-color: #f9fafb; /* gray-50 */
     }
-    .container {
+    .email-container {
       max-width: 800px;
       margin: 0 auto;
       padding: 20px;
-      border: 1px solid #ddd;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      background-color: #f9fafb; /* gray-50 */
+    }
+    .invoice-box {
+      background-color: #ffffff; /* white */
+      padding: 30px; /* Increased padding */
+      border: 1px solid #e5e7eb; /* gray-200 */
+      border-radius: 8px; /* rounded-lg */
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-xl */
     }
     .header {
-      text-align: center;
-      margin-bottom: 30px;
-      padding-bottom: 20px;
-      border-bottom: 2px solid #FF7300;
-    }
-    .header h1 {
-      color: #FF7300;
-      margin: 0;
-      font-size: 28px;
-    }
-    .invoice-details {
-      margin-bottom: 30px;
       display: flex;
       justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 20px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e5e7eb; /* gray-200 */
     }
-    .business-details, .customer-details {
-      flex: 1;
-      padding: 15px;
+    .company-logo img {
+      max-height: 64px; /* h-16 */
+      width: auto;
+      object-fit: contain;
     }
-    .section-title {
-      color: #FF7300;
-      font-size: 18px;
-      margin-bottom: 10px;
+    .company-info {
+      flex: 1; /* Allow company info to take available space */
+    }
+    .company-info h2 {
+      font-size: 1.875rem; /* text-3xl */
       font-weight: bold;
+      color: #1f2937; /* gray-800 */
+      margin: 0 0 5px 0;
     }
-    .table {
+    .company-info p {
+      font-size: 0.875rem; /* text-sm */
+      color: #6b7280; /* gray-500 */
+      margin: 0;
+      white-space: pre-line;
+    }
+    .invoice-title {
+      text-align: right;
+      min-width: 220px; /* Ensure enough space for invoice details */
+    }
+    .invoice-title h3 {
+      font-size: 1.875rem; /* Reduced from text-4xl to text-3xl */
+      font-weight: bold;
+      color: #ea580c; /* orange-600 */
+      text-transform: uppercase;
+      margin: 0;
+      text-align: right; /* Ensure right alignment */
+    }
+    .invoice-meta p {
+      font-size: 0.875rem; /* text-sm */
+      color: #4b5563; /* gray-600 */
+      margin: 2px 0;
+      text-align: right;
+    }
+    .details-grid {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 30px;
+      gap: 20px;
+    }
+    .contact-section {
+      background-color: #f9fafb; /* gray-50 */
+      padding: 15px;
+      border-radius: 6px; /* rounded-lg */
+      flex: 1;
+    }
+    .contact-section h4 {
+      font-size: 1.125rem; /* text-lg */
+      font-weight: 600; /* semibold */
+      color: #374151; /* gray-700 */
+      margin-top: 0;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+    }
+    .contact-section p {
+      font-size: 0.875rem; /* text-sm */
+      color: #4b5563; /* gray-600 */
+      margin: 4px 0;
+      white-space: pre-line;
+    }
+    .contact-section .icon { /* Basic icon styling, actual icons not used in email for compatibility */
+      color: #ea580c; /* orange-500 */
+      margin-right: 8px;
+    }
+    .items-table {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 30px;
     }
-    .table th {
-      background-color: #FF7300;
-      color: white;
-      padding: 12px;
+    .items-table th, .items-table td {
+      padding: 12px; /* p-3 */
+      font-size: 0.875rem; /* text-sm */
       text-align: left;
     }
-    .table td {
-      padding: 12px;
-      border-bottom: 1px solid #ddd;
+    .items-table thead tr {
+      background-color: #ea580c; /* orange-500 */
+      color: #ffffff; /* white */
     }
-    .table tr:nth-child(even) {
-      background-color: #f9f9f9;
+    .items-table th {
+      font-weight: 600; /* semibold */
     }
-    .totals {
-      float: right;
-      width: 300px;
+    .items-table tbody tr {
+      border-bottom: 1px solid #e5e7eb; /* gray-200 */
     }
-    .totals table {
-      width: 100%;
+    .items-table tbody tr:last-child {
+      border-bottom: none;
     }
-    .totals td {
-      padding: 8px;
+    .items-table .text-right {
+      text-align: right;
     }
-    .totals .total-row {
+    .items-table .item-description p {
+      margin: 0;
+      font-weight: 500; /* medium */
+    }
+    .items-table .item-description span {
+      font-size: 0.75rem; /* text-xs */
+      color: #6b7280; /* gray-500 */
+    }
+    .totals-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 30px;
+    }
+    .totals-summary {
+      width: 40%; /* Similar to sm:w-1/2 md:w-2/5 */
+      min-width: 280px;
+    }
+    .totals-summary div {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 0.875rem; /* text-sm */
+    }
+    .totals-summary .total-label {
+      color: #374151; /* gray-700 */
+    }
+    .totals-summary .total-value {
+      color: #1f2937; /* gray-800 */
+      font-weight: 500;
+    }
+    .totals-summary .grand-total {
+      font-size: 1.125rem; /* text-lg */
       font-weight: bold;
-      font-size: 1.2em;
-      border-top: 2px solid #FF7300;
+      color: #111827; /* gray-900 */
+      border-top: 1px solid #d1d5db; /* gray-300 */
+      margin-top: 8px;
+      padding-top: 8px;
     }
-    .footer {
-      margin-top: 50px;
-      text-align: center;
-      color: #666;
-      border-top: 1px solid #ddd;
-      padding-top: 20px;
+    .status-paid {
+      color: #059669; /* green-700 */
+      background-color: #d1fae5; /* green-100 */
+      padding: 2px 8px;
+      border-radius: 9999px; /* rounded-full */
+      font-size: 0.75rem; /* text-xs */
+      font-weight: 500;
+      display: inline-block;
     }
-    .payment-info {
-      margin-top: 30px;
+    .status-pending {
+      color: #d97706; /* orange-700 */
+      background-color: #ffedd5; /* orange-100 */
+      padding: 2px 8px;
+      border-radius: 9999px; /* rounded-full */
+      font-size: 0.75rem; /* text-xs */
+      font-weight: 500;
+      display: inline-block;
+    }
+    .notes-section {
+      background-color: #f9fafb; /* gray-50 */
       padding: 15px;
-      background-color: #f8f9fa;
-      border-radius: 5px;
+      border-radius: 6px; /* rounded-lg */
+      margin-bottom: 30px;
+    }
+    .notes-section h4 {
+      font-size: 1rem; /* text-md */
+      font-weight: 600; /* semibold */
+      color: #374151; /* gray-700 */
+      margin-top: 0;
+      margin-bottom: 8px;
+    }
+    .notes-section p {
+      font-size: 0.875rem; /* text-sm */
+      color: #4b5563; /* gray-600 */
+      white-space: pre-line;
+      margin: 0;
+    }
+    .footer-section {
+      border-top: 2px solid #e5e7eb; /* gray-200 */
+      padding-top: 20px;
+      font-size: 0.875rem; /* text-sm */
+      color: #6b7280; /* gray-500 */
+    }
+    .footer-grid {
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .footer-grid div {
+      flex: 1;
+    }
+    .footer-grid .text-right {
+       text-align: right;
+    }
+    .footer-center {
+      margin-top: 15px;
+      text-align: center;
+    }
+    .footer-center p {
+      margin: 5px 0;
+      font-size: 0.75rem; /* text-xs */
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="email-container">
+    <div class="invoice-box">
     <div class="header">
-      <h1>INVOICE</h1>
-      <p>Invoice #: {{invoiceNumber}}</p>
-      <p>Date: {{formatDate createdDate}}</p>
+        <div class="company-info">
+          {{#if companyDetails.logoUrl}}
+          <div class="company-logo">
+            <img src="{{companyDetails.logoUrl}}" alt="{{companyDetails.name}} Logo">
+          </div>
+          {{/if}}
+          <h2>{{companyDetails.name}}</h2>
+          <p>{{companyDetails.address}}</p>
+        </div>
+        <div class="invoice-title">
+          <h3>Invoice</h3>
+          <div class="invoice-meta">
+            <p># {{invoiceNumber}}</p>
+            <p>Issued: {{formatDate issueDate}}</p>
+          </div>
     </div>
-
-    <div class="invoice-details">
-      <div class="business-details">
-        <div class="section-title">From</div>
-        <p>
-          <strong>{{businessDetails.name}}</strong><br>
-          {{businessDetails.address}}<br>
-          Phone: {{businessDetails.phone}}<br>
-          Email: {{businessDetails.email}}
-        </p>
       </div>
 
-      <div class="customer-details">
-        <div class="section-title">Bill To</div>
-        <p>
-          <strong>{{customerDetails.name}}</strong><br>
-          {{customerDetails.address}}<br>
-          Email: {{customerDetails.email}}
-        </p>
+      <div class="details-grid">
+        <div class="contact-section">
+          <h4>From:</h4>
+          <p><strong>{{companyDetails.name}}</strong></p>
+          <p>{{companyDetails.address}}</p>
+          {{#if companyDetails.phone}}<p>Phone: {{companyDetails.phone}}</p>{{/if}}
+          {{#if companyDetails.email}}<p>Email: {{companyDetails.email}}</p>{{/if}}
+          {{#if companyDetails.taxId}}<p>Tax ID: {{companyDetails.taxId}}</p>{{/if}}
+        </div>
+        <div class="contact-section">
+          <h4>Bill To:</h4>
+          {{#if customerDetails.name}}
+          <p><strong>{{customerDetails.name}}</strong></p>
+          {{else}}
+          <p><strong>Customer</strong></p>
+          {{/if}}
+          <p>{{customerDetails.billingAddress}}</p>
+          {{#if customerDetails.phone}}<p>Phone: {{customerDetails.phone}}</p>{{/if}}
+          {{#if customerDetails.email}}<p>Email: {{customerDetails.email}}</p>{{/if}}
       </div>
     </div>
 
-    <table class="table">
+      <h4 style="font-size: 1.25rem; font-weight: 600; color: #374151; margin-bottom: 12px;">Order Summary</h4>
+      <table class="items-table">
       <thead>
         <tr>
-          <th>Item Description</th>
-          <th>Quantity</th>
-          <th>Unit Price</th>
-          <th>Discount</th>
-          <th>Amount</th>
+            <th>#</th>
+            <th>Product</th>
+            <th class="text-right">Qty</th>
+            <th class="text-right">Unit Price</th>
+            <th class="text-right">Discount</th>
+            <th class="text-right">Total</th>
         </tr>
       </thead>
       <tbody>
         {{#each items}}
         <tr>
-          <td>{{name}}</td>
-          <td>{{quantity}}</td>
-          <td>₹{{formatNumber unitPrice}}</td>
-          <td>{{discount}}%</td>
-          <td>₹{{formatNumber total}}</td>
+            <td>{{add @index 1}}</td>
+            <td class="item-description">
+              <p>{{name}}</p>
+              {{!-- {{#if description}}<span>{{description}}</span>{{/if}} --}}
+            </td>
+            <td class="text-right">{{quantity}}</td>
+            <td class="text-right">{{formatCurrency unitPrice}}</td>
+            <td class="text-right">{{discountPercentage}}%</td>
+            <td class="text-right">{{formatCurrency itemTotal}}</td>
         </tr>
         {{/each}}
       </tbody>
     </table>
 
-    <div class="totals">
-      <table>
-        <tr>
-          <td>Subtotal:</td>
-          <td align="right">₹{{formatNumber subtotal}}</td>
-        </tr>
-        <tr>
-          <td>GST (18%):</td>
-          <td align="right">₹{{formatNumber tax}}</td>
-        </tr>
-        <tr class="total-row">
-          <td>Total:</td>
-          <td align="right">₹{{formatNumber total}}</td>
-        </tr>
-      </table>
+      <div class="totals-section">
+        <div class="totals-summary">
+          <div>
+            <span class="total-label">Subtotal:</span>
+            <span class="total-value">{{formatCurrency subtotal}}</span>
+          </div>
+          {{#if taxAmount}}
+          <div>
+            <span class="total-label">Tax ({{taxPercentage}}%):</span>
+            <span class="total-value">{{formatCurrency taxAmount}}</span>
+          </div>
+          {{/if}}
+          <div class="grand-total">
+            <span class="total-label">Total Amount:</span>
+            <span class="total-value">{{formatCurrency totalAmount}}</span>
+          </div>
+          <div>
+            <span class="total-label" style="color: #16a34a;">Amount Paid:</span>
+            <span class="total-value" style="color: #16a34a; font-weight: 600;">{{formatCurrency paidAmount}}</span>
+          </div>
+           <div>
+            <span class="total-label">Status:</span>
+            <span class="total-value">
+              <span class="status-paid">PAID</span>
+            </span>
+          </div>
+        </div>
     </div>
 
-    <div style="clear: both;"></div>
+      {{#if notes}}
+      <div class="notes-section">
+        <h4>Notes:</h4>
+        <p>{{notes}}</p>
+      </div>
+      {{/if}}
 
-    <div class="payment-info">
-      <div class="section-title">Payment Information</div>
-      <p>Due Date: {{formatDate dueDate}}</p>
-      <p><strong>Bank Details:</strong></p>
-      <p>
-        Bank Name: [Your Bank Name]<br>
-        Account Name: [Your Account Name]<br>
-        Account Number: [Your Account Number]<br>
-        IFSC Code: [Your IFSC Code]<br>
-        Branch: [Your Branch Name]
-      </p>
-    </div>
-
-    <div class="footer">
-      <p>Thank you for your business!</p>
-      <p>
-        <small>This is a computer-generated invoice and does not require a signature.</small>
-      </p>
+      <div class="footer-section">
+        <div class="footer-grid">
+          <div>
+            {{#if quotation.quotationNumber}}<p><strong>Quotation Ref:</strong> {{quotation.quotationNumber}}</p>{{/if}}
+            {{#if customerPurchase.purchaseID}}<p><strong>Purchase ID:</strong> {{customerPurchase.purchaseID}}</p>{{/if}}
+            {{#if customerPurchase.purchaseDate}}<p><strong>Purchase Date:</strong> {{formatDate customerPurchase.purchaseDate}}</p>{{/if}}
+          </div>
+          <div class="text-right">
+            <p>Thank you for your business!</p>
+            {{#if companyDetails.name}}<p>{{companyDetails.name}}</p>{{/if}}
+          </div>
+        </div>
+        <div class="footer-center">
+          <p>Invoice generated by {{companyDetails.name}} CRM System.</p>
+          {{#if companyDetails.email}}
+          <p>For questions, contact {{companyDetails.email}}{{#if companyDetails.phone}} or {{companyDetails.phone}}{{/if}}.</p>
+          {{else if companyDetails.phone}}
+          <p>For questions, contact {{companyDetails.phone}}.</p>
+          {{/if}}
+        </div>
+      </div>
     </div>
   </div>
 </body>

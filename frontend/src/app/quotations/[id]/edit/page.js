@@ -3,16 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import ConfirmDialog from '../../../../components/ConfirmDialog';
 import { getQuotation, updateQuotation } from '../../../../services/quotationService';
-import { getLeads } from '../../../../services/leadService';
 import { getProducts } from '../../../../services/productService';
 
 export default function EditQuotationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [leads, setLeads] = useState([]);
-  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [leadData, setLeadData] = useState(null);
+  const [originalProducts, setOriginalProducts] = useState([]);
   const [formData, setFormData] = useState({
     leadId: '',
     items: [{ productId: '', quantity: 1, unitPrice: 0, discount: 0 }],
@@ -20,6 +19,7 @@ export default function EditQuotationPage() {
     notes: '',
     advancePaymentPercentage: 20
   });
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -28,47 +28,49 @@ export default function EditQuotationPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch quotation, leads, and products in parallel
-      const [quotationData, leadsData, productsData] = await Promise.all([
+      // Fetch quotation and all available products in parallel
+      const [quotationData, productsData] = await Promise.all([
         getQuotation(id),
-        getLeads(),
         getProducts()
-      ]);
+      ]).catch(error => {
+        throw new Error(`Failed to fetch data: ${error.message}`);
+      });
 
-      if (quotationData.success) {
-        const { lead, items, terms, notes, advancePaymentPercentage } = quotationData.data;
+      if (!quotationData.success) {
+        throw new Error(quotationData.message || 'Failed to fetch quotation');
+      }
+
+      const { lead, quotationItems, terms, notes, advancePaymentPercentage } = quotationData.data;
+      
+      // Store lead data for display
+      setLeadData(lead);
+      
+      // Get all products from products API instead of just the ones in the quotation
+      if (productsData.success) {
+        setOriginalProducts(productsData.data);
+      } else {
+        throw new Error(productsData.message || 'Failed to fetch products');
+      }
+      
+      // Set form data
         setFormData({
           leadId: lead._id,
-          items: items.map(item => ({
-            productId: item.product._id,
+        items: quotationItems.map(item => {
+          const productObj = item.productId;
+          return {
+            productId: typeof productObj === 'string' ? productObj : productObj._id,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            discount: item.discount
-          })),
+            discount: item.discount || 0
+          };
+        }),
           terms: terms || '',
           notes: notes || '',
           advancePaymentPercentage: advancePaymentPercentage || 20
         });
-      }
-
-      if (leadsData.success) {
-        // Map leads with their associated products
-        setLeads(leadsData.data.map(lead => ({
-          ...lead,
-          products: lead.products?.map(product => ({
-            id: product.productId?._id,
-            name: product.productId?.name,
-            price: product.price,
-            quantity: product.quantity
-          })) || []
-        })));
-      }
-      
-      if (productsData.success) {
-        setProducts(productsData.data);
-      }
     } catch (error) {
       console.error('Error fetching data:', error);
+      alert(`Error loading data: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -99,13 +101,14 @@ export default function EditQuotationPage() {
       items: prev.items.map((item, i) => {
         if (i === index) {
           if (field === 'productId') {
-            const selectedLead = leads.find(lead => lead._id === formData.leadId);
-            const product = selectedLead?.products.find(p => p.id === value);
+            // Find product in our original products list
+            const product = originalProducts.find(p => p._id === value);
+            // Only update price if we have product info
             return {
               ...item,
               productId: value,
-              unitPrice: product ? parseFloat(product.price) : item.unitPrice,
-              quantity: product ? parseInt(product.quantity) : item.quantity
+              // Don't override existing values unnecessarily
+              unitPrice: product?.price || item.unitPrice
             };
           }
           // Ensure proper data types for numeric fields
@@ -128,10 +131,10 @@ export default function EditQuotationPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Format the data to match server expectations
+      // Format the data to match server expectations with new format
       const formattedData = {
-        items: formData.items.map(item => ({
-          product: item.productId,
+        quotationItems: formData.items.map(item => ({
+          productId: item.productId,
           quantity: parseInt(item.quantity),
           unitPrice: parseFloat(item.unitPrice),
           discount: parseInt(item.discount) || 0
@@ -150,14 +153,14 @@ export default function EditQuotationPage() {
       }
     } catch (error) {
       console.error('Error updating quotation:', error);
+      // Add error handling
+      setError('Failed to update quotation. Please try again.');
     }
   };
 
   if (loading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
-
-  const selectedLead = leads.find(lead => lead._id === formData.leadId);
 
   return (
     <div className="flex flex-col min-h-0">
@@ -181,6 +184,13 @@ export default function EditQuotationPage() {
       <div className="bg-white rounded-lg shadow-sm flex-1">
         <div className="p-6">
           <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Error display */}
+            {error && (
+              <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
+                <p>{error}</p>
+              </div>
+            )}
+            
             {/* Lead Selection */}
             <div className="space-y-6">
               <div className="space-y-2">
@@ -191,7 +201,7 @@ export default function EditQuotationPage() {
                   Selected Lead
                 </label>
                 <div className="w-full px-4 py-2 border border-input rounded-lg bg-gray-50">
-                  {selectedLead ? `${selectedLead.firstName} ${selectedLead.lastName} - ${selectedLead.businessName || 'N/A'}` : 'Loading lead...'}
+                  {leadData ? `${leadData.firstName} ${leadData.lastName} - ${leadData.businessName || 'N/A'}` : 'Loading lead...'}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Lead cannot be changed for an existing quotation</p>
               </div>
@@ -225,12 +235,7 @@ export default function EditQuotationPage() {
                         required
                       >
                         <option value="">Select Product</option>
-                        {selectedLead?.products.map(product => (
-                          <option key={product.id} value={product.id}>
-                            {product.name}
-                          </option>
-                        ))}
-                        {products.map(product => (
+                        {originalProducts.map(product => (
                           <option key={product._id} value={product._id}>
                             {product.name}
                           </option>

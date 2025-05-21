@@ -25,9 +25,12 @@ import QuotationDetailsPage from './app/quotations/[id]/page';
 import EditQuotationPage from './app/quotations/[id]/edit/page';
 import PaymentStatusPage from './app/quotations/[id]/payment-status';
 import PaymentsPage from './app/payments/page';
+import RemainingPaymentPage from './app/payments/remaining/page';
+import PaymentSuccessPage from './app/dashboard/payment-success/page';
 import OrdersPage from './app/orders/page';
 import MyProductsPage from './app/my-products/page';
 import Leads from './components/dashboard/Leads';
+import InvoicePage from './app/invoice/[id]/page';
 
 function App() {
   return (
@@ -40,6 +43,16 @@ function App() {
           
           {/* Public routes */}
           <Route path="/quotations/:id/payment-status" element={<PaymentStatusPage />} />
+          
+          {/* Protected Invoice Route (top level, similar to dashboard but not nested in its layout) */}
+          <Route 
+            path="/invoice/:id" 
+            element={ 
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'inventory_manager', 'product_head', 'service_engineer', 'admin']}>
+                <InvoicePage />
+              </ProtectedRoute>
+            }
+          />
           
           <Route
             path="/dashboard"
@@ -55,6 +68,16 @@ function App() {
             <Route path="payments" element={
               <ProtectedRoute allowedRoles={['customer']}>
                 <PaymentsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="payments/remaining" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <RemainingPaymentPage />
+              </ProtectedRoute>
+            } />
+            <Route path="payment-success" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <PaymentSuccessPage />
               </ProtectedRoute>
             } />
             <Route path="orders" element={

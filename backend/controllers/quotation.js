@@ -1,4 +1,5 @@
 const Quotation = require('../models/Quotation');
+const QuotationItem = require('../models/QuotationItem');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
 const sendEmail = require('../utils/sendEmail');
@@ -10,6 +11,11 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { notifyClient } = require('../utils/websocket');
+const { errorHandler, AppError } = require('../utils/errorHandler');
+const Customer = require('../models/Customer');
+const CustomerPurchase = require('../models/CustomerPurchase');
+const mongoose = require('mongoose');
+const Payment = require('../models/Payment');
 
 // Register handlebars helpers
 registerHelpers();
@@ -38,16 +44,33 @@ exports.getQuotations = async (req, res) => {
       .populate('createdBy', 'name')
       .sort({ createdAt: -1 }); // Sort by newest first
 
+    // Get quotation items for all quotations in a single query
+    const quotationIds = quotations.map(q => q._id);
+    const allQuotationItems = await QuotationItem.find({ quotationId: { $in: quotationIds } })
+      .populate('productId');
+    
+    // Group quotation items by quotation ID for efficient lookup
+    const itemsByQuotationId = {};
+    allQuotationItems.forEach(item => {
+      if (!itemsByQuotationId[item.quotationId.toString()]) {
+        itemsByQuotationId[item.quotationId.toString()] = [];
+      }
+      itemsByQuotationId[item.quotationId.toString()].push(item);
+    });
+    
+    // Add quotation items to each quotation
+    const quotationsWithItems = quotations.map(quotation => {
+      const quotationObj = quotation.toObject();
+      quotationObj.quotationItems = itemsByQuotationId[quotation._id.toString()] || [];
+      return quotationObj;
+    });
+
     res.json({
       success: true,
-      data: quotations
+      data: quotationsWithItems
     });
   } catch (error) {
-    console.error('Error fetching quotations:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    errorHandler(res, error);
   }
 };
 
@@ -57,48 +80,79 @@ exports.getQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id)
       .populate('lead')
-      .populate('items.product');
+      .populate('createdBy', 'name email'); // Also populate createdBy for full info
 
     if (!quotation) {
-      return res.status(404).json({
-        success: false,
-        message: 'Quotation not found'
-      });
+      throw new AppError('Quotation not found', 404);
     }
 
     // Check access permissions
-    if (req.user.role === 'sales_person' && quotation.createdBy.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to access this quotation'
-      });
+    if (req.user.role === 'sales_person' && quotation.createdBy._id.toString() !== req.user.id) {
+      throw new AppError('Not authorized to access this quotation', 403);
     }
 
     // For customers, check if the quotation is related to their leads
     if (req.user.role === 'customer') {
+      // Ensure quotation.lead is populated or handle if not (though it should be by above populate)
+      if (!quotation.lead || !quotation.lead._id) {
+        throw new AppError('Quotation lead information is missing', 500);
+      }
       const lead = await Lead.findOne({ 
         _id: quotation.lead._id,
         email: req.user.email 
       });
       
       if (!lead) {
-        return res.status(403).json({
-          success: false,
-          message: 'Not authorized to access this quotation'
-        });
+        throw new AppError('Not authorized to access this quotation', 403);
+      }
+    }
+
+    // Get quotation items
+    const quotationItems = await QuotationItem.find({ quotationId: quotation._id })
+      .populate('productId');
+
+    // Convert to object for modification
+    const quotationData = quotation.toObject();
+    quotationData.quotationItems = quotationItems;
+
+    // If quotation is approved, fetch related CustomerPurchase and Invoice status
+    if (quotationData.status === 'approved') {
+      const customerPurchase = await CustomerPurchase.findOne({ quotationId: quotation._id });
+      if (customerPurchase) {
+        quotationData.customerPurchaseDetails = {
+          _id: customerPurchase._id,
+          purchaseID: customerPurchase.purchaseID,
+          isFullyPaid: customerPurchase.isFullyPaid,
+          paymentStatus: customerPurchase.paymentStatus, // or customerPurchase.status
+          remainingAmount: customerPurchase.remainingAmount,
+          totalAmount: customerPurchase.totalAmount
+        };
+
+        // Check if an invoice exists for this purchase
+        const invoice = await mongoose.model('Invoice').findOne({ customerPurchase: customerPurchase._id });
+        if (invoice) {
+          quotationData.customerPurchaseDetails.invoiceId = invoice._id;
+          quotationData.customerPurchaseDetails.invoiceNumber = invoice.invoiceNumber;
+          quotationData.customerPurchaseDetails.hasInvoice = true;
+        } else {
+          quotationData.customerPurchaseDetails.hasInvoice = false;
+        }
+      } else {
+        // This case implies an approved quotation without a customer purchase record yet,
+        // which might indicate the advance payment / purchase creation step hasn't completed.
+        quotationData.customerPurchaseDetails = {
+            isFullyPaid: false, // Default to not paid if no purchase record
+            hasInvoice: false
+        };
       }
     }
 
     res.json({
       success: true,
-      data: quotation
+      data: quotationData
     });
   } catch (error) {
-    console.error('Error fetching quotation:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server Error'
-    });
+    errorHandler(res, error);
   }
 };
 
@@ -106,28 +160,24 @@ exports.getQuotation = async (req, res) => {
 // @route   POST /api/quotations
 exports.createQuotation = async (req, res) => {
   try {
-    const { leadId, items, terms, notes, advancePaymentPercentage } = req.body;
+    const { leadId, quotationItems, terms, notes, advancePaymentPercentage } = req.body;
 
     // Validate advance payment percentage
     const percentage = parseInt(advancePaymentPercentage) || 20;
     if (percentage < 1 || percentage > 100) {
-      return res.status(400).json({
-        success: false,
-        message: 'Advance payment percentage must be between 1 and 100'
-      });
+      throw new AppError('Advance payment percentage must be between 1 and 100', 400);
     }
 
     // Calculate totals
-    const subtotal = items.reduce((sum, item) => 
-      sum + Number((item.quantity * item.unitPrice * (1 - item.discount/100)).toFixed(2)), 0);
+    const subtotal = quotationItems.reduce((sum, item) => 
+      sum + Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2)), 0);
     const tax = Number((subtotal * 0.18).toFixed(2));
     const total = Number((subtotal + tax).toFixed(2));
 
-    // Create quotation without payment link (it will be created when sending)
+    // Create quotation
     const quotation = await Quotation.create({
       lead: leadId,
       quotationNumber: await generateQuotationNumber(),
-      items,
       subtotal,
       tax,
       total,
@@ -140,16 +190,37 @@ exports.createQuotation = async (req, res) => {
       advancePaymentPercentage: percentage
     });
 
+    // Create quotation items
+    const createdQuotationItems = [];
+    for (const item of quotationItems) {
+      if (!item.productId) {
+        throw new AppError('Product ID is required for each item', 400);
+      }
+      
+      const quotationItem = await QuotationItem.create({
+        quotationId: quotation._id,
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        subtotal: (item.quantity * item.unitPrice) - (item.discount || 0)
+      });
+      createdQuotationItems.push(quotationItem);
+    }
+
+    // Get populated quotation with lead info
+    const populatedQuotation = await Quotation.findById(quotation._id).populate('lead');
+
+    // Return the data in the new format
+    const quotationWithItems = populatedQuotation.toObject();
+    quotationWithItems.quotationItems = createdQuotationItems;
+
     res.status(201).json({
       success: true,
-      data: quotation
+      data: quotationWithItems
     });
   } catch (error) {
-    console.error('Create quotation error:', error);
-    res.status(400).json({
-      success: false,
-      message: error.message || 'Error creating quotation'
-    });
+    errorHandler(res, error);
   }
 };
 
@@ -160,64 +231,77 @@ exports.updateQuotation = async (req, res) => {
     const quotation = await Quotation.findById(req.params.id);
 
     if (!quotation) {
-      return res.status(404).json({
-        success: false,
-        message: 'Quotation not found'
-      });
+      throw new AppError('Quotation not found', 404);
     }
 
     // Only allow updates if quotation is in draft status
     if (quotation.status !== 'draft') {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot update quotation that is not in draft status'
-      });
+      throw new AppError('Cannot update quotation that is not in draft status', 400);
     }
 
     // Extract data from request body
-    const { items, terms, notes, advancePaymentPercentage } = req.body;
+    const { quotationItems, terms, notes, advancePaymentPercentage } = req.body;
 
     // Validate advance payment percentage
     const percentage = parseInt(advancePaymentPercentage) || quotation.advancePaymentPercentage || 20;
     if (percentage < 1 || percentage > 100) {
-      return res.status(400).json({
-        success: false,
-        message: 'Advance payment percentage must be between 1 and 100'
-      });
+      throw new AppError('Advance payment percentage must be between 1 and 100', 400);
     }
 
     // Recalculate totals based on updated items
-    const subtotal = items.reduce((sum, item) => 
-      sum + Number((item.quantity * item.unitPrice * (1 - item.discount/100)).toFixed(2)), 0);
+    const subtotal = quotationItems.reduce((sum, item) => 
+      sum + Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2)), 0);
     const tax = Number((subtotal * 0.18).toFixed(2));
     const total = Number((subtotal + tax).toFixed(2));
 
-    // Update with recalculated values
+    // Update quotation
     const updatedData = {
-      items,
       terms,
       notes,
       subtotal,
       tax,
       total,
-      advancePaymentPercentage: percentage
+      advancePaymentPercentage: percentage,
+      updatedAt: Date.now()
     };
 
     const updatedQuotation = await Quotation.findByIdAndUpdate(
       req.params.id,
       updatedData,
-      { new: true, runValidators: true }
-    );
+      { new: true }
+    ).populate('lead');
+
+    // Delete existing quotation items
+    await QuotationItem.deleteMany({ quotationId: quotation._id });
+
+    // Create new quotation items
+    const createdQuotationItems = [];
+    for (const item of quotationItems) {
+      if (!item.productId) {
+        throw new AppError('Product ID is required for each item', 400);
+      }
+      
+      const quotationItem = await QuotationItem.create({
+        quotationId: quotation._id,
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        subtotal: (item.quantity * item.unitPrice) - (item.discount || 0)
+      });
+      createdQuotationItems.push(quotationItem);
+    }
+
+    // Return the data in new format
+    const quotationWithItems = updatedQuotation.toObject();
+    quotationWithItems.quotationItems = createdQuotationItems;
 
     res.json({
       success: true,
-      data: updatedQuotation
+      data: quotationWithItems
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    errorHandler(res, error);
   }
 };
 
@@ -270,13 +354,23 @@ exports.sendQuotation = async (req, res) => {
 
       // Fetch quotation with populated data first
       const quotation = await Quotation.findById(req.params.id)
-        .populate('lead')
-        .populate('items.product');
+      .populate('lead');
 
       if (!quotation) {
       return res.status(404).json({
         success: false,
         message: 'Quotation not found'
+      });
+      }
+
+    // Get quotation items
+    const quotationItems = await QuotationItem.find({ quotationId: quotation._id })
+      .populate('productId');
+
+    if (quotationItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quotation has no items'
       });
       }
 
@@ -318,6 +412,24 @@ exports.sendQuotation = async (req, res) => {
         callback_method: 'get'
       };
 
+    // Format items for email using the quotation items
+    const formattedItems = await Promise.all(
+      quotationItems.map(async (item) => ({
+        product: {
+          ...item.productId.toObject(),
+          specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
+            name: key,
+            value: value
+          })),
+          images: (item.productId.imageUrls || []).map(url => ({ url }))
+        },
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
+      }))
+    );
+
       // Process email data
       const emailData = {
         quotationNumber: quotation.quotationNumber,
@@ -331,20 +443,7 @@ exports.sendQuotation = async (req, res) => {
           address: quotation.lead.address,
           email: quotation.lead.email
         },
-        items: await Promise.all(
-          quotation.items.map(async (item) => ({
-            ...item.toObject(),
-            product: {
-              ...item.product.toObject(),
-              specifications: Object.entries(item.product.specifications || {}).map(([key, value]) => ({
-                name: key,
-                value: value
-              })),
-              images: (item.product.imageUrls || []).map(url => ({ url }))
-            },
-            total: Number((item.quantity * item.unitPrice * (1 - item.discount/100)).toFixed(2))
-          }))
-        ),
+      items: formattedItems,
         subtotal: quotation.subtotal,
         tax: quotation.tax,
         total: quotation.total,
@@ -415,12 +514,16 @@ exports.sendQuotation = async (req, res) => {
         })
       ]);
 
+      // Return data in the new format
+      const quotationWithItems = updatedQuotation.toObject();
+      quotationWithItems.quotationItems = quotationItems;
+
       // Notify sent status
       notifyClient(req.user.id, updatedQuotation._id, 'sent');
 
       return res.json({
         success: true,
-        data: updatedQuotation
+        data: quotationWithItems
       });
     } catch (error) {
       console.error('Error updating quotation or sending email:', error);
@@ -443,70 +546,63 @@ exports.sendQuotation = async (req, res) => {
 
 // @desc    Approve quotation
 // @route   PUT /api/quotations/:id/approve
-exports.approveQuotation = async (req, res) => {
+exports.handleApproveQuotation = async (req, res) => {
   try {
-    const quotation = await Quotation.findById(req.params.id)
-      .populate('lead');
+    // Populate the lead data to ensure we have the email for user creation
+    const quotation = await Quotation.findById(req.params.id).populate('lead');
     
     if (!quotation) {
-      return res.status(404).json({
-        success: false,
-        message: 'Quotation not found'
-      });
+      throw new AppError('Quotation not found', 404);
     }
 
-    // Only allow approving sent quotations
+    // Only allow approval for 'sent' status 
     if (quotation.status !== 'sent') {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only approve quotations that have been sent'
-      });
+      throw new AppError('Can only approve quotations that have been sent', 400);
     }
 
-    // Create customer account
-    const password = Math.random().toString(36).slice(-8);
+    // Check if lead data is complete before proceeding
+    if (!quotation.lead || !quotation.lead.email) {
+      throw new AppError('Lead data is incomplete. Email is required for approval.', 400);
+    }
+
+    // If payment isn't confirmed yet, set it up for manual approval
+    if (quotation.advancePaymentStatus !== 'CONFIRMED') {
+      try {
+        // Calculate the default advance amount based on percentage
+        const advancePercentage = quotation.advancePaymentPercentage || 20;
+        const advanceAmount = quotation.total * (advancePercentage / 100);
+        
+        // Update the quotation with payment details for manual approval
+        quotation.advancePaymentStatus = 'CONFIRMED';
+        quotation.advancePaymentAmount = advanceAmount;
+        quotation.advancePaymentConfirmedAt = new Date();
+        quotation.paymentMethod = 'cash'; // Use valid enum value: cash, check, bank_transfer, razorpay, other
+        quotation.offlineTransactionNo = `MANUAL-${Date.now()}`; // Generate a reference number
+        await quotation.save();
+      } catch (paymentSetupError) {
+        console.error('Error setting up manual payment:', paymentSetupError);
+        throw new AppError(`Failed to set up manual payment: ${paymentSetupError.message}`, 500);
+      }
+    }
+
+    // Process the approval
+    const approvedQuotation = await approveQuotation(quotation);
     
-    try {
-      const customer = await User.create({
-        name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
-        email: quotation.lead.email,
-        password,
-        role: 'customer'
-      });
+    // Get quotation items
+    const quotationItems = await QuotationItem.find({ quotationId: approvedQuotation._id })
+      .populate('productId');
 
-      // Send credentials email
-      await sendEmail({
-        email: customer.email,
-        subject: 'Welcome to Solar CRM - Your Account Details',
-        template: 'welcome',
-        data: {
-          name: customer.name,
-          email: customer.email,
-          password
-        }
-      });
+    // Return the data in the new format
+    const quotationWithItems = approvedQuotation.toObject();
+    quotationWithItems.quotationItems = quotationItems;
 
-      // Update quotation status
-      quotation.status = 'approved';
-      await quotation.save();
-
-      res.json({
-        success: true,
-        data: quotation
-      });
-    } catch (error) {
-      console.error('Error creating customer:', error);
-      return res.status(400).json({
-        success: false,
-        message: error.message || 'Error creating customer account'
-      });
-    }
-  } catch (error) {
-    console.error('Approve quotation error:', error);
-    res.status(400).json({
-      success: false,
-      message: error.message || 'Error approving quotation'
+    res.json({
+      success: true,
+      data: quotationWithItems
     });
+  } catch (error) {
+    console.error('Error in handleApproveQuotation:', error);
+    errorHandler(res, error);
   }
 };
 
@@ -621,38 +717,108 @@ exports.handleRazorpayWebhook = async (req, res) => {
 // Simplify helper function for approval process
 const approveQuotation = async (quotation) => {
   try {
+    console.log(`Starting approval process for quotation ID: ${quotation._id}`);
     // Check if user already exists with this email
     const existingUser = await User.findOne({ email: quotation.lead.email });
+    let userId;
     
     if (existingUser) {
-      // Just update the quotation status
-      quotation.status = 'approved';
-      await quotation.save();
-      
-      return quotation;
-    }
-    
+      // Use existing user
+      userId = existingUser._id;
+    } else {
     // Create customer account with random password
     const password = Math.random().toString(36).slice(-8);
     
-    const customer = await User.create({
+      const newUser = await User.create({
       name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
       email: quotation.lead.email,
       password,
       role: 'customer'
     });
+      
+      userId = newUser._id;
 
     // Send credentials email
     await sendEmail({
-      email: customer.email,
+        email: newUser.email,
       subject: 'Welcome to Solar CRM - Your Account Details',
       template: 'welcome',
       data: {
-        name: customer.name,
-        email: customer.email,
+          name: newUser.name,
+          email: newUser.email,
         password
       }
     });
+    }
+    
+    // Check if customer record already exists
+    let customer = await Customer.findOne({ email: quotation.lead.email });
+    
+    if (!customer) {
+      // Create Customer record
+      console.log(`Creating new customer record for ${quotation.lead.email}`);
+      customer = await Customer.create({
+        leadId: quotation.lead._id,
+        userId: userId,
+        firstName: quotation.lead.firstName,
+        lastName: quotation.lead.lastName,
+        email: quotation.lead.email,
+        phone: quotation.lead.phone || '',
+        businessName: quotation.lead.businessName || '',
+        address: quotation.lead.address || '',
+        customerType: quotation.lead.customerType || 'individual'
+      });
+      console.log(`Created customer with ID: ${customer._id}`);
+    }
+    
+    // Calculate values for CustomerPurchase
+    const advanceAmount = quotation.advancePaymentAmount || 
+                         (quotation.total * (quotation.advancePaymentPercentage / 100));
+    const remainingAmount = quotation.total - advanceAmount;
+    
+    // Calculate actual advance payment percentage
+    const actualAdvancePercentage = Math.round((advanceAmount / quotation.total) * 100);
+    
+    // Check if CustomerPurchase already exists for this quotation
+    let customerPurchase = await CustomerPurchase.findOne({ 
+      customerId: customer._id,
+      quotationId: quotation._id
+    });
+    
+    if (!customerPurchase) {
+      // Generate a unique purchase ID
+      const purchaseCount = await CustomerPurchase.countDocuments();
+      const purchaseID = `PO-${String(purchaseCount + 1).padStart(5, '0')}`;
+      
+      // Create CustomerPurchase record with purchaseID
+      console.log(`Creating CustomerPurchase for quotation ${quotation._id} and customer ${customer._id}`);
+      console.log(`Payment details: Advance: ${advanceAmount}, Total: ${quotation.total}, Remaining: ${remainingAmount}, Actual Advance %: ${actualAdvancePercentage}%`);
+      
+      customerPurchase = await CustomerPurchase.create({
+        purchaseID, // Unique purchase identifier
+        customerId: customer._id,
+        quotationId: quotation._id,
+        advancePaid: advanceAmount,
+        totalAmount: quotation.total,
+        remainingAmount: remainingAmount,
+        isFullyPaid: remainingAmount <= 0,
+        paymentMethod: quotation.paymentMethod || 'cash',
+        status: 'active',
+        purchaseDate: quotation.advancePaymentConfirmedAt || new Date(),
+        advancePaymentPercentage: actualAdvancePercentage // Store the actual percentage paid
+      });
+      console.log(`Created CustomerPurchase with ID: ${customerPurchase._id}`);
+      
+      // Create a Payment record for the advance payment
+      await Payment.create({
+        customerPurchaseId: customerPurchase._id,
+        amountPaid: advanceAmount,
+        paymentMethod: quotation.paymentMethod || 'cash',
+        transactionId: quotation.razorpayPaymentId || quotation.offlineTransactionNo || '',
+        isAdvancePayment: true,
+        createdBy: quotation.createdBy
+      });
+    }
 
     // Update quotation status
     quotation.status = 'approved';
@@ -660,8 +826,12 @@ const approveQuotation = async (quotation) => {
 
     return quotation;
   } catch (error) {
-    console.error('Error in approval process:', error.message);
-    throw error;
+    console.error('Error in approval process:', error.message, error.stack);
+    // Add more detailed error logging
+    if (error.code === 11000) {
+      console.error('Duplicate key error. This might be due to a race condition.');
+    }
+    throw new AppError(error.message || 'Failed to approve quotation', 500);
   }
 };
 
@@ -760,10 +930,10 @@ exports.getCustomerProducts = async (req, res) => {
       });
     }
 
-    // Find lead by email
-    const lead = await Lead.findOne({ email: user.email });
+    // Step 1: Find customer record associated with this user's email
+    const customer = await Customer.findOne({ email: user.email });
 
-    if (!lead) {
+    if (!customer) {
       return res.json({
         success: true,
         data: []
@@ -771,44 +941,83 @@ exports.getCustomerProducts = async (req, res) => {
     }
 
     try {
-      // Find quotations using the lead ID
-      const quotations = await Quotation.find({
-        status: 'approved',
-        lead: lead._id
+      // Step 2: Find all purchases made by this customer
+      const customerPurchases = await CustomerPurchase.find({ 
+        customerId: customer._id 
       }).populate({
-        path: 'items.product',
-        select: 'name category description specifications price images'
+        path: 'quotationId',
+        select: 'quotationNumber advancePaymentPercentage advancePaymentConfirmedAt advancePaymentAmount'
       });
-
-      // Extract and format products from quotations
-      const products = quotations.flatMap(quotation => {
-        try {
-          return quotation.items.map(item => {
-            if (!item.product) {
-              return null;
-            }
-
-            return {
-              quotationNumber: quotation.quotationNumber,
-              purchaseDate: quotation.advancePaymentConfirmedAt,
-              product: {
-                _id: item.product._id,
-                name: item.product.name,
-                category: item.product.category,
-                description: item.product.description,
-                specifications: item.product.specifications,
-                price: item.product.price,
-                images: item.product.images
-              },
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              total: item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)
-            };
-          }).filter(Boolean); // Remove null items
-        } catch (err) {
-          console.error('Error processing quotation:', err.message);
-          return [];
+      
+      if (!customerPurchases || customerPurchases.length === 0) {
+        return res.json({
+          success: true,
+          data: []
+        });
+      }
+      
+      // Step 3: Get quotation IDs to fetch quotation items
+      const quotationIds = customerPurchases.map(purchase => purchase.quotationId._id);
+      
+      // Step 4: Get all quotation items with product details
+      const quotationItems = await QuotationItem.find({
+        quotationId: { $in: quotationIds }
+      }).populate('productId');
+      
+      // Step 5: Group quotation items by quotation ID for easier lookup
+      const itemsByQuotationId = {};
+      quotationItems.forEach(item => {
+        const quotationIdStr = item.quotationId.toString();
+        if (!itemsByQuotationId[quotationIdStr]) {
+          itemsByQuotationId[quotationIdStr] = [];
         }
+        itemsByQuotationId[quotationIdStr].push(item);
+      });
+      
+      // Step 6: Format the data for the frontend
+      const products = [];
+      
+      customerPurchases.forEach(purchase => {
+        const quotation = purchase.quotationId;
+        const quotationIdStr = quotation._id.toString();
+        const items = itemsByQuotationId[quotationIdStr] || [];
+        
+        // Get purchase-specific data
+        const purchaseData = {
+              quotationNumber: quotation.quotationNumber,
+          purchaseDate: purchase.purchaseDate || quotation.advancePaymentConfirmedAt,
+          purchaseId: purchase._id,
+          purchaseID: purchase.purchaseID,
+          totalAmount: purchase.totalAmount,
+          advancePaid: purchase.advancePaid,
+          remainingAmount: purchase.remainingAmount,
+          isFullyPaid: purchase.isFullyPaid,
+          advancePaymentPercentage: purchase.advancePaymentPercentage || Math.round((purchase.advancePaid / purchase.totalAmount) * 100),
+          paymentStatus: purchase.isFullyPaid ? 'FULLY_PAID' : 'ADVANCE_PAID'
+        };
+        
+        // Add each item with the purchase data
+        items.forEach(item => {
+          if (!item.productId) return;
+          
+          products.push({
+            quotationNumber: purchaseData.quotationNumber,
+            purchaseDate: purchaseData.purchaseDate,
+            purchaseId: purchaseData.purchaseId,
+            purchaseID: purchaseData.purchaseID,
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: item.discount || 0,
+            total: item.quantity * item.unitPrice * (1 - (item.discount || 0)/100),
+            isFullyPaid: purchaseData.isFullyPaid,
+            advancePaymentPercentage: purchaseData.advancePaymentPercentage,
+            advancePaymentAmount: purchaseData.advancePaid,
+            totalAmount: purchaseData.totalAmount,
+            remainingAmount: purchaseData.remainingAmount,
+            paymentStatus: purchaseData.paymentStatus
+          });
+        });
       });
       
       res.json({
@@ -816,7 +1025,7 @@ exports.getCustomerProducts = async (req, res) => {
         data: products
       });
     } catch (error) {
-      console.error('Error processing quotations:', error);
+      console.error('Error processing customer purchases:', error);
       throw error;
     }
   } catch (error) {
@@ -1306,7 +1515,7 @@ module.exports = {
   updateQuotation: exports.updateQuotation,
   deleteQuotation: exports.deleteQuotation,
   sendQuotation: exports.sendQuotation,
-  approveQuotation: exports.approveQuotation,
+  handleApproveQuotation: exports.handleApproveQuotation,
   handleRazorpayWebhook: exports.handleRazorpayWebhook,
   confirmOfflinePayment: exports.confirmOfflinePayment,
   getCustomerProducts: exports.getCustomerProducts,

@@ -11,7 +11,8 @@ const {
   approveQuotation,
   sendQuotation,
   confirmOfflinePayment,
-  closeQuotation
+  closeQuotation,
+  handleApproveQuotation
 } = require('../controllers/quotation');
 
 // Protect all routes
@@ -28,7 +29,7 @@ router.route('/:id')
   .delete(deleteQuotation);
 
 router.post('/:id/send', sendQuotation);
-router.put('/:id/approve', approveQuotation);
+router.put('/:id/approve', handleApproveQuotation);
 router.put('/:id/close', closeQuotation);
 router.post('/:id/offline-payment', confirmOfflinePayment);
 

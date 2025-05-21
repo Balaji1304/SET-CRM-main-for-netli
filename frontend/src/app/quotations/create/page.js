@@ -9,7 +9,7 @@ import { getProducts } from '../../../services/productService';
 export default function CreateQuotationPage() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [formData, setFormData] = useState({
@@ -24,19 +24,27 @@ export default function CreateQuotationPage() {
     notes: '',
     advancePaymentPercentage: 20 // Default to 20%
   });
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchLeadsAndProducts();
+    fetchData();
   }, []);
 
-  const fetchLeadsAndProducts = async () => {
+  const fetchData = async () => {
     try {
+      setLoading(true);
+      // Fetch leads and all products in parallel
       const [leadsData, productsData] = await Promise.all([
         getLeads(),
         getProducts()
-      ]);
+      ]).catch(error => {
+        throw new Error(`Failed to fetch data: ${error.message}`);
+      });
 
-      if (leadsData.success) {
+      if (!leadsData.success) {
+        throw new Error(leadsData.message || 'Failed to fetch leads');
+      }
+
         // Map leads with their associated products
         setLeads(leadsData.data.map(lead => ({
           ...lead,
@@ -47,12 +55,16 @@ export default function CreateQuotationPage() {
             quantity: product.quantity
           }))
         })));
+
+      if (!productsData.success) {
+        throw new Error(productsData.message || 'Failed to fetch products');
       }
-      if (productsData.success) {
-        setProducts(productsData.data);
-      }
+
+      // Store all products for the product dropdown
+      setAllProducts(productsData.data);
     } catch (error) {
       console.error('Error fetching data:', error);
+      alert(`Error loading data: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -83,14 +95,30 @@ export default function CreateQuotationPage() {
       items: prev.items.map((item, i) => {
         if (i === index) {
           if (field === 'productId') {
+            // Check if it's a lead product first
             const selectedLead = leads.find(lead => lead._id === formData.leadId);
-            const product = selectedLead?.products.find(p => p.id === value);
+            const leadProduct = selectedLead?.products.find(p => p.id === value);
+            
+            // If it's a lead product, use that data
+            if (leadProduct) {
+              return {
+                ...item,
+                productId: value,
+                unitPrice: parseFloat(leadProduct.price) || 0,
+                quantity: parseInt(leadProduct.quantity) || 1
+              };
+            } 
+            // Otherwise, look in all products
+            else {
+              const product = allProducts.find(p => p._id === value);
             return {
               ...item,
               productId: value,
-              unitPrice: product ? parseFloat(product.price) : '',
-              quantity: product ? parseInt(product.quantity) : ''
+                // Only set defaults if they're empty
+                unitPrice: item.unitPrice === '' ? (product?.price || 0) : item.unitPrice,
+                quantity: item.quantity === '' ? 1 : item.quantity
             };
+            }
           }
           // Ensure proper data types for numeric fields
           if (field === 'quantity') {
@@ -112,15 +140,18 @@ export default function CreateQuotationPage() {
   const handleLeadSelect = (leadId) => {
     const selectedLead = leads.find(lead => lead._id === leadId);
     if (selectedLead) {
+      // Use the lead's interested products to pre-populate the quotation items
       setFormData(prev => ({
         ...prev,
         leadId,
-        items: selectedLead.products.map(product => ({
+        items: selectedLead.products.length > 0 
+          ? selectedLead.products.map(product => ({
           productId: product.id,
-          quantity: parseInt(product.quantity),
-          unitPrice: parseFloat(product.price),
+              quantity: parseInt(product.quantity) || 1,
+              unitPrice: parseFloat(product.price) || 0,
           discount: 0
         }))
+          : [{ productId: '', quantity: '', unitPrice: '', discount: '' }]
       }));
     }
   };
@@ -128,11 +159,11 @@ export default function CreateQuotationPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Format the data to match server expectations
+      // Format the data to match server expectations with new format
       const formattedData = {
         leadId: formData.leadId,
-        items: formData.items.map(item => ({
-          product: item.productId,
+        quotationItems: formData.items.map(item => ({
+          productId: item.productId,
           quantity: parseInt(item.quantity),
           unitPrice: parseFloat(item.unitPrice),
           discount: parseInt(item.discount) || 0
@@ -151,6 +182,8 @@ export default function CreateQuotationPage() {
       }
     } catch (error) {
       console.error('Error creating quotation:', error);
+      // Add error handling
+      setError('Failed to create quotation. Please try again.');
     }
   };
 
@@ -182,6 +215,13 @@ export default function CreateQuotationPage() {
       <div className="bg-white rounded-lg shadow-sm flex-1">
         <div className="p-6">
           <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Error display */}
+            {error && (
+              <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
+                <p>{error}</p>
+              </div>
+            )}
+            
             {/* Lead Selection */}
             <div className="space-y-6">
               <div className="space-y-2">
@@ -235,11 +275,26 @@ export default function CreateQuotationPage() {
                         required
                       >
                         <option value="">Select Product</option>
-                        {selectedLead?.products.map(product => (
+                        {/* Lead's interested products at the top */}
+                        {selectedLead?.products.length > 0 && (
+                          <optgroup label="Lead's Interested Products">
+                            {selectedLead.products.map(product => (
                           <option key={product.id} value={product.id}>
                             {product.name}
                           </option>
                         ))}
+                          </optgroup>
+                        )}
+                        {/* All other products */}
+                        <optgroup label="All Products">
+                          {allProducts
+                            .filter(product => !selectedLead?.products.some(p => p.id === product._id))
+                            .map(product => (
+                              <option key={product._id} value={product._id}>
+                                {product.name}
+                              </option>
+                            ))}
+                        </optgroup>
                       </select>
                     </div>
 

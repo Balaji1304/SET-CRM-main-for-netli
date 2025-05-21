@@ -1,16 +1,39 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
-const { checkRolePermission } = require('../middleware/roleAuth');
+const { protect, authorize } = require('../middleware/auth');
+
 const {
   createInvoice,
-  updatePaymentStatus
+  updatePaymentStatus,
+  getInvoiceByPurchaseId,
+  sendExistingInvoiceEmail
 } = require('../controllers/invoice');
 
-router.route('/')
-  .post(protect, checkRolePermission, createInvoice);
+router.post(
+  '/',
+  protect,
+  authorize('admin', 'sales_person'),
+  createInvoice
+);
 
-router.route('/:id/payment')
-  .put(protect, checkRolePermission, updatePaymentStatus);
+router.patch(
+  '/:id/payment-status',
+  protect,
+  authorize('admin', 'sales_person'),
+  updatePaymentStatus
+);
+
+router.get(
+  '/purchase/:customerPurchaseId',
+  protect,
+  getInvoiceByPurchaseId
+);
+
+router.post(
+  '/:invoiceId/send-email',
+  protect,
+  authorize('admin', 'sales_person'),
+  sendExistingInvoiceEmail
+);
 
 module.exports = router; 

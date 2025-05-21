@@ -5,7 +5,13 @@ import { apiRequest, invalidateCache } from './apiConfig';
  * @returns {Promise<Object>} - Response with quotations list
  */
 export const getQuotations = async () => {
-  return await apiRequest('quotations');
+  try {
+    const response = await apiRequest('quotations');
+    return response;
+  } catch (error) {
+    console.error('Error fetching quotations:', error);
+    throw error;
+  }
 };
 
 /**
@@ -14,7 +20,13 @@ export const getQuotations = async () => {
  * @returns {Promise<Object>} - Response with quotation data
  */
 export const getQuotation = async (id) => {
-  return await apiRequest(`quotations/${id}`);
+  try {
+    const response = await apiRequest(`quotations/${id}`);
+    return response;
+  } catch (error) {
+    console.error('Error fetching quotation:', error);
+    throw error;
+  }
 };
 
 /**
@@ -56,6 +68,7 @@ export const updateQuotation = async (id, quotationData) => {
  * @returns {Promise<Object>} - Response
  */
 export const sendQuotation = async (id) => {
+  try {
   const response = await apiRequest(`quotations/${id}/send`, {
     method: 'POST'
   }, false); // Don't cache POST requests
@@ -63,6 +76,10 @@ export const sendQuotation = async (id) => {
   // Invalidate quotations cache after sending
   invalidateCache('quotations');
   return response;
+  } catch (error) {
+    console.error('Error sending quotation:', error);
+    throw error;
+  }
 };
 
 /**
@@ -71,6 +88,7 @@ export const sendQuotation = async (id) => {
  * @returns {Promise<Object>} - Response
  */
 export const approveQuotation = async (id) => {
+  try {
   const response = await apiRequest(`quotations/${id}/approve`, {
     method: 'PUT'
   }, false); // Don't cache PUT requests
@@ -78,6 +96,10 @@ export const approveQuotation = async (id) => {
   // Invalidate quotations cache after approving
   invalidateCache('quotations');
   return response;
+  } catch (error) {
+    console.error('Error approving quotation:', error);
+    throw error;
+  }
 };
 
 /**
@@ -117,7 +139,7 @@ export const confirmOfflinePayment = async (id, paymentData) => {
  * @returns {Promise<Object>} - Response with pending payments
  */
 export const getPendingPayments = async () => {
-  return await apiRequest('quotations/pending-payments');
+  return await apiRequest('payments/customer/pending-payments');
 };
 
 /**
@@ -125,5 +147,5 @@ export const getPendingPayments = async () => {
  * @returns {Promise<Object>} - Response with customer products
  */
 export const getCustomerProducts = async () => {
-  return await apiRequest('quotations/customer-products');
+  return await apiRequest('quotations/customer/products');
 }; 

@@ -120,6 +120,8 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       }
     } catch (error) {
       console.error('Error approving quotation:', error);
+      // Display error message to user
+      alert(`Failed to approve quotation: ${error.message || 'Unknown error occurred'}`);
     } finally {
       setActionInProgress(false);
       setShowConfirmDialog(false);
@@ -241,6 +243,11 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               <p className="text-sm font-medium text-gray-700">
                 Minimum Amount: ₹{minimumAdvance.toLocaleString('en-IN')}
               </p>
+              {selectedQuotation?.quotationItems && selectedQuotation.quotationItems.length > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {selectedQuotation.quotationItems.length} product{selectedQuotation.quotationItems.length !== 1 ? 's' : ''} included
+                </p>
+              )}
             </div>
             
             <div>
@@ -467,6 +474,9 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
             <th className="px-6 py-3 text-left text-sm font-medium">
               Valid Until
             </th>
+            <th className="px-6 py-3 text-left text-sm font-medium">
+              Items
+            </th>
             <th className="px-6 py-3 text-right text-sm font-medium">
               Actions
             </th>
@@ -502,6 +512,12 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {new Date(quotation.validUntil).toLocaleDateString()}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                {quotation.quotationItems ? 
+                  `${quotation.quotationItems.length} product${quotation.quotationItems.length !== 1 ? 's' : ''}` : 
+                  '0 products'
+                }
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-2">

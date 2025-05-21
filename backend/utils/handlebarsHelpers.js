@@ -35,22 +35,41 @@ function getImageRowLayout(imageCount) {
 }
 
 const registerHelpers = () => {
-  // Enhanced formatNumber helper for currency with proper error handling
+  // Enhanced formatNumber helper for general numbers
   handlebars.registerHelper('formatNumber', function(number) {
     try {
-      // Convert to number if string
       if (typeof number !== 'number') {
-        number = parseFloat(number) || 0;
+        number = parseFloat(number);
       }
+      if (isNaN(number)) return '0.00'; // Handle NaN after parseFloat
       
-      // Format with Indian locale and 2 decimal places
       return new Intl.NumberFormat('en-IN', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       }).format(number);
     } catch (error) {
       console.error('Error formatting number:', error);
-      return '0.00';
+      return '0.00'; // Fallback
+    }
+  });
+
+  // New formatCurrency helper
+  handlebars.registerHelper('formatCurrency', function(amount) {
+    try {
+      if (typeof amount !== 'number') {
+        amount = parseFloat(amount);
+      }
+      if (isNaN(amount)) return '₹0.00'; // Handle NaN and provide currency symbol
+
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amount);
+    } catch (error) {
+      console.error('Error formatting currency:', error);
+      return '₹0.00'; // Fallback with currency symbol
     }
   });
 
@@ -150,6 +169,20 @@ const registerHelpers = () => {
   // Helper to check equality
   handlebars.registerHelper('eq', function(a, b) {
     return a === b;
+  });
+
+  // New helper to check known payment statuses
+  handlebars.registerHelper('isPaymentStatusKnown', function (status) {
+    const knownStatuses = ['PAID', 'PARTIALLY_PAID', 'PENDING'];
+    return knownStatuses.includes(status);
+  });
+
+  // New helper for addition (for @index_1)
+  handlebars.registerHelper('add', function (a, b) {
+    if (typeof a === 'number' && typeof b === 'number') {
+      return a + b;
+    }
+    return ''; // Or handle error appropriately
   });
 };
 

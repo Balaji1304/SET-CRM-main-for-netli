@@ -8,7 +8,7 @@ const {
   updateQuotation,
   deleteQuotation,
   sendQuotation,
-  approveQuotation,
+  handleApproveQuotation,
   handleRazorpayWebhook,
   confirmOfflinePayment,
   getCustomerProducts,
@@ -48,7 +48,7 @@ router.route('/:id')
   .delete(deleteQuotation);
 
 router.post('/:id/send', sendQuotation);
-router.put('/:id/approve', approveQuotation);
+router.put('/:id/approve', handleApproveQuotation);
 router.post('/:id/offline-payment', confirmOfflinePayment);
 router.get('/:id/payment-status', checkPaymentStatus);
 

@@ -8,12 +8,14 @@ import {
   Check, 
   Loader2,
   Download,
-  Mail
+  Mail,
+  DollarSign,
+  AlertTriangle
 } from 'lucide-react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Toast from '../../../components/Toast';
 import { getQuotation, sendQuotation, approveQuotation } from '../../../services/quotationService';
-import { createInvoice } from '../../../services/invoiceService';
+import { sendInvoiceEmail } from '../../../services/invoiceService';
 import { API_URL } from '../../../services/apiConfig';
 
 export default function QuotationDetailsPage() {
@@ -24,11 +26,12 @@ export default function QuotationDetailsPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [emailSentTime, setEmailSentTime] = useState(null);
+  const [invoiceEmailStatus, setInvoiceEmailStatus] = useState({ sending: false, sent: false, error: null });
   const [ws, setWs] = useState(null);
-  const startTime = useRef(null);
+  const quotationSendStartTime = useRef(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
+  const [isSendingQuotation, setIsSendingQuotation] = useState(false);
   const hasFetchedRef = useRef(false);
 
   useEffect(() => {
@@ -67,12 +70,12 @@ export default function QuotationDetailsPage() {
                 // Update quotation state locally instead of refetching
                 setQuotation(prev => prev ? { ...prev, status: 'sent' } : prev);
                 const endTime = Date.now();
-                setEmailSentTime(endTime - startTime.current);
+                setEmailSentTime(endTime - quotationSendStartTime.current);
                 setToastMessage('Quotation sent successfully!');
                 setShowToast(true);
-                setIsSending(false);
+                setIsSendingQuotation(false);
               } else if (data.status === 'draft') {
-                setIsSending(false);
+                setIsSendingQuotation(false);
               }
             }
             break;
@@ -117,8 +120,8 @@ export default function QuotationDetailsPage() {
 
   const handleSendQuotation = async () => {
     try {
-      setIsSending(true);
-      startTime.current = Date.now();
+      setIsSendingQuotation(true);
+      quotationSendStartTime.current = Date.now();
       
       const response = await sendQuotation(id);
       
@@ -128,7 +131,7 @@ export default function QuotationDetailsPage() {
     } catch (error) {
       console.error('Error sending quotation:', error);
       alert('Failed to send quotation: ' + error.message);
-      setIsSending(false);
+      setIsSendingQuotation(false);
     }
   };
 
@@ -146,17 +149,27 @@ export default function QuotationDetailsPage() {
     }
   };
 
-  const handleGenerateInvoice = async () => {
+  const handleSendExistingInvoiceEmail = async () => {
+    if (!quotation?.customerPurchaseDetails?.invoiceId) {
+      setToastMessage('Invoice ID not found. Cannot send email.');
+      setShowToast(true);
+      return;
+    }
+    setInvoiceEmailStatus({ sending: true, sent: false, error: null });
     try {
-      const response = await createInvoice(id);
-      
+      const response = await sendInvoiceEmail(quotation.customerPurchaseDetails.invoiceId);
       if (response.success) {
-        navigate(`/dashboard/invoices/${response.data._id}`);
+        setInvoiceEmailStatus({ sending: false, sent: true, error: null });
+        setToastMessage(response.message || 'Invoice email sent successfully!');
+        setShowToast(true);
       } else {
-        throw new Error(response.message || 'Failed to generate invoice');
+        throw new Error(response.message || 'Failed to send invoice email');
       }
     } catch (error) {
-      console.error('Error generating invoice:', error);
+      console.error('Error sending invoice email:', error);
+      setInvoiceEmailStatus({ sending: false, sent: false, error: error.message });
+      setToastMessage(`Error: ${error.message}`);
+      setShowToast(true);
     }
   };
 
@@ -173,12 +186,24 @@ export default function QuotationDetailsPage() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading...</div>;
+    return <div className="flex items-center justify-center h-64"><Loader2 className="h-8 w-8 animate-spin text-orange-500 mr-2" /> Loading Quotation...</div>;
   }
 
   if (!quotation) {
-    return <div>Quotation not found</div>;
+    return <div className="text-center py-10">Quotation not found or you do not have permission to view it.</div>;
   }
+  
+  const canSendInvoice = quotation.status === 'approved' && 
+                         quotation.customerPurchaseDetails?.isFullyPaid === true && 
+                         quotation.customerPurchaseDetails?.hasInvoice === true;
+
+  const showWaitingForPaymentMessage = quotation.status === 'approved' && 
+                                     quotation.customerPurchaseDetails && 
+                                     !quotation.customerPurchaseDetails.isFullyPaid;
+
+  const showInvoiceNotGeneratedMessage = quotation.status === 'approved' && 
+                                         quotation.customerPurchaseDetails?.isFullyPaid === true && 
+                                         !quotation.customerPurchaseDetails?.hasInvoice;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -200,12 +225,12 @@ export default function QuotationDetailsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {(quotation.status === 'draft' || isSending) && (
+          {(quotation.status === 'draft' || isSendingQuotation) && (
             <>
               <button
                 onClick={() => navigate(`/dashboard/quotations/${id}/edit`)}
                 className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                disabled={isSending}
+                disabled={isSendingQuotation}
               >
                 <Edit2 className="h-4 w-4" />
                 Edit
@@ -216,11 +241,11 @@ export default function QuotationDetailsPage() {
                   setShowConfirmDialog(true);
                 }}
                 className={`flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 ${
-                  isSending ? 'opacity-75 cursor-not-allowed' : ''
+                  isSendingQuotation ? 'opacity-75 cursor-not-allowed' : ''
                 }`}
-                disabled={isSending}
+                disabled={isSendingQuotation}
               >
-                {isSending ? (
+                {isSendingQuotation ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Sending...
@@ -234,7 +259,7 @@ export default function QuotationDetailsPage() {
               </button>
             </>
           )}
-          {quotation.status === 'sent' && !isSending && (
+          {quotation.status === 'sent' && !isSendingQuotation && (
             <>
               <button
                 onClick={() => {
@@ -249,13 +274,33 @@ export default function QuotationDetailsPage() {
             </>
           )}
           {quotation.status === 'approved' && (
+            <div className="flex flex-col items-start gap-2">
             <button
-              onClick={handleGenerateInvoice}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
-            >
-              <FileText className="h-4 w-4" />
-              Generate Invoice
+                onClick={handleSendExistingInvoiceEmail}
+                className={`flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 w-full sm:w-auto ${
+                  (!canSendInvoice || invoiceEmailStatus.sending) ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                disabled={!canSendInvoice || invoiceEmailStatus.sending}
+              >
+                {invoiceEmailStatus.sending ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Sending Email...</>
+                ) : (
+                  <><Mail className="h-4 w-4" /> Send Invoice Email</>
+                )}
             </button>
+              <div className="mt-1">
+                {showWaitingForPaymentMessage && (
+                  <span className="text-sm text-orange-600 flex items-center gap-1">
+                    Waiting for full payment.
+                  </span>
+                )}
+                {showInvoiceNotGeneratedMessage && (
+                  <span className="text-sm text-red-600 flex items-center gap-1 mt-1">
+                    <AlertTriangle className="h-4 w-4" /> Invoice not generated yet. (Full payment received, generation pending or failed)
+                  </span>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -309,12 +354,15 @@ export default function QuotationDetailsPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {quotation.items.map((item, index) => {
+              {quotation.quotationItems?.map((item, index) => {
+                const productObj = item.productId;
+                const productName = productObj?.name || 'Product Name Not Available';
                 const total = item.quantity * item.unitPrice * (1 - item.discount/100);
+                
                 return (
                   <tr key={index}>
                     <td className="py-2">
-                      {item.product ? item.product.name : 'Product Name Not Available'}
+                      {productName}
                     </td>
                     <td>{item.quantity}</td>
                     <td>₹{item.unitPrice.toLocaleString('en-IN')}</td>
@@ -404,7 +452,12 @@ export default function QuotationDetailsPage() {
       {showToast && (
         <Toast
           message={toastMessage}
-          onClose={() => setShowToast(false)}
+          type={invoiceEmailStatus.error ? 'error' : (invoiceEmailStatus.sent ? 'success' : 'info')}
+          onClose={() => {
+            setShowToast(false);
+            if (invoiceEmailStatus.error) setInvoiceEmailStatus(prev => ({...prev, error: null}));
+            if (invoiceEmailStatus.sent) setInvoiceEmailStatus(prev => ({...prev, sent: false}));
+          }}
         />
       )}
 

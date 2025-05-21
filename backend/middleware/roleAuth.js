@@ -1,5 +1,5 @@
 const rolePermissions = {
-  customer: ['/api/tickets'],
+  customer: ['/api/tickets', '/api/payments', '/api/quotations/customer-products'],
   sales_person: ['/api/leads', '/api/quotations', '/api/invoices'],
   inventory_manager: ['/api/products'],
   product_head: ['/api/schedule', '/api/maintenance', '/api/notifications'],

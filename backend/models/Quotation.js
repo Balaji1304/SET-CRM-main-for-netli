@@ -11,26 +11,6 @@ const quotationSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  items: [{
-    product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1
-    },
-    unitPrice: {
-      type: Number,
-      required: true
-    },
-    discount: {
-      type: Number,
-      default: 0
-    }
-  }],
   subtotal: {
     type: Number,
     required: true
@@ -122,5 +102,16 @@ const quotationSchema = new mongoose.Schema({
     type: String
   }
 });
+
+// Virtual populate to get QuotationItems
+quotationSchema.virtual('quotationItems', {
+  ref: 'QuotationItem',
+  localField: '_id',
+  foreignField: 'quotationId'
+});
+
+// Set toJSON option to include virtuals
+quotationSchema.set('toJSON', { virtuals: true });
+quotationSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Quotation', quotationSchema); 

@@ -88,10 +88,11 @@ mongoose.connect(process.env.MONGODB_URI, {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/leads', require('./routes/leads'));
 app.use('/api/products', require('./routes/products'));
+app.use('/api/quotations', require('./routes/quotation'));
+app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/tickets', require('./routes/tickets'));
-app.use('/api/quotations', require('./routes/quotations'));
-app.use('/api/payments', require('./routes/quotation'));
 app.use('/api/invoices', require('./routes/invoices'));
+app.use('/api/customer-purchases', require('./routes/customerPurchaseRoutes'));
 
 // Production-only error handler
 app.use((err, req, res, next) => {

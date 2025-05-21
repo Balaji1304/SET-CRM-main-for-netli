@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 import { useForm } from "react-hook-form";
@@ -15,7 +15,12 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
+
+  // Parse query parameters
+  const queryParams = new URLSearchParams(location.search);
+  const returnUrl = queryParams.get('returnUrl') || '/dashboard';
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -30,7 +35,18 @@ const Login = () => {
     try {
       const success = await login(values.email, values.password);
       if (success) {
-        navigate('/dashboard');
+        // Check if there's a pending payment verification
+        const pendingVerification = sessionStorage.getItem('pendingPaymentVerification');
+        
+        if (pendingVerification && returnUrl.includes('payment-success')) {
+          // Clear the session storage
+          sessionStorage.removeItem('pendingPaymentVerification');
+          // Navigate to the payment success page
+          navigate(returnUrl);
+        } else {
+          // Navigate to the default return URL
+          navigate(returnUrl);
+        }
       } else {
         setError('Invalid credentials');
       }
@@ -38,6 +54,14 @@ const Login = () => {
       setError('An error occurred during login');
     }
   };
+
+  // Check for any pending operations that require authentication
+  useEffect(() => {
+    const pendingVerification = sessionStorage.getItem('pendingPaymentVerification');
+    if (pendingVerification) {
+      setError('Please login to complete your payment verification');
+    }
+  }, []);
 
   return (
     <div className="flex min-h-screen">

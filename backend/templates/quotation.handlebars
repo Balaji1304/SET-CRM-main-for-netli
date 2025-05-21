@@ -653,29 +653,29 @@
                 <tr>
                     <td>{{product.name}}</td>
                     <td>{{quantity}}</td>
-                    <td>Rs. {{unitPrice}}</td>
+                    <td>₹{{formatCurrency product.unitPrice}}</td>
                     <td>{{discount}}%</td>
-                    <td class="amount-cell">Rs. {{formatNumber total 2}}</td>
+                    <td class="amount-cell">₹{{formatCurrency product.total}}</td>
                 </tr>
                 {{/each}}
                 <tr>
                     <td colspan="4" style="text-align: right"><strong>Subtotal</strong></td>
-                    <td class="amount-cell">Rs. {{formatNumber subtotal 2}}</td>
+                    <td class="amount-cell">₹{{formatCurrency subtotal}}</td>
                 </tr>
                 <tr>
                     <td colspan="4" style="text-align: right"><strong>GST @18% (+)</strong></td>
-                    <td class="amount-cell">Rs. {{formatNumber tax 2}}</td>
+                    <td class="amount-cell">₹{{formatCurrency tax}}</td>
                 </tr>
                 <tr class="total-row">
                     <td colspan="4" style="text-align: right"><strong>TOTAL AMOUNT</strong></td>
-                    <td class="amount-cell">Rs. {{formatNumber total 2}}</td>
+                    <td class="amount-cell">₹{{formatCurrency total}}</td>
                 </tr>
             </tbody>
         </table>
 
         <div style="border: 1px solid #ddd; padding: 10px; margin: 15px 0; background-color: #f9f9f9;">
             <p style="font-weight: bold; margin-bottom: 5px;">Payment Information:</p>
-            <p>Advance Payment Required: {{advancePercentage}}% of Total Amount (Rs. {{formatNumber advanceAmount 2}})</p>
+            <p>Advance Payment Required: {{advancePercentage}}% of Total Amount (₹{{formatCurrency advanceAmount}})</p>
             {{#if paymentLink}}
             <p>To proceed with your order, please complete the advance payment using the link below:</p>
             <p><a href="{{paymentLink}}" style="color: #FF7300; text-decoration: underline;">{{paymentLink}}</a></p>

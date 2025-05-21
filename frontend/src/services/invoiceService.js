@@ -1,4 +1,4 @@
-import { apiRequest, invalidateCache } from './apiConfig';
+import { apiRequest, invalidateCache, API_URL, getAuthHeaders } from './apiConfig';
 
 /**
  * Get all invoices
@@ -64,3 +64,46 @@ export const sendInvoice = async (id) => {
   invalidateCache('invoices');
   return response;
 }; 
+
+export const getInvoiceByPurchaseId = async (customerPurchaseId) => {
+  try {
+    const response = await fetch(`${API_URL}/invoices/purchase/${customerPurchaseId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(), // Make sure getAuthHeaders() returns an object with Authorization header
+    });
+    
+    const responseData = await response.json();
+
+    if (!response.ok) {
+      // Use the message from backend response if available, otherwise default
+      throw new Error(responseData.message || `HTTP error! status: ${response.status}`);
+    }
+    return responseData; // This should be { success: true, data: ... } or { success: false, message: ... }
+  } catch (error) {
+    console.error('Error fetching invoice by purchase ID in service:', error);
+    // Ensure the error re-thrown or returned maintains a consistent structure expected by the component
+    return { success: false, message: error.message || 'An unexpected error occurred while fetching invoice data.' };
+  }
+};
+
+export const sendInvoiceEmail = async (invoiceId) => {
+  try {
+    const response = await fetch(`${API_URL}/invoices/${invoiceId}/send-email`, {
+      method: 'POST',
+      headers: getAuthHeaders(), // Ensure this provides the auth token
+    });
+    // Try to parse JSON regardless of response.ok, as backend might send error details in JSON
+    const responseData = await response.json(); 
+
+    if (!response.ok) {
+      throw new Error(responseData.message || `HTTP error! status: ${response.status}`);
+    }
+    return responseData; // Should be { success: true, message: '...' }
+  } catch (error) {
+    console.error('Error sending invoice email in service:', error);
+    return { success: false, message: error.message || 'An unexpected error occurred while sending invoice email.' };
+  }
+};
+
+// You might have other invoice related service functions here, e.g.:
+// export const createManualInvoice = async (invoiceData) => { ... }; 
