@@ -1032,13 +1032,21 @@ exports.getCustomerProducts = async (req, res) => {
         // Add each item with the purchase data
         items.forEach(item => {
           if (!item.productId) return;
+
+          const productDisplayData = {
+            _id: item.productId._id,
+            name: item.productId.name,
+            description: item.productId.description,
+            category: item.productId.category,
+            imageUrl: (item.productId.imageUrls && item.productId.imageUrls.length > 0) ? item.productId.imageUrls[0] : null
+          };
           
           products.push({
             quotationNumber: purchaseData.quotationNumber,
             purchaseDate: purchaseData.purchaseDate,
             purchaseId: purchaseData.purchaseId,
             purchaseID: purchaseData.purchaseID,
-            productId: item.productId,
+            product: productDisplayData,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             discount: item.discount || 0,
@@ -1053,6 +1061,8 @@ exports.getCustomerProducts = async (req, res) => {
         });
       });
       
+      // console.log('Final products data being sent to frontend:', JSON.stringify(products, null, 2)); // Logging removed
+
       res.json({
         success: true,
         data: products

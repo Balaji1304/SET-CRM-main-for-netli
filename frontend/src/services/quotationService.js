@@ -147,5 +147,5 @@ export const getPendingPayments = async () => {
  * @returns {Promise<Object>} - Response with customer products
  */
 export const getCustomerProducts = async () => {
-  return await apiRequest('quotations/customer/products');
+  return await apiRequest('quotations/customer/products', {}, true); // Ensure noCache is true for GET
 }; 

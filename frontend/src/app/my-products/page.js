@@ -207,18 +207,24 @@ export default function MyProductsPage() {
                 <h3 className="font-medium mb-4">Products</h3>
                 <div className="space-y-4">
                   {quotation.quotationItems.map((item, index) => {
-                    const productObj = item.productId;
-                    if (!productObj) return null;
+                    const productObj = item.product; // Directly use item.product as confirmed by backend log
+
+                    if (!productObj) {
+                      console.warn('Product object missing for item:', item); // Log if productObj is missing
+                      return null;
+                    }
+
+                    const imageUrl = productObj.imageUrl; // Directly use imageUrl from productObj
                     
                     return (
-                    <div key={index} className="border-b pb-4 last:border-b-0 last:pb-0">
+                    <div key={productObj._id || index} className="border-b pb-4 last:border-b-0 last:pb-0"> 
                       <div className="flex flex-col md:flex-row gap-4">
                         {/* Product image */}
                         <div className="w-full md:w-32 h-32 flex-shrink-0">
-                            {productObj.images && productObj.images[0] ? (
+                            {imageUrl ? ( 
                   <img
-                                src={productObj.images[0]}
-                                alt={productObj.name}
+                                src={imageUrl} 
+                                alt={productObj.name || 'Product'}
                               className="w-full h-full object-cover rounded"
                   />
                           ) : (
