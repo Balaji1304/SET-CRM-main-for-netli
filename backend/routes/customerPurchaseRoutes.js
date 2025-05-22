@@ -9,7 +9,11 @@ const {
   getPurchaseDetails,
   createQuotationFromLead,
   getCustomerPurchasesByUser,
-  getAllPaymentHistory
+  getAllPaymentHistory,
+  getServiceEngineers,
+  getAssignablePurchases,
+  assignTaskToEngineer,
+  getProductHeadTasks
 } = require('../controllers/customerPurchaseController');
 
 // Create quotation from lead
@@ -38,5 +42,35 @@ router.get('/:purchaseId/payments', protect, getPaymentHistory);
 
 // Get purchase details with quotation items
 router.get('/:purchaseId', protect, getPurchaseDetails);
+
+// Routes for Product Head - Service Task Assignment
+router.get(
+  '/tasks/service-engineers',
+  protect,
+  authorize('product_head'), // Authorize for product_head
+  getServiceEngineers
+);
+
+router.get(
+  '/tasks/assignable',
+  protect,
+  authorize('product_head'), // Authorize for product_head
+  getAssignablePurchases
+);
+
+router.put(
+  '/tasks/:purchaseId/assign',
+  protect,
+  authorize('product_head'), // Authorize for product_head
+  assignTaskToEngineer
+);
+
+// New route for getting all tasks for Product Head
+router.get(
+  '/tasks/all-product-head',
+  protect,
+  authorize('product_head'),
+  getProductHeadTasks
+);
 
 module.exports = router; 

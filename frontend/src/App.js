@@ -31,6 +31,7 @@ import OrdersPage from './app/orders/page';
 import MyProductsPage from './app/my-products/page';
 import Leads from './components/dashboard/Leads';
 import InvoicePage from './app/invoice/[id]/page';
+import TaskDetailPage from './app/schedule/[taskId]/page';
 
 function App() {
   return (
@@ -137,6 +138,11 @@ function App() {
             <Route path="schedule" element={
               <ProtectedRoute allowedRoles={['product_head']}>
                 <SchedulePage />
+              </ProtectedRoute>
+            } />
+            <Route path="schedule/:taskId" element={ 
+              <ProtectedRoute allowedRoles={['product_head']}>
+                <TaskDetailPage />
               </ProtectedRoute>
             } />
             <Route path="maintenance" element={

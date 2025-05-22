@@ -71,6 +71,25 @@ const customerPurchaseSchema = new mongoose.Schema({
   razorpayPaymentId: {
     type: String
   },
+  assignedEngineerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  serviceDueDate: {
+    type: Date,
+    default: null
+  },
+  serviceTaskStatus: {
+    type: String,
+    enum: ['pending_assignment', 'assigned', 'scheduled', 'in_progress', 'completed', 'cancelled', 'on_hold'],
+    default: 'pending_assignment'
+  },
+  serviceAssignmentNotes: {
+    type: String,
+    trim: true,
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now
