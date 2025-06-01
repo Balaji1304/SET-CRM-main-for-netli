@@ -7,13 +7,8 @@ import { useAuth } from '../../context/AuthContext';
 
 const DashboardLayout = () => {
   const { logout } = useAuth();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-
-  const toggleSidebar = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
-  };
 
   const toggleMobileSidebar = () => {
     setIsMobileSidebarOpen(!isMobileSidebarOpen);
@@ -37,16 +32,14 @@ const DashboardLayout = () => {
   return (
     <div className="min-h-screen bg-gray-100 flex overflow-x-hidden">
       {/* Desktop Sidebar */}
-      <div className={`hidden md:block flex-shrink-0 w-${isSidebarCollapsed ? '16' : '64'} transition-all duration-300 ease-in-out`}>
+      <div className={`hidden md:block flex-shrink-0`}>
         <AppSidebar
-          isCollapsed={isSidebarCollapsed}
-          onToggle={toggleSidebar}
           onLogout={handleLogout}
         />
       </div>
 
       {/* Main Content with Mobile Sidebar */}
-      <div className="flex-1 transition-all duration-300 ease-in-out">
+      <div className="flex-1 transition-all duration-300 ease-in-out md:ml-20">
         {/* Mobile Header - Fixed at top */}
         <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b shadow-sm flex items-center justify-between p-4 z-30">
           <button

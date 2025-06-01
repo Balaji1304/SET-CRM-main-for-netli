@@ -5,17 +5,32 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
-  // Initial user check
+  // Initial user and token check
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
       } catch (e) {
         localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        setToken(null);
       }
+    }
+    if (storedToken) {
+        setToken(storedToken);
+    }
+
+    // If there's a token but no user object, or vice-versa, consider it a logout state
+    if ((storedToken && !storedUser) || (!storedToken && storedUser)) {
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+        setUser(null);
+        setToken(null);
     }
     setLoading(false);
   }, []);
@@ -23,11 +38,22 @@ export const AuthProvider = ({ children }) => {
   // Listen for storage events (logout in other tabs)
   useEffect(() => {
     const handleStorageChange = (e) => {
-      if (e.key === 'logout') {
+      if (e.key === 'logout' || (e.key === 'user' && !e.newValue) || (e.key === 'token' && !e.newValue)) {
         setUser(null);
+        setToken(null);
         localStorage.removeItem('user');
         localStorage.removeItem('token');
-        window.location.href = '/login';
+      } else if (e.key === 'user' && e.newValue) {
+        try {
+          setUser(JSON.parse(e.newValue));
+        } catch (error) {
+          setUser(null);
+          setToken(null);
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+        }
+      } else if (e.key === 'token' && e.newValue) {
+        setToken(e.newValue);
       }
     };
 
@@ -110,6 +136,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('token', data.token);
         localStorage.setItem('lastActivity', Date.now());
         setUser(data.user);
+        setToken(data.token);
         return true;
       }
       return false;
@@ -125,12 +152,14 @@ export const AuthProvider = ({ children }) => {
     // Broadcast logout event to other tabs
     localStorage.setItem('logout', Date.now().toString());
     setUser(null);
+    setToken(null);
     window.location.href = '/login';
   };
 
   return (
     <AuthContext.Provider value={{ 
       user, 
+      token,
       login,
       logout: handleLogout,
       loading 

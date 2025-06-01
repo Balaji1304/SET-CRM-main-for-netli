@@ -94,6 +94,10 @@ app.use('/api/tickets', require('./routes/tickets'));
 app.use('/api/invoices', require('./routes/invoices'));
 app.use('/api/customer-purchases', require('./routes/customerPurchaseRoutes'));
 
+// Route for dashboard summary
+const dashboardRoutes = require('./routes/dashboardRoutes'); // Create this file next
+app.use('/api/dashboard', dashboardRoutes);
+
 // Production-only error handler
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
