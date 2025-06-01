@@ -1,31 +1,39 @@
-import { useState, useEffect, useRef } from 'react';
-import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2, X, AlertTriangle, Loader2 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createLead, getLead, updateLead } from '../../services/leadService';
 import { getProducts } from '../../services/productService';
 
-const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) => {
+const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Yes, Confirm', cancelText = 'Cancel', isDestructive = false }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg max-w-md w-full shadow-lg">
-        <h3 className="text-lg font-semibold mb-2">{title}</h3>
-        <p className="text-gray-600 mb-4">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
+      <div className="bg-tertiary p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 ease-out">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-semibold text-secondary">{title}</h3>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-fourth">
+            <X className="w-5 h-5 text-gray-500"/>
+          </button>
+        </div>
+        <p className="text-sm text-gray-600 mb-6">
           {message}
         </p>
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end space-x-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-input rounded-lg text-sm font-medium hover:bg-orange-50"
+            className="px-4 py-2 border border-fourth rounded-lg text-sm font-medium text-secondary hover:bg-fourth transition-colors duration-150 ease-in-out"
           >
-            Cancel
+            {cancelText}
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600"
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[100px] 
+                        ${isDestructive 
+                            ? 'bg-red-600 hover:bg-red-700 text-tertiary' 
+                            : 'bg-primary hover:opacity-90 text-tertiary'}`}
           >
-            Yes
+            {confirmText}
           </button>
         </div>
       </div>
@@ -33,7 +41,6 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message }) => {
   );
 };
 
-// Constants for form options
 const FORM_OPTIONS = {
   leadTypes: [
     { value: 'new_customer', label: 'New Customer' },
@@ -44,44 +51,41 @@ const FORM_OPTIONS = {
     { value: 'individual', label: 'Individual' },
     { value: 'plumber', label: 'Plumber' },
     { value: 'dealer', label: 'Dealer' },
-    { value: 'business_owner', label: 'Business Owner' }
+    { value: 'builder', label: 'Builder' },
+    { value: 'architect', label: 'Architect' },
+    { value: 'business_owner', label: 'Business Owner' },
+    { value: 'other', label: 'Other' }
   ],
   interestStages: [
     { value: 'new_lead', label: 'New Lead' },
-    { value: 'in_negotiation', label: 'In Negotiation' },
-    { value: 'quotation_sent', label: 'Quotation Sent' }
+    { value: 'contacted', label: 'Contacted' },
+    { value: 'qualified', label: 'Qualified' },
+    { value: 'proposal_sent', label: 'Proposal Sent' },
+    { value: 'negotiation', label: 'Negotiation' },
+    { value: 'won', label: 'Won' },
+    { value: 'lost', label: 'Lost' }
   ],
   statuses: [
     { value: 'active', label: 'Active' },
     { value: 'pending', label: 'Pending' },
-    { value: 'closed', label: 'Closed' }
+    { value: 'on_hold', label: 'On Hold' },
+    { value: 'closed_won', label: 'Closed - Won' },
+    { value: 'closed_lost', label: 'Closed - Lost' }
   ],
   sources: [
     { value: 'exhibition', label: 'Exhibition' },
     { value: 'facebook', label: 'Facebook' },
-    { value: 'website', label: 'Website' },
+    { value: 'instagram', label: 'Instagram' },
+    { value: 'linkedin', label: 'LinkedIn' },
+    { value: 'google_ads', label: 'Google Ads' },
+    { value: 'website', label: 'Website Inquiry' },
     { value: 'referral', label: 'Referral' },
-    { value: 'cold_call', label: 'Cold Call' }
+    { value: 'cold_call', label: 'Cold Call' },
+    { value: 'walk_in', label: 'Walk-in' },
+    { value: 'other', label: 'Other' }
   ],
-  productCategories: [
-    { value: 'solar_panels', label: 'Solar Panels' },
-    { value: 'inverters', label: 'Inverters' },
-    { value: 'batteries', label: 'Batteries' },
-    { value: 'mounting_systems', label: 'Mounting Systems' }
-  ]
 };
 
-export default function LeadForm() {
-  const { state } = useLocation();
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [initialFormData, setInitialFormData] = useState({});
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState(null);
-  
-  // Initial form state
   const defaultFormState = {
     leadType: '',
     status: 'pending',
@@ -95,897 +99,642 @@ export default function LeadForm() {
     businessName: '',
     customerType: '',
     products: [
-      {
-        id: Date.now(),
-        category: '',
-        name: '',
-        quantity: '',
-        price: '',
-        productId: ''
-      }
+    { id: Date.now().toString(), category: '', name: '', quantity: '1', price: '0', productId: '' }
     ],
     productRequirements: '',
-    interestStage: '',
+  interestStage: 'new_lead',
     dateCollected: new Date().toISOString().split('T')[0],
-    followUpRequired: false
+  followUpRequired: false,
+  notes: ''
   };
 
+export default function LeadForm() {
+  const { state: locationState } = useLocation();
+  const navigate = useNavigate();
+  const { id: leadId } = useParams();
+
   const [formData, setFormData] = useState(defaultFormState);
+  const [initialFormData, setInitialFormData] = useState({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isLoadingLead, setIsLoadingLead] = useState(false);
 
-  // Add state for form submission
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmDialogProps, setConfirmDialogProps] = useState({});
+  const [pendingNavigationPath, setPendingNavigationPath] = useState(null);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
-  const [sectionErrors, setSectionErrors] = useState({
-    leadInfo: null,
-    personalInfo: null,
-    businessInfo: null,
-    productInfo: null,
-    additionalInfo: null
-  });
+  const [submissionError, setSubmissionError] = useState(null);
+  const [sectionErrors, setSectionErrors] = useState({});
 
-  // Create refs for each section
-  const leadInfoRef = useRef(null);
-  const personalInfoRef = useRef(null);
-  const businessInfoRef = useRef(null);
-  const productInfoRef = useRef(null);
-  const additionalInfoRef = useRef(null);
+  const sectionRefs = {
+    leadInfo: useRef(null),
+    personalInfo: useRef(null),
+    businessInfo: useRef(null),
+    productInfo: useRef(null),
+    additionalInfo: useRef(null)
+  };
 
-  // Add new state for products data
   const [productsData, setProductsData] = useState({});
   const [productCategories, setProductCategories] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [productError, setProductError] = useState(null);
+  const [productFetchError, setProductFetchError] = useState(null);
 
-  // Fetch products when component mounts
   useEffect(() => {
     const fetchProducts = async () => {
       setIsLoadingProducts(true);
-      setProductError(null);
+      setProductFetchError(null);
       try {
         const response = await getProducts();
-        if (response.success) {
-          // Organize products by category
+        if (response.success && Array.isArray(response.data)) {
           const productsByCategory = {};
           const categories = new Set();
-          
           response.data.forEach(product => {
-            categories.add(product.category);
-            if (!productsByCategory[product.category]) {
-              productsByCategory[product.category] = [];
+            const category = product.category || 'uncategorized';
+            categories.add(category);
+            if (!productsByCategory[category]) {
+              productsByCategory[category] = [];
             }
-            productsByCategory[product.category].push({
-              _id: product._id,
-              name: product.name,
-              price: product.price
-            });
+            productsByCategory[category].push({ _id: product._id, name: product.name, price: product.price });
           });
-
           setProductsData(productsByCategory);
-          setProductCategories(Array.from(categories));
+          setProductCategories(Array.from(categories).sort());
         } else {
-          throw new Error(response.message || 'Failed to fetch products');
+          throw new Error(response.message || 'Product data is not in expected format.');
         }
       } catch (error) {
         console.error('Error fetching products:', error);
-        setProductError('Failed to load products. Please try refreshing the page.');
+        setProductFetchError('Failed to load products. Some features may be limited.');
       } finally {
         setIsLoadingProducts(false);
       }
     };
-
     fetchProducts();
   }, []);
 
-  // Reset form to initial state
-  const resetForm = () => {
+  const resetFormToDefaults = useCallback(() => {
     setFormData(defaultFormState);
-    setInitialFormData({});
+    setInitialFormData(defaultFormState);
     setHasUnsavedChanges(false);
-    setIsEditMode(false);
-  };
+    setSectionErrors({});
+    setSubmissionError(null);
+  }, []);
 
   useEffect(() => {
-    const fetchLead = async () => {
+    const fetchLeadDetails = async (id) => {
+      setIsLoadingLead(true);
+      setSubmissionError(null);
       try {
         const response = await getLead(id);
         if (response.success) {
-          const formattedDate = response.data.dateCollected 
-            ? new Date(response.data.dateCollected).toISOString().split('T')[0]
-            : new Date().toISOString().split('T')[0];
-
-          const leadData = {
-            ...response.data,
-            dateCollected: formattedDate,
-            products: response.data.products || [
-              {
-                id: Date.now(),
-                category: '',
-                name: '',
-                quantity: '',
-                price: '',
-                productId: ''
-              }
-            ]
+          const leadData = response.data;
+          const formattedLead = {
+            ...defaultFormState,
+            ...leadData,
+            dateCollected: leadData.dateCollected ? new Date(leadData.dateCollected).toISOString().split('T')[0] : defaultFormState.dateCollected,
+            products: (leadData.products && leadData.products.length > 0) 
+              ? leadData.products.map(p => ({ ...p, id: p.id || p._id || Date.now().toString() })) 
+              : [{ ...defaultFormState.products[0], id: Date.now().toString() }],
           };
-          setFormData(leadData);
-          setInitialFormData(leadData);
+          setFormData(formattedLead);
+          setInitialFormData(JSON.parse(JSON.stringify(formattedLead)));
           setIsEditMode(true);
+        } else {
+          throw new Error(response.message || 'Failed to fetch lead details.');
         }
-      } catch (error) {
-        console.error('Failed to fetch lead:', error);
-        navigate('/dashboard/leads');
+      } catch (err) {
+        console.error('Failed to fetch lead:', err);
+        setSubmissionError(err.message || 'Could not load lead data. Please try again.');
+        setIsEditMode(false);
+      } finally {
+        setIsLoadingLead(false);
       }
     };
 
-    if (id) {
-      fetchLead();
-    } else if (state?.lead) {
-      const formattedDate = state.lead.dateCollected 
-        ? new Date(state.lead.dateCollected).toISOString().split('T')[0]
-        : new Date().toISOString().split('T')[0];
-
-      const leadData = {
-        ...state.lead,
-        dateCollected: formattedDate,
-        products: state.lead.products || [
-          {
-            id: Date.now(),
-            category: '',
-            name: '',
-            quantity: '',
-            price: '',
-            productId: ''
-          }
-        ]
+    if (leadId) {
+      fetchLeadDetails(leadId);
+    } else if (locationState?.lead) {
+      const leadData = locationState.lead;
+       const formattedLead = {
+        ...defaultFormState,
+        ...leadData,
+        dateCollected: leadData.dateCollected ? new Date(leadData.dateCollected).toISOString().split('T')[0] : defaultFormState.dateCollected,
+        products: (leadData.products && leadData.products.length > 0) 
+            ? leadData.products.map(p => ({ ...p, id: p.id || p._id || Date.now().toString() })) 
+            : [{ ...defaultFormState.products[0], id: Date.now().toString() }],
       };
-      setFormData(leadData);
-      setInitialFormData(leadData);
+      setFormData(formattedLead);
+      setInitialFormData(JSON.parse(JSON.stringify(formattedLead)));
       setIsEditMode(true);
     } else {
-      // Reset form when navigating to add lead page
-      resetForm();
+      resetFormToDefaults();
+      setIsEditMode(false);
     }
-  }, [id, state, location.pathname]);
+  }, [leadId, locationState, resetFormToDefaults]);
 
   useEffect(() => {
-    if (Object.keys(initialFormData).length > 0) {
-      const hasChanges = JSON.stringify(initialFormData) !== JSON.stringify(formData);
-      setHasUnsavedChanges(hasChanges);
-    }
+    const currentDataString = JSON.stringify(formData);
+    const initialDataString = JSON.stringify(initialFormData);
+    setHasUnsavedChanges(currentDataString !== initialDataString);
   }, [formData, initialFormData]);
 
-  // Handle navigation with unsaved changes
-  const handleNavigation = (path) => {
+  const handleNavigate = (path) => {
     if (hasUnsavedChanges) {
-      setPendingNavigation(path);
+      setPendingNavigationPath(path);
+      setConfirmDialogProps({
+        isOpen: true,
+        title: isEditMode ? 'Unsaved Changes' : 'Discard New Lead',
+        message: isEditMode 
+          ? 'You have unsaved changes. Are you sure you want to leave this page? Your changes will be lost.' 
+          : 'The new lead information has not been saved. Are you sure you want to discard it?',
+        onConfirm: () => {
+          setShowConfirmDialog(false);
+          setHasUnsavedChanges(false);
+          navigate(path);
+        },
+        onClose: () => setShowConfirmDialog(false),
+        isDestructive: true,
+        confirmText: 'Yes, Discard'
+      });
       setShowConfirmDialog(true);
     } else {
       navigate(path);
-      resetForm();
     }
   };
 
-  const handleBack = () => {
-    handleNavigation('/dashboard/leads');
-  };
-
-  const handleConfirmLeave = () => {
-    setShowConfirmDialog(false);
-    if (pendingNavigation) {
-      navigate(pendingNavigation);
-      setPendingNavigation(null);
-      resetForm();
-    }
-  };
-
-  const handleChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: type === 'checkbox' ? checked : value
+    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+  };
+
+  const handleProductPropertyChange = (index, field, value) => {
+    const updatedProducts = formData.products.map((p, i) => (i === index ? { ...p, [field]: value } : p));
+    if (field === 'category') {
+      updatedProducts[index].name = '';
+      updatedProducts[index].price = defaultFormState.products[0].price;
+      updatedProducts[index].productId = '';
+    }
+    if (field === 'name' && value) {
+      const category = updatedProducts[index].category;
+      const selectedProduct = productsData[category]?.find(p => p.name === value);
+      if (selectedProduct) {
+        updatedProducts[index].price = selectedProduct.price.toString();
+        updatedProducts[index].productId = selectedProduct._id;
+      }
+    }
+    setFormData(prev => ({ ...prev, products: updatedProducts }));
+  };
+
+  const addProductField = () => {
+    setFormData(prev => ({
+      ...prev,
+      products: [...prev.products, { ...defaultFormState.products[0], id: Date.now().toString() }]
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const removeProductField = (index) => {
+    if (formData.products.length > 1) {
+      setFormData(prev => ({ ...prev, products: prev.products.filter((_, i) => i !== index) }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.leadType) errors.leadInfo = { ...errors.leadInfo, leadType: 'Lead Type is required.' };
+    if (!formData.status) errors.leadInfo = { ...errors.leadInfo, status: 'Status is required.' };
+    if (!formData.source) errors.leadInfo = { ...errors.leadInfo, source: 'Source is required.' };
+    if (!formData.dateCollected) errors.leadInfo = { ...errors.leadInfo, dateCollected: 'Collection Date is required.' };
+
+    if (!formData.firstName) errors.personalInfo = { ...errors.personalInfo, firstName: 'First Name is required.' };
+    if (!formData.lastName) errors.personalInfo = { ...errors.personalInfo, lastName: 'Last Name is required.' };
+    if (!formData.email) errors.personalInfo = { ...errors.personalInfo, email: 'Email is required.' };
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.personalInfo = { ...errors.personalInfo, email: 'Email is invalid.' };
+    if (!formData.phone) errors.personalInfo = { ...errors.personalInfo, phone: 'Phone number is required.' };
+
+    if (!formData.customerType) errors.businessInfo = { ...errors.businessInfo, customerType: 'Customer Type is required.' };
+    
+    const validProducts = formData.products.filter(p => p.category && p.name && p.quantity && p.price && p.productId);
+    if (validProducts.length === 0) {
+        errors.productInfo = { general: 'At least one complete product entry is required.' };
+    } else {
+        formData.products.forEach((product, index) => {
+            if ((product.category || product.name || product.quantity || product.price) && 
+                !(product.category && product.name && product.quantity && product.price && product.productId)) {
+                if (!errors.productInfo) errors.productInfo = {}; 
+                errors.productInfo[index] = 'Please complete all fields (Category, Product, Quantity, Price) for this product.';
+            }
+        });
+    }
+
+    if (!formData.interestStage) errors.additionalInfo = { ...errors.additionalInfo, interestStage: 'Stage of Interest is required.' };
+
+    setSectionErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-    setSectionErrors({
-      leadInfo: null,
-      personalInfo: null,
-      businessInfo: null,
-      productInfo: null,
-      additionalInfo: null
-    });
-
-    let hasErrors = false;
-    const newSectionErrors = {
-      leadInfo: null,
-      personalInfo: null,
-      businessInfo: null,
-      productInfo: null,
-      additionalInfo: null
-    };
-
-    // Lead Information validation
-    const leadInfoErrors = [];
-    if (!formData.leadType) leadInfoErrors.push('Lead Type');
-    if (!formData.status) leadInfoErrors.push('Status');
-    if (!formData.source) leadInfoErrors.push('Source');
-    if (!formData.dateCollected) leadInfoErrors.push('Date of Lead Collection');
-
-    if (leadInfoErrors.length > 0) {
-      newSectionErrors.leadInfo = `Required: ${leadInfoErrors.join(', ')}`;
-      hasErrors = true;
-    }
-
-    // Personal Information validation
-    const personalInfoErrors = [];
-    if (!formData.firstName) personalInfoErrors.push('First Name');
-    if (!formData.lastName) personalInfoErrors.push('Last Name');
-    if (!formData.email) personalInfoErrors.push('Email');
-    else if (!/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(formData.email)) {
-      personalInfoErrors.push('Valid Email');
-    }
-    if (!formData.phone) personalInfoErrors.push('Phone Number');
-    if (!formData.address) personalInfoErrors.push('Address');
-
-    if (personalInfoErrors.length > 0) {
-      newSectionErrors.personalInfo = `Required: ${personalInfoErrors.join(', ')}`;
-      hasErrors = true;
-    }
-
-    // Business Information validation
-    const businessInfoErrors = [];
-    if (!formData.businessName) businessInfoErrors.push('Business Name');
-    if (!formData.customerType) businessInfoErrors.push('Customer Type');
-
-    if (businessInfoErrors.length > 0) {
-      newSectionErrors.businessInfo = `Required: ${businessInfoErrors.join(', ')}`;
-      hasErrors = true;
-    }
-
-    // Product Information validation
-    const incompleteProducts = formData.products.filter(product => {
-      // If any field is filled, all fields should be filled
-      const hasAnyField = product.category || product.name || product.quantity || product.price;
-      const hasAllFields = product.category && product.name && product.quantity && product.price;
-      return hasAnyField && !hasAllFields;
-    });
-
-    const hasValidProduct = formData.products.some(product => {
-      return product.category && product.name && product.quantity && product.price;
-    });
-
-    if (incompleteProducts.length > 0) {
-      newSectionErrors.productInfo = 'Please complete all fields (Category, Product, Quantity, and Price) for each product entry';
-      hasErrors = true;
-    } else if (!hasValidProduct) {
-      newSectionErrors.productInfo = 'At least one product with complete details is required';
-      hasErrors = true;
-    }
-
-    // Additional Information validation
-    if (!formData.interestStage) {
-      newSectionErrors.additionalInfo = 'Stage of Interest is required';
-      hasErrors = true;
-    }
-
-    setSectionErrors(newSectionErrors);
-
-    if (hasErrors) {
-      // Find the first section with an error and scroll to it
-      const firstErrorSection = Object.entries(newSectionErrors).find(([_, error]) => error !== null)?.[0];
-      if (firstErrorSection) {
-        const sectionRef = {
-          leadInfo: leadInfoRef,
-          personalInfo: personalInfoRef,
-          businessInfo: businessInfoRef,
-          productInfo: productInfoRef,
-          additionalInfo: additionalInfoRef
-        }[firstErrorSection];
-        
-        sectionRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!validateForm()) {
+      setSubmissionError('Please correct the errors in the form.');
+      const firstErrorKey = Object.keys(sectionErrors).find(key => Object.keys(sectionErrors[key] || {}).length > 0);
+      if (firstErrorKey && sectionRefs[firstErrorKey]?.current) {
+        sectionRefs[firstErrorKey].current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-      setIsSubmitting(false);
       return;
     }
-
+    setIsSubmitting(true);
+    setSubmissionError(null);
     try {
-      // Format the data according to our schema
-      const leadData = {
-        ...formData,
-        leadType: formData.leadType.toLowerCase(),
-        status: formData.status.toLowerCase(),
-        source: formData.source.toLowerCase(),
-        customerType: formData.customerType.toLowerCase(),
-        interestStage: formData.interestStage.toLowerCase(),
-        products: formData.products
-          .filter(product => product.category && product.name && product.quantity && product.price && product.productId)
-          .map(product => ({
-            productId: product.productId,
-            category: product.category.toLowerCase(),
-            name: product.name,
-            quantity: parseInt(product.quantity),
-            price: parseFloat(product.price)
-          }))
-      };
+      const productsToSubmit = formData.products
+        .filter(p => p.category && p.name && p.quantity && p.price && p.productId)
+        .map(p => ({
+          productId: p.productId,
+          category: p.category,
+          name: p.name,
+          quantity: parseInt(p.quantity, 10),
+          price: parseFloat(p.price),
+        }));
 
-      const response = isEditMode 
-        ? await updateLead(id, leadData)
-        : await createLead(leadData);
+      const payload = { ...formData, products: productsToSubmit };
+      payload.products.forEach(p => delete p.id);
+
+      const response = isEditMode ? await updateLead(leadId, payload) : await createLead(payload);
 
       if (response.success) {
         setHasUnsavedChanges(false);
-        navigate('/dashboard/leads');
+        navigate('/dashboard/leads', { state: { toastMessage: `Lead ${isEditMode ? 'updated' : 'created'} successfully!` } });
       } else {
-        setError(response.message || `Failed to ${isEditMode ? 'update' : 'create'} lead`);
+        throw new Error(response.message || `Failed to ${isEditMode ? 'update' : 'create'} lead.`);
       }
     } catch (err) {
-      setError(err.message || `An error occurred while ${isEditMode ? 'updating' : 'saving'} the lead`);
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} lead:`, err);
+      setSubmissionError(err.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Update handleProductChange to include productId
-  const handleProductChange = (index, field, value) => {
-    const updatedProducts = [...formData.products];
-    updatedProducts[index] = {
-      ...updatedProducts[index],
-      [field]: value
-    };
-    
-    // Clear product name and price when category changes
-    if (field === 'category') {
-      updatedProducts[index].name = '';
-      updatedProducts[index].price = '';
-      updatedProducts[index].productId = '';
-    }
-    
-    // Auto-fill price and productId when product is selected
-    if (field === 'name' && value) {
-      const category = updatedProducts[index].category;
-      const selectedProduct = productsData[category]?.find(p => p.name === value);
-      if (selectedProduct) {
-        updatedProducts[index].price = selectedProduct.price;
-        updatedProducts[index].productId = selectedProduct._id;
-      }
-    }
-    
-    setFormData(prevState => ({
-      ...prevState,
-      products: updatedProducts
-    }));
-  };
+  const renderSectionHeader = (title, sectionKey) => (
+    <div ref={sectionRefs[sectionKey]} className="mb-3">
+      <h2 className="text-xl font-semibold text-secondary border-b border-fourth pb-2 mb-4">{title}</h2>
+      {sectionErrors[sectionKey] && typeof sectionErrors[sectionKey] === 'object' && Object.values(sectionErrors[sectionKey]).map((err, i) => (
+          <p key={i} className="text-sm text-red-500 mt-1">- {err}</p>
+      ))}
+      {sectionErrors[sectionKey] && typeof sectionErrors[sectionKey] === 'string' && (
+         <p className="text-sm text-red-500 mt-1">- {sectionErrors[sectionKey]}</p>
+      )}
+          </div>
+  );
 
-  // Update addProductRow
-  const addProductRow = () => {
-    setFormData(prevState => ({
-      ...prevState,
-      products: [
-        ...prevState.products,
-        { category: '', name: '', quantity: '', price: '', productId: '' }
-      ]
-    }));
-  };
+  const renderInputField = (name, label, type = 'text', placeholder = '', required = false, section, halfWidth = false) => (
+    <div className={halfWidth ? 'w-full' : 'w-full'}>
+      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <input
+        type={type}
+        id={name}
+        name={name}
+        value={formData[name]}
+        onChange={handleInputChange}
+        placeholder={placeholder}
+        required={required}
+        className={`mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400 ${sectionErrors[section]?.[name] ? 'border-red-500' : ''}`}
+      />
+            </div>
+  );
 
-  const removeProductRow = (index) => {
-    setFormData(prevState => ({
-      ...prevState,
-      products: prevState.products.filter((_, i) => i !== index)
-    }));
-  };
+  const renderSelectField = (name, label, options, required = false, section, halfWidth = false) => (
+    <div className={halfWidth ? 'w-full' : 'w-full'}> 
+      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+        {label} {required && <span className="text-red-500">*</span>}
+                  </label>
+      <div className="relative mt-1">
+                    <select
+          id={name}
+          name={name}
+          value={formData[name]}
+          onChange={handleInputChange}
+          required={required}
+          className={`block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm appearance-none text-secondary ${sectionErrors[section]?.[name] ? 'border-red-500' : ''}`}
+                    >
+          <option value="">Select {label.toLowerCase()}</option>
+          {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                  </div>
+                </div>
+  );
+
+  if (isLoadingLead) {
+    return (
+      <div className="flex flex-col flex-1 min-h-[calc(100vh-var(--header-height,150px))] items-center justify-center bg-tertiary">
+        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+        <p className="text-lg text-secondary">Loading lead data...</p>
+                  </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col min-h-0">
-      {/* Header Section */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2">
+    <div className="flex flex-col h-full">
+      <div className="border-b border-fourth pb-5 mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-3">
             {isEditMode && (
-              <button 
-                type="button" 
-                onClick={handleBack}
-                className="p-2 hover:bg-gray-100 rounded-md"
-              >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
-              </button>
+                <button 
+                    type="button" 
+                    onClick={() => handleNavigate('/dashboard/leads')}
+                    className="p-2 rounded-md hover:bg-fourth text-secondary"
+                    aria-label="Back to leads"
+                >
+                    <ArrowLeft className="w-5 h-5" />
+                </button>
             )}
-            <h2 className="text-3xl font-bold tracking-tight">
-              {id ? 'Edit Lead' : 'Add New Lead'}
-            </h2>
-          </div>
-          <p className="text-muted-foreground mt-1">
-            {id ? 'Update lead information' : 'Create a new lead record'}
-          </p>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="bg-white rounded-lg shadow-sm flex-1">
-        <div className="p-6">
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
-              {error}
+            <h1 className="text-3xl font-bold tracking-tight text-secondary">
+            {isEditMode ? 'Edit Lead' : 'Create New Lead'}
+            </h1>
+              </div>
             </div>
+
+      <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
+        <form onSubmit={handleFormSubmit} className="p-6 md:p-8 space-y-8 overflow-y-auto flex-1">
+          {submissionError && (
+            <div className="mb-6 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <span>{submissionError}</span>
+              </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Lead Information */}
-            <div className="space-y-6" ref={leadInfoRef}>
-              <div className="space-y-2">
-                <h2 className="text-lg font-medium text-foreground">Lead Information</h2>
-                {sectionErrors.leadInfo && (
-                  <p className="text-sm text-red-500 mt-1">{sectionErrors.leadInfo}</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Lead Type <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      name="leadType"
-                      value={formData.leadType}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                    >
-                      <option value="">Select type</option>
-                      {FORM_OPTIONS.leadTypes.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                  </div>
+          <section>
+            {renderSectionHeader('Lead Information', 'leadInfo')}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {renderSelectField('leadType', 'Lead Type', FORM_OPTIONS.leadTypes, true, 'leadInfo')}
+              {renderSelectField('status', 'Status', FORM_OPTIONS.statuses, true, 'leadInfo')}
+              {renderSelectField('source', 'Source', FORM_OPTIONS.sources, true, 'leadInfo')}
+              {renderInputField('dateCollected', 'Collection Date', 'date', '', true, 'leadInfo')}
                 </div>
+          </section>
 
-                {/* New Status Field */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Status <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                    >
-                      <option value="">Select status</option>
-                      {FORM_OPTIONS.statuses.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                  </div>
-                </div>
-
-                {/* New Source Field */}
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Source <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      name="source"
-                      value={formData.source}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                    >
-                      <option value="">Select source</option>
-                      {FORM_OPTIONS.sources.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Personal Information */}
-            <div className="space-y-6" ref={personalInfoRef}>
-              <div className="space-y-2">
-                <h2 className="text-lg font-medium text-foreground">Personal Information</h2>
-                {sectionErrors.personalInfo && (
-                  <p className="text-sm text-red-500 mt-1">{sectionErrors.personalInfo}</p>
-                )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    First Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Enter last name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="name@company.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Phone Number</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 flex items-center">
+          <section>
+            {renderSectionHeader('Personal Information', 'personalInfo')}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {renderInputField('firstName', 'First Name', 'text', 'Enter first name', true, 'personalInfo')}
+              {renderInputField('lastName', 'Last Name', 'text', 'Enter last name', true, 'personalInfo')}
+              {renderInputField('email', 'Email Address', 'email', 'name@example.com', true, 'personalInfo')}
+              <div className="w-full">
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
+                <div className="relative mt-1 flex rounded-lg shadow-sm">
                       <select
                         name="countryCode"
+                        id="countryCode" 
                         value={formData.countryCode}
-                        onChange={handleChange}
-                        className="h-full py-0 pl-3 pr-7 border-transparent bg-transparent text-muted-foreground sm:text-sm focus:ring-0"
+                        onChange={handleInputChange}
+                        className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-fourth bg-gray-50 text-gray-500 sm:text-sm focus:ring-1 focus:ring-primary focus:border-primary"
                       >
-                        <option>+1</option>
-                        <option>+44</option>
-                        <option>+91</option>
+                        <option value="+91">+91 (IN)</option>
+                        <option value="+1">+1 (US)</option>
+                        <option value="+44">+44 (UK)</option>
                       </select>
-                    </div>
                     <input
                       type="tel"
+                        id="phone"
                       name="phone"
                       value={formData.phone}
-                      onChange={handleChange}
-                      className="w-full pl-16 pr-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        onChange={handleInputChange}
                       placeholder="(555) 000-0000"
+                        required
+                        className={`flex-1 block w-full min-w-0 px-3 py-2 bg-white border border-fourth rounded-none rounded-r-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400 ${sectionErrors.personalInfo?.phone ? 'border-red-500' : ''}`}
                     />
                   </div>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Address</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Enter complete address"
-                  />
+            <div className="mt-6">
+                {renderInputField('address', 'Address', 'text', 'Enter full address', false, 'personalInfo')} 
                 </div>
-              </div>
-            </div>
+          </section>
 
-            {/* Business Information */}
-            <div className="space-y-6" ref={businessInfoRef}>
-              <div className="space-y-2">
-                <h2 className="text-lg font-medium text-foreground">Business Information</h2>
-                {sectionErrors.businessInfo && (
-                  <p className="text-sm text-red-500 mt-1">{sectionErrors.businessInfo}</p>
-                )}
-              </div>
-              
+          <section>
+            {renderSectionHeader('Business Information', 'businessInfo')}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Business Name</label>
-                  <input
-                    type="text"
-                    name="businessName"
-                    value={formData.businessName}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Enter business name"
-                  />
+              {renderInputField('businessName', 'Business Name', 'text', 'Enter business name', false, 'businessInfo')}
+              {renderSelectField('customerType', 'Customer Type', FORM_OPTIONS.customerTypes, true, 'businessInfo')}
                 </div>
+          </section>
 
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Customer Type</label>
-                  <div className="relative">
-                    <select
-                      name="customerType"
-                      value={formData.customerType}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                    >
-                      <option value="">Select type</option>
-                      {FORM_OPTIONS.customerTypes.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Product Information */}
-            <div className="space-y-4 mb-6">
-              <h3 className="text-lg font-semibold">Product Information</h3>
-              
-              {productError && (
-                <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
-                  {productError}
+          <section>
+            {renderSectionHeader('Products & Budget', 'productInfo')}
+            {productFetchError && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-lg flex items-start gap-2">
+                    <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <span>{productFetchError}</span>
                 </div>
               )}
-              
+            <div className="space-y-4">
               {formData.products.map((product, index) => (
-                <div 
-                  key={index} 
-                  className="flex flex-col md:flex-row gap-4 mb-4 p-4 border rounded-lg bg-white"
-                >
-                  {/* Product Category */}
-                  <div className="w-full md:flex-1 mb-4 md:mb-0">
-                    <label className="block text-sm font-medium mb-1">
-                      Category <span className="text-red-500">*</span>
-                    </label>
+                <div key={product.id || index} className="p-4 border border-fourth rounded-lg space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-4 md:items-end bg-white shadow-sm">
+                  <div className="md:col-span-3">
+                    <label htmlFor={`product_category_${index}`} className="block text-sm font-medium text-gray-700 mb-1">Category <span className="text-red-500">*</span></label>
                     <div className="relative">
                       <select
-                        name="category"
+                            id={`product_category_${index}`} 
                         value={product.category}
-                        onChange={(e) => handleProductChange(index, 'category', e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 appearance-none"
-                        required
+                            onChange={(e) => handleProductPropertyChange(index, 'category', e.target.value)}
                         disabled={isLoadingProducts}
+                            required
+                            className={`w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm appearance-none text-secondary ${sectionErrors.productInfo?.[index] && !product.category ? 'border-red-500' : ''}`}
                       >
                         <option value="">Select Category</option>
-                        {productCategories.map(category => (
-                          <option key={category} value={category}>
-                            {category.replace('_', ' ').split(' ').map(word => 
-                              word.charAt(0).toUpperCase() + word.slice(1)
-                            ).join(' ')}
-                          </option>
-                        ))}
+                            {productCategories.map(cat => <option key={cat} value={cat}>{cat.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</option>)}
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none" />
+                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
                     </div>
                   </div>
-
-                  {/* Product Name */}
-                  <div className="w-full md:flex-1 mb-4 md:mb-0">
-                    <label className="block text-sm font-medium mb-1">
-                      Product <span className="text-red-500">*</span>
-                    </label>
+                  <div className="md:col-span-4">
+                    <label htmlFor={`product_name_${index}`} className="block text-sm font-medium text-gray-700 mb-1">Product <span className="text-red-500">*</span></label>
                     <div className="relative">
                       <select
-                        name="name"
+                            id={`product_name_${index}`} 
                         value={product.name}
-                        onChange={(e) => handleProductChange(index, 'name', e.target.value)}
-                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 appearance-none"
+                            onChange={(e) => handleProductPropertyChange(index, 'name', e.target.value)}
                         disabled={!product.category || isLoadingProducts}
                         required
+                            className={`w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm appearance-none text-secondary ${sectionErrors.productInfo?.[index] && !product.name ? 'border-red-500' : ''}`}
                       >
                         <option value="">Select Product</option>
-                        {product.category && productsData[product.category]?.map(prod => (
-                          <option key={prod.name} value={prod.name}>{prod.name}</option>
-                        ))}
+                            {product.category && productsData[product.category]?.map(p => <option key={p._id} value={p.name}>{p.name}</option>)}
                       </select>
-                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none" />
+                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
                     </div>
                   </div>
-
-                  {/* Quantity */}
-                  <div className="w-full md:w-32 mb-4 md:mb-0">
-                    <label className="block text-sm font-medium mb-1">
-                      Quantity <span className="text-red-500">*</span>
-                    </label>
+                  <div className="md:col-span-2">
+                    <label htmlFor={`product_quantity_${index}`} className="block text-sm font-medium text-gray-700 mb-1">Quantity <span className="text-red-500">*</span></label>
                     <input
                       type="number"
-                      name="quantity"
+                        id={`product_quantity_${index}`} 
                       value={product.quantity}
-                      onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
-                      required
                       min="1"
+                        onChange={(e) => handleProductPropertyChange(index, 'quantity', e.target.value)}
+                        required
+                        className={`w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400 ${sectionErrors.productInfo?.[index] && !product.quantity ? 'border-red-500' : ''}`}
                     />
                   </div>
-
-                  {/* Price */}
-                  <div className="w-full md:w-40 mb-4 md:mb-0">
-                    <label className="block text-sm font-medium mb-1">
-                      Price <span className="text-red-500">*</span>
-                    </label>
+                  <div className="md:col-span-2">
+                    <label htmlFor={`product_price_${index}`} className="block text-sm font-medium text-gray-700 mb-1">Price <span className="text-red-500">*</span></label>
                     <input
                       type="number"
-                      name="price"
+                        id={`product_price_${index}`} 
                       value={product.price}
-                      onChange={(e) => handleProductChange(index, 'price', e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500"
+                        min="0" step="0.01" 
+                        readOnly={!!product.productId}
+                        onChange={(e) => handleProductPropertyChange(index, 'price', e.target.value)}
                       required
-                      min="0"
-                      step="0.01"
-                      readOnly={product.name !== ''}
+                        className={`w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400 ${sectionErrors.productInfo?.[index] && !product.price ? 'border-red-500' : ''}`}
                     />
                   </div>
-
-                  {/* Remove Product Button */}
+                  <div className="md:col-span-1 flex items-end">
                   {formData.products.length > 1 && (
                     <button
                       type="button"
-                      onClick={() => removeProductRow(index)}
-                      className="w-full md:w-auto p-3 md:mt-6 text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center gap-2"
+                        onClick={() => removeProductField(index)} 
+                        className="p-2 text-red-500 hover:bg-red-100/50 rounded-lg transition-colors duration-150 w-full md:w-auto"
+                        aria-label="Remove product"
                     >
-                      <Trash2 className="h-5 w-5" />
-                      <span className="md:hidden">Remove Product</span>
+                        <Trash2 className="w-5 h-5" />
                     </button>
+                    )}
+                  </div>
+                  {sectionErrors.productInfo?.[index] && (
+                    <p className="md:col-span-12 text-xs text-red-500 mt-1">{sectionErrors.productInfo[index]}</p>
                   )}
                 </div>
               ))}
-
-              {/* Add Product Button */}
+            </div>
               <button
                 type="button"
-                onClick={addProductRow}
-                className="w-full p-4 text-orange-500 hover:bg-orange-50 rounded-lg border-2 border-dashed border-orange-200 flex items-center justify-center gap-2"
+              onClick={addProductField} 
+              className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-primary/50 text-primary rounded-lg hover:bg-primary/10 hover:border-primary transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
               >
-                <Plus className="h-5 w-5" />
-                Add Another Product
+              <Plus className="w-5 h-5" /> Add Product
               </button>
-            </div>
-
-            {/* Total Budget Display */}
-            <div className="flex justify-end border-t border-input pt-4 mt-6">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground">Total Budget:</span>
-                <span className="text-lg font-semibold text-orange-600">
-                  ₹{formData.products.reduce((total, product) => {
-                    if (product.quantity && product.price) {
-                      return total + (parseFloat(product.quantity) * parseFloat(product.price));
-                    }
-                    return total;
-                  }, 0).toLocaleString('en-IN')}
+            <div className="mt-6 flex justify-end items-center border-t border-fourth pt-4">
+              <span className="text-sm font-medium text-gray-700 mr-2">Estimated Total:</span>
+              <span className="text-xl font-bold text-secondary">
+                ₹{formData.products.reduce((acc, p) => acc + (parseFloat(p.quantity) * parseFloat(p.price) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </div>
-            </div>
-
-            {/* Product Requirements */}
-            <div className="mt-6">
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Product Requirements
-              </label>
+            <div className="mt-0">
+              <label htmlFor="productRequirements" className="block text-sm font-medium text-gray-700 mb-1">Product Requirements / Notes</label>
               <textarea
+                id="productRequirements" 
                 name="productRequirements"
+                rows="3" 
                 value={formData.productRequirements}
-                onChange={handleChange}
-                rows={4}
-                className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical"
+                onChange={handleInputChange}
                 placeholder="Enter any specific requirements or notes about the products..."
+                className="block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400"
               />
             </div>
+          </section>
 
-            {/* Additional Information */}
-            <div className="space-y-6" ref={additionalInfoRef}>
-              <div className="space-y-2">
-                <h2 className="text-lg font-medium text-foreground">Additional Information</h2>
-                {sectionErrors.additionalInfo && (
-                  <p className="text-sm text-red-500 mt-1">{sectionErrors.additionalInfo}</p>
-                )}
-              </div>
-              
+          <section>
+            {renderSectionHeader('Additional Lead Details', 'additionalInfo')}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {renderSelectField('interestStage', 'Stage of Interest', FORM_OPTIONS.interestStages, true, 'additionalInfo')}
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Stage of Interest</label>
-                  <div className="relative">
-                    <select
-                      name="interestStage"
-                      value={formData.interestStage}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                    >
-                      <option value="">Select stage</option>
-                      {FORM_OPTIONS.interestStages.map(({ value, label }) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Date of Lead Collection <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                    <input
-                      type="date"
-                      name="dateCollected"
-                      value={formData.dateCollected}
-                      onChange={handleChange}
-                      required
-                      className="w-full pl-10 pr-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
+                <label htmlFor="followUpRequired" className="block text-sm font-medium text-gray-700 mb-1">Follow-Up Required?</label>
+                <div className="mt-1 flex items-center gap-2 p-2.5 border border-fourth rounded-lg bg-white shadow-sm">
                 <input
                   type="checkbox"
                   id="followUpRequired"
                   name="followUpRequired"
                   checked={formData.followUpRequired}
-                  onChange={handleChange}
-                  className="w-4 h-4 text-orange-500 border-input rounded focus:ring-orange-500"
+                        onChange={handleInputChange}
+                        className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
                 />
-                <label htmlFor="followUpRequired" className="text-sm text-foreground">
-                  Follow-Up Required
-                </label>
+                    <span className="text-sm text-secondary">Yes, schedule a follow-up</span>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Attachments</label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-input border-dashed rounded-lg">
+              </div>
+            </div>
+            <div className="mt-6">
+              <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">General Notes</label>
+              <textarea 
+                id="notes" 
+                name="notes" 
+                rows="4" 
+                value={formData.notes} 
+                onChange={handleInputChange}
+                placeholder="Add any other relevant notes for this lead..."
+                className="block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400"
+              />
+            </div>
+            <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Attachments (Optional)</label>
+                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-fourth border-dashed rounded-lg bg-white hover:border-primary/70 transition-colors">
                   <div className="space-y-1 text-center">
-                    <Paperclip className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <div className="flex text-sm text-muted-foreground">
+                    <Paperclip className="mx-auto h-10 w-10 text-gray-400" />
+                    <div className="flex text-sm text-gray-600">
                       <label
                         htmlFor="file-upload"
-                        className="relative cursor-pointer rounded-md font-medium text-orange-500 hover:text-orange-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-orange-500"
+                        className="relative cursor-pointer rounded-md font-medium text-primary hover:text-primary/80 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary"
                       >
                         <span>Upload files</span>
                         <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple />
                       </label>
                       <p className="pl-1">or drag and drop</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">PNG, JPG, PDF up to 10MB</p>
+                    <p className="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
                   </div>
                 </div>
               </div>
-            </div>
+          </section>
 
-            {/* Form Actions */}
-            <div className="sticky bottom-0 left-0 right-0 flex justify-end space-x-4 pt-4 pb-4 border-t border-input bg-white">
+          <div className="pt-8 mt-auto">
+            </div>
+        </form>
+        <div className="bg-tertiary/80 backdrop-blur-sm border-t border-fourth p-4 sticky bottom-0 left-0 right-0 flex justify-end space-x-3 rounded-b-lg">
               <button
                 type="button"
-                className="px-6 py-2 border border-input rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
-                onClick={() => setFormData(defaultFormState)}
+            onClick={() => {
+                setConfirmDialogProps({
+                isOpen: true,
+                title: 'Reset Form',
+                message: 'Are you sure you want to reset all fields to their default values? Any unsaved changes will be lost.',
+                onConfirm: () => { resetFormToDefaults(); setShowConfirmDialog(false); },
+                onClose: () => setShowConfirmDialog(false),
+                confirmText: 'Yes, Reset',
+                isDestructive: true
+                });
+                setShowConfirmDialog(true);
+            }}
+            className="px-5 py-2.5 border border-fourth rounded-lg text-sm font-medium text-secondary hover:bg-fourth transition-colors duration-150 ease-in-out disabled:opacity-50"
+            disabled={isSubmitting || (!hasUnsavedChanges && !isEditMode)}
               >
-                Reset Form
+            Reset
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            form="leadForm"
+            onClick={handleFormSubmit}
+            disabled={isSubmitting || !hasUnsavedChanges}
+            className="px-5 py-2.5 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
               >
-                {isSubmitting ? 'Saving...' : 'Save Lead'}
+            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...</> : (isEditMode ? 'Save Changes' : 'Create Lead')}
               </button>
-            </div>
-          </form>
         </div>
       </div>
 
+      {showConfirmDialog && 
       <ConfirmDialog
-        isOpen={showConfirmDialog}
-        onClose={() => {
-          setShowConfirmDialog(false);
-          setPendingNavigation(null);
-        }}
-        onConfirm={handleConfirmLeave}
-        title={isEditMode ? "Unsaved Changes" : "Discard New Lead"}
-        message={
-          isEditMode
-            ? "You have unsaved changes to this lead. Are you sure you want to leave?"
-            : "You have not saved this new lead. Are you sure you want to discard it?"
-        }
+          isOpen={confirmDialogProps.isOpen}
+          onClose={confirmDialogProps.onClose}
+          onConfirm={confirmDialogProps.onConfirm}
+          title={confirmDialogProps.title}
+          message={confirmDialogProps.message}
+          confirmText={confirmDialogProps.confirmText}
+          cancelText={confirmDialogProps.cancelText}
+          isDestructive={confirmDialogProps.isDestructive}
       />
+      }
     </div>
   );
 } 

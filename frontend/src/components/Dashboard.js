@@ -28,42 +28,31 @@ const Dashboard = () => {
   }, [user, token]);
 
   useEffect(() => {
-    console.log('Dashboard useEffect triggered. AuthLoading:', authLoading, 'User:', !!user, 'Token:', !!token, 'InitialAuthLoading:', initialAuthLoadingRef.current);
-
     if (authLoading) {
-        console.log('Auth is loading, dashboard will wait...');
         setLoading(true);
         return;
     }
     if (initialAuthLoadingRef.current && !authLoading) {
         initialAuthLoadingRef.current = false;
-        console.log('Auth loading finished.');
     }
 
     const fetchDashboardData = async () => {
       if (!user || !token) {
-        console.log('User or token not available. Dashboard fetch aborted.');
         setLoading(false);
         setError('User not authenticated. Please login again.');
         return;
       }
-
-      if (fetchCountRef.current > 0) {
-        console.log('Dashboard data already fetched or fetch in progress for this session. Aborting new fetch.', fetchCountRef.current);
+      if (fetchCountRef.current > 0 && summaryData) {
         setLoading(false);
         return;
       }
-      
       fetchCountRef.current += 1;
-      console.log(`Attempting to fetch dashboard data (Attempt: ${fetchCountRef.current})`);
-
       try {
         setLoading(true);
         const config = {
           headers: { Authorization: `Bearer ${token}` },
         };
         const { data } = await axios.get(`${process.env.REACT_APP_API_URL}/dashboard/summary`, config);
-        console.log('Dashboard data received:', data);
         if (data.success) {
           setSummaryData(data.data);
           setError(null);
@@ -71,66 +60,64 @@ const Dashboard = () => {
           setError(data.message || 'Failed to fetch dashboard data.');
         }
       } catch (err) {
-        console.error("Dashboard fetch error:", err);
         setError(err.response?.data?.message || err.message || 'An error occurred while fetching dashboard data.');
       } finally {
         setLoading(false);
-        console.log('Fetch dashboard data finished.');
       }
     };
 
-    if (!initialAuthLoadingRef.current) {
+    if (!initialAuthLoadingRef.current || !summaryData) {
         fetchDashboardData();
     }
 
-  }, [user, token, authLoading]);
+  }, [user, token, authLoading, summaryData]);
 
   const renderCommonCard = (title, value, icon, subText = null, cardClassName = '') => (
-    <div className={`rounded-lg border bg-white p-4 shadow hover:shadow-lg transition-shadow ${cardClassName}`}>
-      <div className="flex items-center justify-between mb-1">
+    <div className={`rounded-lg border border-fourth bg-tertiary p-6 shadow-sm hover:shadow-md transition-shadow ${cardClassName}`}>
+      <div className="flex items-center justify-between mb-2">
         <p className="text-sm font-medium text-gray-600">{title}</p>
-        {React.cloneElement(icon, { className: `h-5 w-5 ${icon.props.className || 'text-orange-500'}` })}
+        {React.cloneElement(icon, { className: `h-6 w-6 ${icon.props.className || 'text-primary'}` })}
       </div>
-      <p className="text-2xl font-bold text-gray-800">{value === undefined || value === null ? 'N/A' : value}</p>
+      <p className="text-3xl font-bold text-secondary">{value === undefined || value === null ? 'N/A' : value}</p>
       {subText && <p className="text-xs text-gray-500 mt-1">{subText}</p>}
     </div>
   );
 
   const renderActivityItem = (item, index, arrayLength) => (
-    <div key={index} className={`py-3 ${index !== arrayLength - 1 ? 'border-b border-gray-200' : ''}`}>
-      <p className="text-sm font-medium text-gray-700">{item.message}</p>
-      <p className="text-xs text-gray-500">{item.time}</p>
+    <div key={index} className={`py-3 ${index !== arrayLength - 1 ? 'border-b border-fourth' : ''}`}>
+      <p className="text-sm text-secondary">{item.message}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{item.time}</p>
     </div>
   );
 
   const renderPerformanceItem = (label, value) => (
-    <div className="flex justify-between items-center py-1">
+    <div className="flex justify-between items-center py-2">
       <span className="text-sm text-gray-600">{label}</span>
-      <span className="text-sm font-medium text-gray-800">{value === undefined || value === null ? 'N/A' : value}</span>
+      <span className="text-sm font-semibold text-secondary">{value === undefined || value === null ? 'N/A' : value}</span>
     </div>
   );
 
   const renderSection = (title, icon, children, className = '') => (
-    <div className={`rounded-lg border bg-white p-4 shadow-md ${className}`}>
+    <div className={`rounded-lg border border-fourth bg-tertiary p-6 shadow-sm ${className}`}>
         <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-700">{title}</h3>
-            {React.cloneElement(icon, { className: `h-5 w-5 ${icon.props.className || 'text-gray-400'}` })}
+            <h3 className="text-xl font-semibold text-secondary">{title}</h3>
+            {React.cloneElement(icon, { className: `h-6 w-6 ${icon.props.className || 'text-primary'}` })}
         </div>
         {children}
     </div>
   );
 
-  if (authLoading || loading) {
+  if (authLoading || (loading && fetchCountRef.current <=1) ) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 items-center justify-center bg-gray-50">
-        <div className="text-xl font-semibold text-gray-700">Loading Dashboard...</div>
+      <div className="flex flex-col flex-1 min-h-[calc(100vh-var(--header-height,150px))] items-center justify-center bg-tertiary">
+        <div className="text-xl font-semibold text-secondary">Loading Dashboard...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 items-center justify-center bg-gray-50 p-4 text-center">
+      <div className="flex flex-col flex-1 min-h-[calc(100vh-var(--header-height,150px))] items-center justify-center bg-tertiary text-center">
         <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
         <h3 className="text-xl font-semibold text-red-700 mb-2">Error Loading Dashboard</h3>
         <p className="text-gray-600">{error}</p>
@@ -141,9 +128,9 @@ const Dashboard = () => {
 
   if (!summaryData || summaryData.message) {
     return (
-      <div className="flex flex-col flex-1 min-h-0 items-center justify-center bg-gray-50 p-4 text-center">
-        <Briefcase className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-700">Welcome, {user?.name || 'User'}!</h3>
+      <div className="flex flex-col flex-1 min-h-[calc(100vh-var(--header-height,150px))] items-center justify-center bg-tertiary text-center">
+        <Briefcase className="h-12 w-12 text-primary mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-secondary">Welcome, {user?.name || 'User'}!</h3>
         <p className="text-gray-600">{summaryData?.message || 'No dashboard data available for your role at the moment.'}</p>
       </div>
     );
@@ -151,21 +138,21 @@ const Dashboard = () => {
 
   const renderProductHeadDashboard = () => (
     <>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Total Customers', formatNumber(summaryData.totalCustomers), <Users />)}
         {renderCommonCard('Active Purchases', formatNumber(summaryData.activeOrders), <ShoppingCart />)}
         {renderCommonCard('Open Support Tickets', formatNumber(summaryData.openTickets), <Ticket />)}
         {renderCommonCard('Total Revenue (All Time)', `₹${formatNumber(summaryData.totalRevenue)}`, <DollarSign />)}
       </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        {renderCommonCard('Quotations (Draft)', formatNumber(summaryData.quotationStats?.draft || 0), <FileText className="text-blue-500" />)}
-        {renderCommonCard('Quotations (Sent)', formatNumber(summaryData.quotationStats?.sent || 0), <FileText className="text-yellow-500" />)}
-        {renderCommonCard('Quotations (Approved)', formatNumber(summaryData.quotationStats?.approved || 0), <FileText className="text-green-500" />)}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Quotations (Draft)', formatNumber(summaryData.quotationStats?.draft || 0), <FileText />)}
+        {renderCommonCard('Quotations (Sent)', formatNumber(summaryData.quotationStats?.sent || 0), <FileText />)}
+        {renderCommonCard('Quotations (Approved)', formatNumber(summaryData.quotationStats?.approved || 0), <FileText />)}
         {renderCommonCard('Low Stock Items', summaryData.lowStockItems, <PackageSearch className="text-red-500" />, 'Count of items below threshold')}
-            </div>
+      </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {renderSection("Recent Activity", <Clock />, 
-          <div className="space-y-1 max-h-72 overflow-y-auto pr-2">
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
             {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent activity.</p>}
           </div>
         )}
@@ -183,14 +170,14 @@ const Dashboard = () => {
 
   const renderCustomerDashboard = () => (
     <>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
         {renderCommonCard('My Open Tickets', formatNumber(summaryData.myOpenTickets), <Ticket />)}
         {renderCommonCard('My Active Purchases', formatNumber(summaryData.myRecentOrdersCount), <ShoppingCart />)}
         {renderCommonCard('My Active Quotations', formatNumber(summaryData.myActiveQuotations), <FileText />)}
-            </div>
+      </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {renderSection("Recent Account Activity", <Clock />, 
-          <div className="space-y-1 max-h-72 overflow-y-auto pr-2">
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
             {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent activity for your account.</p>}
           </div>
         )}
@@ -206,15 +193,15 @@ const Dashboard = () => {
 
   const renderSalesDashboard = () => (
     <>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('My Leads Created', formatNumber(summaryData.myLeadsCreated), <Users2 />)}
-        {renderCommonCard('My Quotations (Draft)', formatNumber(summaryData.myQuotationStats?.draft || 0), <FileText className="text-blue-500" />)}
-        {renderCommonCard('My Quotations (Approved)', formatNumber(summaryData.myQuotationStats?.approved || 0), <FileText className="text-green-500" />)}
-        {renderCommonCard('Revenue (My Approved Quotes)', `₹${formatNumber(summaryData.revenueFromApprovedQuotations || 0)}`, <DollarSign className="text-green-600" />)}
+        {renderCommonCard('My Quotations (Draft)', formatNumber(summaryData.myQuotationStats?.draft || 0), <FileText />)}
+        {renderCommonCard('My Quotations (Approved)', formatNumber(summaryData.myQuotationStats?.approved || 0), <FileText />)}
+        {renderCommonCard('Revenue (My Approved Quotes)', `₹${formatNumber(summaryData.revenueFromApprovedQuotations || 0)}`, <DollarSign />)}
       </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {renderSection("My Recent Activity", <Clock />, 
-          <div className="space-y-1 max-h-72 overflow-y-auto pr-2">
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
             {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent activity.</p>}
             </div>
         )}
@@ -230,14 +217,14 @@ const Dashboard = () => {
 
   const renderInventoryDashboard = () => (
     <>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
         {renderCommonCard('Total Product Definitions', formatNumber(summaryData.totalProducts), <Package />)}
         {renderCommonCard('Low Stock Items', summaryData.lowStockItemsCount, <PackageSearch className="text-red-500" /> ,'Requires inventory tracking module')}
         {renderCommonCard('Recent Product Updates', summaryData.recentProductUpdatesCount, <ListChecks />, 'Based on definition changes')}
-            </div>
+      </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {renderSection("Inventory Activity Log", <Clock />, 
-          <div className="space-y-1 max-h-72 overflow-y-auto pr-2">
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
             {summaryData.inventoryActivity?.length > 0 ? summaryData.inventoryActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent inventory activity.</p>}
           </div>
         )}
@@ -253,13 +240,13 @@ const Dashboard = () => {
 
   const renderServiceEngineerDashboard = () => (
     <>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 mb-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 mb-6">
         {renderCommonCard('My Active Assigned Tasks', formatNumber(summaryData.myAssignedCustomerTasks), <UserCog />)}
         {renderCommonCard('Avg. Task Resolution Time', summaryData.avgResolutionTime, <CheckCircle2 />)}
-              </div>
+      </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {renderSection("My Service Activity", <Clock />, 
-          <div className="space-y-1 max-h-72 overflow-y-auto pr-2">
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
             {summaryData.serviceActivity?.length > 0 ? summaryData.serviceActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent service activity.</p>}
             </div>
         )}
@@ -283,28 +270,27 @@ const Dashboard = () => {
       case 'service_engineer': return renderServiceEngineerDashboard();
       default:
         return (
-          <div className="text-center py-10">
-            <Briefcase className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-            <p className="text-lg text-gray-700">Welcome, {user?.name}! Dashboard for role '{user?.role}' is not yet configured or data is unavailable.</p>
+          <div className="text-center">
+            <Briefcase className="h-12 w-12 text-primary mx-auto mb-4" />
+            <p className="text-lg text-secondary">Welcome, {user?.name}! Dashboard for role '{user?.role}' is not yet configured or data is unavailable.</p>
               </div>
         );
     }
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-4 py-4 sm:px-6 lg:px-8">
+    <div className="flex flex-col flex-1 min-h-0 bg-tertiary font-sans h-full">
+      <div className="border-b border-fourth pb-5 mb-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold tracking-tight text-gray-800">Dashboard</h2>
+          <h1 className="text-3xl font-bold tracking-tight text-secondary">Dashboard</h1>
           <div className="flex items-center space-x-3 text-sm text-gray-600">
-            <Settings className="h-5 w-5" />
+            <Settings className="h-5 w-5 text-secondary" />
             <span>Role: {user?.role ? user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}</span>
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
-        {renderDashboardByRole()}
-      </div>
+
+      {renderDashboardByRole()}
     </div>
   );
 };
