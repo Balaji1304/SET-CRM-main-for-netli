@@ -22,7 +22,6 @@ import {
   ShoppingBag,
   Bell as BellIcon,
   Settings,
-  MoreHorizontal
 } from 'lucide-react';
 
 const getNavigation = (userRole) => {
@@ -89,32 +88,33 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
   const { user, logout: authLogout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = React.useState(false);
+  const [isHovered, setIsHovered] = React.useState(false); // Manages hover state for desktop sidebar
 
   const navigation = getNavigation(user?.role);
 
   const handleItemClick = (item) => {
-    // Navigate to the new route
-    if (onItemClick && typeof onItemClick === 'function') {
-      onItemClick();
+    if (isMobile && onItemClick && typeof onItemClick === 'function') {
+      onItemClick(); // Close mobile drawer
     }
     navigate(item.href);
   };
 
-  // Handle logout, using the provided onLogout if available
   const handleLogout = () => {
     if (onLogout) {
-      onLogout();
+      onLogout(); // Use provided onLogout if available (e.g., for mobile)
     } else {
       authLogout();
     }
   };
 
-  // Special styling for mobile view
+  // Determine collapsed state: only for desktop and when not hovered
+  const isEffectivelyCollapsed = !isMobile && !isHovered;
+
   if (isMobile) {
+    // Mobile view remains unchanged
     return (
       <div className="h-full bg-white flex flex-col overflow-y-auto">
-        {/* User Profile Header for Mobile - Styled like desktop but for mobile */}
+        {/* User Profile Header for Mobile */}
         <div className="p-4 border-b">
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-full bg-orange-500 flex items-center justify-center text-white">
@@ -127,7 +127,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
           </div>
         </div>
         
-        {/* Navigation Items - Match the desktop styling but with mobile sizing */}
+        {/* Navigation Items - Mobile */}
         <div className="flex-1 py-2">
           <nav className="px-4 space-y-1">
             {navigation.flatMap(section => 
@@ -167,11 +167,11 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
           </nav>
         </div>
         
-        {/* Bottom Actions */}
+        {/* Bottom Actions - Mobile */}
         <div className="border-t mt-auto">
           <div className="px-4 py-2">
             <button
-              onClick={handleLogout}
+              onClick={handleLogout} // Use the unified handleLogout
               className="flex items-center rounded-md py-3 px-4 w-full text-gray-700 hover:bg-gray-50"
             >
               <LogOut className="h-5 w-5 mr-3" />
@@ -183,101 +183,162 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
     );
   }
 
-  // Desktop view
+  // Desktop view - Redesigned
   return (
-    <div className="fixed top-0 left-0 h-screen w-60 bg-slate-800 text-white flex flex-col z-10">
-      {/* Company Logo Section */}
-      <div className="h-20 flex items-center justify-center px-4 border-b border-slate-700">
-        <img src="https://res.cloudinary.com/dcua87ney/image/upload/v1747940426/set-logo.9fc3ca1f3b1472eaca1d_mmqwnt.png" alt="Company Logo" className="h-16 w-auto" /> {/* Replace with your logo path */}
-      </div>
-
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <nav className="flex-1 px-3 py-4">
-          {navigation.map((section) => (
-            <div key={section.title} className="mb-4"> {/* Reduced margin-bottom */}
-              <div className="space-y-1"> {/* Reduced space between items */}
-                {section.items.map((item) => {
-                  const isActive = 
-                    location.pathname === item.href ||
-                    // Handle active state for parent routes as well
-                    (item.href !== '/dashboard' && location.pathname.startsWith(item.href)) ||
-                    (item.href === '/dashboard/quotations' && 
-                     (location.pathname === '/dashboard/quotations/create' || 
-                      location.pathname.startsWith('/dashboard/quotations/view/'))) ||
-                    (item.href === '/dashboard/leads' && 
-                     (location.pathname.startsWith('/dashboard/edit-lead/') ||
-                      location.pathname === '/dashboard/add-lead')) ||
-                    (item.href === '/dashboard/products' && location.pathname.startsWith('/dashboard/products/')) ||
-                    (item.href === '/dashboard/schedule' && location.pathname.startsWith('/dashboard/schedule/'));
-                  
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      onClick={(e) => {
-                        e.preventDefault(); 
-                        handleItemClick(item);
-                      }}
-                      className={`
-                        flex flex-col items-center justify-center rounded-md text-xs font-medium
-                        py-3 px-2 h-auto transition-colors duration-150 ease-in-out
-                        hover:bg-slate-700 
-                        ${isActive ? 'bg-slate-600 text-white' : 'text-slate-300 hover:text-white'}
-                      `}
-                      title={item.name}
-                    >
-                      <item.icon className="h-6 w-6 mb-1 shrink-0" />
-                      <span className="text-center leading-tight">{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
-      </div>
-
-      {/* Profile Section with Pop-up Menu at the bottom */}
-      <div className="border-t border-slate-700 p-3 mt-auto w-full relative">
-        {isProfileMenuOpen && (
-          <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-slate-700 rounded-md shadow-lg z-20 transition-all duration-300 ease-in-out">
-            <button
-              onClick={() => {
-                navigate('/dashboard/settings'); // Placeholder for settings navigation
-                setIsProfileMenuOpen(false);
-              }}
-              className="flex items-center w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-600 rounded-md"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </button>
-            <button
-              onClick={() => {
-                handleLogout();
-                setIsProfileMenuOpen(false);
-              }}
-              className="flex items-center w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-600 rounded-md mt-1"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </button>
-          </div>
+    <div
+      className={`fixed top-0 left-0 h-screen bg-slate-800 text-white flex flex-col z-50 transition-all duration-300 ease-in-out ${isEffectivelyCollapsed ? 'w-20' : 'w-60'}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Company Logo Section - REMOVED AS PER REQUEST
+      <div className={`h-20 flex items-center justify-center px-4 border-b border-slate-700 shrink-0`}>
+        {isEffectivelyCollapsed ? (
+          <img src="https://res.cloudinary.com/dcua87ney/image/upload/v1747940426/set-logo.9fc3ca1f3b1472eaca1d_mmqwnt.png" alt="SET" className="h-10 w-auto" /> // Smaller logo when collapsed
+        ) : (
+          <img src="https://res.cloudinary.com/dcua87ney/image/upload/v1747940426/set-logo.9fc3ca1f3b1472eaca1d_mmqwnt.png" alt="Company Logo" className="h-16 w-auto" />
         )}
-        <button 
-          onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-          className="flex items-center justify-between w-full p-2 hover:bg-slate-700 rounded-md focus:outline-none"
-        >
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-orange-500 flex items-center justify-center text-white text-base font-semibold">
-              {user?.name?.[0]?.toUpperCase() || 'U'}
-            </div>
-            <div className="flex flex-col items-start">
-              <span className="font-medium text-sm leading-tight">{user?.name || 'User Name'}</span>
-              <span className="text-xs text-slate-400 leading-tight">{(user?.role?.replace('_', ' ') || 'User Role').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</span>
+      </div>
+      */}
+
+      {/* Navigation Items */}
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4">
+        {navigation.map((section) => (
+          <div key={section.title || 'main-nav-section'} className="mb-2">
+            <div className="space-y-1">
+              {section.items.map((item) => {
+                const isActive = 
+                  location.pathname === item.href ||
+                  (item.href !== '/dashboard' && location.pathname.startsWith(item.href)) || // General parent route check
+                  (item.href === '/dashboard/quotations' && 
+                   (location.pathname === '/dashboard/quotations/create' || 
+                    location.pathname.startsWith('/dashboard/quotations/view/'))) ||
+                  (item.href === '/dashboard/leads' && 
+                   (location.pathname.startsWith('/dashboard/edit-lead/') ||
+                    location.pathname === '/dashboard/add-lead')) ||
+                  (item.href === '/dashboard/products' && location.pathname.startsWith('/dashboard/products/')) ||
+                  (item.href === '/dashboard/schedule' && location.pathname.startsWith('/dashboard/schedule/'));
+                
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleItemClick(item);
+                    }}
+                    className={`
+                      flex items-center rounded-md py-2.5 text-sm font-medium 
+                      transition-all duration-300 ease-in-out
+                      hover:bg-slate-700 group
+                      ${isActive ? 'bg-slate-600 text-white' : 'text-slate-300 hover:text-white'}
+                      pl-[18px]
+                      ${isEffectivelyCollapsed ? 'pr-[18px]' : 'pr-3'}
+                    `}
+                    title={item.name}
+                  >
+                    <item.icon className={`h-5 w-5 shrink-0`} />
+                    <span className={`
+                      leading-tight whitespace-nowrap overflow-hidden text-ellipsis
+                      transition-all duration-300 ease-in-out
+                      ${isEffectivelyCollapsed ? 'opacity-0 max-w-0 ml-3' : 'opacity-100 max-w-full ml-3'}
+                    `}>
+                      {item.name}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
-          <MoreHorizontal className="h-5 w-5 text-slate-400" />
+        ))}
+      </nav>
+
+      {/* Settings Button */}
+      <div className="px-3 py-2 border-t border-slate-700 shrink-0">
+        <button
+          onClick={() => {
+            navigate('/dashboard/settings');
+          }}
+          className={`
+            flex items-center w-full rounded-md py-2.5 text-sm text-slate-300 
+            transition-all duration-300 ease-in-out
+            hover:bg-slate-700 hover:text-white group
+            pl-[18px]
+            ${isEffectivelyCollapsed ? 'pr-[18px]' : 'pr-3'}
+          `}
+          title="Settings"
+        >
+          <Settings className={`h-5 w-5 shrink-0`} />
+          <span className={`
+            leading-tight whitespace-nowrap
+            transition-all duration-300 ease-in-out
+            ${isEffectivelyCollapsed ? 'opacity-0 max-w-0 ml-3' : 'opacity-100 max-w-full ml-3'}
+          `}>
+            Settings
+          </span>
         </button>
+      </div>
+
+      {/* Logout Button */}
+      <div className="px-3 py-1 pb-2 shrink-0">
+        <button
+          onClick={() => {
+            handleLogout();
+          }}
+          className={`
+            flex items-center w-full rounded-md py-2.5 text-sm text-slate-300 
+            transition-all duration-300 ease-in-out
+            hover:bg-slate-700 hover:text-white group
+            pl-[18px]
+            ${isEffectivelyCollapsed ? 'pr-[18px]' : 'pr-3'}
+          `}
+          title="Logout"
+        >
+          <LogOut className={`h-5 w-5 shrink-0`} />
+          <span className={`
+            leading-tight whitespace-nowrap
+            transition-all duration-300 ease-in-out
+            ${isEffectivelyCollapsed ? 'opacity-0 max-w-0 ml-3' : 'opacity-100 max-w-full ml-3'}
+          `}>
+            Logout
+          </span>
+        </button>
+      </div>
+
+      {/* Profile Section */}
+      <div className="border-t border-slate-700 shrink-0 h-[76px] px-3 flex items-center">
+        <div // Interactive row for profile (avatar + text)
+          className={`flex items-center w-full 
+                      transition-all duration-300 ease-in-out
+                      pl-[10px]
+                      ${isEffectivelyCollapsed ? 'pr-[10px]' : 'pr-3'}
+                     `}
+        >
+          <div 
+            className={`h-9 w-9 rounded-full bg-orange-500 flex items-center justify-center text-white text-base font-semibold shrink-0 cursor-pointer`}
+            onClick={() => !isEffectivelyCollapsed && navigate('/dashboard/settings')}
+            title={isEffectivelyCollapsed ? (user?.name || 'User Profile') : 'View Profile / Settings'}
+          >
+            {user?.name?.[0]?.toUpperCase() || 'U'}
+          </div>
+          <div className={`
+            flex flex-col items-start overflow-hidden min-w-0
+            transition-all duration-300 ease-in-out
+            ${isEffectivelyCollapsed ? 'opacity-0 max-w-0 ml-3' : 'opacity-100 max-w-full ml-3'}
+          `}>
+            <span 
+              className="font-medium text-sm leading-tight whitespace-nowrap truncate w-full" 
+              title={user?.name || 'User Name'}
+            >
+              {user?.name || 'User Name'}
+            </span>
+            <span 
+              className="text-xs text-slate-400 leading-tight whitespace-nowrap truncate w-full" 
+              title={(user?.role?.replace('_', ' ') || 'User Role').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+            >
+              {(user?.role?.replace('_', ' ') || 'User Role').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
