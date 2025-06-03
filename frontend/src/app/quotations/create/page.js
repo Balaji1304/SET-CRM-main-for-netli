@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader2, ChevronDown } from 'lucide-react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { createQuotation } from '../../../services/quotationService';
 import { getLeads } from '../../../services/leadService';
@@ -20,11 +20,12 @@ export default function CreateQuotationPage() {
       unitPrice: '',
       discount: ''
     }],
-    terms: '',
-    notes: '',
-    advancePaymentPercentage: 20 // Default to 20%
+    terms: "1. Payment Terms: 50% advance payment, 50% upon completion of services/delivery of goods.\n2. Quotation Validity: This quotation is valid for 30 days from the date of issue.\n3. All disputes are subject to [Your City/Region] jurisdiction.",
+    notes: "We appreciate your interest in our services/products. Please feel free to contact us if you have any questions or require further clarification. We look forward to the opportunity to work with you.",
+    advancePaymentPercentage: 20
   });
   const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -33,38 +34,36 @@ export default function CreateQuotationPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      // Fetch leads and all products in parallel
+      setError(null);
       const [leadsData, productsData] = await Promise.all([
         getLeads(),
         getProducts()
       ]).catch(error => {
-        throw new Error(`Failed to fetch data: ${error.message}`);
+        console.error("Error fetching initial data for create quotation:", error);
+        throw new Error(`Failed to fetch essential data: ${error.message}`);
       });
 
       if (!leadsData.success) {
         throw new Error(leadsData.message || 'Failed to fetch leads');
       }
 
-        // Map leads with their associated products
-        setLeads(leadsData.data.map(lead => ({
-          ...lead,
-          products: lead.products.map(product => ({
-            id: product.productId._id,
-            name: product.productId.name,
-            price: product.price,
-            quantity: product.quantity
-          }))
-        })));
+      setLeads(leadsData.data.map(lead => ({
+        ...lead,
+        products: lead.products.map(product => ({
+          id: product.productId._id,
+          name: product.productId.name,
+          price: product.price,
+          quantity: product.quantity
+        }))
+      })));
 
       if (!productsData.success) {
         throw new Error(productsData.message || 'Failed to fetch products');
       }
-
-      // Store all products for the product dropdown
       setAllProducts(productsData.data);
     } catch (error) {
       console.error('Error fetching data:', error);
-      alert(`Error loading data: ${error.message}`);
+      setError(`Error loading initial data: ${error.message}. Please try refreshing or contact support if the issue persists.`);
     } finally {
       setLoading(false);
     }
@@ -94,43 +93,30 @@ export default function CreateQuotationPage() {
       ...prev,
       items: prev.items.map((item, i) => {
         if (i === index) {
+          let updatedItem = { ...item };
           if (field === 'productId') {
-            // Check if it's a lead product first
-            const selectedLead = leads.find(lead => lead._id === formData.leadId);
+            updatedItem.productId = value;
+            const selectedLead = leads.find(lead => lead._id === prev.leadId);
             const leadProduct = selectedLead?.products.find(p => p.id === value);
             
-            // If it's a lead product, use that data
             if (leadProduct) {
-              return {
-                ...item,
-                productId: value,
-                unitPrice: parseFloat(leadProduct.price) || 0,
-                quantity: parseInt(leadProduct.quantity) || 1
-              };
-            } 
-            // Otherwise, look in all products
-            else {
+              updatedItem.unitPrice = parseFloat(leadProduct.price) || 0;
+              updatedItem.quantity = parseInt(leadProduct.quantity) || 1;
+            } else {
               const product = allProducts.find(p => p._id === value);
-            return {
-              ...item,
-              productId: value,
-                // Only set defaults if they're empty
-                unitPrice: item.unitPrice === '' ? (product?.price || 0) : item.unitPrice,
-                quantity: item.quantity === '' ? 1 : item.quantity
-            };
+              updatedItem.unitPrice = product?.price || 0;
+              updatedItem.quantity = item.quantity === '' ? 1 : item.quantity;
             }
+          } else if (field === 'quantity') {
+            updatedItem.quantity = value ? parseInt(value) : '';
+          } else if (field === 'unitPrice') {
+            updatedItem.unitPrice = value ? parseFloat(value) : '';
+          } else if (field === 'discount') {
+            updatedItem.discount = value === '' ? '' : (parseInt(value) >= 0 && parseInt(value) <= 100 ? parseInt(value) : item.discount);
+          } else {
+            updatedItem[field] = value;
           }
-          // Ensure proper data types for numeric fields
-          if (field === 'quantity') {
-            value = value ? parseInt(value) : '';
-          }
-          if (field === 'unitPrice') {
-            value = value ? parseFloat(value) : '';
-          }
-          if (field === 'discount') {
-            value = value ? parseInt(value) : 0;
-          }
-          return { ...item, [field]: value };
+          return updatedItem;
         }
         return item;
       })
@@ -140,33 +126,61 @@ export default function CreateQuotationPage() {
   const handleLeadSelect = (leadId) => {
     const selectedLead = leads.find(lead => lead._id === leadId);
     if (selectedLead) {
-      // Use the lead's interested products to pre-populate the quotation items
       setFormData(prev => ({
         ...prev,
         leadId,
         items: selectedLead.products.length > 0 
           ? selectedLead.products.map(product => ({
-          productId: product.id,
+              productId: product.id,
               quantity: parseInt(product.quantity) || 1,
               unitPrice: parseFloat(product.price) || 0,
-          discount: 0
-        }))
+              discount: 0
+            }))
           : [{ productId: '', quantity: '', unitPrice: '', discount: '' }]
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        leadId: '',
+        items: [{ productId: '', quantity: '', unitPrice: '', discount: '' }]
       }));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null); 
+    setIsSubmitting(true);
+
+    if (!formData.leadId) {
+      setError("Please select a lead.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.items.some(item => !item.productId || item.quantity === '' || item.unitPrice === '')) {
+      setError("Please ensure all item fields (Product, Quantity, Price) are filled for each item.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.items.some(item => parseFloat(item.quantity) <= 0 || parseFloat(item.unitPrice) < 0)) {
+      setError("Quantity must be positive and price must not be negative.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (!formData.advancePaymentPercentage || formData.advancePaymentPercentage < 1 || formData.advancePaymentPercentage > 100) {
+        setError("Advance Payment Percentage must be between 1 and 100.");
+        setIsSubmitting(false);
+        return;
+    }
+
     try {
-      // Format the data to match server expectations with new format
       const formattedData = {
         leadId: formData.leadId,
         quotationItems: formData.items.map(item => ({
           productId: item.productId,
           quantity: parseInt(item.quantity),
           unitPrice: parseFloat(item.unitPrice),
-          discount: parseInt(item.discount) || 0
+          discount: item.discount === '' ? 0 : parseInt(item.discount)
         })),
         terms: formData.terms || '',
         notes: formData.notes || '',
@@ -176,299 +190,348 @@ export default function CreateQuotationPage() {
       const response = await createQuotation(formattedData);
       
       if (response.success) {
-        navigate('/dashboard/quotations');
+        navigate('/dashboard/quotations', { state: { toastMessage: 'Quotation created successfully!' } });
       } else {
+        setError(response.message || 'Failed to create quotation. Please check your input and try again.');
         console.error('Error creating quotation:', response.message);
       }
     } catch (error) {
       console.error('Error creating quotation:', error);
-      // Add error handling
-      setError('Failed to create quotation. Please try again.');
+      setError(`Failed to create quotation: ${error.message || 'An unexpected error occurred.'}`);
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+  
+  const calculateTotalAmount = () => {
+    return formData.items.reduce((total, item) => {
+      const quantity = parseFloat(item.quantity) || 0;
+      const unitPrice = parseFloat(item.unitPrice) || 0;
+      const discount = parseFloat(item.discount) || 0;
+      if (quantity > 0 && unitPrice >= 0) {
+        const itemTotal = quantity * unitPrice;
+        const discountAmount = itemTotal * (discount / 100);
+        return total + (itemTotal - discountAmount);
+      }
+      return total;
+    }, 0);
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading...</div>;
+    return (
+      <div className="flex flex-col flex-1 items-center justify-center min-h-[calc(100vh-var(--header-height,150px))] p-6 bg-tertiary">
+        <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+        <p className="text-lg text-secondary">Loading data...</p>
+      </div>
+    );
+  }
+  
+  if (error && !leads.length && !allProducts.length) {
+     return (
+      <div className="flex flex-col flex-1 items-center justify-center min-h-[calc(100vh-var(--header-height,150px))] p-6 bg-tertiary text-center">
+        <svg className="w-12 h-12 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <p className="text-lg font-semibold text-red-600 mb-2">Error Loading Page Data</p>
+        <p className="text-sm text-secondary mb-4">{error}</p>
+        <button 
+          onClick={fetchData}
+          className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+        >
+          Try Again
+        </button>
+      </div>
+    );
   }
 
   const selectedLead = leads.find(lead => lead._id === formData.leadId);
 
   return (
-    <div className="flex flex-col min-h-0">
+    <div className="flex flex-col flex-1 h-full">
       {/* Header Section */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowConfirmDialog(true)}
-              className="p-2 hover:bg-gray-100 rounded-md"
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <h2 className="text-3xl font-bold tracking-tight">Create Quotation</h2>
+      <div className="border-b border-fourth pb-4 mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowConfirmDialog(true)}
+            className="p-2 rounded-md hover:bg-fourth text-secondary"
+            aria-label="Back to quotations"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-secondary">Create Quotation</h1>
           </div>
-          <p className="text-muted-foreground mt-1">Create a new quotation for a lead</p>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="bg-white rounded-lg shadow-sm flex-1">
-        <div className="p-6">
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Error display */}
-            {error && (
-              <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
-                <p>{error}</p>
-              </div>
-            )}
+      {/* Main Content Card */}
+      <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
+        <form onSubmit={handleSubmit} id="create-quotation-form" className="p-6 md:p-8 space-y-6 md:space-y-8 overflow-y-auto flex-1">
+          {error && (leads.length > 0 || allProducts.length > 0) && (
+            <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 border border-red-300 rounded-lg flex items-start gap-2">
+              <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path></svg>
+              <span>{error}</span>
+            </div>
+          )}
             
-            {/* Lead Selection */}
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <h2 className="text-lg font-medium text-foreground">Lead Information</h2>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Select Lead <span className="text-red-500">*</span>
-                </label>
+          {/* Lead Selection Section */}
+          <section>
+            <h2 className="text-xl font-semibold text-secondary border-b border-fourth pb-2 mb-4">Lead Information</h2>
+            <div>
+              <label htmlFor="leadId" className="block text-sm font-medium text-gray-700 mb-1">
+                Select Lead <span className="text-red-500">*</span>
+              </label>
+              <div className="relative mt-1">
                 <select
+                  id="leadId"
+                  name="leadId"
                   value={formData.leadId}
                   onChange={(e) => handleLeadSelect(e.target.value)}
-                  className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm appearance-none text-secondary"
                   required
                 >
                   <option value="">Select a lead</option>
                   {leads.map(lead => (
                     <option key={lead._id} value={lead._id}>
-                      {lead.firstName} {lead.lastName} - {lead.businessName}
+                      {lead.firstName} {lead.lastName} - {lead.businessName || 'N/A'} ({lead.products.length} interested product(s))
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
               </div>
             </div>
+          </section>
 
-            {/* Items */}
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-medium text-foreground">Items</h2>
-                <button
-                  type="button"
-                  onClick={handleAddItem}
-                  className="flex items-center gap-2 text-orange-500 hover:text-orange-600"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Item
-                </button>
-              </div>
+          {/* Items Section */}
+          <section>
+            <div className="flex items-center justify-between mb-4 border-b border-fourth pb-2">
+              <h2 className="text-xl font-semibold text-secondary">Items</h2>
+            </div>
 
-              <div className="space-y-4">
-                {formData.items.map((item, index) => (
-                  <div key={index} className="flex flex-col md:flex-row gap-4 mb-4 p-4 border rounded-lg bg-white">
-                    <div className="w-full md:flex-1 mb-4 md:mb-0">
-                      <label className="block text-sm font-medium mb-1">
-                        Product <span className="text-red-500">*</span>
-                      </label>
+            <div className="space-y-4">
+              {formData.items.map((item, index) => (
+                <div key={index} className="p-4 border border-fourth rounded-lg md:grid md:grid-cols-12 md:gap-x-4 md:gap-y-2 md:items-end bg-white shadow-sm space-y-3 md:space-y-0">
+                  {/* Product Select */}
+                  <div className="md:col-span-4">
+                    <label htmlFor={`product_id_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
+                      Product <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative mt-1">
                       <select
+                        id={`product_id_${index}`}
                         value={item.productId}
                         onChange={(e) => handleItemChange(index, 'productId', e.target.value)}
-                        className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm appearance-none text-secondary"
                         required
+                        disabled={!formData.leadId && !allProducts.length}
                       >
                         <option value="">Select Product</option>
-                        {/* Lead's interested products at the top */}
                         {selectedLead?.products.length > 0 && (
                           <optgroup label="Lead's Interested Products">
                             {selectedLead.products.map(product => (
-                          <option key={product.id} value={product.id}>
-                            {product.name}
-                          </option>
-                        ))}
+                              <option key={product.id} value={product.id}>
+                                {product.name}
+                              </option>
+                            ))}
                           </optgroup>
                         )}
-                        {/* All other products */}
-                        <optgroup label="All Products">
+                        <optgroup label={selectedLead?.products.length > 0 ? "All Other Products" : "All Products"}>
                           {allProducts
-                            .filter(product => !selectedLead?.products.some(p => p.id === product._id))
+                            .filter(p => !selectedLead?.products.some(sp => sp.id === p._id))
                             .map(product => (
                               <option key={product._id} value={product._id}>
-                                {product.name}
+                                {product.name} ({product.category})
                               </option>
                             ))}
                         </optgroup>
                       </select>
+                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
                     </div>
+                  </div>
 
-                    <div className="w-full md:w-32 mb-4 md:mb-0">
-                      <label className="block text-sm font-medium mb-1">
-                        Quantity <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))}
-                        min="1"
-                        placeholder="Qty"
-                        className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
+                  {/* Quantity Input */}
+                  <div className="md:col-span-2">
+                    <label htmlFor={`quantity_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantity <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      id={`quantity_${index}`}
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                      min="1"
+                      placeholder="Qty"
+                      className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400"
+                      required
+                    />
+                  </div>
 
-                    <div className="w-full md:w-40 mb-4 md:mb-0">
-                      <label className="block text-sm font-medium mb-1">
-                        Price <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="number"
-                        value={item.unitPrice}
-                        onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value))}
-                        min="0"
-                        step="0.01"
-                        placeholder="Price"
-                        className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
+                  {/* Unit Price Input */}
+                  <div className="md:col-span-2">
+                    <label htmlFor={`unit_price_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
+                      Unit Price <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      id={`unit_price_${index}`}
+                      value={item.unitPrice}
+                      onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      placeholder="Price"
+                      className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400"
+                      required
+                    />
+                  </div>
 
-                    <div className="w-full md:w-24 mb-4 md:mb-0">
-                      <label className="block text-sm font-medium mb-1">
-                        Discount
-                      </label>
-                      <input
-                        type="number"
-                        value={item.discount}
-                        onChange={(e) => handleItemChange(index, 'discount', parseInt(e.target.value))}
-                        min="0"
-                        max="100"
-                        placeholder="%"
-                        className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                      />
-                    </div>
-
+                  {/* Discount Input */}
+                  <div className="md:col-span-2">
+                    <label htmlFor={`discount_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
+                      Discount (%)
+                    </label>
+                    <input
+                      type="number"
+                      id={`discount_${index}`}
+                      value={item.discount}
+                      onChange={(e) => handleItemChange(index, 'discount', e.target.value)}
+                      min="0"
+                      max="100"
+                      placeholder="e.g. 10"
+                      className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400"
+                    />
+                  </div>
+                  
+                  {/* Remove Item Button */}
+                  <div className="md:col-span-2 flex items-end justify-end">
                     {formData.items.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(index)}
-                        className="w-full md:w-auto p-3 md:mt-6 text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center gap-2"
+                        className="p-2 text-red-500 hover:bg-red-100/50 rounded-lg transition-colors duration-150 w-full md:w-auto mt-4 md:mt-0 flex items-center justify-center gap-1.5"
+                        aria-label="Remove item"
                       >
-                        <Trash2 className="h-5 w-5" />
-                        <span className="md:hidden">Remove Item</span>
+                        <Trash2 className="h-4 w-4" />
+                        <span className="md:hidden text-sm">Remove</span>
                       </button>
                     )}
                   </div>
-                ))}
-
-                {/* Add Item Button */}
-                <button
-                  type="button"
-                  onClick={handleAddItem}
-                  className="w-full p-4 text-orange-500 hover:bg-orange-50 rounded-lg border-2 border-dashed border-orange-200 flex items-center justify-center gap-2"
-                >
-                  <Plus className="h-5 w-5" />
-                  Add Another Item
-                </button>
-              </div>
-            </div>
-
-            {/* Total Amount Display */}
-            <div className="flex justify-end border-t border-input pt-4 mt-6">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground">Total Amount:</span>
-                <span className="text-lg font-semibold text-orange-600">
-                  ₹{formData.items.reduce((total, item) => {
-                    if (item.quantity && item.unitPrice) {
-                      const itemTotal = item.quantity * item.unitPrice;
-                      const discount = item.discount ? (itemTotal * item.discount / 100) : 0;
-                      return total + (itemTotal - discount);
-                    }
-                    return total;
-                  }, 0).toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-
-            {/* Additional Information */}
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <h2 className="text-lg font-medium text-foreground">Additional Information</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Terms
-                  </label>
-                  <textarea
-                    value={formData.terms}
-                    onChange={(e) => setFormData(prev => ({ ...prev, terms: e.target.value }))}
-                    rows="4"
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical"
-                    placeholder="Enter terms and conditions for this quotation..."
-                  />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">
-                    Notes
-                  </label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    rows="4"
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical"
-                    placeholder="Enter any additional notes for the client..."
-                  />
-                </div>
-              </div>
+              ))}
               
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Advance Payment Percentage <span className="text-red-500">*</span>
-                </label>
-                <div className="flex items-center">
-                  <input
-                    type="number"
-                    value={formData.advancePaymentPercentage}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value);
-                      if (!isNaN(value) && value >= 1 && value <= 100) {
-                        setFormData(prev => ({ ...prev, advancePaymentPercentage: value }));
-                      }
-                    }}
-                    min="1"
-                    max="100"
-                    className="w-24 px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    required
-                  />
-                  <span className="ml-2">%</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Minimum advance payment required from client before approval (1-100%)</p>
-              </div>
-            </div>
-
-            {/* Form Actions */}
-            <div className="sticky bottom-0 left-0 right-0 flex justify-end space-x-4 pt-4 pb-4 border-t border-input bg-white">
+              {/* Add Another Item Button (Full Width Dashed) */}
               <button
                 type="button"
-                onClick={() => setShowConfirmDialog(true)}
-                className="px-6 py-2 border border-input rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+                onClick={handleAddItem}
+                className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-primary/50 text-primary rounded-lg hover:bg-primary/10 hover:border-primary transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-6 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Create Quotation
+                <Plus className="w-5 h-5" /> Add Another Item
               </button>
             </div>
-          </form>
+          </section>
+
+          {/* Total Amount Display */}
+          <div className="flex justify-end items-center border-t border-fourth pt-4 mt-6">
+            <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+            <span className="text-xl font-bold text-primary ml-2">
+              ₹{calculateTotalAmount().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+
+          {/* Additional Information Section */}
+          <section>
+            <h2 className="text-xl font-semibold text-secondary border-b border-fourth pb-2 mb-4">Additional Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="terms" className="block text-sm font-medium text-gray-700 mb-1">
+                  Terms & Conditions
+                </label>
+                <textarea
+                  id="terms"
+                  name="terms"
+                  value={formData.terms}
+                  onChange={(e) => setFormData(prev => ({ ...prev, terms: e.target.value }))}
+                  rows="5"
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400 resize-vertical"
+                  placeholder="Enter terms and conditions..."
+                />
+              </div>
+              <div>
+                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes for Client
+                </label>
+                <textarea
+                  id="notes"
+                  name="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                  rows="5"
+                  className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400 resize-vertical"
+                  placeholder="Enter any additional notes..."
+                />
+              </div>
+            </div>
+            
+            <div className="mt-6">
+              <label htmlFor="advancePaymentPercentage" className="block text-sm font-medium text-gray-700 mb-1">
+                Advance Payment Percentage <span className="text-red-500">*</span>
+              </label>
+              <div className="flex items-center mt-1">
+                <input
+                  type="number"
+                  id="advancePaymentPercentage"
+                  name="advancePaymentPercentage"
+                  value={formData.advancePaymentPercentage}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const parsedValue = parseInt(value);
+                    if (value === '' || (!isNaN(parsedValue) && parsedValue >= 1 && parsedValue <= 100)) {
+                       setFormData(prev => ({ ...prev, advancePaymentPercentage: value === '' ? '' : parsedValue }));
+                    } else if (value !== '' && (isNaN(parsedValue) || parsedValue < 1 || parsedValue > 100)) {
+                    }
+                  }}
+                  min="1"
+                  max="100"
+                  className="w-24 px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400"
+                  required
+                />
+                <span className="ml-2 text-secondary">%</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Minimum advance payment required (1-100%). Default is 20%.</p>
+            </div>
+          </section>
+        </form>
+
+        {/* Form Actions (Sticky Footer) */}
+        <div className="bg-tertiary/80 backdrop-blur-sm border-t border-fourth p-4 flex justify-end space-x-3 rounded-b-lg">
+          <button
+            type="button"
+            onClick={() => setShowConfirmDialog(true)}
+            className="px-5 py-2.5 border border-fourth rounded-lg text-sm font-medium text-secondary hover:bg-fourth transition-colors duration-150 ease-in-out"
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="create-quotation-form"
+            onClick={handleSubmit}
+            className="px-5 py-2.5 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
+            disabled={isSubmitting || loading}
+          >
+            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Creating...</> : 'Create Quotation'}
+          </button>
         </div>
       </div>
 
       <ConfirmDialog
         isOpen={showConfirmDialog}
         onClose={() => setShowConfirmDialog(false)}
-        onConfirm={() => navigate('/dashboard/quotations')}
-        title="Discard Changes"
-        message="Are you sure you want to discard this quotation? All changes will be lost."
+        onConfirm={() => { 
+          setShowConfirmDialog(false); 
+          navigate('/dashboard/quotations');
+        }}
+        title="Discard Quotation"
+        message="Are you sure you want to discard this new quotation? All entered information will be lost."
+        confirmText="Yes, Discard"
+        isDestructive={true}
       />
     </div>
   );

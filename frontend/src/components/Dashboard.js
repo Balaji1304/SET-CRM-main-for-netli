@@ -149,7 +149,7 @@ const Dashboard = () => {
         {renderCommonCard('Quotations (Sent)', formatNumber(summaryData.quotationStats?.sent || 0), <FileText />)}
         {renderCommonCard('Quotations (Approved)', formatNumber(summaryData.quotationStats?.approved || 0), <FileText />)}
         {renderCommonCard('Low Stock Items', summaryData.lowStockItems, <PackageSearch className="text-red-500" />, 'Count of items below threshold')}
-      </div>
+            </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {renderSection("Recent Activity", <Clock />, 
           <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
@@ -174,7 +174,7 @@ const Dashboard = () => {
         {renderCommonCard('My Open Tickets', formatNumber(summaryData.myOpenTickets), <Ticket />)}
         {renderCommonCard('My Active Purchases', formatNumber(summaryData.myRecentOrdersCount), <ShoppingCart />)}
         {renderCommonCard('My Active Quotations', formatNumber(summaryData.myActiveQuotations), <FileText />)}
-      </div>
+            </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {renderSection("Recent Account Activity", <Clock />, 
           <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
@@ -221,7 +221,7 @@ const Dashboard = () => {
         {renderCommonCard('Total Product Definitions', formatNumber(summaryData.totalProducts), <Package />)}
         {renderCommonCard('Low Stock Items', summaryData.lowStockItemsCount, <PackageSearch className="text-red-500" /> ,'Requires inventory tracking module')}
         {renderCommonCard('Recent Product Updates', summaryData.recentProductUpdatesCount, <ListChecks />, 'Based on definition changes')}
-      </div>
+            </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {renderSection("Inventory Activity Log", <Clock />, 
           <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
@@ -243,7 +243,7 @@ const Dashboard = () => {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 mb-6">
         {renderCommonCard('My Active Assigned Tasks', formatNumber(summaryData.myAssignedCustomerTasks), <UserCog />)}
         {renderCommonCard('Avg. Task Resolution Time', summaryData.avgResolutionTime, <CheckCircle2 />)}
-      </div>
+              </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {renderSection("My Service Activity", <Clock />, 
           <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
@@ -290,7 +290,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {renderDashboardByRole()}
+        {renderDashboardByRole()}
     </div>
   );
 };

@@ -244,7 +244,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     };
     return classes[status] || 'bg-gray-100 text-gray-700 border border-gray-300';
   };
-  
+
   const showToast = (message) => {
     setSuccessToast({ show: true, message });
     setTimeout(() => setSuccessToast({ show: false, message: '' }), 3000);
@@ -252,7 +252,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
   const handleAction = async (actionFn, quotationId, successMessage, updateLocalState) => {
     setLoadingAction(prev => ({ ...prev, [quotationId]: true }));
-    setActionInProgress(true);
+      setActionInProgress(true);
     try {
       const response = await actionFn(quotationId);
       if (response.success) {
@@ -361,7 +361,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       </div>
     );
   };
-  
+
   const filteredQuotations = quotations.filter(quotation => {
     const searchTermLower = searchTerm.toLowerCase();
     const matchesSearch = searchTerm === '' || 
@@ -392,16 +392,16 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
         <p className="text-lg font-semibold text-red-600 mb-2">Error Fetching Quotations</p>
         <p className="text-sm text-secondary mb-4">{error}</p>
-        <button 
+      <button
           onClick={fetchQuotationsCallback} 
           className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
         >
           Try Again
-        </button>
+      </button>
       </div>
     );
   }
-  
+
   return (
     // Root div of QuotationsTable: No card styling here, parent (QuotationsPage.js) provides it.
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -420,7 +420,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       <div className="overflow-x-auto flex-1 relative">
         <table className="min-w-full divide-y divide-fourth">
           <thead className="bg-gray-50 sticky top-0 z-10">
-            <tr>
+          <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Quotation #</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Lead Name</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Total Amount</th>
@@ -429,14 +429,14 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Valid Until</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Items</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
+          </tr>
+        </thead>
           <tbody className="bg-tertiary divide-y divide-fourth">
             {currentQuotations.length === 0 && !loading ? (
                 <tr>
                     <td colSpan={8} className="px-6 py-12 text-center text-secondary">
                     No quotations found matching your criteria.
-                    </td>
+              </td>
                 </tr>
             ) : (
                 currentQuotations.map((quotation) => (
@@ -444,37 +444,37 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-secondary">{quotation.quotationNumber}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {quotation.lead ? `${quotation.lead.firstName} ${quotation.lead.lastName}` : 'N/A'}
-                    </td>
+              </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(quotation.status)}`}>
                         {formatDisplayValue(quotation.status)}
-                        </span>
-                    </td>
+                </span>
+              </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {formatDisplayValue(quotation.advancePaymentStatus) || 'Not Applicable'}
-                    </td>
+              </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {new Date(quotation.validUntil).toLocaleDateString('en-GB')}
-                    </td>
+              </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {quotation.quotationItems ? `${quotation.quotationItems.length} item${quotation.quotationItems.length !== 1 ? 's' : ''}` : '0 items'}
-                    </td>
+              </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
-                        <button
-                            onClick={() => navigate(`/dashboard/quotations/${quotation._id}`)}
+                  <button
+                    onClick={() => navigate(`/dashboard/quotations/${quotation._id}`)}
                             className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
                             title="View Quotation"
-                        >
+                  >
                             <FileText className="w-4 h-4" />
-                        </button>
-                        {quotation.status === 'draft' && (
-                            <>
-                            <button
-                                onClick={() => navigate(`/dashboard/quotations/${quotation._id}/edit`)}
+                  </button>
+                  {quotation.status === 'draft' && (
+                    <>
+                      <button
+                        onClick={() => navigate(`/dashboard/quotations/${quotation._id}/edit`)}
                                 className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
                                 title="Edit Quotation"
                                 disabled={loadingAction[quotation._id]}
@@ -486,51 +486,51 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                                 className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
                                 title="Send Quotation"
                                 disabled={loadingAction[quotation._id]}
-                            >
+                      >
                                 {loadingAction[quotation._id] && confirmDialogProps.onConfirm?.toString().includes('handleSendQuotation') ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Send className="w-4 h-4" />}
-                            </button>
-                            </>
-                        )}
-                        {quotation.status === 'sent' && (
-                            <>
-                            {quotation.advancePaymentStatus !== 'CONFIRMED' && (
-                                <button
-                                onClick={() => {
+                      </button>
+                    </>
+                  )}
+                  {quotation.status === 'sent' && (
+                    <>
+                      {quotation.advancePaymentStatus !== 'CONFIRMED' && (
+                        <button
+                          onClick={() => {
                                     setSelectedQuotationForPayment(quotation);
-                                    setShowPaymentModal(true);
+                            setShowPaymentModal(true);
                                     setPaymentError(''); // Clear previous payment errors
-                                }}
+                          }}
                                 className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
-                                title="Confirm Offline Payment"
-                                >
+                          title="Confirm Offline Payment"
+                        >
                                 <DollarSign className="w-4 h-4" />
-                                </button>
-                            )}
-                            <button
+                        </button>
+                      )}
+                          <button
                                 onClick={() => openConfirmDialog('Are you sure you want to mark this quotation as approved?', () => handleApproveQuotation(quotation._id))}
                                 className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
-                                title="Approve Quotation"
+                            title="Approve Quotation"
                                 disabled={loadingAction[quotation._id] || quotation.advancePaymentStatus === 'CONFIRMED'}
-                            >
+                          >
                                 <Check className="w-4 h-4" />
-                            </button>
-                            <button
+                          </button>
+                          <button
                                 onClick={() => openConfirmDialog('Are you sure you want to close this quotation? This usually means the lead did not accept it.', () => handleCloseQuotation(quotation._id))}
                                 className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
-                                title="Close Quotation"
+                            title="Close Quotation"
                                 disabled={loadingAction[quotation._id]}
-                            >
+                          >
                                 <X className="w-4 h-4" />
-                            </button>
-                            </>
-                        )}
-                        </div>
-                    </td>
-                    </tr>
+                          </button>
+                    </>
+                  )}
+                </div>
+              </td>
+            </tr>
                 ))
             )}
-          </tbody>
-        </table>
+        </tbody>
+      </table>
       </div>
 
       {/* Pagination */}
@@ -538,27 +538,27 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         <div className="px-6 py-3 border-t border-fourth bg-tertiary flex items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm">
           <div className="text-sm text-gray-600">
             Showing {Math.min(startIndex + 1, filteredQuotations.length)} to {Math.min(endIndex, filteredQuotations.length)} of {filteredQuotations.length} results
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
               className="p-2 border border-fourth rounded-md text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fourth transition-colors duration-150 ease-in-out"
-            >
+          >
               <ChevronLeft className="w-4 h-4" />
-            </button>
+          </button>
             <span className="text-sm text-gray-600"> 
               Page {currentPage} of {totalPages}
             </span>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
               className="p-2 border border-fourth rounded-md text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fourth transition-colors duration-150 ease-in-out"
-            >
+          >
               <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          </button>
         </div>
+      </div>
       )}
       {/* Success Toast */} 
       {successToast.show && (

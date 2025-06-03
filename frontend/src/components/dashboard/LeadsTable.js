@@ -162,29 +162,29 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '', sourceF
       <div className="overflow-x-auto flex-1 relative">
         <table className="min-w-full divide-y divide-fourth">
           <thead className="bg-gray-50 sticky top-0 z-10">
-            <tr>
-              {[
-                'Full Name',
-                'Phone Number',
-                'Email',
-                'Business Name',
-                'Customer Type',
-                'Status',
-                'Source',
+                  <tr>
+                    {[
+                      'Full Name',
+                      'Phone Number',
+                      'Email',
+                      'Business Name',
+                      'Customer Type',
+                      'Status',
+                      'Source',
                 'Budget (Est.)',
-                'Created Date',
-                'Actions'
-              ].map((header) => (
-                <th
-                  key={header}
+                      'Created Date',
+                      'Actions'
+                    ].map((header) => (
+                      <th
+                        key={header}
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider"
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
           <tbody className="bg-tertiary divide-y divide-fourth">
             {currentLeads.length === 0 && !loading ? (
               <tr>
@@ -194,64 +194,64 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '', sourceF
               </tr>
             ) : (
               currentLeads.map((lead) => (
-                <tr
+                    <tr
                   key={lead._id || lead.id}
                   className="hover:bg-gray-50 transition-colors duration-150 ease-in-out"
-                >
+                    >
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-secondary">
-                    {`${lead.firstName} ${lead.lastName}`}
-                  </td>
+                        {`${lead.firstName} ${lead.lastName}`}
+                      </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{lead.phone}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{lead.email}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{lead.businessName}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {formatEnumValue(lead.customerType)}
-                  </td>
+                        {formatEnumValue(lead.customerType)}
+                      </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                       ${ lead.status === 'pending' ? 'bg-yellow-100 text-yellow-800'
                        : lead.status === 'closed' ? 'bg-green-100 text-green-800'
                        : lead.status === 'active' || lead.status === 'in_progress' ? 'bg-blue-100 text-blue-800'
                        : 'bg-gray-100 text-gray-800'
-                      }`}>
-                      {formatEnumValue(lead.status)}
-                    </span>
-                  </td>
+                          }`}>
+                          {formatEnumValue(lead.status)}
+                        </span>
+                      </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {formatEnumValue(lead.source)}
-                  </td>
+                        {formatEnumValue(lead.source)}
+                      </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    ₹{lead.products?.reduce((total, product) => 
+                        ₹{lead.products?.reduce((total, product) => 
                       total + ((parseFloat(product.quantity) || 0) * (parseFloat(product.price) || 0)), 
                     0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
-                  </td>
+                      </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {new Date(lead.dateCollected).toLocaleDateString('en-GB')}
-                  </td>
+                      </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-3">
-                      <button
-                        onClick={() => handleEdit(lead)}
+                          <button
+                            onClick={() => handleEdit(lead)}
                         className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
-                        title="Edit Lead"
-                      >
+                            title="Edit Lead"
+                          >
                         <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(lead)}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(lead)}
                         className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
-                        title="Delete Lead"
-                      >
+                            title="Delete Lead"
+                          >
                         <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
               ))
             )}
-          </tbody>
-        </table>
-      </div>
+                </tbody>
+              </table>
+            </div>
 
       {totalPages > 0 && (
          <div className="px-6 py-3 border-t border-fourth bg-tertiary flex items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm">
@@ -259,34 +259,34 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '', sourceF
             Showing {Math.min(startIndex + 1, filteredLeads.length)} to {Math.min(endIndex, filteredLeads.length)} of {filteredLeads.length} results
           </div>
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
               className="p-2 border border-fourth rounded-md text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fourth transition-colors duration-150 ease-in-out"
-            >
+              >
               <ChevronLeft className="w-4 h-4" />
-            </button>
+              </button>
             <span className="text-sm text-gray-600"> 
               Page {currentPage} of {totalPages}
             </span>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
               className="p-2 border border-fourth rounded-md text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fourth transition-colors duration-150 ease-in-out"
-            >
+              >
               <ChevronRight className="w-4 h-4" />
-            </button>
+              </button>
+            </div>
           </div>
-        </div>
       )}
 
-      {showSuccessToast && (
+          {showSuccessToast && (
         <div className="fixed bottom-5 right-5 bg-primary text-tertiary px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ease-in-out z-50">
           {successMessage}
-        </div>
-      )}
+            </div>
+          )}
 
-      {isDeleteModalOpen && (
+          {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
           <div className="bg-tertiary p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 ease-out">
             <div className="flex items-center justify-between mb-4">
@@ -296,26 +296,26 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '', sourceF
                 </button>
             </div>
             <p className="text-sm text-gray-600 mb-6">
-              Are you sure you want to delete this lead? This action cannot be undone.
-            </p>
+                  Are you sure you want to delete this lead? This action cannot be undone.
+                </p>
             {error && <p className="text-sm text-red-600 mb-3 text-center">{error}</p>}
             <div className="flex justify-end space-x-3">
-              <button
+                  <button
                 onClick={() => { setIsDeleteModalOpen(false); setError(null); }}
                 className="px-4 py-2 border border-fourth rounded-lg text-sm font-medium text-secondary hover:bg-fourth transition-colors duration-150 ease-in-out"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                disabled={isDeleting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmDelete}
+                    disabled={isDeleting}
                 className={`px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px]`}
-              >
+                  >
                 {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
-              </button>
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
       )}
     </div>
   );
