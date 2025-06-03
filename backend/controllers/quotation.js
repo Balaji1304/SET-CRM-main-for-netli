@@ -581,51 +581,41 @@ exports.sendQuotation = async (req, res) => {
 // @route   PUT /api/quotations/:id/approve
 exports.handleApproveQuotation = async (req, res) => {
   try {
-    // Populate the lead data to ensure we have the email for user creation
     const quotation = await Quotation.findById(req.params.id).populate('lead');
     
     if (!quotation) {
       throw new AppError('Quotation not found', 404);
     }
 
-    // Only allow approval for 'sent' status 
     if (quotation.status !== 'sent') {
       throw new AppError('Can only approve quotations that have been sent', 400);
     }
 
-    // Check if lead data is complete before proceeding
     if (!quotation.lead || !quotation.lead.email) {
       throw new AppError('Lead data is incomplete. Email is required for approval.', 400);
     }
 
-    // If payment isn't confirmed yet, set it up for manual approval
+    // If payment isn't confirmed yet, set it up for manual approval by sales team
     if (quotation.advancePaymentStatus !== 'CONFIRMED') {
-      try {
-        // Calculate the default advance amount based on percentage
-        const advancePercentage = quotation.advancePaymentPercentage || 20;
-        const advanceAmount = quotation.total * (advancePercentage / 100);
-        
-        // Update the quotation with payment details for manual approval
-        quotation.advancePaymentStatus = 'CONFIRMED';
-        quotation.advancePaymentAmount = advanceAmount;
-        quotation.advancePaymentConfirmedAt = new Date();
-        quotation.paymentMethod = 'cash'; // Use valid enum value: cash, check, bank_transfer, razorpay, other
-        quotation.offlineTransactionNo = `MANUAL-${Date.now()}`; // Generate a reference number
-        await quotation.save();
-      } catch (paymentSetupError) {
-        console.error('Error setting up manual payment:', paymentSetupError);
-        throw new AppError(`Failed to set up manual payment: ${paymentSetupError.message}`, 500);
-      }
+      console.log(`Quotation ${quotation._id}: Advance payment not confirmed. Setting up for manual approval.`);
+      const advancePercentage = quotation.advancePaymentPercentage || 20;
+      const advanceAmount = Number((quotation.total * (advancePercentage / 100)).toFixed(2));
+      
+      quotation.advancePaymentStatus = 'CONFIRMED'; 
+      quotation.advancePaymentAmount = advanceAmount;
+      quotation.advancePaymentConfirmedAt = new Date();
+      quotation.paymentMethod = quotation.paymentMethod || 'cash'; 
+      quotation.offlineTransactionNo = quotation.offlineTransactionNo || `MANUAL-APPROVE-${Date.now()}`;
+      
+      await quotation.save(); 
+      console.log(`Quotation ${quotation._id}: Updated with manual payment details before approval.`);
     }
 
-    // Process the approval
-    const approvedQuotation = await approveQuotation(quotation);
+    const approvedQuotation = await approveQuotation(quotation); 
     
-    // Get quotation items
     const quotationItems = await QuotationItem.find({ quotationId: approvedQuotation._id })
       .populate('productId');
 
-    // Return the data in the new format
     const quotationWithItems = approvedQuotation.toObject();
     quotationWithItems.quotationItems = quotationItems;
 
@@ -635,7 +625,7 @@ exports.handleApproveQuotation = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in handleApproveQuotation:', error);
-    errorHandler(res, error);
+    errorHandler(res, error); 
   }
 };
 
@@ -747,124 +737,146 @@ exports.handleRazorpayWebhook = async (req, res) => {
   }
 };
 
-// Simplify helper function for approval process
-const approveQuotation = async (quotation) => {
+// Main helper function for the approval process logic
+const approveQuotation = async (quotationInstance) => { 
   try {
-    console.log(`Starting approval process for quotation ID: ${quotation._id}`);
-    // Check if user already exists with this email
-    const existingUser = await User.findOne({ email: quotation.lead.email });
-    let userId;
+    console.log(`Starting approval process for quotation ID: ${quotationInstance._id}.`);
     
-    if (existingUser) {
-      userId = existingUser._id;
+    const lead = quotationInstance.lead;
+    if (!lead || !lead.email) {
+        throw new AppError('Critical: Lead data or email missing in quotation for approval.', 500);
+    }
+
+    let user = await User.findOne({ email: lead.email });
+    let leadUserId; // Renamed variable for clarity to avoid confusion with req.user.id if used elsewhere
+    
+    if (user) {
+      leadUserId = user._id;
+      console.log(`Existing user found: ${leadUserId} for email ${lead.email}`);
     } else {
       const password = Math.random().toString(36).slice(-8);
-      const newUser = await User.create({
-        name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
-        email: quotation.lead.email,
-        password,
+      user = new User({ 
+        name: `${lead.firstName} ${lead.lastName}`,
+        email: lead.email,
+        password, 
         role: 'customer'
       });
-      userId = newUser._id;
-      await sendEmail({
-        email: newUser.email,
-        subject: 'Welcome to Solar CRM - Your Account Details',
-        template: 'welcome',
-        data: {
-          name: newUser.name,
-          email: newUser.email,
-          password
-        }
-      });
+      await user.save();
+      leadUserId = user._id;
+      console.log(`New user created: ${leadUserId} for email ${lead.email}`);
+      
+      try {
+        await sendEmail({
+          email: user.email,
+          subject: 'Welcome to Solar CRM - Your Account Details',
+          template: 'welcome',
+          data: { name: user.name, email: user.email, password }
+        });
+        console.log(`Welcome email sent to ${user.email}`);
+      } catch (emailError) {
+        console.error(`Failed to send welcome email to ${user.email}:`, emailError);
+      }
     }
     
-    let customer = await Customer.findOne({ email: quotation.lead.email });
+    let customer = await Customer.findOne({ email: lead.email });
     
     if (!customer) {
-      console.log(`Creating new customer record for ${quotation.lead.email}`);
-      customer = await Customer.create({
-        leadId: quotation.lead._id,
-        userId: userId,
-        firstName: quotation.lead.firstName,
-        lastName: quotation.lead.lastName,
-        email: quotation.lead.email,
-        phone: quotation.lead.phone || '',
-        businessName: quotation.lead.businessName || '',
-        address: quotation.lead.address || '',
-        customerType: quotation.lead.customerType || 'individual'
+      console.log(`Creating new customer record for ${lead.email} with user ID: ${leadUserId}`);
+      customer = new Customer({ 
+        leadId: lead._id,
+        user: leadUserId, // Changed to use 'user' field as per updated Customer model
+        firstName: lead.firstName,
+        lastName: lead.lastName,
+        email: lead.email,
+        phone: lead.phone || '',
+        businessName: lead.businessName || '',
+        address: lead.address || '',
+        customerType: lead.customerType || 'individual' 
       });
+      await customer.save();
       console.log(`Created customer with ID: ${customer._id}`);
+    } else {
+      console.log(`Existing customer found: ${customer._id} for email ${lead.email}`);
+      if (!customer.user && leadUserId) { // Check if the 'user' field needs linking
+        customer.user = leadUserId; // Use 'user' field
+        await customer.save();
+        console.log(`Linked existing customer ${customer._id} to user ${leadUserId} via 'user' field.`);
+      } else if (customer.user && leadUserId && customer.user.toString() !== leadUserId.toString()) {
+        console.warn(`Customer ${customer._id} (email: ${lead.email}) is already linked to user ${customer.user}. Attempted to link to ${leadUserId}. Keeping existing link.`);
+      }
     }
     
-    // Financials from Quotation - Subtotal is net of item discounts
-    const purchaseSubtotal = quotation.subtotal; // This is already calculated correctly
-    const purchaseTaxPercentage = 18; // Hardcoded 18% tax rate for consistency
+    const purchaseSubtotal = quotationInstance.subtotal; 
+    const purchaseTaxPercentage = quotationInstance.taxPercentage || 18; 
     const purchaseTaxAmount = Number((purchaseSubtotal * (purchaseTaxPercentage / 100)).toFixed(2));
-    // quotation.total should already reflect subtotal + 18% tax from its own creation
-    const purchaseTotalAmount = quotation.total; 
+    const purchaseTotalAmount = Number((purchaseSubtotal + purchaseTaxAmount).toFixed(2));
 
-    // Validate if quotation.total matches our new calculation to be sure
-    if (Math.abs(purchaseTotalAmount - (purchaseSubtotal + purchaseTaxAmount)) > 0.01) {
-        console.warn(`Discrepancy in Quotation total vs. re-calculated total for CustomerPurchase. Quotation ID: ${quotation._id}. Quotation.total: ${quotation.total}, Calculated: ${purchaseSubtotal + purchaseTaxAmount}`);
-        // Potentially use the re-calculated total if quotation.total is deemed unreliable, or throw error
-        // For now, we trust quotation.total as it was also set using 18% rule.
+    if (Math.abs(purchaseTotalAmount - quotationInstance.total) > 0.01) {
+        console.warn(`Calculated total (₹${purchaseTotalAmount}) for CustomerPurchase differs from quotation.total (₹${quotationInstance.total}). Using calculated total. Quotation ID: ${quotationInstance._id}.`);
     }
 
-    const advanceAmount = quotation.advancePaymentAmount || 
-                         (purchaseTotalAmount * (quotation.advancePaymentPercentage / 100));
-    const remainingAmount = purchaseTotalAmount - advanceAmount;
-    const actualAdvancePercentage = Math.round((advanceAmount / purchaseTotalAmount) * 100);
+    const advanceAmount = quotationInstance.advancePaymentAmount; 
+    if (typeof advanceAmount !== 'number' || advanceAmount < 0) {
+        throw new AppError(`Invalid advance payment amount (₹${advanceAmount}) for quotation ${quotationInstance._id}. It must be a non-negative number.`, 400);
+    }
+
+    const remainingAmount = Number((purchaseTotalAmount - advanceAmount).toFixed(2));
+    const actualAdvancePercentage = purchaseTotalAmount > 0 ? Math.round((advanceAmount / purchaseTotalAmount) * 100) : 0;
     
     let customerPurchase = await CustomerPurchase.findOne({ 
       customerId: customer._id,
-      quotationId: quotation._id
+      quotationId: quotationInstance._id
     });
     
     if (!customerPurchase) {
       const purchaseCount = await CustomerPurchase.countDocuments();
       const purchaseID = `PO-${String(purchaseCount + 1).padStart(5, '0')}`;
       
-      console.log(`Creating CustomerPurchase for quotation ${quotation._id} and customer ${customer._id}`);
-      console.log(`Payment details: Advance: ${advanceAmount}, Total: ${purchaseTotalAmount}, Remaining: ${remainingAmount}, Actual Advance %: ${actualAdvancePercentage}%`);
+      console.log(`Creating CustomerPurchase for quotation ${quotationInstance._id}, customer ${customer._id}. Advance: ₹${advanceAmount}, Total: ₹${purchaseTotalAmount}`);
       
-      customerPurchase = await CustomerPurchase.create({
+      customerPurchase = new CustomerPurchase({ 
         purchaseID, 
         customerId: customer._id,
-        quotationId: quotation._id,
-        subtotal: purchaseSubtotal, // Store from quotation
-        taxPercentage: purchaseTaxPercentage, // Store defined percentage
-        taxAmount: purchaseTaxAmount, // Store calculated tax amount
+        quotationId: quotationInstance._id,
+        subtotal: purchaseSubtotal,
+        taxPercentage: purchaseTaxPercentage,
+        taxAmount: purchaseTaxAmount,
         advancePaid: advanceAmount,
-        totalAmount: purchaseTotalAmount, // Use quotation.total
+        totalAmount: purchaseTotalAmount, 
         remainingAmount: remainingAmount,
-        isFullyPaid: remainingAmount <= 0,
-        paymentMethod: quotation.paymentMethod || 'cash',
+        isFullyPaid: remainingAmount <= 0.01, 
+        paymentMethod: quotationInstance.paymentMethod || 'cash',
         status: 'active',
-        purchaseDate: quotation.advancePaymentConfirmedAt || new Date(),
+        purchaseDate: quotationInstance.advancePaymentConfirmedAt || new Date(), 
         advancePaymentPercentage: actualAdvancePercentage 
       });
+      await customerPurchase.save();
       console.log(`Created CustomerPurchase with ID: ${customerPurchase._id}`);
       
-      await Payment.create({
+      const paymentRecord = new Payment({ 
         customerPurchaseId: customerPurchase._id,
         amountPaid: advanceAmount,
-        paymentMethod: quotation.paymentMethod || 'cash',
-        transactionId: quotation.razorpayPaymentId || quotation.offlineTransactionNo || '',
+        paymentMethod: quotationInstance.paymentMethod || 'cash', 
+        transactionId: quotationInstance.razorpayPaymentId || quotationInstance.offlineTransactionNo || `ADV-${purchaseID}`,
         isAdvancePayment: true,
-        createdBy: quotation.createdBy
+        paymentDate: quotationInstance.advancePaymentConfirmedAt || new Date(), 
+        createdBy: quotationInstance.createdBy 
       });
+      await paymentRecord.save();
+      console.log(`Created Payment record for advance: ${paymentRecord._id}`);
+
+    } else {
+        console.log(`CustomerPurchase ${customerPurchase._id} already exists for quotation ${quotationInstance._id}. Skipping creation.`);
     }
 
-    quotation.status = 'approved';
-    await quotation.save();
+    quotationInstance.status = 'approved';
+    await quotationInstance.save();
+    console.log(`Quotation ${quotationInstance._id} status updated to 'approved'. Approval process complete.`);
 
-    return quotation;
+    return quotationInstance; 
   } catch (error) {
-    console.error('Error in approval process:', error.message, error.stack);
-    if (error.code === 11000) {
-      console.error('Duplicate key error. This might be due to a race condition.');
-    }
-    throw new AppError(error.message || 'Failed to approve quotation', 500);
+    console.error('Error in approveQuotation helper:', error.message, error.stack);
+    throw error; 
   }
 };
 
@@ -874,80 +886,71 @@ exports.confirmOfflinePayment = async (req, res) => {
   try {
     const { amount, transactionNo, paymentMethod, paymentDate, notes } = req.body;
     
-    // Populate the lead data to ensure we have the email for user creation
-    const quotation = await Quotation.findById(req.params.id).populate('lead');
+    let quotation = await Quotation.findById(req.params.id).populate('lead');
 
     if (!quotation) {
-      return res.status(404).json({
-        success: false,
-        message: 'Quotation not found'
-      });
+      throw new AppError('Quotation not found', 404);
     }
 
-    // Only allow offline payment for 'sent' status
-    if (quotation.status !== 'sent') {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only confirm payment for sent quotations'
-      });
+    if (quotation.status === 'approved') {
+        console.log(`Quotation ${quotation._id} is already approved. Offline payment confirmation redundant unless updating details.`);
+        const items = await QuotationItem.find({ quotationId: quotation._id }).populate('productId');
+        const approvedQuotationWithItems = quotation.toObject();
+        approvedQuotationWithItems.quotationItems = items;
+        return res.json({
+          success: true,
+          message: 'Quotation is already approved. Payment details (if new) have been noted.',
+          data: approvedQuotationWithItems
+        });
     }
-
-    // Get the advance percentage from the quotation (default to 20% if not set)
-    const advancePercentage = quotation.advancePaymentPercentage || 20;
     
-    // Validate advance payment amount (should be at least the specified percentage of total)
-    const minimumAdvance = quotation.total * (advancePercentage/100);
-    if (amount < minimumAdvance) {
-      return res.status(400).json({
-        success: false,
-        message: `Advance payment must be at least ${minimumAdvance.toFixed(2)} (${advancePercentage}% of total amount)`
-      });
+    if (quotation.status !== 'sent') {
+      throw new AppError('Can only confirm payment for sent quotations that are not yet approved.', 400);
     }
 
-    // Check if lead data is complete before proceeding
+    const advancePercentage = quotation.advancePaymentPercentage || 20;
+    const minimumAdvance = Number((quotation.total * (advancePercentage/100)).toFixed(2));
+    const paymentAmount = Number(parseFloat(amount).toFixed(2));
+
+    if (isNaN(paymentAmount) || paymentAmount <=0) {
+        throw new AppError('Invalid payment amount provided.', 400);
+    }
+
+    if (paymentAmount < minimumAdvance) {
+      throw new AppError(`Advance payment (₹${paymentAmount}) must be at least ₹${minimumAdvance.toFixed(2)} (${advancePercentage}% of total amount)`, 400);
+    }
+
     if (!quotation.lead || !quotation.lead.email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Lead data is incomplete. Email is required.'
-      });
+      throw new AppError('Lead data is incomplete. Email is required.', 400);
     }
 
-    // Update quotation with payment details
     quotation.advancePaymentStatus = 'CONFIRMED';
-    quotation.advancePaymentAmount = amount;
-    quotation.advancePaymentConfirmedAt = new Date();
+    quotation.advancePaymentAmount = paymentAmount; 
+    quotation.advancePaymentConfirmedAt = paymentDate ? new Date(paymentDate) : new Date();
     quotation.offlineTransactionNo = transactionNo;
     
-    // Add the new payment details
-    if (paymentMethod) quotation.paymentMethod = paymentMethod;
-    if (paymentDate) quotation.paymentDate = new Date(paymentDate);
+    if (paymentMethod) quotation.paymentMethod = paymentMethod; 
     if (notes) quotation.paymentNotes = notes;
     
     await quotation.save();
+    console.log(`Quotation ${quotation._id}: Updated with offline payment details.`);
 
-    try {
-    // Automatically trigger approval process
-    await approveQuotation(quotation);
+    const approvedQuotation = await approveQuotation(quotation); 
 
+    const quotationItems = await QuotationItem.find({ quotationId: approvedQuotation._id })
+      .populate('productId');
+
+    const quotationWithItems = approvedQuotation.toObject(); 
+    quotationWithItems.quotationItems = quotationItems;
+    
     res.json({
       success: true,
-      data: quotation
+      message: 'Offline payment confirmed and quotation approved successfully.',
+      data: quotationWithItems 
     });
-    } catch (error) {
-      // If approval fails, still return success for the payment part
-      console.error('Error in approval process after offline payment:', error);
-      res.json({
-        success: true,
-        message: 'Payment recorded successfully, but automatic approval failed: ' + error.message,
-        data: quotation
-      });
-    }
   } catch (error) {
     console.error('Error in confirmOfflinePayment:', error);
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
+    errorHandler(res, error);
   }
 };
 

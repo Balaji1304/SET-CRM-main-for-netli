@@ -41,7 +41,7 @@ const getNavigation = (userRole) => {
     customer: [
       { name: 'Payment & Billing', href: '/dashboard/payments', icon: CreditCard },
       { name: 'Track Orders', href: '/dashboard/orders', icon: Package },
-      { name: 'My Products', href: '/dashboard/my-products', icon: ShoppingBag },
+      { name: 'My Orders', href: '/dashboard/my-products', icon: ShoppingBag },
       { name: 'Notifications', href: '/dashboard/notifications', icon: BellIcon },
       { name: 'Tickets', href: '/dashboard/tickets', icon: Ticket },
     ],

@@ -315,15 +315,31 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       const amount = parseFloat(paymentDetails.amount);
       const paymentData = { ...paymentDetails, amount };
       const response = await confirmOfflinePayment(selectedQuotationForPayment._id, paymentData);
-      if (response.success) {
-        showToast('Offline payment confirmed successfully!');
+      
+      // Check for partial success (backend indicates success but with a message detailing a subsequent failure)
+      if (response.success && response.message && 
+          (response.message.toLowerCase().includes('fail') || 
+           response.message.toLowerCase().includes('error') || 
+           response.message.toLowerCase().includes('e11000'))) {
+        // This is a partial success; payment recorded but approval or other steps failed.
+        setPaymentError(response.message); // Show specific error in modal
+        showToast(response.message); // Show a more informative toast (could be styled as warning/error)
+        // Do not close modal, let user see the error.
+        // Still refetch to show actual state if backend partially updated quotation.
+        fetchQuotationsCallback(); 
+      } else if (response.success) {
+        // This is a full success.
+        showToast('Offline payment confirmed successfully! Quotation approved.');
         handleClosePaymentModal();
         fetchQuotationsCallback(); 
       } else {
+        // This is a clear failure from the backend.
         setPaymentError(response.message || 'Failed to confirm payment');
       }
     } catch (err) {
+      // Network or other unexpected errors during the API call.
       setPaymentError(err.message || 'An error occurred during payment confirmation.');
+      showToast(err.message || 'An error occurred during payment confirmation.');
     } finally {
       setActionInProgress(false);
     }

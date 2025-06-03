@@ -6,7 +6,7 @@ const customerSchema = new mongoose.Schema({
     ref: 'Lead', 
     required: true 
   },
-  userId: { 
+  user: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true 
