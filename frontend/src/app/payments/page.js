@@ -160,20 +160,20 @@ export default function PaymentsPage() {
                 </div>
                 
                 {(purchase.totalAmount && purchase.totalAmount > 0) && (
-                  <div className="mt-4">
-                    <div className="flex justify-between items-center mb-1">
+                <div className="mt-4">
+                  <div className="flex justify-between items-center mb-1">
                       <span className="text-xs font-medium text-gray-500">Payment Progress</span>
                       <span className="text-xs font-medium text-gray-500">
-                        {Math.round((purchase.advancePaid / purchase.totalAmount) * 100)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-fourth rounded-full h-2.5">
-                      <div 
-                        className="bg-primary h-2.5 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${Math.round((purchase.advancePaid / purchase.totalAmount) * 100)}%` }}
-                      ></div>
-                    </div>
+                      {Math.round((purchase.advancePaid / purchase.totalAmount) * 100)}%
+                    </span>
                   </div>
+                    <div className="w-full bg-fourth rounded-full h-2.5">
+                    <div 
+                        className="bg-primary h-2.5 rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${Math.round((purchase.advancePaid / purchase.totalAmount) * 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
                 )}
               </div>
             ))}

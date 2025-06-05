@@ -285,11 +285,11 @@ export default function MyProductsPage() {
                         {/* Product image */}
                         <div className="w-full md:w-24 h-24 flex-shrink-0">
                             {imageUrl ? ( 
-                              <img
+                  <img
                                 src={imageUrl} 
                                 alt={productObj.name || 'Product'}
                                 className="w-full h-full object-cover rounded-md border border-fourth"
-                              />
+                  />
                           ) : (
                             <div className="w-full h-full bg-gray-100 flex items-center justify-center rounded-md border border-fourth text-gray-400">
                               <Package className="h-10 w-10" />
@@ -306,11 +306,11 @@ export default function MyProductsPage() {
                             <div>
                               <span className="text-gray-500">Category: </span>
                                 <span className="font-medium text-secondary">{productObj.category}</span>
-                            </div>
+                    </div>
                             <div>
                               <span className="text-gray-500">Qty: </span>
                               <span className="font-medium text-secondary">{item.quantity}</span>
-                            </div>
+                    </div>
                             <div>
                               <span className="text-gray-500">Unit Price: </span>
                               <span className="font-medium text-secondary">{formatCurrency(item.unitPrice)}</span>
@@ -344,27 +344,27 @@ export default function MyProductsPage() {
                     {quotation.paymentStatus !== 'FULLY_PAID' && quotation.remainingAmount > 0 && (
                          <span className='ml-2 text-orange-600'>(Remaining: {formatCurrency(quotation.remainingAmount)})</span>
                     )}
-                  </p>
+                    </p>
                 </div>
                 
                 <div className="flex gap-3">
-                    {quotation.paymentStatus === 'FULLY_PAID' ? (
-                      <button 
-                        onClick={() => viewInvoice(quotation.purchaseId)}
+                {quotation.paymentStatus === 'FULLY_PAID' ? (
+                  <button 
+                    onClick={() => viewInvoice(quotation.purchaseId)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 text-sm font-medium transition-colors w-full sm:w-auto justify-center"
-                      >
-                        <FileText className="h-4 w-4" />
-                        View Invoice
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => navigateToPayment(quotation.quotationNumber)}
+                  >
+                    <FileText className="h-4 w-4" />
+                    View Invoice
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => navigateToPayment(quotation.quotationNumber)}
                         className="px-4 py-2 bg-primary hover:bg-primary/90 text-tertiary rounded-md flex items-center gap-2 text-sm font-medium transition-colors w-full sm:w-auto justify-center"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        Complete Payment
-                      </button>
-                    )}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Complete Payment
+                  </button>
+                )}
                 </div>
               </div>
           </div>
