@@ -201,10 +201,13 @@ exports.updateProduct = async (req, res) => {
       { new: true }
     );
 
-    res.json(updatedProduct);
+    res.json({
+      success: true,
+      data: updatedProduct
+    });
   } catch (error) {
     console.error('Update product error:', error);
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
