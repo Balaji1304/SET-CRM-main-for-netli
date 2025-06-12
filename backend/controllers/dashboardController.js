@@ -122,18 +122,21 @@ exports.getDashboardSummary = async (req, res, next) => {
         }
       };
     } else if (role === 'inventory_manager') {
+      const lowStockProducts = await safeQuery(Product.find({ $expr: { $lte: ['$quantity', '$reorderLevel'] } }), [], 'Inventory: Error fetching low stock products');
+      
       summaryData = {
         totalProducts: await safeQuery(Product.countDocuments(), 0, 'Inventory: Error fetching total products'),
-        lowStockItemsCount: 'N/A', // Product model does not have a quantity field
-        recentProductUpdatesCount: 'N/A', // Requires tracking product updates if not just last 5 by sort
-        inventoryActivity: [
-            { message: 'Product "Inverter Model S100" definition updated', time: '1 day ago', type: 'product_update' },
-            { message: 'New batch of "Battery Pack B20" expected next week', time: 'Upcoming', type: 'shipment_incoming' },
-        ],
+        lowStockItemsCount: lowStockProducts.length,
         inventoryStats: {
-            itemsBelowReorderLevel: 'N/A', // Needs quantity tracking
+            itemsBelowReorderLevel: lowStockProducts.length,
             stockTurnoverRate: 'N/A' // Placeholder
-        }
+        },
+        lowStockItems: lowStockProducts.map(p => ({
+            id: p._id,
+            name: p.name,
+            quantity: p.quantity,
+            reorderLevel: p.reorderLevel
+        }))
       };
     } else if (role === 'service_engineer') {
       summaryData = {
@@ -147,6 +150,30 @@ exports.getDashboardSummary = async (req, res, next) => {
             tasksCompletedToday: 'N/A', // Placeholder - requires date tracking on CustomerPurchase completion
             firstCallResolutionRate: 'N/A' // Placeholder
         }
+      };
+    } else if (role === 'sales_head') {
+      const quotationAggregation = await safeQuery(Quotation.aggregate([
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 },
+            totalValue: { $sum: '$total' }
+          }
+        }
+      ]), [], 'Sales Head: Error aggregating quotation stats');
+
+      const quotationStats = quotationAggregation.reduce((acc, stat) => {
+        acc[stat._id] = {
+          count: stat.count,
+          totalValue: stat.totalValue
+        };
+        return acc;
+      }, {});
+
+      summaryData = {
+        totalQuotations: await safeQuery(Quotation.countDocuments(), 0),
+        totalQuotationsValue: (quotationStats.draft?.totalValue || 0) + (quotationStats.sent?.totalValue || 0) + (quotationStats.approved?.totalValue || 0),
+        approvedDeals: quotationStats.approved?.count || 0
       };
     } else {
       summaryData = { message: "Dashboard data is not configured for this role, or no data found." };

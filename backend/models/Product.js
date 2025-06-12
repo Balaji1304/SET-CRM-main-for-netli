@@ -23,6 +23,16 @@ const productSchema = new mongoose.Schema({
     required: [true, 'Please add a price'],
     min: 0
   },
+  quantity: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+  reorderLevel: {
+    type: Number,
+    required: true,
+    default: 10
+  },
   category: {
     type: String,
     required: [true, 'Please add a product category'],
@@ -58,14 +68,5 @@ productSchema.pre('save', function(next) {
 });
 
 // Add any methods or middleware here
-productSchema.methods.updateStock = function(quantity) {
-  if (quantity <= 0) {
-    this.stockStatus = 'Out of Stock';
-  } else if (quantity <= 10) {
-    this.stockStatus = 'Low Stock';
-  } else {
-    this.stockStatus = 'In Stock';
-  }
-};
 
 module.exports = mongoose.model('Product', productSchema); 

@@ -35,9 +35,8 @@ router.get('/', getProducts);
 router.get('/:id', getProduct);
 
 // Protected routes
-router.post('/', protect, createProduct);
-router.put('/:id', protect, updateProduct);
+router.post('/', protect, upload.single('brochure'), createProduct);
+router.put('/:id', protect, upload.single('brochure'), updateProduct);
 router.delete('/:id', protect, deleteProduct);
-router.post('/:id/brochure', protect, upload.single('brochure'), uploadBrochure);
 
 module.exports = router;

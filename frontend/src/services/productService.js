@@ -23,10 +23,11 @@ export const getProduct = async (id) => {
  * @returns {Promise<Object>} - Response with created product
  */
 export const createProduct = async (productData) => {
+  const isFormData = productData instanceof FormData;
   const response = await apiRequest('products', {
     method: 'POST',
-    body: productData
-  }, false); // Don't cache POST requests
+    body: productData,
+  }, false, isFormData);
   
   // Invalidate products cache after creating a new product
   invalidateCache('products');
@@ -40,10 +41,11 @@ export const createProduct = async (productData) => {
  * @returns {Promise<Object>} - Response with updated product
  */
 export const updateProduct = async (id, productData) => {
+  const isFormData = productData instanceof FormData;
   const response = await apiRequest(`products/${id}`, {
     method: 'PUT',
     body: productData
-  }, false); // Don't cache PUT requests
+  }, false, isFormData);
   
   // Invalidate products cache after updating
   invalidateCache('products');
