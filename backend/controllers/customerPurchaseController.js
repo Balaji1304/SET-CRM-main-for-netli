@@ -7,6 +7,7 @@ const QuotationItem = require('../models/QuotationItem');
 const Product = require('../models/Product');
 const { AppError, errorHandler } = require('../utils/errorHandler');
 const User = require('../models/User');
+const Package = require('../models/Package');
 
 // Convert lead to customer when quotation is approved
 exports.convertLeadToCustomer = async (req, res) => {
@@ -728,6 +729,37 @@ exports.getProductHeadTasks = async (req, res) => {
       success: true,
       count: tasksWithDetails.length,
       data: tasksWithDetails
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Get all approved purchases that are not yet packaged
+// @route   GET /api/customer-purchases/approved
+// @access  Private(sales_head)
+exports.getApprovedPurchases = async (req, res) => {
+  try {
+    // Get all active purchases
+    const allPurchases = await CustomerPurchase.find({ status: 'active' })
+      .populate('customerId', 'firstName lastName email')
+      .lean();
+
+    // Get all sales order IDs that are already in a package
+    const packagedOrders = await Package.find({}).select('salesOrder -_id');
+    const packagedOrderIds = packagedOrders.map((p) =>
+      p.salesOrder.toString()
+    );
+
+    // Filter out the purchases that are already packaged
+    const unpackagedPurchases = allPurchases.filter(
+      (p) => !packagedOrderIds.includes(p._id.toString())
+    );
+
+    res.status(200).json({
+      success: true,
+      count: unpackagedPurchases.length,
+      data: unpackagedPurchases,
     });
   } catch (error) {
     errorHandler(res, error);

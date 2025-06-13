@@ -129,4 +129,22 @@ export const getPurchasePaymentHistory = async (purchaseId) => {
     console.error('Error fetching purchase payment history:', error);
     throw error;
   }
+};
+
+/**
+ * Get all approved sales orders that are not yet packaged
+ * @returns {Promise<Object>} - Response with approved sales orders
+ */
+export const getApprovedSalesOrders = async (token) => {
+  try {
+    const response = await apiRequest('customer-purchases/approved', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response;
+  } catch (error) {
+    console.error('Error fetching approved sales orders:', error);
+    throw error;
+  }
 }; 

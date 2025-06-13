@@ -4,6 +4,7 @@ const http = require('http');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { initWebSocket } = require('./utils/websocket');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -85,18 +86,24 @@ mongoose.connect(process.env.MONGODB_URI, {
 });
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/leads', require('./routes/leads'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/quotations', require('./routes/quotation'));
-app.use('/api/payments', require('./routes/paymentRoutes'));
-app.use('/api/tickets', require('./routes/tickets'));
-app.use('/api/invoices', require('./routes/invoices'));
-app.use('/api/customer-purchases', require('./routes/customerPurchaseRoutes'));
+app.use('/api/auth', require('./routes/auth.js'));
+app.use('/api/leads', require('./routes/leads.js'));
+app.use('/api/products', require('./routes/products.js'));
+app.use('/api/quotations', require('./routes/quotation.js'));
+app.use('/api/payments', require('./routes/paymentRoutes.js'));
+app.use('/api/tickets', require('./routes/tickets.js'));
+app.use('/api/invoices', require('./routes/invoices.js'));
+app.use(
+  '/api/customer-purchases',
+  require('./routes/customerPurchaseRoutes.js')
+);
 
 // Route for dashboard summary
-const dashboardRoutes = require('./routes/dashboardRoutes'); // Create this file next
+const dashboardRoutes = require('./routes/dashboardRoutes.js');
 app.use('/api/dashboard', dashboardRoutes);
+
+const packageRoutes = require('./routes/packageRoutes.js');
+app.use('/api/packages', packageRoutes);
 
 // Production-only error handler
 app.use((err, req, res, next) => {
@@ -115,3 +122,6 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT} (${process.env.NODE_ENV})`);
 });
+
+// --------------------------deployment------------------------------
+const __dirname1 = path.resolve();

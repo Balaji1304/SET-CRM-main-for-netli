@@ -57,7 +57,7 @@ const getNavigation = (userRole) => {
     sales_head: [
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
-      { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: Package },
+      { name: 'Packages', href: '/dashboard/packages', icon: Plus },
     ],
     product_head: [
       { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar },

@@ -32,6 +32,7 @@ import MyProductsPage from './app/my-products/page';
 import Leads from './components/dashboard/Leads';
 import InvoicePage from './app/invoice/[id]/page';
 import TaskDetailPage from './app/schedule/[taskId]/page';
+import PackagesPage from './app/packages/page';
 
 function App() {
   return (
@@ -178,6 +179,11 @@ function App() {
             <Route path="quotations/:id/edit" element={
               <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
                 <EditQuotationPage />
+              </ProtectedRoute>
+            } />
+            <Route path="packages" element={
+              <ProtectedRoute allowedRoles={['sales_head']}>
+                <PackagesPage />
               </ProtectedRoute>
             } />
           </Route>

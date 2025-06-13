@@ -31,6 +31,17 @@ exports.protect = async (req, res, next) => {
     // Find user 
     req.user = await User.findById(decoded.id);
     
+    // --- START DEBUG LOGGING ---
+    console.log('--- PROTECT MIDDLEWARE ---');
+    if (req.user) {
+      console.log('User found:', req.user._id);
+      console.log('User role:', req.user.role);
+    } else {
+      console.log('User not found for token ID:', decoded.id);
+    }
+    console.log('-------------------------');
+    // --- END DEBUG LOGGING ---
+
     if (!req.user) {
       return res.status(401).json({
         success: false,
