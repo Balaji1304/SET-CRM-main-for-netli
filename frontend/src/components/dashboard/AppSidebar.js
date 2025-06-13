@@ -22,6 +22,7 @@ import {
   ShoppingBag,
   Bell as BellIcon,
   Settings,
+  Plus
 } from 'lucide-react';
 
 const getNavigation = (userRole) => {
@@ -51,6 +52,12 @@ const getNavigation = (userRole) => {
     ],
     inventory_manager: [
       { name: 'Products', href: '/dashboard/products', icon: Box },
+      { name: 'Add Product', href: '/dashboard/products/add', icon: Plus },
+    ],
+    sales_head: [
+      { name: 'Leads', href: '/dashboard/leads', icon: Users },
+      { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
+      { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: Package },
     ],
     product_head: [
       { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar },

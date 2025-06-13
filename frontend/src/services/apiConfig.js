@@ -57,9 +57,10 @@ const createCacheKey = (url, method, body) => {
  * @param {string} endpoint - API endpoint (without leading slash)
  * @param {Object} options - Fetch options
  * @param {boolean} useCache - Whether to use cache for GET requests
+ * @param {boolean} isFormData - Whether the body is FormData
  * @returns {Promise<Object>} - Parsed JSON response
  */
-export const apiRequest = async (endpoint, options = {}, useCache = options.method === undefined || options.method === 'GET') => {
+export const apiRequest = async (endpoint, options = {}, useCache = options.method === undefined || options.method === 'GET', isFormData = false) => {
   const url = `${API_URL}/${endpoint}`;
   const method = options.method || 'GET';
   const cacheKey = useCache ? createCacheKey(url, method, options.body) : null;
@@ -83,13 +84,13 @@ export const apiRequest = async (endpoint, options = {}, useCache = options.meth
   const fetchOptions = {
     ...options,
     headers: {
-      ...getAuthHeaders(options.body !== undefined),
+      ...getAuthHeaders(!isFormData && options.body !== undefined),
       ...options.headers
     }
   };
   
-  // Stringify body if it's an object
-  if (options.body && typeof options.body === 'object') {
+  // Stringify body if it's an object and not FormData
+  if (options.body && typeof options.body === 'object' && !isFormData) {
     fetchOptions.body = JSON.stringify(options.body);
   }
   

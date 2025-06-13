@@ -1,18 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronDown, Plus, FileText, Edit, Trash2, Upload, Eye } from 'lucide-react'; // Import Lucide icons
+import { Search, ChevronDown, Plus, Edit, Trash2, Eye } from 'lucide-react'; // Import Lucide icons
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { getProducts, deleteProduct, uploadProductBrochure } from '../../services/productService';
+import { getProducts, deleteProduct } from '../../services/productService';
 
 export default function ProductListPage() {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
+  const [sortOption, setSortOption] = useState("name-asc");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [uploadingFor, setUploadingFor] = useState(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
   const navigate = useNavigate();
@@ -73,43 +72,51 @@ export default function ProductListPage() {
     navigate(`/dashboard/products/${productId}/edit`);
   };
 
-  const handleFileChange = (e, productId) => {
-    setSelectedFile(e.target.files[0]);
-    setUploadingFor(productId);
+  const getStockStatus = (product) => {
+    if (product.quantity <= 0) return 'Out of Stock';
+    if (product.quantity <= product.reorderLevel) return 'Low Stock';
+    return 'In Stock';
   };
 
-  const handleUploadBrochure = async (productId) => {
-    if (!selectedFile) {
-      alert('Please select a file first');
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('brochure', selectedFile);
-
-    try {
-      const response = await uploadProductBrochure(productId, formData);
-
-      if (response.success) {
-        // Refresh products list after successful upload
-        await fetchProducts();
-        setSelectedFile(null);
-        setUploadingFor(null);
-        alert('Brochure uploaded successfully');
-      } else {
-        throw new Error(response.message || 'Failed to upload brochure');
-      }
-    } catch (err) {
-      console.error('Error uploading brochure:', err);
-      alert('Failed to upload brochure');
-    }
-  };
-
-  const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+  const filteredProducts = products.filter(product => {
+    const stockStatus = getStockStatus(product);
+    return product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
     (categoryFilter === "all" || product.category === categoryFilter) &&
-    (stockFilter === "all" || product.stockStatus.toLowerCase() === stockFilter.toLowerCase())
-  );
+    (stockFilter === "all" || stockStatus.toLowerCase().replace(' ', '_') === stockFilter.toLowerCase())
+  });
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    const [key, direction] = sortOption.split('-');
+
+    let aValue;
+    let bValue;
+
+    switch (key) {
+      case 'name':
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
+        break;
+      case 'price':
+        aValue = a.price;
+        bValue = b.price;
+        break;
+      case 'stock':
+        const stockOrder = { 'Low Stock': 1, 'Out of Stock': 2, 'In Stock': 3 };
+        aValue = stockOrder[getStockStatus(a)];
+        bValue = stockOrder[getStockStatus(b)];
+        break;
+      default:
+        return 0;
+    }
+
+    if (aValue < bValue) {
+      return direction === 'asc' ? -1 : 1;
+    }
+    if (aValue > bValue) {
+      return direction === 'asc' ? 1 : -1;
+    }
+    return 0;
+  });
 
   if (loading) return <div className="p-6">Loading...</div>;
   if (error) return <div className="p-6 text-red-500">Error: {error}</div>;
@@ -121,13 +128,6 @@ export default function ProductListPage() {
           <h2 className="text-3xl font-bold tracking-tight">Products Management</h2>
           <p className="text-muted-foreground mt-1">View and manage all your products in one place</p>
         </div>
-        <button 
-          onClick={() => navigate('/dashboard/products/add')} 
-          className="flex items-center gap-2 bg-[#FF7300] hover:bg-[#FF8800] text-white px-4 py-2 rounded-lg"
-        >
-          <Plus className="w-5 h-5" />
-          Add Product
-        </button>
       </div>
 
       {/* Main Content */}
@@ -171,6 +171,20 @@ export default function ProductListPage() {
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
               </div>
+              <div className="relative">
+                <select
+                  onChange={(e) => setSortOption(e.target.value)}
+                  value={sortOption}
+                  className="pl-4 pr-10 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
+                >
+                  <option value="name-asc">Sort by Name (A-Z)</option>
+                  <option value="name-desc">Sort by Name (Z-A)</option>
+                  <option value="price-asc">Sort by Price (Low-High)</option>
+                  <option value="price-desc">Sort by Price (High-Low)</option>
+                  <option value="stock-asc">Sort by Stock Status</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
+              </div>
             </div>
           </div>
         </div>
@@ -181,49 +195,33 @@ export default function ProductListPage() {
               <tr>
                 <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Product Name</th>
                 <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Model Number</th>
-                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Stock Status</th>
+                <th className="px-5 py-4 text-left text-sm font-medium text-white tracking-wider">Stock Status</th>
+                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Quantity</th>
+                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Re-order Level</th>
                 <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Price</th>
                 <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Availability</th>
-                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Brochure</th>
                 <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProducts.map((product) => (
+              {sortedProducts.map((product) => {
+                const stockStatus = getStockStatus(product);
+                return (
                 <tr key={product._id} className="hover:bg-orange-50/50 transition-colors">
                   <td className="px-4 py-4 text-sm text-gray-600">{product.name}</td>
                   <td className="px-4 py-4 text-sm text-gray-600 ">{product.modelNumber}</td>
                   <td className="px-4 py-4 text-sm text-gray-600">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${product.stockStatus === 'In Stock' ? 'bg-green-100 text-green-800' : 
-                        product.stockStatus === 'Low Stock' ? 'bg-yellow-100 text-yellow-800' : 
+                      ${stockStatus === 'In Stock' ? 'bg-green-100 text-green-800' : 
+                        stockStatus === 'Low Stock' ? 'bg-yellow-100 text-yellow-800' : 
                         'bg-red-100 text-red-800'}`}>
-                      {product.stockStatus}
+                      {stockStatus}
                     </span>
                   </td>
-                  <td className="px-4 py-4 text-sm text-gray-600">${product.price.toFixed(2)}</td>
+                  <td className="px-4 py-4 text-sm text-gray-600">{product.quantity}</td>
+                  <td className="px-4 py-4 text-sm text-gray-600">{product.reorderLevel}</td>
+                  <td className="px-4 py-4 text-sm text-gray-600">₹{product.price.toFixed(2)}</td>
                   <td className="px-4 py-4 text-sm text-gray-600">{product.availability}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        accept=".pdf"
-                        onChange={(e) => handleFileChange(e, product._id)}
-                        className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 
-                                   file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 
-                                   hover:file:bg-orange-100 flex-1"
-                      />
-                      {uploadingFor === product._id && selectedFile && (
-                        <button
-                          onClick={() => handleUploadBrochure(product._id)}
-                          className="bg-[#FF7300] text-white rounded-full p-2 hover:bg-[#FF8800] flex items-center gap-1"
-                          title="Upload Brochure"
-                        >
-                          <Upload className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       {product.brochureUrl && (
@@ -252,7 +250,8 @@ export default function ProductListPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>

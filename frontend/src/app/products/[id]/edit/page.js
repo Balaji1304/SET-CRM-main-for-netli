@@ -20,15 +20,19 @@ export default function EditProductPage() {
     description: "",
     price: "",
     category: "",
+    quantity: "",
+    reorderLevel: "",
     images: [],
     specifications: {
       power: "",
       efficiency: "",
       warranty: "",
       dimensions: ""
-    }
+    },
+    brochureUrl: ""
   });
 
+  const [brochureFile, setBrochureFile] = useState(null);
   const [newSpecField, setNewSpecField] = useState({ name: '', value: '' });
   const [isDragging, setIsDragging] = useState(false);
 
@@ -56,8 +60,11 @@ export default function EditProductPage() {
           description: data.description,
           price: data.price,
           category: data.category,
+          quantity: data.quantity,
+          reorderLevel: data.reorderLevel,
           images: data.imageUrls || [],
-          specifications: data.specifications
+          specifications: data.specifications,
+          brochureUrl: data.brochureUrl
         });
         setInitialFormData(data);
       } else {
@@ -115,7 +122,26 @@ export default function EditProductPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await updateProduct(id, formData);
+      const productData = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key === 'specifications') {
+          productData.append(key, JSON.stringify(formData[key]));
+        } else if (key === 'images') {
+          formData.images.forEach((image, index) => {
+            productData.append(`images[${index}]`, image);
+          });
+        } else if (key === 'brochureUrl') {
+          productData.append(key, formData[key]);
+        } else {
+          productData.append(key, formData[key]);
+        }
+      });
+      
+      if (brochureFile) {
+        productData.append('brochure', brochureFile);
+      }
+      
+      const response = await updateProduct(id, productData);
 
       if (response.success) {
         setHasUnsavedChanges(false);
@@ -234,6 +260,10 @@ export default function EditProductPage() {
     }));
   };
 
+  const handleBrochureChange = (e) => {
+    setBrochureFile(e.target.files[0]);
+  };
+
   if (loading) return <div className="p-6">Loading...</div>;
   if (error) return <div className="p-6 text-red-500">Error: {error}</div>;
 
@@ -324,21 +354,61 @@ export default function EditProductPage() {
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">Category</label>
-              <select
+              <input
+                type="text"
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
+                placeholder="e.g., Solar Panel, Inverter"
+                className="w-full bg-input border-gray-300 rounded-md p-2"
                 required
-                className="w-full px-4 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              >
-                <option value="">Select a category</option>
-                <option value="solar_panels">Solar Panels</option>
-                <option value="inverters">Inverters</option>
-                <option value="batteries">Batteries</option>
-                <option value="accessories">Accessories</option>
-              </select>
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Quantity</label>
+              <input
+                type="number"
+                name="quantity"
+                value={formData.quantity}
+                onChange={handleChange}
+                placeholder="e.g., 100"
+                className="w-full bg-input border-gray-300 rounded-md p-2"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">Re-order Level</label>
+              <input
+                type="number"
+                name="reorderLevel"
+                value={formData.reorderLevel}
+                onChange={handleChange}
+                placeholder="e.g., 10"
+                className="w-full bg-input border-gray-300 rounded-md p-2"
+                required
+              />
             </div>
           </div>
+        </div>
+
+        {/* Brochure Upload Section */}
+        <div className="space-y-2">
+            <h2 className="text-lg font-medium text-foreground">Product Brochure (PDF)</h2>
+            {formData.brochureUrl && (
+                <div className="text-sm">
+                    Current brochure: <a href={formData.brochureUrl} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline">{formData.brochureUrl.split('/').pop()}</a>
+                </div>
+            )}
+            <div className="mt-1 flex items-center">
+                <input
+                    type="file"
+                    name="brochure"
+                    accept=".pdf"
+                    onChange={handleBrochureChange}
+                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100"
+                />
+            </div>
+            <p className="text-xs text-gray-500">Upload a new file to replace the existing one.</p>
         </div>
 
         {/* Specifications */}

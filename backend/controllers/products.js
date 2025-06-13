@@ -28,10 +28,19 @@ exports.getProducts = async (req, res) => {
 // Create new product
 exports.createProduct = async (req, res) => {
   try {
-    const { images, ...productData } = req.body;
+    const { images, brochure, ...productData } = req.body;
     
     // Create product first to get the ID
     const product = await Product.create(productData);
+    
+    // Handle brochure upload
+    if (req.file && req.file.path) {
+      const brochureResult = await cloudinary.uploader.upload(req.file.path, {
+        folder: `${product.category.toLowerCase().replace(/\s+/g, '_')}/${product._id}/brochures`,
+        resource_type: 'auto'
+      });
+      product.brochureUrl = brochureResult.secure_url;
+    }
     
     // Create folder path based on category and product ID
     const folderPath = `${product.category.toLowerCase().replace(/\s+/g, '_')}/${product._id}/images`;
@@ -113,11 +122,27 @@ exports.getProduct = async (req, res) => {
 // Update product
 exports.updateProduct = async (req, res) => {
   try {
-    const { images, ...productData } = req.body;
+    const { images, brochure, ...productData } = req.body;
     const product = await Product.findById(req.params.id);
 
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Handle brochure update
+    if (req.file && req.file.path) {
+      // If there's an old brochure, delete it
+      if (product.brochureUrl) {
+        const publicId = product.brochureUrl.split('/').pop().split('.')[0];
+        const folder = `${product.category.toLowerCase().replace(/\s+/g, '_')}/${product._id}/brochures`;
+        await cloudinary.uploader.destroy(`${folder}/${publicId}`);
+      }
+      
+      const brochureResult = await cloudinary.uploader.upload(req.file.path, {
+        folder: `${product.category.toLowerCase().replace(/\s+/g, '_')}/${product._id}/brochures`,
+        resource_type: 'auto'
+      });
+      productData.brochureUrl = brochureResult.secure_url;
     }
 
     // Handle image updates if there are images
