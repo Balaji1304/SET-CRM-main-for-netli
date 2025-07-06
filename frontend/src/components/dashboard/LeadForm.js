@@ -45,7 +45,15 @@ const FORM_OPTIONS = {
   leadTypes: [
     { value: 'new_customer', label: 'New Customer' },
     { value: 'referral', label: 'Referral' },
-    { value: 'event_lead', label: 'Event Lead' }
+    { value: 'event_lead', label: 'Event Lead' },
+    { value: 'exhibition', label: 'Exhibition' },
+    { value: 'facebook', label: 'Facebook' },
+    { value: 'instagram', label: 'Instagram' },
+    { value: 'linkedin', label: 'LinkedIn' },
+    { value: 'google_ads', label: 'Google Ads' },
+    { value: 'website', label: 'Website Inquiry' },
+    { value: 'cold_call', label: 'Cold Call' },
+    { value: 'walk_in', label: 'Walk-in' }
   ],
   customerTypes: [
     { value: 'individual', label: 'Individual' },
@@ -72,29 +80,29 @@ const FORM_OPTIONS = {
     { value: 'closed_won', label: 'Closed - Won' },
     { value: 'closed_lost', label: 'Closed - Lost' }
   ],
-  sources: [
-    { value: 'exhibition', label: 'Exhibition' },
-    { value: 'facebook', label: 'Facebook' },
-    { value: 'instagram', label: 'Instagram' },
-    { value: 'linkedin', label: 'LinkedIn' },
-    { value: 'google_ads', label: 'Google Ads' },
-    { value: 'website', label: 'Website Inquiry' },
-    { value: 'referral', label: 'Referral' },
-    { value: 'cold_call', label: 'Cold Call' },
-    { value: 'walk_in', label: 'Walk-in' },
-    { value: 'other', label: 'Other' }
-  ],
+  // sources: [
+  //   { value: 'exhibition', label: 'Exhibition' },
+  //   { value: 'facebook', label: 'Facebook' },
+  //   { value: 'instagram', label: 'Instagram' },
+  //   { value: 'linkedin', label: 'LinkedIn' },
+  //   { value: 'google_ads', label: 'Google Ads' },
+  //   { value: 'website', label: 'Website Inquiry' },
+  //   { value: 'referral', label: 'Referral' },
+  //   { value: 'cold_call', label: 'Cold Call' },
+  //   { value: 'walk_in', label: 'Walk-in' },
+  //   { value: 'other', label: 'Other' }
+  // ],
 };
 
   const defaultFormState = {
     leadType: '',
     status: 'pending',
-    source: 'website',
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
     countryCode: '+91',
+    whatsapp: '',
     address: '',
     businessName: '',
     customerType: '',
@@ -102,10 +110,11 @@ const FORM_OPTIONS = {
     { id: Date.now().toString(), category: '', name: '', quantity: '1', price: '0', productId: '' }
     ],
     productRequirements: '',
-  interestStage: 'new_lead',
+    interestStage: 'new_lead',
     dateCollected: new Date().toISOString().split('T')[0],
-  followUpRequired: false,
-  notes: ''
+    followUpRequired: false,
+    followUpDateTime: '',
+    notes: ''
   };
 
 export default function LeadForm() {
@@ -140,6 +149,11 @@ export default function LeadForm() {
   const [productCategories, setProductCategories] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productFetchError, setProductFetchError] = useState(null);
+
+  // Geolocation state
+  const [geo, setGeo] = useState({ latitude: '', longitude: '' });
+  const [geoStatus, setGeoStatus] = useState('idle'); // idle | loading | success | error
+  const [geoError, setGeoError] = useState('');
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -303,14 +317,14 @@ export default function LeadForm() {
     const errors = {};
     if (!formData.leadType) errors.leadInfo = { ...errors.leadInfo, leadType: 'Lead Type is required.' };
     if (!formData.status) errors.leadInfo = { ...errors.leadInfo, status: 'Status is required.' };
-    if (!formData.source) errors.leadInfo = { ...errors.leadInfo, source: 'Source is required.' };
-    if (!formData.dateCollected) errors.leadInfo = { ...errors.leadInfo, dateCollected: 'Collection Date is required.' };
+    if (!formData.dateCollected) errors.leadInfo = { ...errors.leadInfo, dateCollected: 'Enquiry Date is required.' };
 
     if (!formData.firstName) errors.personalInfo = { ...errors.personalInfo, firstName: 'First Name is required.' };
     if (!formData.lastName) errors.personalInfo = { ...errors.personalInfo, lastName: 'Last Name is required.' };
     if (!formData.email) errors.personalInfo = { ...errors.personalInfo, email: 'Email is required.' };
     else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.personalInfo = { ...errors.personalInfo, email: 'Email is invalid.' };
     if (!formData.phone) errors.personalInfo = { ...errors.personalInfo, phone: 'Phone number is required.' };
+    if (!formData.whatsapp) errors.personalInfo = { ...errors.personalInfo, whatsapp: 'WhatsApp number is required.' };
 
     if (!formData.customerType) errors.businessInfo = { ...errors.businessInfo, customerType: 'Customer Type is required.' };
     
@@ -329,8 +343,41 @@ export default function LeadForm() {
 
     if (!formData.interestStage) errors.additionalInfo = { ...errors.additionalInfo, interestStage: 'Stage of Interest is required.' };
 
+    if (formData.followUpRequired && !formData.followUpDateTime) {
+      errors.additionalInfo = { ...errors.additionalInfo, followUpDateTime: 'Follow-up date and time is required.' };
+    }
+
     setSectionErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  // Geolocation handler
+  const handleCaptureLocation = () => {
+    if (!navigator.geolocation) {
+      setGeoStatus('error');
+      setGeoError('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGeoStatus('loading');
+    setGeoError('');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGeo({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+        setGeoStatus('success');
+      },
+      (error) => {
+        setGeoStatus('error');
+        if (error.code === error.PERMISSION_DENIED) {
+          setGeoError('Location permission denied. Please allow access to use this feature.');
+        } else {
+          setGeoError('Unable to retrieve your location.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   const handleFormSubmit = async (e) => {
@@ -358,6 +405,11 @@ export default function LeadForm() {
 
       const payload = { ...formData, products: productsToSubmit };
       payload.products.forEach(p => delete p.id);
+      // Add geolocation if available
+      if (geo.latitude && geo.longitude) {
+        payload.latitude = geo.latitude;
+        payload.longitude = geo.longitude;
+      }
 
       const response = isEditMode ? await updateLead(leadId, payload) : await createLead(payload);
 
@@ -470,8 +522,7 @@ export default function LeadForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {renderSelectField('leadType', 'Lead Type', FORM_OPTIONS.leadTypes, true, 'leadInfo')}
               {renderSelectField('status', 'Status', FORM_OPTIONS.statuses, true, 'leadInfo')}
-              {renderSelectField('source', 'Source', FORM_OPTIONS.sources, true, 'leadInfo')}
-              {renderInputField('dateCollected', 'Collection Date', 'date', '', true, 'leadInfo')}
+              {renderInputField('dateCollected', ' Enquiry Date', 'date', '', true, 'leadInfo')}
                 </div>
           </section>
 
@@ -507,10 +558,34 @@ export default function LeadForm() {
                     />
                   </div>
                 </div>
+              <div className="w-full flex flex-col md:flex-row md:items-end gap-2">
+                <div className="flex-1">
+                  {renderInputField('whatsapp', 'WhatsApp Number', 'tel', 'Enter WhatsApp number', true, 'personalInfo')}
+                </div>
+                <div className="flex-shrink-0 flex flex-col items-start">
+                  <button
+                    type="button"
+                    onClick={handleCaptureLocation}
+                    className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out disabled:opacity-60 disabled:cursor-not-allowed w-full md:w-auto"
+                    disabled={geoStatus === 'loading'}
+                  >
+                    {geoStatus === 'loading' ? 'Capturing Location...' : '📍 Capture Current Location'}
+                  </button>
+                  {(geo.latitude && geo.longitude) && (
+                    <div className="text-xs text-gray-600 bg-gray-50 border border-fourth rounded p-2 mt-1 w-full md:w-auto">
+                      <span className="font-semibold">Lat:</span> {geo.latitude}<br />
+                      <span className="font-semibold">Lng:</span> {geo.longitude}
+                    </div>
+                  )}
+                  {geoStatus === 'error' && (
+                    <div className="text-xs text-red-500 mt-1 w-full md:w-auto">{geoError}</div>
+                  )}
+                </div>
               </div>
+            </div>
             <div className="mt-6">
                 {renderInputField('address', 'Address', 'text', 'Enter full address', false, 'personalInfo')} 
-                </div>
+            </div>
           </section>
 
           <section>
@@ -648,11 +723,28 @@ export default function LeadForm() {
                   id="followUpRequired"
                   name="followUpRequired"
                   checked={formData.followUpRequired}
-                        onChange={handleInputChange}
-                        className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
+                  onChange={handleInputChange}
+                  className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
                 />
                     <span className="text-sm text-secondary">Yes, schedule a follow-up</span>
               </div>
+              {formData.followUpRequired && (
+                <div className="mt-3">
+                  <label htmlFor="followUpDateTime" className="block text-sm font-medium text-gray-700 mb-1">Follow-Up Date & Time <span className="text-red-500">*</span></label>
+                  <input
+                    type="datetime-local"
+                    id="followUpDateTime"
+                    name="followUpDateTime"
+                    value={formData.followUpDateTime}
+                    onChange={handleInputChange}
+                    required
+                    className={`block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400 ${sectionErrors.additionalInfo?.followUpDateTime ? 'border-red-500' : ''}`}
+                  />
+                  {sectionErrors.additionalInfo?.followUpDateTime && (
+                    <p className="text-xs text-red-500 mt-1">{sectionErrors.additionalInfo.followUpDateTime}</p>
+                  )}
+                </div>
+              )}
               </div>
             </div>
             <div className="mt-6">

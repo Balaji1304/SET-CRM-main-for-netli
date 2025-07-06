@@ -197,7 +197,7 @@ export default function ProductListPage() {
                 <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Model Number</th>
                 <th className="px-5 py-4 text-left text-sm font-medium text-white tracking-wider">Stock Status</th>
                 <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Quantity</th>
-                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Re-order Level</th>
+                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">MOQ</th>
                 <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Price</th>
                 <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Availability</th>
                 <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Actions</th>
