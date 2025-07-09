@@ -49,7 +49,7 @@ const DashboardLayout = () => {
             <Menu className="h-6 w-6 text-secondary" />
           </button>
           
-          <h1 className="text-lg font-semibold text-secondary">SET</h1>
+          <h1 className="text-lg font-semibold text-secondary">Sunlit CRM</h1>
           
           {/* Empty div to balance the layout */}
           <div className="w-10"></div>
@@ -68,7 +68,7 @@ const DashboardLayout = () => {
           >
             {/* Mobile Sidebar Header with App Name and Close Button */}
             <div className="flex items-center justify-between p-4 border-b border-fourth">
-              <h1 className="text-xl font-bold text-primary">SET</h1>
+              <h1 className="text-xl font-bold text-primary">Sunlit CRM</h1>
               <button
                 onClick={toggleMobileSidebar}
                 className="p-2 hover:bg-fourth rounded-full"
