@@ -20,21 +20,29 @@ const productSchema = new mongoose.Schema({
     required: [true, 'Quantity is required'],
     min: [1, 'Quantity must be at least 1']
   },
-  price: {
+  unitPrice: {
     type: Number,
-    required: [true, 'Price is required'],
-    min: [0, 'Price cannot be negative']
+    required: [true, 'Unit price is required'],
+    min: [0, 'Unit price cannot be negative']
+  },
+  totalPrice: {
+    type: Number,
+    required: [true, 'Total price is required'],
+    min: [0, 'Total price cannot be negative']
   }
 }, {
   _id: false
 });
 
 const leadSchema = new mongoose.Schema({
-  // Lead Type Information
+  // Lead Type Information  
   leadType: {
     type: String,
     required: [true, 'Lead type is required'],
-    enum: ['new_customer', 'referral', 'event_lead']
+    enum: {
+      values: ['new_customer', 'referral', 'event_lead', 'exhibition', 'facebook', 'instagram', 'linkedin', 'google_ads', 'website', 'cold_call', 'walk_in'],
+      message: 'Lead type must be one of: new_customer, referral, event_lead, exhibition, facebook, instagram, linkedin, google_ads, website, cold_call, walk_in'
+    }
   },
 
   // Personal Information
@@ -62,20 +70,42 @@ const leadSchema = new mongoose.Schema({
     type: String,
     default: '+91'
   },
+  whatsapp: {
+    type: String,
+    required: [true, 'WhatsApp number is required']
+  },
+  billingAddress: {
+    type: String,
+    required: [true, 'Billing address is required']
+  },
+  shippingAddress: {
+    type: String,
+    required: false
+  },
+  // Legacy field for backward compatibility (mapped to billingAddress)
   address: {
     type: String,
-    required: [true, 'Address is required']
+    required: false
   },
 
   // Business Information
   businessName: {
     type: String,
-    required: [true, 'Business name is required']
+    required: false,
+    trim: true
   },
   customerType: {
     type: String,
     required: [true, 'Customer type is required'],
-    enum: ['individual', 'plumber', 'dealer', 'business_owner']
+    enum: {
+      values: ['individual', 'plumber', 'dealer', 'builder', 'architect', 'business_owner', 'other'],
+      message: 'Customer type must be one of: individual, plumber, dealer, builder, architect, business_owner, other'
+    }
+  },
+  gstinUin: {
+    type: String,
+    required: false,
+    trim: true
   },
 
   // Product Information
@@ -89,7 +119,10 @@ const leadSchema = new mongoose.Schema({
   interestStage: {
     type: String,
     required: [true, 'Interest stage is required'],
-    enum: ['new_lead', 'in_negotiation', 'quotation_sent']
+    enum: {
+      values: ['new_lead', 'contacted', 'qualified', 'proposal_sent', 'negotiation', 'won', 'lost'],
+      message: 'Interest stage must be one of: new_lead, contacted, qualified, proposal_sent, negotiation, won, lost'
+    }
   },
   dateCollected: {
     type: Date,
@@ -99,19 +132,37 @@ const leadSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  followUpDateTime: {
+    type: Date,
+    required: false
+  },
 
   // Status Information
   status: {
     type: String,
     required: [true, 'Status is required'],
-    enum: ['active', 'pending', 'closed'],
+    enum: {
+      values: ['active', 'pending', 'on_hold', 'closed_won', 'closed_lost'],
+      message: 'Status must be one of: active, pending, on_hold, closed_won, closed_lost'
+    },
     default: 'pending'
   },
-  source: {
+
+
+  // Geolocation fields
+  latitude: {
+    type: Number,
+    required: false
+  },
+  longitude: {
+    type: Number,
+    required: false
+  },
+
+  // Notes
+  notes: {
     type: String,
-    required: [true, 'Source is required'],
-    enum: ['exhibition', 'facebook', 'website', 'referral', 'cold_call'],
-    default: 'website'
+    trim: true
   },
 
   // Metadata
@@ -128,7 +179,33 @@ const leadSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Pre-save middleware to handle field mapping and validation
 leadSchema.pre('save', function(next) {
+  // Map billingAddress to address for backward compatibility
+  if (this.billingAddress && !this.address) {
+    this.address = this.billingAddress;
+  }
+  
+  // Ensure products don't have the old 'price' field
+  if (this.products && this.products.length > 0) {
+    this.products.forEach(product => {
+      if (product.price && !product.unitPrice) {
+        product.unitPrice = product.price;
+        delete product.price;
+      }
+    });
+  }
+  
+  next();
+});
+
+// Pre-validation middleware to ensure schema compliance
+leadSchema.pre('validate', function(next) {
+  // Ensure required fields are properly set
+  if (!this.billingAddress && this.address) {
+    this.billingAddress = this.address;
+  }
+  
   next();
 });
 
