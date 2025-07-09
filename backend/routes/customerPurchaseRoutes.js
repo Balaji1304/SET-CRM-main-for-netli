@@ -13,7 +13,8 @@ const {
   getServiceEngineers,
   getAssignablePurchases,
   assignTaskToEngineer,
-  getProductHeadTasks
+  getProductHeadTasks,
+  getApprovedPurchases,
 } = require('../controllers/customerPurchaseController');
 
 // Create quotation from lead
@@ -29,7 +30,14 @@ router.get('/customer/:customerId', protect, getCustomerPurchases);
 router.get('/my-purchases', protect, getCustomerPurchasesByUser);
 
 // Get all purchases for logged-in customer
-router.get('/', protect, getCustomerPurchasesByUser);
+router.route('/my-purchases').get(protect, getCustomerPurchasesByUser);
+
+// Get all purchases for logged-in customer
+router.route('/approved').get(protect, authorize('sales_head'), getApprovedPurchases);
+
+router
+  .route('/')
+  .get(protect, authorize('admin', 'sales'), getCustomerPurchases);
 
 // Record payment for a purchase
 router.post('/:purchaseId/payment', protect, recordPayment);
@@ -47,21 +55,18 @@ router.get('/:purchaseId', protect, getPurchaseDetails);
 router.get(
   '/tasks/service-engineers',
   protect,
-  authorize('product_head'), // Authorize for product_head
   getServiceEngineers
 );
 
 router.get(
   '/tasks/assignable',
   protect,
-  authorize('product_head'), // Authorize for product_head
   getAssignablePurchases
 );
 
 router.put(
   '/tasks/:purchaseId/assign',
   protect,
-  authorize('product_head'), // Authorize for product_head
   assignTaskToEngineer
 );
 
@@ -69,7 +74,6 @@ router.put(
 router.get(
   '/tasks/all-product-head',
   protect,
-  authorize('product_head'),
   getProductHeadTasks
 );
 
