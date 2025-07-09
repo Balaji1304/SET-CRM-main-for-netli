@@ -116,7 +116,7 @@ const FORM_OPTIONS = {
     customerType: '',
     gstinUin: '',
     products: [
-    { id: Date.now().toString(), category: '', name: '', quantity: '1', unitPrice: '0', totalPrice: '0', productId: '' }
+    { id: `${Date.now()}_0`, category: '', name: '', quantity: '1', unitPrice: '0', totalPrice: '0', productId: '' }
     ],
     productRequirements: '',
     interestStage: 'new_lead',
@@ -218,8 +218,8 @@ export default function LeadForm() {
             dateCollected: leadData.dateCollected ? new Date(leadData.dateCollected).toISOString().split('T')[0] : defaultFormState.dateCollected,
             followUpDateTime: leadData.followUpDateTime ? new Date(leadData.followUpDateTime).toISOString().slice(0, 16) : '',
             products: (leadData.products && leadData.products.length > 0) 
-              ? leadData.products.map(p => ({ ...p, id: p.id || p._id || Date.now().toString() })) 
-              : [{ ...defaultFormState.products[0], id: Date.now().toString() }],
+              ? leadData.products.map((p, index) => ({ ...p, id: p.id || p._id || `${Date.now()}_${index}` })) 
+              : [{ ...defaultFormState.products[0], id: `${Date.now()}_0` }],
           };
           setFormData(formattedLead);
           setInitialFormData(JSON.parse(JSON.stringify(formattedLead)));
@@ -246,8 +246,8 @@ export default function LeadForm() {
         dateCollected: leadData.dateCollected ? new Date(leadData.dateCollected).toISOString().split('T')[0] : defaultFormState.dateCollected,
         followUpDateTime: leadData.followUpDateTime ? new Date(leadData.followUpDateTime).toISOString().slice(0, 16) : '',
         products: (leadData.products && leadData.products.length > 0) 
-            ? leadData.products.map(p => ({ ...p, id: p.id || p._id || Date.now().toString() })) 
-            : [{ ...defaultFormState.products[0], id: Date.now().toString() }],
+            ? leadData.products.map((p, index) => ({ ...p, id: p.id || p._id || `${Date.now()}_${index}` })) 
+            : [{ ...defaultFormState.products[0], id: `${Date.now()}_0` }],
       };
       setFormData(formattedLead);
       setInitialFormData(JSON.parse(JSON.stringify(formattedLead)));
@@ -311,10 +311,10 @@ export default function LeadForm() {
       }
     }
     
-    // Calculate totalPrice when quantity or unitPrice changes
-    if (field === 'quantity' || field === 'unitPrice') {
-      const quantity = field === 'quantity' ? parseFloat(value) : parseFloat(updatedProducts[index].quantity);
-      const unitPrice = field === 'unitPrice' ? parseFloat(value) : parseFloat(updatedProducts[index].unitPrice);
+    // Calculate totalPrice when quantity changes
+    if (field === 'quantity') {
+      const quantity = parseFloat(value);
+      const unitPrice = parseFloat(updatedProducts[index].unitPrice);
       updatedProducts[index].totalPrice = ((quantity || 0) * (unitPrice || 0)).toString();
     }
     
@@ -324,13 +324,25 @@ export default function LeadForm() {
   const addProductField = () => {
     setFormData(prev => ({
       ...prev,
-      products: [...prev.products, { ...defaultFormState.products[0], id: Date.now().toString() }]
+      products: [...prev.products, { ...defaultFormState.products[0], id: `${Date.now()}_${prev.products.length}` }]
     }));
   };
 
   const removeProductField = (index) => {
     if (formData.products.length > 1) {
       setFormData(prev => ({ ...prev, products: prev.products.filter((_, i) => i !== index) }));
+    }
+  };
+
+  const increaseQuantity = (index) => {
+    const currentQuantity = parseInt(formData.products[index].quantity) || 0;
+    handleProductPropertyChange(index, 'quantity', (currentQuantity + 1).toString());
+  };
+
+  const decreaseQuantity = (index) => {
+    const currentQuantity = parseInt(formData.products[index].quantity) || 0;
+    if (currentQuantity > 1) {
+      handleProductPropertyChange(index, 'quantity', (currentQuantity - 1).toString());
     }
   };
 
@@ -358,7 +370,7 @@ export default function LeadForm() {
             if ((product.category || product.name || product.quantity || product.unitPrice || product.totalPrice) && 
                 !(product.category && product.name && product.quantity && product.unitPrice && product.totalPrice && product.productId)) {
                 if (!errors.productInfo) errors.productInfo = {}; 
-                errors.productInfo[index] = 'Please complete all fields (Category, Product, Quantity, Unit Price) for this product.';
+                errors.productInfo[index] = 'Please complete all fields (Category, Product, Quantity) for this product.';
             }
         });
     }
@@ -642,31 +654,31 @@ export default function LeadForm() {
                 <table className="min-w-full">
                   <thead className="bg-gray-50 border-b border-fourth">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[22%]">
+                      <th className="px-2 lg:px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[24%] lg:w-[22%]">
                         Category <span className="text-red-500">*</span>
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[28%]">
+                      <th className="px-2 lg:px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[32%] lg:w-[30%]">
                         Product Name <span className="text-red-500">*</span>
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[12%]">
-                        Quantity <span className="text-red-500">*</span>
+                      <th className="px-1 lg:px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[16%] lg:w-[14%]">
+                        Qty <span className="text-red-500">*</span>
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[15%]">
+                      <th className="px-2 lg:px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[14%] lg:w-[16%]">
                         Unit Price <span className="text-red-500">*</span>
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[15%]">
+                      <th className="px-2 lg:px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[14%] lg:w-[16%]">
                         Total Price
                       </th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[8%]">
+                      <th className="px-1 lg:px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[6%] lg:w-[8%]">
                         Action
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-fourth">
                     {formData.products.map((product, index) => (
-                      <tr key={product.id || index} className="hover:bg-gray-50 transition-colors duration-150">
+                      <tr key={`${product.id}_${index}`} className="hover:bg-gray-50 transition-colors duration-150">
                         {/* Category */}
-                        <td className="px-4 py-4">
+                        <td className="px-2 lg:px-4 py-4">
                           <div className="relative">
                             <select
                               id={`product_category_${index}`} 
@@ -674,7 +686,7 @@ export default function LeadForm() {
                               onChange={(e) => handleProductPropertyChange(index, 'category', e.target.value)}
                               disabled={isLoadingProducts}
                               required
-                              className={`w-full px-3 py-2.5 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm appearance-none text-secondary transition-all duration-150 ${sectionErrors.productInfo?.[index] && !product.category ? 'border-red-500 ring-red-500' : ''}`}
+                              className={`w-full px-2 lg:px-3 py-2 lg:py-2.5 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-xs lg:text-sm appearance-none text-secondary transition-all duration-150 ${sectionErrors.productInfo?.[index] && !product.category ? 'border-red-500 ring-red-500' : ''}`}
                             >
                               <option value="">Select Category</option>
                               {productCategories.map(cat => (
@@ -683,12 +695,12 @@ export default function LeadForm() {
                                 </option>
                               ))}
                             </select>
-                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                            <ChevronDown className="absolute right-2 lg:right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 lg:w-4 h-3 lg:h-4 pointer-events-none" />
                           </div>
                         </td>
 
                         {/* Product Name */}
-                        <td className="px-4 py-4">
+                        <td className="px-2 lg:px-4 py-4">
                           <div className="relative">
                             <select
                               id={`product_name_${index}`} 
@@ -696,53 +708,77 @@ export default function LeadForm() {
                               onChange={(e) => handleProductPropertyChange(index, 'name', e.target.value)}
                               disabled={!product.category || isLoadingProducts}
                               required
-                              className={`w-full px-3 py-2.5 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm appearance-none text-secondary transition-all duration-150 ${sectionErrors.productInfo?.[index] && !product.name ? 'border-red-500 ring-red-500' : ''} ${!product.category ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+                              className={`w-full px-2 lg:px-3 py-2 lg:py-2.5 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-xs lg:text-sm appearance-none text-secondary transition-all duration-150 ${sectionErrors.productInfo?.[index] && !product.name ? 'border-red-500 ring-red-500' : ''} ${!product.category ? 'bg-gray-50 cursor-not-allowed' : ''}`}
                             >
                               <option value="">Select Product</option>
                               {product.category && productsData[product.category]?.map(p => (
                                 <option key={p._id} value={p.name}>{p.name}</option>
                               ))}
                             </select>
-                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                            <ChevronDown className="absolute right-2 lg:right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 lg:w-4 h-3 lg:h-4 pointer-events-none" />
                           </div>
                         </td>
 
                         {/* Quantity */}
-                        <td className="px-4 py-4">
-                          <input
-                            type="number"
-                            id={`product_quantity_${index}`} 
-                            value={product.quantity}
-                            min="1"
-                            onChange={(e) => handleProductPropertyChange(index, 'quantity', e.target.value)}
-                            required
-                            className={`w-full px-3 py-2.5 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm text-secondary placeholder-gray-400 transition-all duration-150 ${sectionErrors.productInfo?.[index] && !product.quantity ? 'border-red-500 ring-red-500' : ''}`}
-                            placeholder="1"
-                          />
+                        <td className="px-1 lg:px-4 py-4">
+                          <div className="flex items-center justify-center space-x-0.5 lg:space-x-1">
+                            <button
+                              type="button"
+                              onClick={() => decreaseQuantity(index)}
+                              className="p-0.5 lg:p-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600 hover:text-gray-800 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                              disabled={parseInt(product.quantity) <= 1}
+                              title="Decrease quantity"
+                            >
+                              <svg className="w-2.5 lg:w-3 h-2.5 lg:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                              </svg>
+                            </button>
+                            <input
+                              type="number"
+                              id={`product_quantity_${index}`} 
+                              value={product.quantity}
+                              min="1"
+                              onChange={(e) => handleProductPropertyChange(index, 'quantity', e.target.value)}
+                              required
+                              className={`w-8 lg:w-12 px-1 py-1 lg:py-1.5 bg-white border border-fourth rounded text-center text-xs lg:text-sm text-secondary transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary ${sectionErrors.productInfo?.[index] && !product.quantity ? 'border-red-500 ring-red-500' : ''}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => increaseQuantity(index)}
+                              className="p-0.5 lg:p-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600 hover:text-gray-800 transition-colors duration-150 flex-shrink-0"
+                              title="Increase quantity"
+                            >
+                              <svg className="w-2.5 lg:w-3 h-2.5 lg:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                            </button>
+                          </div>
                         </td>
 
                         {/* Unit Price */}
-                        <td className="px-4 py-4">
+                        <td className="px-2 lg:px-4 py-4">
                           <div className="relative">
-                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">₹</span>
+                            <span className="absolute left-2 lg:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs lg:text-sm font-medium z-10">₹</span>
                             <input
                               type="number"
                               id={`product_unitPrice_${index}`} 
                               value={product.unitPrice}
                               min="0" 
                               step="0.01" 
-                              onChange={(e) => handleProductPropertyChange(index, 'unitPrice', e.target.value)}
-                              required
-                              className={`w-full pl-9 pr-3 py-2.5 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm text-secondary placeholder-gray-400 transition-all duration-150 ${sectionErrors.productInfo?.[index] && !product.unitPrice ? 'border-red-500 ring-red-500' : ''}`}
+                              readOnly
+                              className="w-full pl-6 lg:pl-9 pr-6 lg:pr-8 py-2 lg:py-2.5 bg-gray-50 border border-fourth rounded-lg shadow-sm text-xs lg:text-sm text-secondary font-medium cursor-not-allowed"
                               placeholder="0.00"
                             />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-2 lg:pr-3">
+                              <div className="w-1.5 lg:w-2 h-1.5 lg:h-2 bg-blue-400 rounded-full" title="Auto-filled from product selection"></div>
+                            </div>
                           </div>
                         </td>
 
                         {/* Total Price */}
-                        <td className="px-4 py-4">
+                        <td className="px-2 lg:px-4 py-4">
                           <div className="relative">
-                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium">₹</span>
+                            <span className="absolute left-2 lg:left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs lg:text-sm font-medium">₹</span>
                             <input
                               type="number"
                               id={`product_totalPrice_${index}`} 
@@ -750,26 +786,26 @@ export default function LeadForm() {
                               min="0" 
                               step="0.01" 
                               readOnly
-                              className="w-full pl-9 pr-3 py-2.5 bg-gray-50 border border-fourth rounded-lg shadow-sm text-sm text-secondary font-medium cursor-not-allowed"
+                              className="w-full pl-6 lg:pl-9 pr-6 lg:pr-8 py-2 lg:py-2.5 bg-gray-50 border border-fourth rounded-lg shadow-sm text-xs lg:text-sm text-secondary font-medium cursor-not-allowed"
                               placeholder="0.00"
                             />
-                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                              <div className="w-2 h-2 bg-green-400 rounded-full" title="Auto-calculated"></div>
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-2 lg:pr-3">
+                              <div className="w-1.5 lg:w-2 h-1.5 lg:h-2 bg-green-400 rounded-full" title="Auto-calculated"></div>
                             </div>
                           </div>
                         </td>
 
                         {/* Action */}
-                        <td className="px-4 py-4 text-center">
+                        <td className="px-1 lg:px-4 py-4 text-center">
                           {formData.products.length > 1 && (
                             <button
                               type="button"
                               onClick={() => removeProductField(index)} 
-                              className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors duration-150"
+                              className="p-1 lg:p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors duration-150"
                               aria-label="Remove product"
                               title="Remove this product"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3 lg:w-4 h-3 lg:h-4" />
                             </button>
                           )}
                         </td>
@@ -809,7 +845,7 @@ export default function LeadForm() {
             {/* Products Cards - Mobile */}
             <div className="block md:hidden space-y-4">
               {formData.products.map((product, index) => (
-                <div key={product.id || index} className="bg-white rounded-lg border border-fourth shadow-sm p-4">
+                <div key={`${product.id}_${index}`} className="bg-white rounded-lg border border-fourth shadow-sm p-4">
                   <div className="flex justify-between items-start mb-4">
                     <h4 className="text-sm font-semibold text-secondary">Product #{index + 1}</h4>
                     {formData.products.length > 1 && (
@@ -880,16 +916,38 @@ export default function LeadForm() {
                         <label htmlFor={`mobile_product_quantity_${index}`} className="block text-sm font-medium text-gray-700 mb-2">
                           Quantity <span className="text-red-500">*</span>
                         </label>
-                        <input
-                          type="number"
-                          id={`mobile_product_quantity_${index}`} 
-                          value={product.quantity}
-                          min="1"
-                          onChange={(e) => handleProductPropertyChange(index, 'quantity', e.target.value)}
-                          required
-                          className={`w-full px-4 py-3 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base text-secondary placeholder-gray-400 transition-all duration-150 touch-target ${sectionErrors.productInfo?.[index] && !product.quantity ? 'border-red-500 ring-red-500' : ''}`}
-                          placeholder="1"
-                        />
+                        <div className="flex items-center space-x-3">
+                          <button
+                            type="button"
+                            onClick={() => decreaseQuantity(index)}
+                            className="p-2.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-600 hover:text-gray-800 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed touch-target flex-shrink-0"
+                            disabled={parseInt(product.quantity) <= 1}
+                            title="Decrease quantity"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                            </svg>
+                          </button>
+                          <input
+                            type="number"
+                            id={`mobile_product_quantity_${index}`} 
+                            value={product.quantity}
+                            min="1"
+                            onChange={(e) => handleProductPropertyChange(index, 'quantity', e.target.value)}
+                            required
+                            className={`flex-1 px-4 py-3 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base text-secondary text-center transition-all duration-150 touch-target min-w-0 ${sectionErrors.productInfo?.[index] && !product.quantity ? 'border-red-500 ring-red-500' : ''}`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => increaseQuantity(index)}
+                            className="p-2.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-600 hover:text-gray-800 transition-colors duration-150 touch-target flex-shrink-0"
+                            title="Increase quantity"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
 
                       <div>
@@ -904,11 +962,13 @@ export default function LeadForm() {
                             value={product.unitPrice}
                             min="0" 
                             step="0.01" 
-                            onChange={(e) => handleProductPropertyChange(index, 'unitPrice', e.target.value)}
-                            required
-                            className={`w-full pl-10 pr-4 py-3 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base text-secondary placeholder-gray-400 transition-all duration-150 touch-target ${sectionErrors.productInfo?.[index] && !product.unitPrice ? 'border-red-500 ring-red-500' : ''}`}
+                            readOnly
+                            className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-fourth rounded-lg shadow-sm text-base text-secondary font-medium cursor-not-allowed touch-target"
                             placeholder="0.00"
                           />
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-4">
+                            <div className="w-3 h-3 bg-blue-400 rounded-full" title="Auto-filled from product selection"></div>
+                          </div>
                         </div>
                       </div>
 

@@ -4,7 +4,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "tunnel": "ngrok http 5000"
+    "tunnel": "ngrok http 5000",
+    "import-products": "node scripts/importProducts.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
