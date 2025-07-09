@@ -88,7 +88,7 @@ const Login = () => {
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center space-y-4">
             <h2 className="text-2xl font-semibold tracking-tight">
-              Welcome to SunlitCRM
+              Welcome to Sunlit CRM
             </h2>
             <p className="text-sm text-muted-foreground">
               Let's sign you in

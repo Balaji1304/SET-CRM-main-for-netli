@@ -81,7 +81,7 @@ exports.createInvoice = async (req, res) => {
       total: invoice.total,
       dueDate: invoice.dueDate.toLocaleDateString(),
       businessDetails: {
-        name: process.env.BUSINESS_NAME || 'Solar CRM',
+        name: process.env.BUSINESS_NAME || 'Sunlit CRM',
         address: process.env.BUSINESS_ADDRESS || 'Your Business Address',
         phone: process.env.BUSINESS_PHONE || 'Your Business Phone',
         email: process.env.BUSINESS_EMAIL || 'your@business.email'
@@ -98,7 +98,7 @@ exports.createInvoice = async (req, res) => {
     // Send invoice email
     await sendEmail({
       email: customer.email,
-      subject: `Invoice ${invoice.invoiceNumber} - Solar CRM`,
+      subject: `Invoice ${invoice.invoiceNumber} - Sunlit CRM`,
       template: 'invoice',
       data: emailData,
       attachments: [{
@@ -145,7 +145,7 @@ exports.updatePaymentStatus = async (req, res) => {
     // Send payment confirmation email
     await sendEmail({
       email: invoice.customer.email,
-      subject: 'Payment Confirmation - Solar CRM',
+      subject: 'Payment Confirmation - Sunlit CRM',
       template: 'payment-confirmation',
       data: {
         name: invoice.customer.name,
