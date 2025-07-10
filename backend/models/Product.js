@@ -38,6 +38,20 @@ const productSchema = new mongoose.Schema({
     required: [true, 'Please add a product category'],
     trim: true
   },
+  brand: {
+    type: String,
+    required: [true, 'Please add a product brand'],
+    enum: ['panasonic', 'growatt', 'vikram', 'tata', 'luminous', 'exide', 'other'],
+    trim: true
+  },
+  isBundleCompatible: {
+    type: Boolean,
+    default: false
+  },
+  compatibleBundles: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ProductBundle'
+  }],
   specifications: {
     type: Object,
     default: {

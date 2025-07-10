@@ -33,6 +33,7 @@ import Leads from './components/dashboard/Leads';
 import InvoicePage from './app/invoice/[id]/page';
 import TaskDetailPage from './app/schedule/[taskId]/page';
 import PackagesPage from './app/packages/page';
+import BundlesPage from './app/bundles/page';
 
 function App() {
   return (
@@ -134,6 +135,11 @@ function App() {
             <Route path="products/:id/edit" element={
               <ProtectedRoute allowedRoles={['inventory_manager']}>
                 <EditProductPage />
+              </ProtectedRoute>
+            } />
+            <Route path="bundles" element={
+              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
+                <BundlesPage />
               </ProtectedRoute>
             } />
             <Route path="schedule" element={

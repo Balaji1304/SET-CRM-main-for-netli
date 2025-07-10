@@ -53,6 +53,7 @@ const getNavigation = (userRole) => {
     inventory_manager: [
       { name: 'Products', href: '/dashboard/products', icon: Box },
       { name: 'Add Product', href: '/dashboard/products/add', icon: Plus },
+      { name: 'Product Bundles', href: '/dashboard/bundles', icon: Package },
     ],
     sales_head: [
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
@@ -60,6 +61,8 @@ const getNavigation = (userRole) => {
       { name: 'Packages', href: '/dashboard/packages', icon: Plus },
     ],
     product_head: [
+      { name: 'Products', href: '/dashboard/products', icon: Box },
+      { name: 'Product Bundles', href: '/dashboard/bundles', icon: Package },
       { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar },
       { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },

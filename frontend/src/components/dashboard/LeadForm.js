@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2, X, AlertTriangle, Loader2 } from 'lucide-react';
+import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2, X, AlertTriangle, Loader2, Package } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createLead, getLead, updateLead } from '../../services/leadService';
 import { getProducts } from '../../services/productService';
+import { getPowerPlantConfigurations } from '../../services/bundleService';
+import { generateUniqueId, createDefaultFormState, ensureUniqueIds } from '../../utils/generateId';
 
 const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Yes, Confirm', cancelText = 'Cancel', isDestructive = false }) => {
   if (!isOpen) return null;
@@ -94,28 +96,8 @@ const FORM_OPTIONS = {
   // ],
 };
 
-  const defaultFormState = {
-    leadType: '',
-    status: 'pending',
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    countryCode: '+91',
-    whatsapp: '',
-    address: '',
-    businessName: '',
-    customerType: '',
-    products: [
-    { id: Date.now().toString(), category: '', name: '', quantity: '1', price: '0', productId: '' }
-    ],
-    productRequirements: '',
-    interestStage: 'new_lead',
-    dateCollected: new Date().toISOString().split('T')[0],
-    followUpRequired: false,
-    followUpDateTime: '',
-    notes: ''
-  };
+  // Using the utility function to create default form state
+  const defaultFormState = createDefaultFormState();
 
 export default function LeadForm() {
   const { state: locationState } = useLocation();
@@ -149,6 +131,12 @@ export default function LeadForm() {
   const [productCategories, setProductCategories] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productFetchError, setProductFetchError] = useState(null);
+  
+  // Bundle-related state
+  const [bundlesData, setBundlesData] = useState({});
+  const [isLoadingBundles, setIsLoadingBundles] = useState(true);
+  const [bundleFetchError, setBundleFetchError] = useState(null);
+  const [selectedProductType, setSelectedProductType] = useState('individual'); // 'individual' or 'bundle'
 
   // Geolocation state
   const [geo, setGeo] = useState({ latitude: '', longitude: '' });
@@ -156,26 +144,35 @@ export default function LeadForm() {
   const [geoError, setGeoError] = useState('');
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchProductsAndBundles = async () => {
       setIsLoadingProducts(true);
+      setIsLoadingBundles(true);
       setProductFetchError(null);
+      setBundleFetchError(null);
+      
       try {
-        const response = await getProducts();
-        if (response.success && Array.isArray(response.data)) {
+        // Fetch regular products
+        const productsResponse = await getProducts();
+        if (productsResponse.success && Array.isArray(productsResponse.data)) {
           const productsByCategory = {};
           const categories = new Set();
-          response.data.forEach(product => {
+          productsResponse.data.forEach(product => {
             const category = product.category || 'uncategorized';
             categories.add(category);
             if (!productsByCategory[category]) {
               productsByCategory[category] = [];
             }
-            productsByCategory[category].push({ _id: product._id, name: product.name, price: product.price });
+            productsByCategory[category].push({ 
+              _id: product._id, 
+              name: product.name, 
+              price: product.price,
+              brand: product.brand 
+            });
           });
           setProductsData(productsByCategory);
           setProductCategories(Array.from(categories).sort());
         } else {
-          throw new Error(response.message || 'Product data is not in expected format.');
+          throw new Error(productsResponse.message || 'Product data is not in expected format.');
         }
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -183,16 +180,34 @@ export default function LeadForm() {
       } finally {
         setIsLoadingProducts(false);
       }
+
+      try {
+        // Fetch power plant bundles
+        const bundlesResponse = await getPowerPlantConfigurations();
+        if (bundlesResponse.success && bundlesResponse.data) {
+          setBundlesData(bundlesResponse.data);
+        } else {
+          throw new Error(bundlesResponse.message || 'Bundle data is not in expected format.');
+        }
+      } catch (error) {
+        console.error('Error fetching bundles:', error);
+        setBundleFetchError('Failed to load power plant bundles. Some features may be limited.');
+      } finally {
+        setIsLoadingBundles(false);
+      }
     };
-    fetchProducts();
+    
+    fetchProductsAndBundles();
   }, []);
 
   const resetFormToDefaults = useCallback(() => {
-    setFormData(defaultFormState);
-    setInitialFormData(defaultFormState);
+    const newDefaultState = createDefaultFormState();
+    setFormData(newDefaultState);
+    setInitialFormData(newDefaultState);
     setHasUnsavedChanges(false);
     setSectionErrors({});
     setSubmissionError(null);
+    setSelectedProductType('individual');
   }, []);
 
   useEffect(() => {
@@ -208,8 +223,8 @@ export default function LeadForm() {
             ...leadData,
             dateCollected: leadData.dateCollected ? new Date(leadData.dateCollected).toISOString().split('T')[0] : defaultFormState.dateCollected,
             products: (leadData.products && leadData.products.length > 0) 
-              ? leadData.products.map(p => ({ ...p, id: p.id || p._id || Date.now().toString() })) 
-              : [{ ...defaultFormState.products[0], id: Date.now().toString() }],
+              ? ensureUniqueIds(leadData.products) 
+              : [{ ...createDefaultFormState().products[0] }],
           };
           setFormData(formattedLead);
           setInitialFormData(JSON.parse(JSON.stringify(formattedLead)));
@@ -235,8 +250,8 @@ export default function LeadForm() {
         ...leadData,
         dateCollected: leadData.dateCollected ? new Date(leadData.dateCollected).toISOString().split('T')[0] : defaultFormState.dateCollected,
         products: (leadData.products && leadData.products.length > 0) 
-            ? leadData.products.map(p => ({ ...p, id: p.id || p._id || Date.now().toString() })) 
-            : [{ ...defaultFormState.products[0], id: Date.now().toString() }],
+            ? ensureUniqueIds(leadData.products) 
+            : [{ ...createDefaultFormState().products[0] }],
       };
       setFormData(formattedLead);
       setInitialFormData(JSON.parse(JSON.stringify(formattedLead)));
@@ -252,6 +267,16 @@ export default function LeadForm() {
     const initialDataString = JSON.stringify(initialFormData);
     setHasUnsavedChanges(currentDataString !== initialDataString);
   }, [formData, initialFormData]);
+
+  // Ensure all products have unique IDs
+  useEffect(() => {
+    if (formData.products && formData.products.some(p => !p.id)) {
+      setFormData(prev => ({
+        ...prev,
+        products: ensureUniqueIds(prev.products)
+      }));
+    }
+  }, [formData.products]);
 
   const handleNavigate = (path) => {
     if (hasUnsavedChanges) {
@@ -283,27 +308,44 @@ export default function LeadForm() {
   };
 
   const handleProductPropertyChange = (index, field, value) => {
-    const updatedProducts = formData.products.map((p, i) => (i === index ? { ...p, [field]: value } : p));
-    if (field === 'category') {
-      updatedProducts[index].name = '';
-      updatedProducts[index].price = defaultFormState.products[0].price;
-      updatedProducts[index].productId = '';
-    }
-    if (field === 'name' && value) {
-      const category = updatedProducts[index].category;
-      const selectedProduct = productsData[category]?.find(p => p.name === value);
-      if (selectedProduct) {
-        updatedProducts[index].price = selectedProduct.price.toString();
-        updatedProducts[index].productId = selectedProduct._id;
+    const updatedProducts = formData.products.map((p, i) => {
+      if (i === index) {
+        const updatedProduct = { ...p, [field]: value };
+        
+        // Ensure product has an ID
+        if (!updatedProduct.id) {
+          updatedProduct.id = generateUniqueId();
+        }
+        
+        if (field === 'category') {
+          updatedProduct.name = '';
+          updatedProduct.price = createDefaultFormState().products[0].price;
+          updatedProduct.productId = '';
+          updatedProduct.type = 'individual';
+        }
+        
+        if (field === 'name' && value) {
+          const category = updatedProduct.category;
+          const selectedProduct = productsData[category]?.find(p => p.name === value);
+          if (selectedProduct) {
+            updatedProduct.price = selectedProduct.price.toString();
+            updatedProduct.productId = selectedProduct._id;
+            updatedProduct.brand = selectedProduct.brand;
+          }
+        }
+        
+        return updatedProduct;
       }
-    }
+      return p;
+    });
+    
     setFormData(prev => ({ ...prev, products: updatedProducts }));
   };
 
   const addProductField = () => {
     setFormData(prev => ({
       ...prev,
-      products: [...prev.products, { ...defaultFormState.products[0], id: Date.now().toString() }]
+      products: [...prev.products, { ...createDefaultFormState().products[0] }]
     }));
   };
 
@@ -598,15 +640,48 @@ export default function LeadForm() {
 
           <section>
             {renderSectionHeader('Products & Budget', 'productInfo')}
-            {productFetchError && (
+            {(productFetchError || bundleFetchError) && (
                 <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-lg flex items-start gap-2">
                     <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                    <span>{productFetchError}</span>
+                    <div>
+                      {productFetchError && <div>{productFetchError}</div>}
+                      {bundleFetchError && <div>{bundleFetchError}</div>}
+                    </div>
                 </div>
               )}
+            
+            {/* Product Type Selection */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-fourth">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Product Type</h4>
+              <div className="flex space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="productType"
+                    value="individual"
+                    checked={selectedProductType === 'individual'}
+                    onChange={(e) => setSelectedProductType(e.target.value)}
+                    className="h-4 w-4 text-primary border-gray-300 focus:ring-primary"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Individual Products</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="productType"
+                    value="bundle"
+                    checked={selectedProductType === 'bundle'}
+                    onChange={(e) => setSelectedProductType(e.target.value)}
+                    className="h-4 w-4 text-primary border-gray-300 focus:ring-primary"
+                  />
+                  <Package className="w-4 h-4 ml-2 mr-1 text-primary" />
+                  <span className="text-sm text-gray-700">Power Plant Systems (2KVA, 4KVA, 5KVA, 10KVA)</span>
+                </label>
+              </div>
+            </div>
             <div className="space-y-4">
               {formData.products.map((product, index) => (
-                <div key={product.id || index} className="p-4 border border-fourth rounded-lg space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-4 md:items-end bg-white shadow-sm">
+                <div key={product.id} className="p-4 border border-fourth rounded-lg space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-4 md:items-end bg-white shadow-sm">
                   <div className="md:col-span-3">
                     <label htmlFor={`product_category_${index}`} className="block text-sm font-medium text-gray-700 mb-1">Category <span className="text-red-500">*</span></label>
                     <div className="relative">
