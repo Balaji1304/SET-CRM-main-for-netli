@@ -740,7 +740,7 @@ export default function LeadForm() {
                               min="1"
                               onChange={(e) => handleProductPropertyChange(index, 'quantity', e.target.value)}
                               required
-                              className={`w-8 lg:w-12 px-1 py-1 lg:py-1.5 bg-white border border-fourth rounded text-center text-xs lg:text-sm text-secondary transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary ${sectionErrors.productInfo?.[index] && !product.quantity ? 'border-red-500 ring-red-500' : ''}`}
+                              className={`w-8 lg:w-12 px-1 py-1 lg:py-1.5 bg-white border border-fourth rounded text-center text-xs lg:text-sm text-secondary transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${sectionErrors.productInfo?.[index] && !product.quantity ? 'border-red-500 ring-red-500' : ''}`}
                             />
                             <button
                               type="button"

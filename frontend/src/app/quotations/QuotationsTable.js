@@ -441,41 +441,41 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
   // Mobile Card Component
   const QuotationCard = ({ quotation }) => (
-    <div className="bg-white rounded-lg xs:rounded-xl border border-gray-200 p-2 xs:p-3 sm:p-4 space-y-3 sm:space-y-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4 shadow-sm hover:shadow-md transition-shadow duration-200">
       {/* Header */}
-      <div className="flex items-start justify-between gap-2 xs:gap-3 sm:gap-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0 overflow-hidden">
-          <h3 className="text-sm xs:text-base font-semibold text-gray-900 mb-1 truncate">
+          <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
             {quotation.quotationNumber}
           </h3>
-          <div className="flex items-center space-x-1 xs:space-x-2 text-xs xs:text-sm text-gray-600">
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
             <div className="flex items-center space-x-1 min-w-0 overflow-hidden">
-              <User className="w-3 xs:w-3.5 h-3 xs:h-3.5 flex-shrink-0" />
+              <User className="w-4 h-4 flex-shrink-0" />
               <span className="truncate">{quotation.lead ? `${quotation.lead.firstName} ${quotation.lead.lastName}` : 'N/A'}</span>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-0.5 xs:gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => navigate(`/dashboard/quotations/${quotation._id}`)}
-            className="flex items-center justify-center p-0.5 xs:p-1 rounded text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+            className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
             title="View Quotation"
           >
-            <FileText className="w-3 xs:w-3.5 h-3 xs:h-3.5" />
+            <FileText className="w-4 h-4" />
           </button>
           {quotation.status === 'draft' && (
             <>
               <button
                 onClick={() => navigate(`/dashboard/quotations/${quotation._id}/edit`)}
-                className="flex items-center justify-center p-0.5 xs:p-1 rounded text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
                 title="Edit Quotation"
                 disabled={loadingAction[quotation._id]}
               >
-                <Edit2 className="w-3 xs:w-3.5 h-3 xs:h-3.5" />
+                <Edit2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => handleSendQuotation(quotation._id)}
-                className={`flex items-center justify-center p-0.5 xs:p-1 rounded transition-colors duration-150 touch-target ${
+                className={`flex items-center justify-center p-2 rounded transition-colors duration-150 touch-target ${
                   loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' 
                     ? 'text-primary bg-primary/10 cursor-not-allowed' 
                     : 'text-gray-500 hover:text-primary hover:bg-gray-100'
@@ -483,7 +483,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                 title={loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? "Sending..." : "Send Quotation"}
                 disabled={loadingAction[quotation._id]}
               >
-                {loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? <Loader2 className="w-3 xs:w-3.5 h-3 xs:h-3.5 animate-spin text-primary" /> : <Send className="w-3 xs:w-3.5 h-3 xs:h-3.5" />}
+                {loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Send className="w-4 h-4" />}
               </button>
             </>
           )}
@@ -496,27 +496,27 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                     setShowPaymentModal(true);
                     setPaymentError('');
                   }}
-                  className="flex items-center justify-center p-0.5 xs:p-1 rounded text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                  className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
                   title="Confirm Offline Payment"
                 >
-                  <IndianRupee className="w-3 xs:w-3.5 h-3 xs:h-3.5" />
+                  <IndianRupee className="w-4 h-4" />
                 </button>
               )}
               <button
                 onClick={() => openConfirmDialog('Are you sure you want to mark this quotation as approved?', () => handleApproveQuotation(quotation._id))}
-                className="flex items-center justify-center p-0.5 xs:p-1 rounded text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
                 title="Approve Quotation"
                 disabled={loadingAction[quotation._id] || quotation.advancePaymentStatus === 'CONFIRMED'}
               >
-                <Check className="w-3 xs:w-3.5 h-3 xs:h-3.5" />
+                <Check className="w-4 h-4" />
               </button>
               <button
                 onClick={() => openConfirmDialog('Are you sure you want to close this quotation? This usually means the lead did not accept it.', () => handleCloseQuotation(quotation._id))}
-                className="flex items-center justify-center p-0.5 xs:p-1 rounded text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
                 title="Close Quotation"
                 disabled={loadingAction[quotation._id]}
               >
-                <X className="w-3 xs:w-3.5 h-3 xs:h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </>
           )}
@@ -524,41 +524,41 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       </div>
 
       {/* Amount and Status */}
-      <div className="space-y-1.5 xs:space-y-2">
+      <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs xs:text-sm font-medium text-gray-500">Total Amount</span>
-          <span className="text-sm xs:text-base sm:text-lg font-bold text-gray-900 truncate ml-2">
+          <span className="text-sm font-medium text-gray-500">Total Amount</span>
+          <span className="text-lg font-bold text-gray-900 truncate ml-2">
             ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
       </div>
 
       {/* Status and Payment Status */}
-      <div className="space-y-3 xs:space-y-0 xs:grid xs:grid-cols-2 xs:gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</p>
-          <span className={`inline-flex items-center px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-xs font-medium truncate ${getStatusBadgeClass(quotation.status)}`}>
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium truncate ${getStatusBadgeClass(quotation.status)}`}>
             {formatDisplayValue(quotation.status)}
           </span>
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Payment Status</p>
-          <p className="text-xs xs:text-sm text-gray-900 truncate">{formatDisplayValue(quotation.advancePaymentStatus) || 'Not Applicable'}</p>
+          <p className="text-sm text-gray-900 truncate">{formatDisplayValue(quotation.advancePaymentStatus) || 'Not Applicable'}</p>
         </div>
       </div>
 
       {/* Valid Until and Items */}
-      <div className="space-y-3 xs:space-y-0 xs:grid xs:grid-cols-2 xs:gap-2 sm:gap-3 pt-2 xs:pt-3 border-t border-gray-100">
+      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Valid Until</p>
-          <div className="flex items-center space-x-1 text-xs xs:text-sm text-gray-600">
-            <Calendar className="w-3 xs:w-4 h-3 xs:h-4 flex-shrink-0" />
+          <div className="flex items-center space-x-1 text-sm text-gray-600">
+            <Calendar className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">{new Date(quotation.validUntil).toLocaleDateString('en-GB')}</span>
           </div>
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Items</p>
-          <p className="text-xs xs:text-sm text-gray-900 truncate">
+          <p className="text-sm text-gray-900 truncate">
             {quotation.quotationItems ? `${quotation.quotationItems.length} item${quotation.quotationItems.length !== 1 ? 's' : ''}` : '0 items'}
           </p>
         </div>
@@ -772,10 +772,10 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
       {/* Mobile Card View */}
       <div className="md:hidden flex-1 overflow-y-auto">
-        <div className="p-2 xs:p-3 sm:p-4 space-y-2 xs:space-y-3 sm:space-y-4">
+        <div className="p-4 space-y-4">
           {currentQuotations.length === 0 && !loading ? (
-            <div className="text-center py-8 xs:py-12">
-              <p className="text-sm xs:text-base text-gray-500">No quotations found matching your criteria.</p>
+            <div className="text-center py-12">
+              <p className="text-gray-500">No quotations found matching your criteria.</p>
             </div>
           ) : (
             currentQuotations.map((quotation) => (
@@ -787,28 +787,27 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
       {/* Pagination */}
       {totalPages > 0 && (
-        <div className="px-1 xs:px-2 sm:px-4 lg:px-4 xl:px-6 py-2 xs:py-3 border-t border-fourth bg-tertiary flex flex-col xs:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-2 xs:space-y-0">
-          <div className="text-xs xs:text-sm text-gray-600 order-2 xs:order-1 text-center xs:text-left">
-            <span className="hidden xs:inline">Showing {Math.min(startIndex + 1, filteredQuotations.length)} to {Math.min(endIndex, filteredQuotations.length)} of {filteredQuotations.length} results</span>
-            <span className="xs:hidden">{Math.min(startIndex + 1, filteredQuotations.length)}-{Math.min(endIndex, filteredQuotations.length)} of {filteredQuotations.length}</span>
+        <div className="px-2 lg:px-4 xl:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-3 sm:space-y-0">
+          <div className="text-sm text-gray-600 order-2 sm:order-1">
+            Showing {Math.min(startIndex + 1, filteredQuotations.length)} to {Math.min(endIndex, filteredQuotations.length)} of {filteredQuotations.length} results
           </div>
-          <div className="flex items-center space-x-1 xs:space-x-2 order-1 xs:order-2">
+          <div className="flex items-center space-x-2 order-1 sm:order-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="p-1.5 xs:p-2 border border-fourth rounded-md text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fourth transition-colors duration-150 touch-target"
+              className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
             >
-              <ChevronLeft className="w-3.5 xs:w-4 h-3.5 xs:h-4" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-xs xs:text-sm text-gray-600 px-1 xs:px-2 min-w-[40px] xs:min-w-[50px] text-center"> 
+            <span className="text-sm text-gray-600 px-2"> 
               {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="p-1.5 xs:p-2 border border-fourth rounded-md text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fourth transition-colors duration-150 touch-target"
+              className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
             >
-              <ChevronRight className="w-3.5 xs:w-4 h-3.5 xs:h-4" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -816,7 +815,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       
       {/* Success Toast */} 
       {successToast.show && (
-        <div className="fixed bottom-2 xs:bottom-5 right-2 xs:right-5 bg-primary text-tertiary px-3 xs:px-6 py-2 xs:py-3 rounded-lg shadow-lg transition-all duration-300 ease-in-out z-[101] transform translate-y-0 opacity-100 text-sm xs:text-base max-w-[calc(100vw-16px)] xs:max-w-none">
+        <div className="fixed bottom-5 right-5 bg-primary text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ease-in-out z-50">
           {successToast.message}
         </div>
       )}

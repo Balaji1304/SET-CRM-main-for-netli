@@ -132,7 +132,7 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
 
   // Mobile Card Component
   const LeadCard = ({ lead }) => (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4 shadow-sm hover:shadow-md transition-shadow duration-200">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex-1">
@@ -266,13 +266,13 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                   {[
                     { key: 'name', label: 'Full Name', width: 'w-32 lg:w-40' },
                     { key: 'phone', label: 'Phone', width: 'w-24 lg:w-32' },
-                    { key: 'email', label: 'Email', width: 'w-48', hideOnXl: true },
+                    { key: 'email', label: 'Email', width: 'w-48', hideOn2Xl: true },
                     { key: 'business', label: 'Business', width: 'w-36', hideOnXl: true },
-                    { key: 'leadType', label: 'Lead Type', width: 'w-24 lg:w-32', hideOnLg: true },
-                    { key: 'type', label: 'Customer Type', width: 'w-32', hideOnXl: true },
+                    { key: 'leadType', label: 'Lead Type', width: 'w-24 lg:w-32', hideOnXl: true },
+                    { key: 'type', label: 'Customer Type', width: 'w-32', hideOnLg: true },
                     { key: 'status', label: 'Status', width: 'w-20 lg:w-24' },
                     { key: 'budget', label: 'Budget', width: 'w-24 lg:w-32' },
-                    { key: 'date', label: 'Date', width: 'w-28', hideOnXl: true },
+                    { key: 'date', label: 'Date', width: 'w-28', hideOn2Xl: true },
                     { key: 'actions', label: 'Actions', width: 'w-20 lg:w-24' }
                   ].map((header) => (
                     <th
@@ -280,7 +280,8 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                       scope="col"
                       className={`px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${header.width} 
                         ${header.hideOnLg ? 'hidden lg:table-cell' : ''} 
-                        ${header.hideOnXl ? 'hidden xl:table-cell' : ''}`}
+                        ${header.hideOnXl ? 'hidden xl:table-cell' : ''} 
+                        ${header.hideOn2Xl ? 'hidden 2xl:table-cell' : ''}`}
                     >
                       {header.label}
                     </th>
@@ -290,7 +291,7 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentLeads.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
                       No leads found matching your criteria.
                     </td>
                   </tr>
@@ -308,16 +309,16 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                       <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
                         <div className="truncate">{lead.phone}</div>
                       </td>
-                      <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-48">
+                      <td className="hidden 2xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-48">
                         <div className="truncate">{lead.email}</div>
                       </td>
                       <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-36">
                         <div className="truncate">{lead.businessName}</div>
                       </td>
-                      <td className="hidden lg:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
+                      <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
                         <div className="truncate">{formatEnumValue(lead.leadType)}</div>
                       </td>
-                      <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-32">
+                      <td className="hidden lg:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-32">
                         <div className="truncate">{formatEnumValue(lead.customerType)}</div>
                       </td>
                       <td className="px-2 lg:px-4 xl:px-6 py-4 w-20 lg:w-24">
@@ -339,7 +340,7 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                           0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0'}
                         </div>
                       </td>
-                      <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28">
+                      <td className="hidden 2xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28">
                         <div className="truncate">
                           {new Date(lead.dateCollected).toLocaleDateString('en-GB')}
                         </div>
