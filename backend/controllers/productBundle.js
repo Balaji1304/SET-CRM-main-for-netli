@@ -1,5 +1,6 @@
 const ProductBundle = require('../models/ProductBundle');
 const Product = require('../models/Product');
+const SolarBundleItem = require('../models/SolarBundleItem');
 const { errorHandler, AppError } = require('../utils/errorHandler');
 
 // @desc    Get all product bundles
@@ -17,8 +18,8 @@ exports.getBundles = async (req, res) => {
     
     const bundles = await ProductBundle.find(query)
       .populate({
-        path: 'items.product',
-        select: 'name modelNumber price brand category specifications'
+        path: 'items.solarItem',
+        select: 'name warranty'
       })
       .populate('createdBy', 'name')
       .sort({ createdAt: -1 });
@@ -27,8 +28,7 @@ exports.getBundles = async (req, res) => {
     let filteredBundles = bundles;
     if (brand) {
       filteredBundles = bundles.filter(bundle => 
-        bundle.supportedBrands.includes(brand) ||
-        bundle.items.some(item => item.product.brand === brand)
+        bundle.supportedBrands.includes(brand)
       );
     }
 
@@ -49,12 +49,8 @@ exports.getBundle = async (req, res) => {
   try {
     const bundle = await ProductBundle.findById(req.params.id)
       .populate({
-        path: 'items.product',
-        select: 'name modelNumber price brand category specifications imageUrls'
-      })
-      .populate({
-        path: 'items.alternativeProducts.product',
-        select: 'name modelNumber price brand category specifications'
+        path: 'items.solarItem',
+        select: 'name warranty'
       })
       .populate('createdBy', 'name');
 
@@ -91,24 +87,23 @@ exports.createBundle = async (req, res) => {
       tags
     } = req.body;
 
-    // Validate that all products exist
-    const productIds = items.map(item => item.product);
-    const products = await Product.find({ _id: { $in: productIds } });
-    
-    if (products.length !== productIds.length) {
-      throw new AppError('One or more products not found', 400);
+    // Check if bundle code already exists
+    const existingBundle = await ProductBundle.findOne({ bundleCode: bundleCode.toUpperCase() });
+    if (existingBundle) {
+      throw new AppError('Bundle code already exists. Please use a unique bundle code.', 400);
     }
 
-    // Calculate base price if not provided
-    let calculatedBasePrice = basePrice;
-    if (!basePrice) {
-      calculatedBasePrice = 0;
-      for (const item of items) {
-        const product = products.find(p => p._id.toString() === item.product.toString());
-        if (product) {
-          calculatedBasePrice += product.price * item.quantity;
-        }
+    // Validate that all solar items exist (only if items are provided)
+    let processedItems = [];
+    if (items && items.length > 0) {
+      const solarItemIds = items.map(item => item.solarItem).filter(Boolean);
+      const solarItems = await SolarBundleItem.find({ _id: { $in: solarItemIds } });
+      
+      if (solarItems.length !== solarItemIds.length) {
+        throw new AppError('One or more solar items not found', 400);
       }
+
+      processedItems = items;
     }
 
     const bundle = await ProductBundle.create({
@@ -117,20 +112,20 @@ exports.createBundle = async (req, res) => {
       category: category || 'power_plants_system',
       subcategory,
       description,
-      items,
-      basePrice: calculatedBasePrice,
+      items: processedItems || [],
+      basePrice: basePrice || 0,
       discountPercentage: discountPercentage || 0,
       specifications,
-      supportedBrands,
-      imageUrls,
-      tags,
+      supportedBrands: supportedBrands || [],
+      imageUrls: imageUrls || [],
+      tags: tags || [],
       createdBy: req.user.id
     });
 
     const populatedBundle = await ProductBundle.findById(bundle._id)
       .populate({
-        path: 'items.product',
-        select: 'name modelNumber price brand category specifications'
+        path: 'items.solarItem',
+        select: 'name warranty'
       });
 
     res.status(201).json({
@@ -138,6 +133,10 @@ exports.createBundle = async (req, res) => {
       data: populatedBundle
     });
   } catch (error) {
+    console.error('Bundle creation error:', error);
+    if (error.name === 'ValidationError') {
+      console.error('Validation details:', error.errors);
+    }
     errorHandler(res, error);
   }
 };
@@ -173,14 +172,17 @@ exports.updateBundle = async (req, res) => {
       isActive
     } = req.body;
 
-    // Validate products if items are being updated
+    // Validate solar items if items are being updated
+    let processedItems = items;
     if (items) {
-      const productIds = items.map(item => item.product);
-      const products = await Product.find({ _id: { $in: productIds } });
+      const solarItemIds = items.map(item => item.solarItem).filter(Boolean);
+      const solarItems = await SolarBundleItem.find({ _id: { $in: solarItemIds } });
       
-      if (products.length !== productIds.length) {
-        throw new AppError('One or more products not found', 400);
+      if (solarItems.length !== solarItemIds.length) {
+        throw new AppError('One or more solar items not found', 400);
       }
+
+      processedItems = items;
     }
 
     const updatedBundle = await ProductBundle.findByIdAndUpdate(
@@ -190,7 +192,7 @@ exports.updateBundle = async (req, res) => {
         bundleCode,
         subcategory,
         description,
-        items,
+        items: processedItems,
         basePrice,
         discountPercentage,
         specifications,
@@ -201,8 +203,8 @@ exports.updateBundle = async (req, res) => {
       },
       { new: true, runValidators: true }
     ).populate({
-      path: 'items.product',
-      select: 'name modelNumber price brand category specifications'
+      path: 'items.solarItem',
+      select: 'name warranty'
     });
 
     res.json({
@@ -260,8 +262,8 @@ exports.getPowerPlantConfigurations = async (req, res) => {
 
     const configurations = await ProductBundle.find(query)
       .populate({
-        path: 'items.product',
-        select: 'name modelNumber price brand category specifications'
+        path: 'items.solarItem',
+        select: 'name warranty'
       })
       .sort({ subcategory: 1 });
 
@@ -283,94 +285,17 @@ exports.getPowerPlantConfigurations = async (req, res) => {
   }
 };
 
-// @desc    Get compatible products for bundle creation
+// @desc    Get all solar bundle items for bundle creation
 // @route   GET /api/bundles/compatible-products
 // @access  Private
 exports.getCompatibleProducts = async (req, res) => {
   try {
-    const { category, brand } = req.query;
-    
-    let query = { isBundleCompatible: true };
-    
-    if (category) query.category = category;
-    if (brand) query.brand = brand;
-
-    const products = await Product.find(query)
-      .select('name modelNumber price brand category specifications')
-      .sort({ category: 1, brand: 1, name: 1 });
-
-    // Group by category for easier selection
-    const groupedProducts = products.reduce((acc, product) => {
-      if (!acc[product.category]) {
-        acc[product.category] = [];
-      }
-      acc[product.category].push(product);
-      return acc;
-    }, {});
+    const solarItems = await SolarBundleItem.getAllActiveItems()
+      .select('name warranty');
 
     res.json({
       success: true,
-      data: groupedProducts
-    });
-  } catch (error) {
-    errorHandler(res, error);
-  }
-};
-
-// @desc    Calculate bundle pricing with different brands
-// @route   POST /api/bundles/calculate-pricing
-// @access  Private
-exports.calculateBundlePricing = async (req, res) => {
-  try {
-    const { items, discountPercentage = 0, brandFilter } = req.body;
-
-    if (!items || !Array.isArray(items)) {
-      throw new AppError('Items array is required', 400);
-    }
-
-    let totalPrice = 0;
-    const calculatedItems = [];
-
-    for (const item of items) {
-      const product = await Product.findById(item.product);
-      if (!product) {
-        throw new AppError(`Product with ID ${item.product} not found`, 400);
-      }
-
-      // Filter by brand if specified
-      if (brandFilter && product.brand !== brandFilter) {
-        continue;
-      }
-
-      const itemTotal = product.price * item.quantity;
-      totalPrice += itemTotal;
-
-      calculatedItems.push({
-        product: {
-          _id: product._id,
-          name: product.name,
-          modelNumber: product.modelNumber,
-          brand: product.brand,
-          price: product.price
-        },
-        quantity: item.quantity,
-        itemTotal
-      });
-    }
-
-    const discountAmount = totalPrice * (discountPercentage / 100);
-    const finalPrice = totalPrice - discountAmount;
-
-    res.json({
-      success: true,
-      data: {
-        items: calculatedItems,
-        basePrice: totalPrice,
-        discountPercentage,
-        discountAmount,
-        finalPrice,
-        savings: discountAmount
-      }
+      data: solarItems
     });
   } catch (error) {
     errorHandler(res, error);

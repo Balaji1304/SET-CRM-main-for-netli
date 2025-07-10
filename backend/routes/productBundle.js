@@ -8,8 +8,7 @@ const {
   updateBundle,
   deleteBundle,
   getPowerPlantConfigurations,
-  getCompatibleProducts,
-  calculateBundlePricing
+  getCompatibleProducts
 } = require('../controllers/productBundle');
 
 // Public routes (for displaying bundles to customers)
@@ -18,12 +17,11 @@ router.get('/power-plants/configurations', protect, getPowerPlantConfigurations)
 // Protected routes - all authenticated users can view
 router.get('/', protect, getBundles);
 router.get('/compatible-products', protect, getCompatibleProducts);
-router.post('/calculate-pricing', protect, calculateBundlePricing);
 router.get('/:id', protect, getBundle);
 
-// Admin/Product Head only routes
-router.post('/', protect, authorize('admin', 'product_head'), createBundle);
-router.put('/:id', protect, authorize('admin', 'product_head'), updateBundle);
-router.delete('/:id', protect, authorize('admin', 'product_head'), deleteBundle);
+// Admin/Product Head/Inventory Manager only routes
+router.post('/', protect, authorize('admin', 'product_head', 'inventory_manager'), createBundle);
+router.put('/:id', protect, authorize('admin', 'product_head', 'inventory_manager'), updateBundle);
+router.delete('/:id', protect, authorize('admin', 'product_head', 'inventory_manager'), deleteBundle);
 
 module.exports = router; 

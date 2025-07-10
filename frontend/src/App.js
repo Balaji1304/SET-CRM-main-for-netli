@@ -142,6 +142,16 @@ function App() {
                 <BundlesPage />
               </ProtectedRoute>
             } />
+            <Route path="bundles/create" element={
+              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
+                <BundlesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="bundles/:id/edit" element={
+              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
+                <BundlesPage />
+              </ProtectedRoute>
+            } />
             <Route path="schedule" element={
               <ProtectedRoute allowedRoles={['product_head']}>
                 <SchedulePage />

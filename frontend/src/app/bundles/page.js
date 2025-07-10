@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Package, Plus, Edit2, Trash2, Eye, Filter, Search, Loader2, AlertTriangle } from 'lucide-react';
-import { getBundles, deleteBundle } from '../../services/bundleService';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Package, Plus, Edit2, Trash2, Eye, Filter, Search, Loader2, AlertTriangle, ArrowLeft, Save } from 'lucide-react';
+import { getBundles, deleteBundle, createBundle, getBundle, updateBundle, getCompatibleProducts } from '../../services/bundleService';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
 const formatCurrency = (amount) => {
@@ -19,10 +19,44 @@ const formatBrandName = (brand) => {
 
 export default function BundlesPage() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const location = useLocation();
+  
+  // Determine the current mode based on the URL
+  const isCreateMode = location.pathname.includes('/create');
+  const isEditMode = location.pathname.includes('/edit');
+  const isListMode = !isCreateMode && !isEditMode;
+
   const [bundles, setBundles] = useState([]);
   const [filteredBundles, setFilteredBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Product selection state
+  const [solarComponents, setSolarComponents] = useState([]);
+  const [loadingSolarComponents, setLoadingSolarComponents] = useState(false);
+  
+  // Bundle form state
+  const [bundleForm, setBundleForm] = useState({
+    name: '',
+    bundleCode: '',
+    description: '',
+    category: 'power_plants_system',
+    subcategory: '2kva',
+    supportedBrands: [],
+    items: [],
+    basePrice: 0,
+    discountPercentage: 0,
+    finalPrice: 0,
+    specifications: {
+      powerOutput: '',
+      efficiency: '',
+      warranty: '',
+      installationType: ''
+    },
+    isActive: true
+  });
+  const [formLoading, setFormLoading] = useState(false);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,12 +70,51 @@ export default function BundlesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    fetchBundles();
-  }, []);
+    if (isListMode) {
+      fetchBundles();
+    } else if (isEditMode && id) {
+      fetchBundleForEdit(id);
+    } else if (isCreateMode) {
+      // Clear any potential localStorage/sessionStorage pollution
+      try {
+        localStorage.removeItem('bundleForm');
+        sessionStorage.removeItem('bundleForm');
+      } catch (e) {
+        console.warn('Could not clear storage:', e);
+      }
+      
+      // Reset form for create mode with clean state
+      setBundleForm({
+        name: '',
+        bundleCode: '',
+        description: '',
+        category: 'power_plants_system',
+        subcategory: '2kva',
+        supportedBrands: [],
+        items: [],
+        basePrice: 0,
+        discountPercentage: 0,
+        finalPrice: 0,
+        specifications: {
+          powerOutput: '',
+          efficiency: '',
+          warranty: '',
+          installationType: ''
+        },
+        isActive: true
+      });
+      
+      // Load solar components for selection
+      fetchSolarComponents();
+      setLoading(false);
+    }
+  }, [isListMode, isEditMode, isCreateMode, id]);
 
   useEffect(() => {
-    filterBundles();
-  }, [bundles, searchTerm, subcategoryFilter, brandFilter, statusFilter]);
+    if (isListMode) {
+      filterBundles();
+    }
+  }, [bundles, searchTerm, subcategoryFilter, brandFilter, statusFilter, isListMode]);
 
   const fetchBundles = async () => {
     try {
@@ -61,6 +134,206 @@ export default function BundlesPage() {
       setLoading(false);
     }
   };
+
+  const fetchBundleForEdit = async (bundleId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getBundle(bundleId);
+      
+      if (response.success) {
+        setBundleForm(response.data);
+        fetchSolarComponents(); // Load solar components for editing
+      } else {
+        throw new Error(response.message || 'Failed to fetch bundle');
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching bundle:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSolarComponents = async () => {
+    try {
+      setLoadingSolarComponents(true);
+      const response = await getCompatibleProducts(); // This now returns all solar components
+      
+      if (response.success) {
+        setSolarComponents(response.data);
+        // Initialize bundle form with all 7 components
+        if (response.data.length > 0 && (!bundleForm.items || bundleForm.items.length === 0)) {
+          const initialItems = response.data.map(component => ({
+            solarItem: component._id,
+            quantity: 0,
+            notes: ''
+          }));
+          setBundleForm(prev => ({
+            ...prev,
+            items: initialItems
+          }));
+        }
+      } else {
+        console.error('Failed to fetch solar components:', response.message);
+      }
+    } catch (err) {
+      console.error('Error fetching solar components:', err);
+    } finally {
+      setLoadingSolarComponents(false);
+    }
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      setFormLoading(true);
+      setError(null);
+      
+      // Validate required fields before submission
+      if (!bundleForm.name || !bundleForm.bundleCode) {
+        throw new Error('Name and Bundle Code are required');
+      }
+      
+      // Prepare form data - ensure finalPrice is properly calculated
+      const formData = {
+        name: bundleForm.name.trim(),
+        bundleCode: bundleForm.bundleCode.trim().toUpperCase(),
+        category: bundleForm.category || 'power_plants_system',
+        subcategory: bundleForm.subcategory,
+        // Security fix: Ensure description doesn't contain sensitive data or console output
+        description: bundleForm.description && 
+          !bundleForm.description.includes('mongodb') && 
+          !bundleForm.description.includes('✅') &&
+          !bundleForm.description.includes('📝') &&
+          !bundleForm.description.includes('Connected to MongoDB') &&
+          !bundleForm.description.includes('SchemaType.doValidate') &&
+          bundleForm.description.length < 500
+          ? bundleForm.description.trim() 
+          : 'Power plant bundle system',
+        items: bundleForm.items || [],
+        basePrice: Number(bundleForm.basePrice) || 0,
+        discountPercentage: Number(bundleForm.discountPercentage) || 0,
+        finalPrice: bundleForm.basePrice - (bundleForm.basePrice * bundleForm.discountPercentage / 100),
+        specifications: bundleForm.specifications || {},
+        supportedBrands: bundleForm.supportedBrands || [],
+        isActive: bundleForm.isActive !== false
+      };
+      
+      // Debug: Check for sensitive data leaks
+      if (bundleForm.description && 
+          (bundleForm.description.includes('mongodb') || 
+           bundleForm.description.includes('✅') ||
+           bundleForm.description.includes('Connected to MongoDB'))) {
+        console.error('🚨 SECURITY ALERT: Sensitive data detected in form!');
+        console.error('Original description:', bundleForm.description);
+        console.error('This is a security issue that needs investigation.');
+        
+        // Force clear the form
+        setBundleForm({
+          name: '',
+          bundleCode: '',
+          description: '',
+          category: 'power_plants_system',
+          subcategory: '2kva',
+          supportedBrands: [],
+          items: [],
+          basePrice: 0,
+          discountPercentage: 0,
+          finalPrice: 0,
+          specifications: {
+            powerOutput: '',
+            efficiency: '',
+            warranty: '',
+            installationType: ''
+          },
+          isActive: true
+        });
+        
+        setError('Form has been cleared due to security issue. Please try again.');
+        return;
+      }
+      
+      console.log('Submitting bundle data:', formData);
+      
+      let response;
+      if (isEditMode) {
+        response = await updateBundle(id, formData);
+      } else {
+        response = await createBundle(formData);
+      }
+      
+      if (response.success) {
+        navigate('/dashboard/bundles');
+      } else {
+        throw new Error(response.message || `Failed to ${isEditMode ? 'update' : 'create'} bundle`);
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} bundle:`, err);
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleFormChange = (field, value) => {
+    setBundleForm(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Auto-calculate final price when base price or discount changes
+      if (field === 'basePrice' || field === 'discountPercentage') {
+        const basePrice = field === 'basePrice' ? value : updated.basePrice;
+        const discount = field === 'discountPercentage' ? value : updated.discountPercentage;
+        updated.finalPrice = basePrice - (basePrice * discount / 100);
+      }
+      
+      return updated;
+    });
+  };
+
+  const handleSpecificationChange = (field, value) => {
+    setBundleForm(prev => ({
+      ...prev,
+      specifications: {
+        ...prev.specifications,
+        [field]: value
+      }
+    }));
+  };
+
+  const handleBrandToggle = (brand) => {
+    setBundleForm(prev => ({
+      ...prev,
+      supportedBrands: prev.supportedBrands.includes(brand)
+        ? prev.supportedBrands.filter(b => b !== brand)
+        : [...prev.supportedBrands, brand]
+    }));
+  };
+
+  const updateComponentQuantity = (componentId, quantity) => {
+    setBundleForm(prev => ({
+      ...prev,
+      items: prev.items.map(item =>
+        item.solarItem === componentId
+          ? { ...item, quantity: quantity }
+          : item
+      )
+    }));
+  };
+
+  const updateComponentNotes = (componentId, notes) => {
+    setBundleForm(prev => ({
+      ...prev,
+      items: prev.items.map(item =>
+        item.solarItem === componentId
+          ? { ...item, notes: notes }
+          : item
+      )
+    }));
+  };
+
+
 
   const filterBundles = () => {
     let filtered = bundles;
@@ -138,7 +411,7 @@ export default function BundlesPage() {
     return (
       <div className="flex flex-col flex-1 items-center justify-center min-h-[400px] p-6">
         <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-        <p className="text-lg text-secondary">Loading bundles...</p>
+        <p className="text-lg text-secondary">Loading...</p>
       </div>
     );
   }
@@ -147,14 +420,295 @@ export default function BundlesPage() {
     return (
       <div className="flex flex-col flex-1 items-center justify-center min-h-[400px] p-6 text-center">
         <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-        <p className="text-lg font-semibold text-red-600 mb-2">Error Loading Bundles</p>
+        <p className="text-lg font-semibold text-red-600 mb-2">Error</p>
         <p className="text-sm text-secondary mb-4">{error}</p>
         <button
-          onClick={fetchBundles}
+          onClick={() => window.location.reload()}
           className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
         >
           Try Again
         </button>
+      </div>
+    );
+  }
+
+  // Show create/edit form
+  if (isCreateMode || isEditMode) {
+    return (
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="border-b border-fourth pb-5 mb-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/dashboard/bundles')}
+              className="p-2 hover:bg-fourth rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 text-secondary" />
+            </button>
+            <Package className="w-8 h-8 text-primary" />
+            <h1 className="text-3xl font-bold tracking-tight text-secondary">
+              {isCreateMode ? 'Create Bundle' : 'Edit Bundle'}
+            </h1>
+          </div>
+          <button
+            onClick={handleFormSubmit}
+            disabled={formLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {formLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {formLoading ? 'Saving...' : 'Save Bundle'}
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="flex-1 overflow-auto">
+          <form onSubmit={handleFormSubmit} className="max-w-4xl mx-auto space-y-8">
+            {/* Basic Information */}
+            <div className="bg-tertiary rounded-lg border border-fourth p-6">
+              <h3 className="text-lg font-semibold text-secondary mb-4">Basic Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Bundle Name *</label>
+                  <input
+                    type="text"
+                    value={bundleForm.name}
+                    onChange={(e) => handleFormChange('name', e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                    placeholder="e.g., Solar Power System 5KVA"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Bundle Code *</label>
+                  <input
+                    type="text"
+                    value={bundleForm.bundleCode}
+                    onChange={(e) => handleFormChange('bundleCode', e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                    placeholder="e.g., SPB-5KVA-001"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                  <textarea
+                    value={bundleForm.description}
+                    onChange={(e) => handleFormChange('description', e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                    placeholder="Describe the bundle and its components..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">KVA Rating *</label>
+                  <select
+                    value={bundleForm.subcategory}
+                    onChange={(e) => handleFormChange('subcategory', e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="2kva">2 KVA</option>
+                    <option value="4kva">4 KVA</option>
+                    <option value="5kva">5 KVA</option>
+                    <option value="10kva">10 KVA</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    value={bundleForm.isActive}
+                    onChange={(e) => handleFormChange('isActive', e.target.value === 'true')}
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                  >
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Supported Brands */}
+            <div className="bg-tertiary rounded-lg border border-fourth p-6">
+              <h3 className="text-lg font-semibold text-secondary mb-4">Supported Brands</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {['panasonic', 'growatt', 'vikram', 'tata', 'luminous', 'exide', 'other'].map((brand) => (
+                  <label key={brand} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={bundleForm.supportedBrands.includes(brand)}
+                      onChange={() => handleBrandToggle(brand)}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <span className="text-sm text-secondary">{formatBrandName(brand)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Pricing */}
+            <div className="bg-tertiary rounded-lg border border-fourth p-6">
+              <h3 className="text-lg font-semibold text-secondary mb-4">Pricing</h3>
+              
+
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Base Price (₹) *</label>
+                  <input
+                    type="number"
+                    value={bundleForm.basePrice}
+                    onChange={(e) => handleFormChange('basePrice', parseFloat(e.target.value) || 0)}
+                    required
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                    placeholder="100000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Discount (%)</label>
+                  <input
+                    type="number"
+                    value={bundleForm.discountPercentage}
+                    onChange={(e) => handleFormChange('discountPercentage', parseFloat(e.target.value) || 0)}
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                    placeholder="5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Final Price (₹)</label>
+                  <input
+                    type="number"
+                    value={bundleForm.finalPrice}
+                    readOnly
+                    className="w-full px-3 py-2 border border-fourth rounded-lg bg-gray-50 text-gray-600"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Specifications */}
+            <div className="bg-tertiary rounded-lg border border-fourth p-6">
+              <h3 className="text-lg font-semibold text-secondary mb-4">Specifications</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Power Output</label>
+                  <input
+                    type="text"
+                    value={bundleForm.specifications.powerOutput}
+                    onChange={(e) => handleSpecificationChange('powerOutput', e.target.value)}
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                    placeholder="e.g., 5000W"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Efficiency</label>
+                  <input
+                    type="text"
+                    value={bundleForm.specifications.efficiency}
+                    onChange={(e) => handleSpecificationChange('efficiency', e.target.value)}
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                    placeholder="e.g., 95%"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Warranty</label>
+                  <input
+                    type="text"
+                    value={bundleForm.specifications.warranty}
+                    onChange={(e) => handleSpecificationChange('warranty', e.target.value)}
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                    placeholder="e.g., 5 years"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Installation Type</label>
+                  <input
+                    type="text"
+                    value={bundleForm.specifications.installationType}
+                    onChange={(e) => handleSpecificationChange('installationType', e.target.value)}
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                    placeholder="e.g., Rooftop, Ground Mount"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Solar Components */}
+            <div className="bg-tertiary rounded-lg border border-fourth p-6">
+              <h3 className="text-lg font-semibold text-secondary mb-4">Solar Power Plant Components</h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Configure the quantities for each component in your solar power plant system. All components are required but quantities can be set to 0 if not needed.
+              </p>
+              
+              {loadingSolarComponents ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">Loading solar components...</p>
+                </div>
+              ) : solarComponents.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No solar components found. Please add components to continue.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {solarComponents.map((component, index) => {
+                    const bundleItem = bundleForm.items.find(item => item.solarItem === component._id);
+                    const quantity = bundleItem?.quantity || 0;
+                    
+                    return (
+                      <div key={component._id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                        <div className="grid grid-cols-1 md:grid-cols-8 gap-4 items-center">
+                          {/* Component Info */}
+                          <div className="md:col-span-5">
+                            <h4 className="font-medium text-secondary">{component.name}</h4>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                              <span>Warranty: {component.warranty}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Quantity Input */}
+                          <div className="md:col-span-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={quantity}
+                              onChange={(e) => updateComponentQuantity(component._id, parseInt(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary text-center"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Optional Notes */}
+                        <div className="mt-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                          <input
+                            type="text"
+                            value={bundleItem?.notes || ''}
+                            onChange={(e) => updateComponentNotes(component._id, e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary text-sm"
+                            placeholder="Any specific requirements or notes for this component..."
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                </div>
+              )}
+            </div>
+          </form>
+        </div>
       </div>
     );
   }
@@ -265,7 +819,7 @@ export default function BundlesPage() {
 
       {/* Bundles Grid */}
       <div className="flex-1">
-        {filteredBundles.length === 0 ? (
+        {isListMode && filteredBundles.length === 0 ? (
           <div className="text-center py-12">
             <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <p className="text-lg text-secondary mb-2">No bundles found</p>
@@ -278,7 +832,7 @@ export default function BundlesPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBundles.map((bundle) => (
+            {isListMode && filteredBundles.map((bundle) => (
               <div key={bundle._id} className="bg-tertiary rounded-lg border border-fourth shadow-sm overflow-hidden">
                 {/* Bundle Header */}
                 <div className="p-4 border-b border-fourth">

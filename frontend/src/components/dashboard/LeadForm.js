@@ -317,22 +317,22 @@ export default function LeadForm() {
           updatedProduct.id = generateUniqueId();
         }
         
-        if (field === 'category') {
+    if (field === 'category') {
           updatedProduct.name = '';
           updatedProduct.price = createDefaultFormState().products[0].price;
           updatedProduct.productId = '';
           updatedProduct.type = 'individual';
         }
         
-        if (field === 'name' && value) {
+    if (field === 'name' && value) {
           const category = updatedProduct.category;
-          const selectedProduct = productsData[category]?.find(p => p.name === value);
-          if (selectedProduct) {
+      const selectedProduct = productsData[category]?.find(p => p.name === value);
+      if (selectedProduct) {
             updatedProduct.price = selectedProduct.price.toString();
             updatedProduct.productId = selectedProduct._id;
             updatedProduct.brand = selectedProduct.brand;
-          }
-        }
+      }
+    }
         
         return updatedProduct;
       }
@@ -622,12 +622,12 @@ export default function LeadForm() {
                   {geoStatus === 'error' && (
                     <div className="text-xs text-red-500 mt-1 w-full md:w-auto">{geoError}</div>
                   )}
+                  </div>
                 </div>
               </div>
-            </div>
             <div className="mt-6">
                 {renderInputField('address', 'Address', 'text', 'Enter full address', false, 'personalInfo')} 
-            </div>
+                </div>
           </section>
 
           <section>
@@ -798,8 +798,8 @@ export default function LeadForm() {
                   id="followUpRequired"
                   name="followUpRequired"
                   checked={formData.followUpRequired}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
+                        onChange={handleInputChange}
+                        className="h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
                 />
                     <span className="text-sm text-secondary">Yes, schedule a follow-up</span>
               </div>

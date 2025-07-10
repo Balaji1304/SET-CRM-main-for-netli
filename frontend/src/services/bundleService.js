@@ -99,16 +99,4 @@ export const getCompatibleProducts = async (filters = {}) => {
   
   const url = queryParams.toString() ? `bundles/compatible-products?${queryParams.toString()}` : 'bundles/compatible-products';
   return await apiRequest(url);
-};
-
-/**
- * Calculate bundle pricing with different configurations
- * @param {Object} pricingData - Pricing calculation data
- * @returns {Promise<Object>} - Response with calculated pricing
- */
-export const calculateBundlePricing = async (pricingData) => {
-  return await apiRequest('bundles/calculate-pricing', {
-    method: 'POST',
-    body: JSON.stringify(pricingData)
-  });
 }; 

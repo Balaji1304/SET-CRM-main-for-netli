@@ -101,6 +101,14 @@ export const apiRequest = async (endpoint, options = {}, useCache = options.meth
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'An error occurred' }));
+        console.error('API Error Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData: errorData,
+          url: url,
+          method: method
+        });
+        console.error('Full error details:', errorData);
         throw new Error(errorData.message || `Error: ${response.status}`);
       }
       

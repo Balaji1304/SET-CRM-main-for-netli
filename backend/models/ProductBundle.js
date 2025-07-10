@@ -1,30 +1,21 @@
 const mongoose = require('mongoose');
 
 const bundleItemSchema = new mongoose.Schema({
-  product: {
+  solarItem: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product',
+    ref: 'SolarBundleItem',
     required: true
   },
   quantity: {
     type: Number,
     required: true,
-    min: 1
+    min: 0,
+    default: 0
   },
-  isOptional: {
-    type: Boolean,
-    default: false
-  },
-  alternativeProducts: [{
-    product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product'
-    },
-    priceAdjustment: {
-      type: Number,
-      default: 0
-    }
-  }]
+  notes: {
+    type: String,
+    default: ''
+  }
 }, { _id: false });
 
 const productBundleSchema = new mongoose.Schema({
@@ -55,7 +46,10 @@ const productBundleSchema = new mongoose.Schema({
     required: [true, 'Bundle description is required'],
     trim: true
   },
-  items: [bundleItemSchema],
+  items: {
+    type: [bundleItemSchema],
+    default: [] // Allow empty items array
+  },
   basePrice: {
     type: Number,
     required: true,
@@ -69,8 +63,9 @@ const productBundleSchema = new mongoose.Schema({
   },
   finalPrice: {
     type: Number,
-    required: true,
-    min: 0
+    required: false, // Will be calculated automatically
+    min: 0,
+    default: 0
   },
   isActive: {
     type: Boolean,
@@ -113,30 +108,37 @@ const productBundleSchema = new mongoose.Schema({
   }
 });
 
-// Calculate final price before saving
-productBundleSchema.pre('save', function(next) {
-  if (this.isModified('basePrice') || this.isModified('discountPercentage')) {
-    const discountAmount = this.basePrice * (this.discountPercentage / 100);
-    this.finalPrice = this.basePrice - discountAmount;
+// Calculate final price before validation and saving
+productBundleSchema.pre('validate', function(next) {
+  try {
+    const basePrice = Number(this.basePrice) || 0;
+    const discountPercentage = Number(this.discountPercentage) || 0;
+    const discountAmount = basePrice * (discountPercentage / 100);
+    this.finalPrice = basePrice - discountAmount;
+    next();
+  } catch (error) {
+    console.error('Error in pre-validate hook:', error);
+    next(error);
   }
+});
+
+// Update timestamp before saving
+productBundleSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
 
-// Virtual to get total individual product price
-productBundleSchema.virtual('individualProductsTotal').get(function() {
-  return this.populated('items.product') ? 
-    this.items.reduce((total, item) => {
-      return total + (item.product.price * item.quantity);
-    }, 0) : null;
+// Virtual to get total number of items
+productBundleSchema.virtual('totalItems').get(function() {
+  return this.items.reduce((total, item) => total + (item.quantity || 0), 0);
 });
 
 // Virtual to calculate savings
 productBundleSchema.virtual('savings').get(function() {
-  if (this.individualProductsTotal) {
-    return this.individualProductsTotal - this.finalPrice;
+  if (this.basePrice && this.finalPrice) {
+    return this.basePrice - this.finalPrice;
   }
-  return null;
+  return 0;
 });
 
 productBundleSchema.set('toJSON', { virtuals: true });
