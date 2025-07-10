@@ -9,7 +9,7 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, 'Product category is required'],
-    enum: ['solar_panels', 'inverters', 'batteries', 'mounting_systems']
+    enum: ['Solar Water Heaters', 'Solar Street Lights', 'Solar Dryers']
   },
   name: {
     type: String,

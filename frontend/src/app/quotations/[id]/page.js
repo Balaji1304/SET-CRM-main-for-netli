@@ -9,9 +9,12 @@ import {
   Loader2,
   Download,
   Mail,
-  DollarSign,
+  IndianRupee,
   AlertTriangle,
-  Info
+  Info,
+  Package,
+  Hash,
+  CreditCard
 } from 'lucide-react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Toast from '../../../components/Toast';
@@ -195,9 +198,51 @@ export default function QuotationDetailsPage() {
     return `${baseClasses} ${statusClasses[status] || 'bg-gray-100 text-gray-700 border-gray-300'}`;
   };
 
+  // Mobile Item Card Component
+  const ItemCard = ({ item, index }) => {
+    const productObj = item.productId;
+    const productName = productObj?.name || 'Product Name Not Available';
+    const total = item.quantity * item.unitPrice * (1 - item.discount/100);
+    
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-medium text-gray-900 mb-2 leading-5">{productName}</h4>
+            <div className="flex items-center space-x-1 text-xs text-gray-500">
+              <Package className="w-3.5 h-3.5" />
+              <span>Item #{index + 1}</span>
+            </div>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-sm font-bold text-gray-900 mb-1">
+              ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-gray-500">Total</p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-3 pt-3 border-t border-gray-100">
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Quantity</p>
+            <p className="text-sm font-semibold text-gray-900">{item.quantity}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Unit Price</p>
+            <p className="text-sm font-semibold text-gray-900">₹{item.unitPrice.toLocaleString('en-IN')}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Discount</p>
+            <p className="text-sm font-semibold text-gray-900">{item.discount}%</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
-      <div className="flex flex-col flex-1 min-h-[calc(100vh-var(--header-height,150px))] items-center justify-center bg-tertiary p-6">
+      <div className="flex flex-col flex-1 min-h-[calc(100vh-var(--header-height,150px))] items-center justify-center bg-tertiary p-4 sm:p-6">
         <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
         <p className="text-lg text-secondary">Loading Quotation Details...</p>
       </div>
@@ -206,13 +251,13 @@ export default function QuotationDetailsPage() {
 
   if (!quotation) {
     return (
-      <div className="flex flex-col flex-1 min-h-[calc(100vh-var(--header-height,150px))] items-center justify-center bg-tertiary p-6 text-center">
+      <div className="flex flex-col flex-1 min-h-[calc(100vh-var(--header-height,150px))] items-center justify-center bg-tertiary p-4 sm:p-6 text-center">
         <Info className="h-12 w-12 text-primary mb-4" />
         <h3 className="text-xl font-semibold text-secondary mb-2">Quotation Not Found</h3>
-        <p className="text-gray-600 mb-4">The quotation you are looking for does not exist or you may not have permission to view it.</p>
+        <p className="text-gray-600 mb-4 max-w-md">The quotation you are looking for does not exist or you may not have permission to view it.</p>
         <button
             onClick={() => navigate('/dashboard/quotations')}
-            className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+            className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity touch-target"
         >
             Back to Quotations
         </button>
@@ -233,230 +278,270 @@ export default function QuotationDetailsPage() {
                                          !quotation.customerPurchaseDetails?.hasInvoice;
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/dashboard/quotations')}
-            className="p-2 rounded-md hover:bg-fourth text-secondary"
-            aria-label="Back to quotations"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-secondary">
-              Quotation #{quotation.quotationNumber}
-            </h1>
-            <p className="text-sm text-gray-500">
-              Created on {new Date(quotation.createdAt).toLocaleDateString('en-GB')}
-            </p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto py-4 sm:py-6 lg:py-8 px-4 sm:px-6 lg:px-8">
+        {/* Header Section */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/dashboard/quotations')}
+              className="p-2 rounded-md hover:bg-gray-100 text-secondary touch-target"
+              aria-label="Back to quotations"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-secondary">
+                Quotation #{quotation.quotationNumber}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Created on {new Date(quotation.createdAt).toLocaleDateString('en-GB')}
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {(quotation.status === 'draft' || isSendingQuotation) && (
-            <>
-              <button
-                onClick={() => navigate(`/dashboard/quotations/${id}/edit`)}
-                className="px-4 py-2 border border-fourth text-secondary rounded-lg text-sm font-medium hover:bg-fourth transition-colors duration-150 ease-in-out flex items-center gap-2"
-                disabled={isSendingQuotation}
-              >
-                <Edit2 className="h-4 w-4" />
-                Edit
-              </button>
-              <button
-                onClick={() => {
-                  setConfirmAction(() => handleSendQuotation);
-                  setShowConfirmDialog(true);
-                }}
-                className={`px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[150px] gap-2 ${
-                  isSendingQuotation ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
-                disabled={isSendingQuotation}
-              >
-                {isSendingQuotation ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4" />
-                    Send to Lead
-                  </>
-                )}
-              </button>
-            </>
-          )}
-          {quotation.status === 'sent' && !isSendingQuotation && (
-            <>
+          
+          {/* Action Buttons - Responsive Layout */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            {(quotation.status === 'draft' || isSendingQuotation) && (
+              <>
+                <button
+                  onClick={() => navigate(`/dashboard/quotations/${id}/edit`)}
+                  className="px-4 py-2.5 border border-gray-300 text-secondary rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors duration-150 ease-in-out flex items-center justify-center gap-2 touch-target"
+                  disabled={isSendingQuotation}
+                >
+                  <Edit2 className="h-4 w-4" />
+                  Edit
+                </button>
+                <button
+                  onClick={() => {
+                    setConfirmAction(() => handleSendQuotation);
+                    setShowConfirmDialog(true);
+                  }}
+                  className={`px-4 py-2.5 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[150px] gap-2 touch-target ${
+                    isSendingQuotation ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isSendingQuotation}
+                >
+                  {isSendingQuotation ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" />
+                      Send to Lead
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+            {quotation.status === 'sent' && !isSendingQuotation && (
               <button
                 onClick={() => {
                   setConfirmAction(() => handleApproveQuotation);
                   setShowConfirmDialog(true);
                 }}
-                className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center gap-2"
+                className="px-4 py-2.5 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center gap-2 touch-target"
               >
                 <Check className="h-4 w-4" />
                 Approve
               </button>
-            </>
-          )}
-          {quotation.status === 'approved' && (
-            <div className="flex flex-col items-end gap-2">
-            <button
-                onClick={handleSendExistingInvoiceEmail}
-                className={`px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[150px] gap-2 ${
-                  (!canSendInvoice || invoiceEmailStatus.sending) ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
-                disabled={!canSendInvoice || invoiceEmailStatus.sending}
-              >
-                {invoiceEmailStatus.sending ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Sending Email...</>
-                ) : (
-                  <><Mail className="h-4 w-4" /> Send Invoice</>
-                )}
-            </button>
-              <div className="mt-1 text-right">
-                {showWaitingForPaymentMessage && (
-                  <span className="text-sm text-yellow-600 flex items-center justify-end gap-1">
-                    <DollarSign className="h-4 w-4" /> Waiting for full payment.
-                  </span>
-                )}
-                {showInvoiceNotGeneratedMessage && (
-                  <span className="text-sm text-red-600 flex items-center justify-end gap-1 mt-1">
-                    <AlertTriangle className="h-4 w-4" /> Invoice not generated.
-                  </span>
-                )}
+            )}
+            {quotation.status === 'approved' && (
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={handleSendExistingInvoiceEmail}
+                  className={`px-4 py-2.5 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[150px] gap-2 touch-target ${
+                    (!canSendInvoice || invoiceEmailStatus.sending) ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
+                  disabled={!canSendInvoice || invoiceEmailStatus.sending}
+                >
+                  {invoiceEmailStatus.sending ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Sending Email...</>
+                  ) : (
+                    <><Mail className="h-4 w-4" /> Send Invoice</>
+                  )}
+                </button>
+                
+                {/* Status Messages */}
+                <div className="text-center sm:text-right space-y-1">
+                  {showWaitingForPaymentMessage && (
+                                         <span className="text-sm text-yellow-600 flex items-center justify-center sm:justify-end gap-1">
+                       <IndianRupee className="h-4 w-4" /> Waiting for full payment
+                     </span>
+                  )}
+                  {showInvoiceNotGeneratedMessage && (
+                    <span className="text-sm text-red-600 flex items-center justify-center sm:justify-end gap-1">
+                      <AlertTriangle className="h-4 w-4" /> Invoice not generated
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quotation Details Card */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+          {/* Status and Validity */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-200 space-y-3 sm:space-y-0">
+            <span className={getStatusBadgeClass(quotation.status)}>
+              {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
+              {isSendingQuotation && quotation.status === 'draft' && ' (Sending...)'}
+            </span>
+            <span className="text-sm text-gray-500">
+              Valid until: {new Date(quotation.validUntil).toLocaleDateString('en-GB')}
+            </span>
+          </div>
+
+          {/* Lead Information Section */}
+          <section>
+            <h2 className="text-xl font-semibold text-secondary border-b border-gray-200 pb-2 mb-4">Lead Information</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-1">Full Name</p>
+                <p className="text-secondary font-medium">{quotation.lead.firstName} {quotation.lead.lastName}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-1">Business Name</p>
+                <p className="text-secondary">{quotation.lead.businessName || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-1">Email Address</p>
+                <p className="text-secondary break-all">{quotation.lead.email}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-1">Phone Number</p>
+                <p className="text-secondary">{quotation.lead.phone}</p>
               </div>
             </div>
-          )}
-        </div>
-      </div>
+          </section>
 
-      {/* Quotation Details Card */}
-      <div className="bg-tertiary rounded-lg border border-fourth shadow-sm p-6 md:p-8 space-y-8">
-        {/* Status and Validity */}
-        <div className="flex items-center justify-between pb-4 border-b border-fourth">
-          <span className={getStatusBadgeClass(quotation.status)}>
-            {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
-            {isSendingQuotation && quotation.status === 'draft' && ' (Sending...)'}
-          </span>
-          <span className="text-sm text-gray-500">
-            Valid until: {new Date(quotation.validUntil).toLocaleDateString('en-GB')}
-          </span>
-        </div>
-
-        {/* Lead Information Section */}
-        <section>
-          <h2 className="text-xl font-semibold text-secondary border-b border-fourth pb-2 mb-4">Lead Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-1">Full Name</p>
-              <p className="text-secondary">{quotation.lead.firstName} {quotation.lead.lastName}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-1">Business Name</p>
-              <p className="text-secondary">{quotation.lead.businessName || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-1">Email Address</p>
-              <p className="text-secondary">{quotation.lead.email}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-700 mb-1">Phone Number</p>
-              <p className="text-secondary">{quotation.lead.phone}</p>
-            </div>
-          </div>
-        </section>
-
-        {/* Items Section */}
-        <section>
-          <h2 className="text-xl font-semibold text-secondary border-b border-fourth pb-2 mb-4">Quotation Items</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-fourth">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Product</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Quantity</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Unit Price</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Discount</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-secondary uppercase tracking-wider">Total Amount</th>
-                </tr>
-              </thead>
-              <tbody className="bg-tertiary divide-y divide-fourth">
-                {quotation.quotationItems?.map((item, index) => {
-                  const productObj = item.productId;
-                  const productName = productObj?.name || 'Product Name Not Available';
-                  const total = item.quantity * item.unitPrice * (1 - item.discount/100);
-                  
-                  return (
-                    <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {productName}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.quantity}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">₹{item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.discount}%</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right">
-                        ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
+          {/* Items Section */}
+          <section>
+            <h2 className="text-xl font-semibold text-secondary border-b border-gray-200 pb-2 mb-4">Quotation Items</h2>
+            
+            {/* Desktop/Tablet Table View */}
+            <div className="hidden lg:block">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Product</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Quantity</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Unit Price</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Discount</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-secondary uppercase tracking-wider">Total Amount</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="border-t-2 border-fourth bg-gray-50">
-                <tr>
-                  <td colSpan="4" className="px-6 py-3 text-right text-sm font-medium text-secondary">Subtotal</td>
-                  <td className="px-6 py-3 text-right text-sm font-medium text-secondary">
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {quotation.quotationItems?.map((item, index) => {
+                      const productObj = item.productId;
+                      const productName = productObj?.name || 'Product Name Not Available';
+                      const total = item.quantity * item.unitPrice * (1 - item.discount/100);
+                      
+                      return (
+                        <tr key={index}>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            <div className="font-medium">{productName}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.quantity}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">₹{item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.discount}%</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 text-right font-medium">
+                            ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile/Tablet Card View */}
+            <div className="lg:hidden space-y-4">
+              {quotation.quotationItems?.map((item, index) => (
+                <ItemCard key={index} item={item} index={index} />
+              ))}
+            </div>
+
+            {/* Totals Section */}
+            <div className="mt-6 border-t border-gray-200 pt-4">
+              <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-medium text-gray-700">Subtotal</span>
+                  <span className="font-semibold text-gray-900">
                     ₹{quotation.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
-                <tr>
-                  <td colSpan="4" className="px-6 py-3 text-right text-sm font-medium text-secondary">Tax ({quotation.taxPercentage || 18}%)</td>
-                  <td className="px-6 py-3 text-right text-sm font-medium text-secondary">
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-medium text-gray-700">Tax ({quotation.taxPercentage || 18}%)</span>
+                  <span className="font-semibold text-gray-900">
                     ₹{quotation.tax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
-                <tr className="font-semibold text-secondary">
-                  <td colSpan="4" className="px-6 py-4 text-right text-base">Total Amount</td>
-                  <td className="px-6 py-4 text-right text-base">
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-lg font-bold border-t border-gray-200 pt-3">
+                  <span className="text-secondary">Total Amount</span>
+                  <span className="text-primary">
                     ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                  </span>
+                </div>
+              </div>
+            </div>
 
-          {/* Advance Payment Information */}
-          {quotation.advancePaymentPercentage > 0 && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-lg">
-              <h4 className="text-sm font-semibold mb-1">Advance Payment Required:</h4>
-              <p className="text-sm">
-                {quotation.advancePaymentPercentage}% of total amount: 
-                <span className="font-medium"> ₹{((quotation.total * quotation.advancePaymentPercentage / 100) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </p>
-              {quotation.status === 'sent' && (
-                <p className="text-xs text-yellow-600 mt-1">
-                  This amount must be paid before the quotation can be approved and processed further.
-                </p>
-              )}
-            </div>
-          )}
-        </section>
+            {/* Advance Payment Information */}
+            {quotation.advancePaymentPercentage > 0 && (
+              <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <CreditCard className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-semibold mb-1">Advance Payment Required:</h4>
+                    <p className="text-sm">
+                      {quotation.advancePaymentPercentage}% of total amount: 
+                      <span className="font-bold ml-1">₹{((quotation.total * quotation.advancePaymentPercentage / 100) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </p>
+                    {quotation.status === 'sent' && (
+                      <p className="text-xs text-yellow-700 mt-2">
+                        This amount must be paid before the quotation can be approved and processed further.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
 
-        {/* Terms and Notes Section */}
-        <section>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h2 className="text-xl font-semibold text-secondary border-b border-fourth pb-2 mb-4">Terms & Conditions</h2>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{quotation.terms || 'No specific terms provided.'}</p>
+          {/* Terms and Notes Section */}
+          <section>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+              <div>
+                <h2 className="text-xl font-semibold text-secondary border-b border-gray-200 pb-2 mb-4">Terms & Conditions</h2>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
+                    {quotation.terms || 'No specific terms provided.'}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-secondary border-b border-gray-200 pb-2 mb-4">Additional Notes</h2>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">
+                    {quotation.notes || 'No additional notes.'}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-secondary border-b border-fourth pb-2 mb-4">Additional Notes</h2>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{quotation.notes || 'No additional notes.'}</p>
-            </div>
+          </section>
+        </div>
+
+        {/* Email timing display */}
+        {emailSentTime && (
+          <div className="text-center text-sm text-gray-500 mt-4 p-4 bg-white rounded-lg border border-gray-200">
+            Email sent in {(emailSentTime / 1000).toFixed(2)} seconds.
           </div>
-        </section>
+        )}
       </div>
 
       <ConfirmDialog
@@ -493,12 +578,6 @@ export default function QuotationDetailsPage() {
             if (invoiceEmailStatus.sent) setInvoiceEmailStatus(prev => ({...prev, sent: false}));
           }}
         />
-      )}
-
-      {emailSentTime && (
-        <div className="text-center text-sm text-gray-500 mt-4 pb-4">
-          Email sent in {(emailSentTime / 1000).toFixed(2)} seconds.
-        </div>
       )}
     </div>
   );

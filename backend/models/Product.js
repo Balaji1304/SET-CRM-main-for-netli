@@ -51,6 +51,11 @@ const productSchema = new mongoose.Schema({
   imageUrls: [{
     type: String
   }],
+  termsAndConditions: {
+    type: String,
+    trim: true,
+    maxLength: [5000, 'Terms and conditions cannot be more than 5000 characters']
+  },
   createdAt: {
     type: Date,
     default: Date.now

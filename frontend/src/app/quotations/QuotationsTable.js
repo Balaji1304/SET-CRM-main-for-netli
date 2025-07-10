@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Edit2, FileText, Send, Check, X, ChevronLeft, ChevronRight, DollarSign, AlertTriangle, Loader2 } from 'lucide-react';
+import { Edit2, FileText, Send, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Loader2, Phone, Mail, Building2, Calendar, User, IndianRupee } from 'lucide-react';
 import { 
   getQuotations, 
   sendQuotation, 
@@ -58,122 +58,177 @@ function StandalonePaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
-      <div className="bg-tertiary p-6 rounded-lg shadow-xl max-w-lg w-full transform transition-all duration-300 ease-out max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-secondary">Confirm Offline Payment</h2>
-            <button onClick={onClose} className="p-1 rounded-full hover:bg-fourth">
-                <X className="w-5 h-5 text-gray-500"/>
-            </button>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md sm:max-w-lg lg:max-w-xl transform transition-all duration-300 ease-out max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gray-50/50">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <IndianRupee className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Confirm Payment</h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Quotation: {selectedQuotation.quotationNumber}</p>
+            </div>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="p-2 rounded-lg hover:bg-gray-200 transition-colors duration-150 touch-target"
+            aria-label="Close modal"
+          >
+            <X className="w-5 h-5 text-gray-500"/>
+          </button>
         </div>
         
-        <div className="space-y-4">
-          <div className="bg-primary/10 border border-primary/30 p-4 rounded-md mb-4 text-sm">
-            <p className="font-medium text-primary">
-              Advance Payment Required: {advancePercentage}%
-            </p>
-            <p className="font-medium text-primary">
-              Minimum Amount: ₹{minimumAdvance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </p>
-            {selectedQuotation.quotationItems && selectedQuotation.quotationItems.length > 0 && (
-              <p className="text-xs text-primary/80 mt-1">
-                {selectedQuotation.quotationItems.length} product{selectedQuotation.quotationItems.length !== 1 ? 's' : ''} included.
-              </p>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="space-y-5 sm:space-y-6">
+            {/* Quotation Summary */}
+            <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-xl p-4 sm:p-5">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-1">Total Amount</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                    ₹{selectedQuotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-primary">Required: {advancePercentage}%</p>
+                  <p className="text-sm font-semibold text-primary">
+                    ₹{minimumAdvance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+              {selectedQuotation.quotationItems && selectedQuotation.quotationItems.length > 0 && (
+                <div className="flex items-center justify-between pt-3 border-t border-primary/20">
+                  <p className="text-xs text-gray-600">
+                    {selectedQuotation.quotationItems.length} product{selectedQuotation.quotationItems.length !== 1 ? 's' : ''} • {selectedQuotation.lead ? `${selectedQuotation.lead.firstName} ${selectedQuotation.lead.lastName}` : 'Customer'}
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            {/* Payment Form */}
+            <div className="space-y-4 sm:space-y-5">
+              {/* Amount Input */}
+              <div>
+                <label htmlFor="paymentAmount" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Payment Amount <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">₹</span>
+                  <input
+                    id="paymentAmount"
+                    type="text"
+                    inputMode="decimal"
+                    value={paymentDetails.amount}
+                    onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, amount: e.target.value }))}
+                    className={`w-full pl-8 pr-4 py-3 sm:py-3.5 border rounded-xl focus:ring-2 focus:border-primary transition-all duration-200 text-sm sm:text-base font-medium placeholder-gray-400 ${paymentError && !paymentDetails.amount ? 'border-red-400 ring-2 ring-red-100 bg-red-50/50' : 'border-gray-300 focus:ring-primary/20 bg-gray-50/50'}`}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Payment Method and Transaction Info Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                <div>
+                  <label htmlFor="paymentMethod" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Payment Method <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="paymentMethod"
+                    value={paymentDetails.paymentMethod}
+                    onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                    className="w-full px-3 py-3 sm:py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none transition-all duration-200 text-sm sm:text-base bg-gray-50/50 font-medium"
+                    required
+                  >
+                    <option value="cash">💵 Cash</option>
+                    <option value="check">📝 Check</option>
+                    <option value="bank_transfer">🏦 Bank Transfer</option>
+                    <option value="other">📋 Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="paymentDate" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Payment Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="paymentDate"
+                    type="date"
+                    value={paymentDetails.paymentDate}
+                    onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, paymentDate: e.target.value }))}
+                    className="w-full px-3 py-3 sm:py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-sm sm:text-base bg-gray-50/50 font-medium"
+                    required
+                  />
+                </div>
+              </div>
+              
+              {/* Transaction Reference */}
+              <div>
+                <label htmlFor="transactionNo" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Transaction Reference <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="transactionNo"
+                  type="text"
+                  value={paymentDetails.transactionNo}
+                  onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, transactionNo: e.target.value }))}
+                  className={`w-full px-4 py-3 sm:py-3.5 border rounded-xl focus:ring-2 focus:border-primary transition-all duration-200 text-sm sm:text-base font-medium placeholder-gray-400 ${paymentError && !paymentDetails.transactionNo ? 'border-red-400 ring-2 ring-red-100 bg-red-50/50' : 'border-gray-300 focus:ring-primary/20 bg-gray-50/50'}`}
+                  placeholder="Enter transaction number or reference"
+                  required
+                />
+              </div>
+              
+              {/* Notes */}
+              <div>
+                <label htmlFor="paymentNotes" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Additional Notes
+                </label>
+                <textarea
+                  id="paymentNotes"
+                  value={paymentDetails.notes}
+                  onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, notes: e.target.value }))}
+                  rows="3"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-sm sm:text-base placeholder-gray-400 bg-gray-50/50 resize-none"
+                  placeholder="Any additional payment details or notes..."
+                />
+              </div>
+            </div>
+            
+            {/* Error Message */}
+            {paymentError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center">
+                      <X className="w-3 h-3 text-red-600" />
+                    </div>
+                  </div>
+                  <p className="text-sm text-red-700 font-medium">{paymentError}</p>
+                </div>
+              </div>
             )}
           </div>
-          
-          <div>
-            <label htmlFor="paymentAmount" className="block text-sm font-medium text-secondary mb-1">
-              Amount <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="paymentAmount"
-              type="text"
-              inputMode="decimal"
-              value={paymentDetails.amount}
-              onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, amount: e.target.value }))}
-              className={`w-full p-2.5 border rounded-lg focus:ring-1 focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400 ${paymentError && !paymentDetails.amount ? 'border-red-500 ring-red-500' : 'border-fourth focus:ring-primary'}`}
-              placeholder="Enter payment amount"
-              required
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="paymentMethod" className="block text-sm font-medium text-secondary mb-1">
-              Payment Method <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="paymentMethod"
-              value={paymentDetails.paymentMethod}
-              onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, paymentMethod: e.target.value }))}
-              className="w-full p-2.5 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-sm text-secondary bg-tertiary"
-              required
-            >
-              <option value="cash">Cash</option>
-              <option value="check">Check</option>
-              <option value="bank_transfer">Bank Transfer</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          
-          <div>
-            <label htmlFor="transactionNo" className="block text-sm font-medium text-secondary mb-1">
-              Transaction Number / Reference <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="transactionNo"
-              type="text"
-              value={paymentDetails.transactionNo}
-              onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, transactionNo: e.target.value }))}
-              className={`w-full p-2.5 border rounded-lg focus:ring-1 focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400 ${paymentError && !paymentDetails.transactionNo ? 'border-red-500 ring-red-500' : 'border-fourth focus:ring-primary'}`}
-              placeholder="Enter transaction reference"
-              required
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="paymentDate" className="block text-sm font-medium text-secondary mb-1">
-              Payment Date <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="paymentDate"
-              type="date"
-              value={paymentDetails.paymentDate}
-              onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, paymentDate: e.target.value }))}
-              className="w-full p-2.5 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary"
-              required
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="paymentNotes" className="block text-sm font-medium text-secondary mb-1">Notes</label>
-            <textarea
-              id="paymentNotes"
-              value={paymentDetails.notes}
-              onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, notes: e.target.value }))}
-              rows="3"
-              className="w-full p-2.5 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400"
-              placeholder="Additional payment notes (optional)"
-            />
-          </div>
-          
-          {paymentError && (
-            <p className="mt-2 text-sm text-red-600 text-center">{paymentError}</p>
-          )}
+        </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
+        {/* Footer Actions */}
+        <div className="border-t border-gray-200 bg-gray-50/50 p-4 sm:p-6">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end space-y-reverse space-y-3 sm:space-y-0 sm:space-x-3">
             <button
               onClick={onClose}
               type="button"
-              className="px-4 py-2 border border-fourth rounded-lg text-sm font-medium text-secondary hover:bg-fourth transition-colors duration-150 ease-in-out"
+              className="w-full sm:w-auto px-5 py-3 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors duration-150 touch-target"
             >
               Cancel
             </button>
             <button
               onClick={internalHandleSubmit}
               type="button"
-              className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[120px]"
+              className="w-full sm:w-auto px-6 py-3 bg-primary text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-all duration-150 flex items-center justify-center min-w-[140px] touch-target shadow-lg hover:shadow-xl"
             >
+              <IndianRupee className="w-4 h-4 mr-2" />
               Confirm Payment
             </button>
           </div>
@@ -200,6 +255,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     notes: ''
   });
   const [loadingAction, setLoadingAction] = useState({}); // Tracks loading state for specific actions like send, approve
+  const [loadingActionType, setLoadingActionType] = useState({}); // Tracks which specific action is loading for each quotation
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmDialogProps, setConfirmDialogProps] = useState({ message: '', onConfirm: null });
   const [actionInProgress, setActionInProgress] = useState(false); // For modal confirm button
@@ -250,9 +306,10 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     setTimeout(() => setSuccessToast({ show: false, message: '' }), 3000);
   };
 
-  const handleAction = async (actionFn, quotationId, successMessage, updateLocalState) => {
+  const handleAction = async (actionFn, quotationId, successMessage, updateLocalState, actionType) => {
     setLoadingAction(prev => ({ ...prev, [quotationId]: true }));
-      setActionInProgress(true);
+    setLoadingActionType(prev => ({ ...prev, [quotationId]: actionType }));
+    setActionInProgress(true);
     try {
       const response = await actionFn(quotationId);
       if (response.success) {
@@ -270,6 +327,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       setError(err.message || 'An error occurred'); // Show error in a more prominent way if needed
     } finally {
       setLoadingAction(prev => ({ ...prev, [quotationId]: false }));
+      setLoadingActionType(prev => ({ ...prev, [quotationId]: null }));
       setActionInProgress(false);
       setShowConfirmDialog(false);
     }
@@ -279,21 +337,24 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     sendQuotation,
     id,
     'Quotation sent successfully!',
-    (prev, data) => prev.map(q => q._id === id ? data : q)
+    (prev, data) => prev.map(q => q._id === id ? data : q),
+    'send'
   );
 
   const handleApproveQuotation = (id) => handleAction(
     approveQuotation,
     id,
     'Quotation approved successfully!',
-    (prev, data) => prev.map(q => q._id === id ? { ...q, status: 'approved', ...(data || {}) } : q)
+    (prev, data) => prev.map(q => q._id === id ? { ...q, status: 'approved', ...(data || {}) } : q),
+    'approve'
   );
 
   const handleCloseQuotation = (id) => handleAction(
     closeQuotation, // This is likely a reject/close action
     id,
     'Quotation closed successfully!',
-    (prev, data) => prev.map(q => q._id === id ? { ...q, status: 'closed', ...(data || {}) } : q)
+    (prev, data) => prev.map(q => q._id === id ? { ...q, status: 'closed', ...(data || {}) } : q),
+    'close'
   );
 
   const openConfirmDialog = (message, onConfirm) => {
@@ -378,6 +439,133 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     );
   };
 
+  // Mobile Card Component
+  const QuotationCard = ({ quotation }) => (
+    <div className="bg-white rounded-lg xs:rounded-xl border border-gray-200 p-2 xs:p-3 sm:p-4 space-y-3 sm:space-y-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-2 xs:gap-3 sm:gap-4">
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <h3 className="text-sm xs:text-base font-semibold text-gray-900 mb-1 truncate">
+            {quotation.quotationNumber}
+          </h3>
+          <div className="flex items-center space-x-1 xs:space-x-2 text-xs xs:text-sm text-gray-600">
+            <div className="flex items-center space-x-1 min-w-0 overflow-hidden">
+              <User className="w-3 xs:w-3.5 h-3 xs:h-3.5 flex-shrink-0" />
+              <span className="truncate">{quotation.lead ? `${quotation.lead.firstName} ${quotation.lead.lastName}` : 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-0.5 xs:gap-1 flex-shrink-0">
+          <button
+            onClick={() => navigate(`/dashboard/quotations/${quotation._id}`)}
+            className="flex items-center justify-center p-0.5 xs:p-1 rounded text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+            title="View Quotation"
+          >
+            <FileText className="w-3 xs:w-3.5 h-3 xs:h-3.5" />
+          </button>
+          {quotation.status === 'draft' && (
+            <>
+              <button
+                onClick={() => navigate(`/dashboard/quotations/${quotation._id}/edit`)}
+                className="flex items-center justify-center p-0.5 xs:p-1 rounded text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                title="Edit Quotation"
+                disabled={loadingAction[quotation._id]}
+              >
+                <Edit2 className="w-3 xs:w-3.5 h-3 xs:h-3.5" />
+              </button>
+              <button
+                onClick={() => handleSendQuotation(quotation._id)}
+                className={`flex items-center justify-center p-0.5 xs:p-1 rounded transition-colors duration-150 touch-target ${
+                  loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' 
+                    ? 'text-primary bg-primary/10 cursor-not-allowed' 
+                    : 'text-gray-500 hover:text-primary hover:bg-gray-100'
+                }`}
+                title={loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? "Sending..." : "Send Quotation"}
+                disabled={loadingAction[quotation._id]}
+              >
+                {loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? <Loader2 className="w-3 xs:w-3.5 h-3 xs:h-3.5 animate-spin text-primary" /> : <Send className="w-3 xs:w-3.5 h-3 xs:h-3.5" />}
+              </button>
+            </>
+          )}
+          {quotation.status === 'sent' && (
+            <>
+              {quotation.advancePaymentStatus !== 'CONFIRMED' && (
+                <button
+                  onClick={() => {
+                    setSelectedQuotationForPayment(quotation);
+                    setShowPaymentModal(true);
+                    setPaymentError('');
+                  }}
+                  className="flex items-center justify-center p-0.5 xs:p-1 rounded text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                  title="Confirm Offline Payment"
+                >
+                  <IndianRupee className="w-3 xs:w-3.5 h-3 xs:h-3.5" />
+                </button>
+              )}
+              <button
+                onClick={() => openConfirmDialog('Are you sure you want to mark this quotation as approved?', () => handleApproveQuotation(quotation._id))}
+                className="flex items-center justify-center p-0.5 xs:p-1 rounded text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                title="Approve Quotation"
+                disabled={loadingAction[quotation._id] || quotation.advancePaymentStatus === 'CONFIRMED'}
+              >
+                <Check className="w-3 xs:w-3.5 h-3 xs:h-3.5" />
+              </button>
+              <button
+                onClick={() => openConfirmDialog('Are you sure you want to close this quotation? This usually means the lead did not accept it.', () => handleCloseQuotation(quotation._id))}
+                className="flex items-center justify-center p-0.5 xs:p-1 rounded text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                title="Close Quotation"
+                disabled={loadingAction[quotation._id]}
+              >
+                <X className="w-3 xs:w-3.5 h-3 xs:h-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Amount and Status */}
+      <div className="space-y-1.5 xs:space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs xs:text-sm font-medium text-gray-500">Total Amount</span>
+          <span className="text-sm xs:text-base sm:text-lg font-bold text-gray-900 truncate ml-2">
+            ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+      </div>
+
+      {/* Status and Payment Status */}
+      <div className="space-y-3 xs:space-y-0 xs:grid xs:grid-cols-2 xs:gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</p>
+          <span className={`inline-flex items-center px-1.5 xs:px-2 sm:px-2.5 py-0.5 xs:py-1 rounded-full text-xs font-medium truncate ${getStatusBadgeClass(quotation.status)}`}>
+            {formatDisplayValue(quotation.status)}
+          </span>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Payment Status</p>
+          <p className="text-xs xs:text-sm text-gray-900 truncate">{formatDisplayValue(quotation.advancePaymentStatus) || 'Not Applicable'}</p>
+        </div>
+      </div>
+
+      {/* Valid Until and Items */}
+      <div className="space-y-3 xs:space-y-0 xs:grid xs:grid-cols-2 xs:gap-2 sm:gap-3 pt-2 xs:pt-3 border-t border-gray-100">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Valid Until</p>
+          <div className="flex items-center space-x-1 text-xs xs:text-sm text-gray-600">
+            <Calendar className="w-3 xs:w-4 h-3 xs:h-4 flex-shrink-0" />
+            <span className="truncate">{new Date(quotation.validUntil).toLocaleDateString('en-GB')}</span>
+          </div>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Items</p>
+          <p className="text-xs xs:text-sm text-gray-900 truncate">
+            {quotation.quotationItems ? `${quotation.quotationItems.length} item${quotation.quotationItems.length !== 1 ? 's' : ''}` : '0 items'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   const filteredQuotations = quotations.filter(quotation => {
     const searchTermLower = searchTerm.toLowerCase();
     const matchesSearch = searchTerm === '' || 
@@ -410,7 +598,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         <p className="text-sm text-secondary mb-4">{error}</p>
       <button
           onClick={fetchQuotationsCallback} 
-          className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+          className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity touch-target"
         >
           Try Again
       </button>
@@ -433,152 +621,202 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       />
       <ConfirmActionDialog />
       
-      <div className="overflow-x-auto flex-1 relative">
-        <table className="min-w-full divide-y divide-fourth">
-          <thead className="bg-gray-50 sticky top-0 z-10">
-          <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Quotation #</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Lead Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Total Amount</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Payment Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Valid Until</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Items</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-          <tbody className="bg-tertiary divide-y divide-fourth">
-            {currentQuotations.length === 0 && !loading ? (
+      {/* Desktop/Tablet Table View */}
+      <div className="hidden md:flex md:flex-col md:flex-1 md:overflow-hidden">
+        <div className="overflow-x-auto flex-1 relative">
+          <div className="inline-block min-w-full align-middle">
+            <table className="min-w-full divide-y divide-fourth">
+              <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-secondary">
-                    No quotations found matching your criteria.
-              </td>
+                  {[
+                    { key: 'quotationNumber', label: 'Quotation #', width: 'w-32 lg:w-40' },
+                    { key: 'leadName', label: 'Lead Name', width: 'w-32 lg:w-40' },
+                    { key: 'totalAmount', label: 'Total Amount', width: 'w-28 lg:w-32' },
+                    { key: 'status', label: 'Status', width: 'w-24 lg:w-28' },
+                    { key: 'paymentStatus', label: 'Payment Status', width: 'w-32 lg:w-36', hideOnLg: true },
+                    { key: 'validUntil', label: 'Valid Until', width: 'w-28 lg:w-32', hideOnXl: true },
+                    { key: 'items', label: 'Items', width: 'w-20 lg:w-24', hideOnXl: true },
+                    { key: 'actions', label: 'Actions', width: 'w-24 lg:w-32' }
+                  ].map((header) => (
+                    <th
+                      key={header.key}
+                      scope="col"
+                      className={`px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider ${header.width} 
+                        ${header.hideOnLg ? 'hidden lg:table-cell' : ''} 
+                        ${header.hideOnXl ? 'hidden xl:table-cell' : ''}`}
+                    >
+                      {header.label}
+                    </th>
+                  ))}
                 </tr>
-            ) : (
-                currentQuotations.map((quotation) => (
+              </thead>
+              <tbody className="bg-tertiary divide-y divide-fourth">
+                {currentQuotations.length === 0 && !loading ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-12 text-center text-secondary">
+                      No quotations found matching your criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  currentQuotations.map((quotation) => (
                     <tr key={quotation._id} className="hover:bg-gray-50 transition-colors duration-150 ease-in-out">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-secondary">{quotation.quotationNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {quotation.lead ? `${quotation.lead.firstName} ${quotation.lead.lastName}` : 'N/A'}
-              </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(quotation.status)}`}>
-                        {formatDisplayValue(quotation.status)}
-                </span>
-              </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {formatDisplayValue(quotation.advancePaymentStatus) || 'Not Applicable'}
-              </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(quotation.validUntil).toLocaleDateString('en-GB')}
-              </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {quotation.quotationItems ? `${quotation.quotationItems.length} item${quotation.quotationItems.length !== 1 ? 's' : ''}` : '0 items'}
-              </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => navigate(`/dashboard/quotations/${quotation._id}`)}
-                            className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
+                      <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium text-secondary w-32 lg:w-40">
+                        <div className="truncate">{quotation.quotationNumber}</div>
+                      </td>
+                      <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-32 lg:w-40">
+                        <div className="truncate">
+                          {quotation.lead ? `${quotation.lead.firstName} ${quotation.lead.lastName}` : 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28 lg:w-32">
+                        <div className="truncate">
+                          ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </div>
+                      </td>
+                      <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-28">
+                        <span className={`inline-flex items-center px-1.5 lg:px-2 py-1 rounded-full text-xs font-medium truncate ${getStatusBadgeClass(quotation.status)}`}>
+                          {formatDisplayValue(quotation.status)}
+                        </span>
+                      </td>
+                      <td className="hidden lg:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-32 lg:w-36">
+                        <div className="truncate">
+                          {formatDisplayValue(quotation.advancePaymentStatus) || 'Not Applicable'}
+                        </div>
+                      </td>
+                      <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28 lg:w-32">
+                        <div className="truncate">
+                          {new Date(quotation.validUntil).toLocaleDateString('en-GB')}
+                        </div>
+                      </td>
+                      <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-20 lg:w-24">
+                        <div className="truncate">
+                          {quotation.quotationItems ? `${quotation.quotationItems.length} item${quotation.quotationItems.length !== 1 ? 's' : ''}` : '0 items'}
+                        </div>
+                      </td>
+                      <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-32">
+                        <div className="flex items-center justify-center space-x-1 lg:space-x-2">
+                          <button
+                            onClick={() => navigate(`/dashboard/quotations/${quotation._id}`)}
+                            className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-blue-200"
                             title="View Quotation"
-                  >
-                            <FileText className="w-4 h-4" />
-                  </button>
-                  {quotation.status === 'draft' && (
-                    <>
-                      <button
-                        onClick={() => navigate(`/dashboard/quotations/${quotation._id}/edit`)}
-                                className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
+                          >
+                            <FileText className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                          </button>
+                          {quotation.status === 'draft' && (
+                            <>
+                              <button
+                                onClick={() => navigate(`/dashboard/quotations/${quotation._id}/edit`)}
+                                className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-blue-200"
                                 title="Edit Quotation"
                                 disabled={loadingAction[quotation._id]}
-                            >
-                                <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
+                              >
+                                <Edit2 className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                              </button>
+                              <button
                                 onClick={() => handleSendQuotation(quotation._id)}
-                                className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
-                                title="Send Quotation"
+                                className={`group flex items-center justify-center p-1.5 lg:p-2 rounded-lg transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border ${
+                                  loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send'
+                                    ? 'text-green-600 bg-green-50 border-green-200 cursor-not-allowed scale-100'
+                                    : 'text-gray-500 hover:text-green-600 hover:bg-green-50 border-transparent hover:border-green-200'
+                                }`}
+                                title={loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? "Sending..." : "Send Quotation"}
                                 disabled={loadingAction[quotation._id]}
-                      >
-                                {loadingAction[quotation._id] && confirmDialogProps.onConfirm?.toString().includes('handleSendQuotation') ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Send className="w-4 h-4" />}
-                      </button>
-                    </>
-                  )}
-                  {quotation.status === 'sent' && (
-                    <>
-                      {quotation.advancePaymentStatus !== 'CONFIRMED' && (
-                        <button
-                          onClick={() => {
+                              >
+                                {loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? <Loader2 className="w-3.5 h-3.5 lg:w-4 lg:h-4 animate-spin text-green-600" /> : <Send className="w-3.5 h-3.5 lg:w-4 lg:h-4" />}
+                              </button>
+                            </>
+                          )}
+                          {quotation.status === 'sent' && (
+                            <>
+                              {quotation.advancePaymentStatus !== 'CONFIRMED' && (
+                                <button
+                                  onClick={() => {
                                     setSelectedQuotationForPayment(quotation);
-                            setShowPaymentModal(true);
-                                    setPaymentError(''); // Clear previous payment errors
-                          }}
-                                className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
-                          title="Confirm Offline Payment"
-                        >
-                                <DollarSign className="w-4 h-4" />
-                        </button>
-                      )}
-                          <button
+                                    setShowPaymentModal(true);
+                                    setPaymentError('');
+                                  }}
+                                  className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-green-200"
+                                  title="Confirm Offline Payment"
+                                >
+                                  <IndianRupee className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                </button>
+                              )}
+                              <button
                                 onClick={() => openConfirmDialog('Are you sure you want to mark this quotation as approved?', () => handleApproveQuotation(quotation._id))}
-                                className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
-                            title="Approve Quotation"
+                                className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-green-200"
+                                title="Approve Quotation"
                                 disabled={loadingAction[quotation._id] || quotation.advancePaymentStatus === 'CONFIRMED'}
-                          >
-                                <Check className="w-4 h-4" />
-                          </button>
-                          <button
+                              >
+                                <Check className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                              </button>
+                              <button
                                 onClick={() => openConfirmDialog('Are you sure you want to close this quotation? This usually means the lead did not accept it.', () => handleCloseQuotation(quotation._id))}
-                                className="p-1 rounded-md text-gray-500 hover:text-primary hover:bg-fourth transition-colors duration-150 ease-in-out"
-                            title="Close Quotation"
+                                className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-red-200"
+                                title="Close Quotation"
                                 disabled={loadingAction[quotation._id]}
-                          >
-                                <X className="w-4 h-4" />
-                          </button>
-                    </>
-                  )}
-                </div>
-              </td>
-            </tr>
-                ))
-            )}
-        </tbody>
-      </table>
+                              >
+                                <X className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden flex-1 overflow-y-auto">
+        <div className="p-2 xs:p-3 sm:p-4 space-y-2 xs:space-y-3 sm:space-y-4">
+          {currentQuotations.length === 0 && !loading ? (
+            <div className="text-center py-8 xs:py-12">
+              <p className="text-sm xs:text-base text-gray-500">No quotations found matching your criteria.</p>
+            </div>
+          ) : (
+            currentQuotations.map((quotation) => (
+              <QuotationCard key={quotation._id} quotation={quotation} />
+            ))
+          )}
+        </div>
       </div>
 
       {/* Pagination */}
       {totalPages > 0 && (
-        <div className="px-6 py-3 border-t border-fourth bg-tertiary flex items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm">
-          <div className="text-sm text-gray-600">
-            Showing {Math.min(startIndex + 1, filteredQuotations.length)} to {Math.min(endIndex, filteredQuotations.length)} of {filteredQuotations.length} results
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-              className="p-2 border border-fourth rounded-md text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fourth transition-colors duration-150 ease-in-out"
-          >
-              <ChevronLeft className="w-4 h-4" />
-          </button>
-            <span className="text-sm text-gray-600"> 
-              Page {currentPage} of {totalPages}
+        <div className="px-1 xs:px-2 sm:px-4 lg:px-4 xl:px-6 py-2 xs:py-3 border-t border-fourth bg-tertiary flex flex-col xs:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-2 xs:space-y-0">
+          <div className="text-xs xs:text-sm text-gray-600 order-2 xs:order-1 text-center xs:text-left">
+            <span className="hidden xs:inline">Showing {Math.min(startIndex + 1, filteredQuotations.length)} to {Math.min(endIndex, filteredQuotations.length)} of {filteredQuotations.length} results</span>
+            <span className="xs:hidden">{Math.min(startIndex + 1, filteredQuotations.length)}-{Math.min(endIndex, filteredQuotations.length)} of {filteredQuotations.length}</span>
+          </div>
+          <div className="flex items-center space-x-1 xs:space-x-2 order-1 xs:order-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-1.5 xs:p-2 border border-fourth rounded-md text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fourth transition-colors duration-150 touch-target"
+            >
+              <ChevronLeft className="w-3.5 xs:w-4 h-3.5 xs:h-4" />
+            </button>
+            <span className="text-xs xs:text-sm text-gray-600 px-1 xs:px-2 min-w-[40px] xs:min-w-[50px] text-center"> 
+              {currentPage} / {totalPages}
             </span>
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-              className="p-2 border border-fourth rounded-md text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fourth transition-colors duration-150 ease-in-out"
-          >
-              <ChevronRight className="w-4 h-4" />
-          </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-1.5 xs:p-2 border border-fourth rounded-md text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-fourth transition-colors duration-150 touch-target"
+            >
+              <ChevronRight className="w-3.5 xs:w-4 h-3.5 xs:h-4" />
+            </button>
+          </div>
         </div>
-      </div>
       )}
+      
       {/* Success Toast */} 
       {successToast.show && (
-        <div className="fixed bottom-5 right-5 bg-primary text-tertiary px-6 py-3 rounded-lg shadow-lg transition-all duration-300 ease-in-out z-[101] transform translate-y-0 opacity-100">
+        <div className="fixed bottom-2 xs:bottom-5 right-2 xs:right-5 bg-primary text-tertiary px-3 xs:px-6 py-2 xs:py-3 rounded-lg shadow-lg transition-all duration-300 ease-in-out z-[101] transform translate-y-0 opacity-100 text-sm xs:text-base max-w-[calc(100vw-16px)] xs:max-w-none">
           {successToast.message}
         </div>
       )}

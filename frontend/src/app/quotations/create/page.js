@@ -22,7 +22,7 @@ export default function CreateQuotationPage() {
     }],
     terms: "1. Payment Terms: 50% advance payment, 50% upon completion of services/delivery of goods.\n2. Quotation Validity: This quotation is valid for 30 days from the date of issue.\n3. All disputes are subject to [Your City/Region] jurisdiction.",
     notes: "We appreciate your interest in our services/products. Please feel free to contact us if you have any questions or require further clarification. We look forward to the opportunity to work with you.",
-    advancePaymentPercentage: 20
+    advancePaymentPercentage: 50
   });
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -196,7 +196,7 @@ export default function CreateQuotationPage() {
         })),
         terms: formData.terms || '',
         notes: formData.notes || '',
-        advancePaymentPercentage: parseInt(formData.advancePaymentPercentage) || 20
+        advancePaymentPercentage: parseInt(formData.advancePaymentPercentage) || 50
       };
 
       const response = await createQuotation(formattedData);
@@ -530,7 +530,7 @@ export default function CreateQuotationPage() {
                 />
                 <span className="ml-2 text-secondary">%</span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Minimum advance payment required (1-100%). Default is 20%.</p>
+              <p className="text-xs text-gray-500 mt-1">Minimum advance payment required (1-100%). Default is 50%.</p>
             </div>
           </section>
         </form>
