@@ -6,10 +6,20 @@ const quotationItemSchema = new mongoose.Schema({
     ref: 'Quotation', 
     required: true 
   },
+  // Either productId OR bundleId should be provided, not both
   productId: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Product', 
-    required: true 
+    ref: 'Product'
+  },
+  bundleId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ProductBundle'
+  },
+  itemType: {
+    type: String,
+    enum: ['product', 'bundle'],
+    required: true,
+    default: 'product'
   },
   quantity: { 
     type: Number, 
@@ -30,6 +40,17 @@ const quotationItemSchema = new mongoose.Schema({
     type: Number, 
     required: true 
   },
+  // For bundles, store the selected brand preference
+  brandPreference: {
+    type: String,
+    enum: ['panasonic', 'growatt', 'vikram', 'tata', 'luminous', 'exide', 'other']
+  },
+  // Store bundle configuration details for reference
+  bundleConfiguration: {
+    subcategory: String, // '2kva', '4kva', etc.
+    specifications: Object,
+    itemsIncluded: Number
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -40,18 +61,18 @@ const quotationItemSchema = new mongoose.Schema({
   }
 });
 
-// Calculate subtotal before saving
+// Validation and pre-save hooks
 quotationItemSchema.pre('save', function(next) {
-  // The controller now correctly calculates and sets subtotal.
-  // This pre-save hook for subtotal calculation is no longer strictly necessary
-  // if the controller always provides it. However, it can serve as a fallback
-  // or for direct model manipulations if any occur elsewhere.
-  // For clarity and to rely on controller logic, we can comment it out or ensure it only runs if subtotal is missing.
-
-  // if (this.isNew && typeof this.subtotal !== 'number') { // Or simply remove if controller is sole source
-  //   const discountAmount = (this.unitPrice * (this.discount || 0) / 100) * this.quantity;
-  //   this.subtotal = (this.quantity * this.unitPrice) - discountAmount;
-  // }
+  // Ensure either productId or bundleId is provided, not both
+  if (this.itemType === 'product' && !this.productId) {
+    return next(new Error('ProductId is required when itemType is product'));
+  }
+  if (this.itemType === 'bundle' && !this.bundleId) {
+    return next(new Error('BundleId is required when itemType is bundle'));
+  }
+  if (this.productId && this.bundleId) {
+    return next(new Error('Cannot have both productId and bundleId in the same item'));
+  }
   
   this.updatedAt = Date.now();
   next();

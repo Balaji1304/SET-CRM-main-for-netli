@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2, X, AlertTriangle, Loader2 } from 'lucide-react';
+import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2, X, AlertTriangle, Loader2, Package } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createLead, getLead, updateLead } from '../../services/leadService';
 import { getProducts } from '../../services/productService';
+import { getPowerPlantConfigurations } from '../../services/bundleService';
+import { generateUniqueId, createDefaultFormState, ensureUniqueIds } from '../../utils/generateId';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -101,6 +103,7 @@ const FORM_OPTIONS = {
 
 };
 
+
   const defaultFormState = {
     leadType: '',
     status: 'pending',
@@ -125,6 +128,7 @@ const FORM_OPTIONS = {
     followUpDateTime: '',
     notes: ''
   };
+
 
 export default function LeadForm() {
   const { state: locationState } = useLocation();
@@ -158,6 +162,12 @@ export default function LeadForm() {
   const [productCategories, setProductCategories] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productFetchError, setProductFetchError] = useState(null);
+  
+  // Bundle-related state
+  const [bundlesData, setBundlesData] = useState({});
+  const [isLoadingBundles, setIsLoadingBundles] = useState(true);
+  const [bundleFetchError, setBundleFetchError] = useState(null);
+  const [selectedProductType, setSelectedProductType] = useState('individual'); // 'individual' or 'bundle'
 
   // Geolocation state
   const [geo, setGeo] = useState({ latitude: '', longitude: '' });
@@ -165,26 +175,35 @@ export default function LeadForm() {
   const [geoError, setGeoError] = useState('');
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchProductsAndBundles = async () => {
       setIsLoadingProducts(true);
+      setIsLoadingBundles(true);
       setProductFetchError(null);
+      setBundleFetchError(null);
+      
       try {
-        const response = await getProducts();
-        if (response.success && Array.isArray(response.data)) {
+        // Fetch regular products
+        const productsResponse = await getProducts();
+        if (productsResponse.success && Array.isArray(productsResponse.data)) {
           const productsByCategory = {};
           const categories = new Set();
-          response.data.forEach(product => {
+          productsResponse.data.forEach(product => {
             const category = product.category || 'uncategorized';
             categories.add(category);
             if (!productsByCategory[category]) {
               productsByCategory[category] = [];
             }
-            productsByCategory[category].push({ _id: product._id, name: product.name, price: product.price });
+            productsByCategory[category].push({ 
+              _id: product._id, 
+              name: product.name, 
+              price: product.price,
+              brand: product.brand 
+            });
           });
           setProductsData(productsByCategory);
           setProductCategories(Array.from(categories).sort());
         } else {
-          throw new Error(response.message || 'Product data is not in expected format.');
+          throw new Error(productsResponse.message || 'Product data is not in expected format.');
         }
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -192,16 +211,34 @@ export default function LeadForm() {
       } finally {
         setIsLoadingProducts(false);
       }
+
+      try {
+        // Fetch power plant bundles
+        const bundlesResponse = await getPowerPlantConfigurations();
+        if (bundlesResponse.success && bundlesResponse.data) {
+          setBundlesData(bundlesResponse.data);
+        } else {
+          throw new Error(bundlesResponse.message || 'Bundle data is not in expected format.');
+        }
+      } catch (error) {
+        console.error('Error fetching bundles:', error);
+        setBundleFetchError('Failed to load power plant bundles. Some features may be limited.');
+      } finally {
+        setIsLoadingBundles(false);
+      }
     };
-    fetchProducts();
+    
+    fetchProductsAndBundles();
   }, []);
 
   const resetFormToDefaults = useCallback(() => {
-    setFormData(defaultFormState);
-    setInitialFormData(defaultFormState);
+    const newDefaultState = createDefaultFormState();
+    setFormData(newDefaultState);
+    setInitialFormData(newDefaultState);
     setHasUnsavedChanges(false);
     setSectionErrors({});
     setSubmissionError(null);
+    setSelectedProductType('individual');
   }, []);
 
   useEffect(() => {
@@ -218,8 +255,10 @@ export default function LeadForm() {
             dateCollected: leadData.dateCollected ? new Date(leadData.dateCollected).toISOString().split('T')[0] : defaultFormState.dateCollected,
             followUpDateTime: leadData.followUpDateTime ? new Date(leadData.followUpDateTime).toISOString().slice(0, 16) : '',
             products: (leadData.products && leadData.products.length > 0) 
+
               ? leadData.products.map((p, index) => ({ ...p, id: p.id || p._id || `${Date.now()}_${index}` })) 
               : [{ ...defaultFormState.products[0], id: `${Date.now()}_0` }],
+
           };
           setFormData(formattedLead);
           setInitialFormData(JSON.parse(JSON.stringify(formattedLead)));
@@ -246,8 +285,10 @@ export default function LeadForm() {
         dateCollected: leadData.dateCollected ? new Date(leadData.dateCollected).toISOString().split('T')[0] : defaultFormState.dateCollected,
         followUpDateTime: leadData.followUpDateTime ? new Date(leadData.followUpDateTime).toISOString().slice(0, 16) : '',
         products: (leadData.products && leadData.products.length > 0) 
+
             ? leadData.products.map((p, index) => ({ ...p, id: p.id || p._id || `${Date.now()}_${index}` })) 
             : [{ ...defaultFormState.products[0], id: `${Date.now()}_0` }],
+
       };
       setFormData(formattedLead);
       setInitialFormData(JSON.parse(JSON.stringify(formattedLead)));
@@ -263,6 +304,16 @@ export default function LeadForm() {
     const initialDataString = JSON.stringify(initialFormData);
     setHasUnsavedChanges(currentDataString !== initialDataString);
   }, [formData, initialFormData]);
+
+  // Ensure all products have unique IDs
+  useEffect(() => {
+    if (formData.products && formData.products.some(p => !p.id)) {
+      setFormData(prev => ({
+        ...prev,
+        products: ensureUniqueIds(prev.products)
+      }));
+    }
+  }, [formData.products]);
 
   const handleNavigate = (path) => {
     if (hasUnsavedChanges) {
@@ -294,15 +345,24 @@ export default function LeadForm() {
   };
 
   const handleProductPropertyChange = (index, field, value) => {
-    const updatedProducts = formData.products.map((p, i) => (i === index ? { ...p, [field]: value } : p));
+    const updatedProducts = formData.products.map((p, i) => {
+      if (i === index) {
+        const updatedProduct = { ...p, [field]: value };
+        
+        // Ensure product has an ID
+        if (!updatedProduct.id) {
+          updatedProduct.id = generateUniqueId();
+        }
+        
     if (field === 'category') {
       updatedProducts[index].name = '';
       updatedProducts[index].unitPrice = defaultFormState.products[0].unitPrice;
       updatedProducts[index].totalPrice = defaultFormState.products[0].totalPrice;
       updatedProducts[index].productId = '';
     }
+
     if (field === 'name' && value) {
-      const category = updatedProducts[index].category;
+          const category = updatedProduct.category;
       const selectedProduct = productsData[category]?.find(p => p.name === value);
       if (selectedProduct) {
         updatedProducts[index].unitPrice = selectedProduct.price.toString();
@@ -317,6 +377,7 @@ export default function LeadForm() {
       const unitPrice = parseFloat(updatedProducts[index].unitPrice);
       updatedProducts[index].totalPrice = ((quantity || 0) * (unitPrice || 0)).toString();
     }
+
     
     setFormData(prev => ({ ...prev, products: updatedProducts }));
   };
@@ -324,7 +385,9 @@ export default function LeadForm() {
   const addProductField = () => {
     setFormData(prev => ({
       ...prev,
+
       products: [...prev.products, { ...defaultFormState.products[0], id: `${Date.now()}_${prev.products.length}` }]
+
     }));
   };
 
@@ -595,6 +658,7 @@ export default function LeadForm() {
                     />
                   </div>
                 </div>
+
               <div className="w-full sm:col-span-2">
                 <div className="flex flex-col lg:flex-row lg:items-end gap-4">
                   <div className="flex-1">
@@ -641,6 +705,7 @@ export default function LeadForm() {
 
           <section>
             {renderSectionHeader('Products & Budget', 'productInfo')}
+
             {productFetchError && (
                 <div className="mb-4 p-3 sm:p-4 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-lg flex items-start gap-2">
                     <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
@@ -855,6 +920,7 @@ export default function LeadForm() {
                         className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors duration-150 touch-target"
                         aria-label="Remove product"
                         title="Remove this product"
+
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>

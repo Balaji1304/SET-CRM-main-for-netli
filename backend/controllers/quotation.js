@@ -768,7 +768,7 @@ const approveQuotation = async (quotationInstance) => {
       try {
         await sendEmail({
           email: user.email,
-          subject: 'Welcome to Solar CRM - Your Account Details',
+          subject: 'Welcome to Sunlit CRM - Your Account Details',
           template: 'welcome',
           data: { name: user.name, email: user.email, password }
         });

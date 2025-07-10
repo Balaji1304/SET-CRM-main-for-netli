@@ -75,7 +75,7 @@ const Login = () => {
         <div className="absolute inset-0 bg-zinc-950/40" />
         <div className="relative z-10 flex h-full flex-col justify-center p-12">
           <h1 className="text-5xl font-bold leading-tight text-white">
-            Solar CRM System
+            Sunlit CRM System
           </h1>
           <p className="mt-4 text-xl text-white/80">
             Manage your solar business efficiently
@@ -88,7 +88,7 @@ const Login = () => {
         <div className="w-full max-w-sm">
           <div className="flex flex-col items-center space-y-4">
             <h2 className="text-2xl font-semibold tracking-tight">
-              Welcome to SolarCRM
+              Welcome to Sunlit CRM
             </h2>
             <p className="text-sm text-muted-foreground">
               Let's sign you in
