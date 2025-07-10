@@ -1,8 +1,23 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronDown, Plus, Edit, Trash2, Eye } from 'lucide-react'; // Import Lucide icons
+import { Search, ChevronDown, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Package, Layers, TrendingUp, Calendar } from 'lucide-react';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { getProducts, deleteProduct } from '../../services/productService';
+
+// Custom styles for better mobile experience
+const customStyles = `
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  @media (max-width: 640px) {
+    .touch-target {
+      min-height: 48px;
+      padding: 12px 16px;
+    }
+  }
+`;
 
 export default function ProductListPage() {
   const [products, setProducts] = useState([]);
@@ -14,7 +29,11 @@ export default function ProductListPage() {
   const [error, setError] = useState(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
+
+  const itemsPerPage = 10;
 
   // Fetch products when component mounts
   useEffect(() => {
@@ -48,12 +67,13 @@ export default function ProductListPage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (productToDelete) {
+    if (productToDelete && !isDeleting) {
+      setIsDeleting(true);
+      setError(null);
       try {
         const response = await deleteProduct(productToDelete._id);
         
         if (response.success) {
-          // Remove product from state
           setProducts(products.filter(p => p._id !== productToDelete._id));
           setShowDeleteDialog(false);
           setProductToDelete(null);
@@ -62,7 +82,9 @@ export default function ProductListPage() {
         }
       } catch (error) {
         console.error('Error deleting product:', error);
-        alert(error.message);
+        setError(error.message || 'Failed to delete product. Please try again.');
+      } finally {
+        setIsDeleting(false);
       }
     }
   };
@@ -118,155 +140,417 @@ export default function ProductListPage() {
     return 0;
   });
 
-  if (loading) return <div className="p-6">Loading...</div>;
-  if (error) return <div className="p-6 text-red-500">Error: {error}</div>;
+  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = sortedProducts.slice(startIndex, endIndex);
 
-  return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Products Management</h2>
-          <p className="text-muted-foreground mt-1">View and manage all your products in one place</p>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-input sticky top-0 bg-white z-20">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-input rounded-lg w-full sm:w-[300px] focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex gap-3">
-              <div className="relative">
-                <select
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  defaultValue={categoryFilter}
-                  className="pl-4 pr-10 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                >
-                  <option value="all">All Categories</option>
-                  <option value="solar">Solar Panels</option>
-                  <option value="batteries">Batteries</option>
-                  <option value="furniture">Furniture</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
-              </div>
-              <div className="relative">
-                <select
-                  onChange={(e) => setStockFilter(e.target.value)}
-                  defaultValue={stockFilter}
-                  className="pl-4 pr-10 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                >
-                  <option value="all">All Stock Status</option>
-                  <option value="in stock">In Stock</option>
-                  <option value="low stock">Low Stock</option>
-                  <option value="out of stock">Out of Stock</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
-              </div>
-              <div className="relative">
-                <select
-                  onChange={(e) => setSortOption(e.target.value)}
-                  value={sortOption}
-                  className="pl-4 pr-10 py-2 border border-input rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none"
-                >
-                  <option value="name-asc">Sort by Name (A-Z)</option>
-                  <option value="name-desc">Sort by Name (Z-A)</option>
-                  <option value="price-asc">Sort by Price (Low-High)</option>
-                  <option value="price-desc">Sort by Price (High-Low)</option>
-                  <option value="stock-asc">Sort by Stock Status</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
+  // Mobile Card Component
+  const ProductCard = ({ product }) => {
+    const stockStatus = getStockStatus(product);
+    
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              {product.name}
+            </h3>
+            <div className="flex items-center space-x-4 text-sm text-gray-600">
+              <div className="flex items-center space-x-1">
+                <Package className="w-4 h-4" />
+                <span>{product.modelNumber}</span>
               </div>
             </div>
           </div>
+          <div className="flex items-center space-x-2 ml-3">
+            {product.brochureUrl && (
+              <button
+                onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
+                className="p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150 touch-target"
+                title="View Brochure"
+              >
+                <Eye className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={() => handleEditProduct(product._id)}
+              className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-150 touch-target"
+              title="Edit Product"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleDeleteClick(product)}
+              className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150 touch-target"
+              title="Delete Product"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-auto">
-          <table className="min-w-full">
-            <thead className="bg-orange-500 border-b border-input sticky top-0 z-10 shadow-sm">
-              <tr>
-                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Product Name</th>
-                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Model Number</th>
-                <th className="px-5 py-4 text-left text-sm font-medium text-white tracking-wider">Stock Status</th>
-                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Quantity</th>
-                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">MOQ</th>
-                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Price</th>
-                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Availability</th>
-                <th className="px-4 py-4 text-left text-sm font-medium text-white tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {sortedProducts.map((product) => {
-                const stockStatus = getStockStatus(product);
-                return (
-                <tr key={product._id} className="hover:bg-orange-50/50 transition-colors">
-                  <td className="px-4 py-4 text-sm text-gray-600">{product.name}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600 ">{product.modelNumber}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${stockStatus === 'In Stock' ? 'bg-green-100 text-green-800' : 
-                        stockStatus === 'Low Stock' ? 'bg-yellow-100 text-yellow-800' : 
-                        'bg-red-100 text-red-800'}`}>
-                      {stockStatus}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-600">{product.quantity}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600">{product.reorderLevel}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600">₹{product.price.toFixed(2)}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600">{product.availability}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      {product.brochureUrl && (
-                        <button 
-                          onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
-                          className="text-[#FF7300] hover:text-[#FF8800] flex items-center gap-1"
-                          title="View Brochure"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => handleEditProduct(product._id)}
-                        className="text-[#FF7300] hover:text-[#FF8800] flex items-center gap-1"
-                        title="Edit Product"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteClick(product)}
-                        className="text-red-600 hover:text-red-800 flex items-center gap-1"
-                        title="Delete Product"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        {/* Stock Status and Category */}
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
+            <Layers className="w-4 h-4" />
+            <span className="truncate">{product.category}</span>
+          </div>
+        </div>
+
+        {/* Status and Details */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Stock Status</p>
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+              ${stockStatus === 'In Stock' ? 'bg-green-100 text-green-800'
+              : stockStatus === 'Low Stock' ? 'bg-yellow-100 text-yellow-800'
+              : 'bg-red-100 text-red-800'
+              }`}>
+              {stockStatus}
+            </span>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Quantity</p>
+            <p className="text-sm text-gray-900">{product.quantity}</p>
+          </div>
+        </div>
+
+        {/* Price and MOQ */}
+        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Price</p>
+            <div className="flex items-center space-x-1 text-sm font-medium text-gray-900">
+              <span className="text-gray-600 font-semibold">₹</span>
+              <span>{product.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">MOQ</p>
+            <p className="text-sm text-gray-900">{product.reorderLevel}</p>
+          </div>
+        </div>
+
+        {/* Availability */}
+        <div className="pt-2 border-t border-gray-100">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Availability</p>
+          <div className="flex items-center space-x-1 text-sm text-gray-600">
+            <TrendingUp className="w-4 h-4" />
+            <span>{product.availability}</span>
+          </div>
         </div>
       </div>
+    );
+  };
 
-      <ConfirmDialog
-        isOpen={showDeleteDialog}
-        onClose={() => {
-          setShowDeleteDialog(false);
-          setProductToDelete(null);
-        }}
-        onConfirm={handleConfirmDelete}
-        title="Delete Product"
-        message={`Are you sure you want to delete ${productToDelete?.name}? This action cannot be undone.`}
-      />
-    </div>
+  if (loading) {
+    return (
+      <>
+        <style>{customStyles}</style>
+        <div className="flex flex-col flex-1 items-center justify-center min-h-[300px] p-6">
+          <Loader2 className="w-12 h-12 text-[#FF7300] animate-spin mb-4" />
+          <p className="text-lg text-gray-600">Loading products...</p>
+        </div>
+      </>
+    );
+  }
+
+  if (error && products.length === 0) {
+    return (
+      <>
+        <style>{customStyles}</style>
+        <div className="flex flex-col flex-1 items-center justify-center min-h-[300px] p-6 text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
+          <p className="text-lg font-semibold text-red-600 mb-2">Error Loading Products</p>
+          <p className="text-sm text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => { setError(null); fetchProducts(); }}
+            className="px-4 py-2 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors touch-target"
+          >
+            Try Again
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <style>{customStyles}</style>
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="border-b border-gray-200 pb-4 sm:pb-5 mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
+              Products Management
+            </h1>
+          </div>
+          <button
+            onClick={() => navigate('/dashboard/products/add')}
+            className="w-full sm:w-auto px-4 py-2.5 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors duration-150 ease-in-out flex items-center justify-center gap-2 touch-target"
+          >
+            <Plus className="w-4 h-4" />
+            Add Product
+          </button>
+        </div>
+
+        {/* Main Content */}
+        <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
+          {/* Filters */}
+          <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-20">
+            <div className="flex flex-col sm:flex-row gap-4 justify-between">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg w-full sm:w-[300px] focus:ring-2 focus:ring-orange-500 focus:border-transparent touch-target"
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="relative">
+                  <select
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    value={categoryFilter}
+                    className="pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target"
+                  >
+                    <option value="all">All Categories</option>
+                    <option value="Solar Water Heaters">Solar Water Heaters</option>
+                    <option value="Solar Street Lights">Solar Street Lights</option>
+                    <option value="Solar Dryers">Solar Dryers</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                </div>
+                <div className="relative">
+                  <select
+                    onChange={(e) => setStockFilter(e.target.value)}
+                    value={stockFilter}
+                    className="pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target"
+                  >
+                    <option value="all">All Stock Status</option>
+                    <option value="in stock">In Stock</option>
+                    <option value="low stock">Low Stock</option>
+                    <option value="out of stock">Out of Stock</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                </div>
+                <div className="relative">
+                  <select
+                    onChange={(e) => setSortOption(e.target.value)}
+                    value={sortOption}
+                    className="pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target"
+                  >
+                    <option value="name-asc">Sort by Name (A-Z)</option>
+                    <option value="name-desc">Sort by Name (Z-A)</option>
+                    <option value="price-asc">Sort by Price (Low-High)</option>
+                    <option value="price-desc">Sort by Price (High-Low)</option>
+                    <option value="stock-asc">Sort by Stock Status</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop/Tablet Table View */}
+          <div className="hidden md:flex md:flex-col md:flex-1 md:overflow-hidden">
+            <div className="overflow-x-auto flex-1 relative">
+              <div className="inline-block min-w-full align-middle">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-[#FF7300] sticky top-0 z-10">
+                    <tr>
+                      {[
+                        { key: 'name', label: 'Product Name', width: 'w-32 lg:w-40' },
+                        { key: 'model', label: 'Model Number', width: 'w-24 lg:w-32' },
+                        { key: 'status', label: 'Stock Status', width: 'w-24 lg:w-32' },
+                        { key: 'quantity', label: 'Quantity', width: 'w-20 lg:w-24' },
+                        { key: 'moq', label: 'MOQ', width: 'w-16 lg:w-20', hideOnLg: true },
+                        { key: 'price', label: 'Price', width: 'w-24 lg:w-32' },
+                        { key: 'availability', label: 'Availability', width: 'w-28', hideOnXl: true },
+                        { key: 'actions', label: 'Actions', width: 'w-24 lg:w-32' }
+                      ].map((header) => (
+                        <th
+                          key={header.key}
+                          scope="col"
+                          className={`px-2 lg:px-4 xl:px-6 py-4 text-left text-sm font-medium text-white tracking-wider ${header.width} 
+                            ${header.hideOnLg ? 'hidden lg:table-cell' : ''} 
+                            ${header.hideOnXl ? 'hidden xl:table-cell' : ''}`}
+                        >
+                          {header.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {currentProducts.length === 0 && !loading ? (
+                      <tr>
+                        <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                          No products found matching your criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      currentProducts.map((product) => {
+                        const stockStatus = getStockStatus(product);
+                        return (
+                          <tr
+                            key={product._id}
+                            className="hover:bg-orange-50/50 transition-colors duration-150 ease-in-out"
+                          >
+                            <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium text-gray-900 w-32 lg:w-40">
+                              <div className="truncate">{product.name}</div>
+                            </td>
+                            <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
+                              <div className="truncate">{product.modelNumber}</div>
+                            </td>
+                            <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-32">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                                ${stockStatus === 'In Stock' ? 'bg-green-100 text-green-800'
+                                : stockStatus === 'Low Stock' ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-red-100 text-red-800'
+                                }`}>
+                                {stockStatus}
+                              </span>
+                            </td>
+                            <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-20 lg:w-24">
+                              <div className="truncate">{product.quantity}</div>
+                            </td>
+                            <td className="hidden lg:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-16 lg:w-20">
+                              <div className="truncate">{product.reorderLevel}</div>
+                            </td>
+                            <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
+                              <div className="truncate">₹{product.price.toFixed(2)}</div>
+                            </td>
+                            <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28">
+                              <div className="truncate">{product.availability}</div>
+                            </td>
+                            <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-32">
+                              <div className="flex items-center justify-center space-x-1 lg:space-x-2">
+                                {product.brochureUrl && (
+                                  <button
+                                    onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
+                                    className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
+                                    title="View Brochure"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleEditProduct(product._id)}
+                                  className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-blue-200"
+                                  title="Edit Product"
+                                >
+                                  <Edit className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteClick(product)}
+                                  className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-red-200"
+                                  title="Delete Product"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden flex-1 overflow-y-auto">
+            <div className="p-4 space-y-4">
+              {currentProducts.length === 0 && !loading ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No products found matching your criteria.</p>
+                </div>
+              ) : (
+                currentProducts.map((product) => (
+                  <ProductCard key={product._id} product={product} />
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 0 && (
+            <div className="px-2 lg:px-4 xl:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-3 sm:space-y-0">
+              <div className="text-sm text-gray-600 order-2 sm:order-1">
+                Showing {Math.min(startIndex + 1, sortedProducts.length)} to {Math.min(endIndex, sortedProducts.length)} of {sortedProducts.length} results
+              </div>
+              <div className="flex items-center space-x-2 order-1 sm:order-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-sm text-gray-600 px-2"> 
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Delete Modal */}
+        {showDeleteDialog && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 ease-out">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-semibold text-gray-900">Confirm Delete</h3>
+                <button 
+                  onClick={() => { 
+                    setShowDeleteDialog(false); 
+                    setProductToDelete(null);
+                    setError(null);
+                  }} 
+                  className="p-1 rounded-full hover:bg-gray-100 touch-target"
+                >
+                  <X className="w-5 h-5 text-gray-500"/>
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to delete "{productToDelete?.name}"? This action cannot be undone.
+              </p>
+              {error && <p className="text-sm text-red-600 mb-3 text-center">{error}</p>}
+              <div className="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-3">
+                <button
+                  onClick={() => { 
+                    setShowDeleteDialog(false); 
+                    setProductToDelete(null);
+                    setError(null);
+                  }}
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-150 touch-target"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className={`w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px] touch-target`}
+                >
+                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

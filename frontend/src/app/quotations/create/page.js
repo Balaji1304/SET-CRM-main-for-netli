@@ -22,7 +22,7 @@ export default function CreateQuotationPage() {
     }],
     terms: "1. Payment Terms: 50% advance payment, 50% upon completion of services/delivery of goods.\n2. Quotation Validity: This quotation is valid for 30 days from the date of issue.\n3. All disputes are subject to [Your City/Region] jurisdiction.",
     notes: "We appreciate your interest in our services/products. Please feel free to contact us if you have any questions or require further clarification. We look forward to the opportunity to work with you.",
-    advancePaymentPercentage: 20
+    advancePaymentPercentage: 50
   });
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -52,7 +52,8 @@ export default function CreateQuotationPage() {
         products: lead.products.map(product => ({
           id: product.productId._id,
           name: product.productId.name,
-          price: product.price,
+          price: product.unitPrice || product.price,
+          unitPrice: product.unitPrice || product.price,
           quantity: product.quantity
         }))
       })));
@@ -100,7 +101,7 @@ export default function CreateQuotationPage() {
             const leadProduct = selectedLead?.products.find(p => p.id === value);
             
             if (leadProduct) {
-              updatedItem.unitPrice = parseFloat(leadProduct.price) || 0;
+              updatedItem.unitPrice = parseFloat(leadProduct.unitPrice || leadProduct.price) || 0;
               updatedItem.quantity = parseInt(leadProduct.quantity) || 1;
             } else {
               const product = allProducts.find(p => p._id === value);
@@ -109,10 +110,8 @@ export default function CreateQuotationPage() {
             }
           } else if (field === 'quantity') {
             updatedItem.quantity = value ? parseInt(value) : '';
-          } else if (field === 'unitPrice') {
-            updatedItem.unitPrice = value ? parseFloat(value) : '';
           } else if (field === 'discount') {
-            updatedItem.discount = value === '' ? '' : (parseInt(value) >= 0 && parseInt(value) <= 100 ? parseInt(value) : item.discount);
+            updatedItem.discount = value === '' ? '' : (parseInt(value) >= 0 && parseInt(value) <= 5 ? parseInt(value) : item.discount);
           } else {
             updatedItem[field] = value;
           }
@@ -121,6 +120,19 @@ export default function CreateQuotationPage() {
         return item;
       })
     }));
+  };
+
+  const calculateItemTotal = (item) => {
+    const quantity = parseFloat(item.quantity) || 0;
+    const unitPrice = parseFloat(item.unitPrice) || 0;
+    const discount = parseFloat(item.discount) || 0;
+    
+    if (quantity > 0 && unitPrice >= 0) {
+      const itemTotal = quantity * unitPrice;
+      const discountAmount = itemTotal * (discount / 100);
+      return itemTotal - discountAmount;
+    }
+    return 0;
   };
 
   const handleLeadSelect = (leadId) => {
@@ -133,7 +145,7 @@ export default function CreateQuotationPage() {
           ? selectedLead.products.map(product => ({
               productId: product.id,
               quantity: parseInt(product.quantity) || 1,
-              unitPrice: parseFloat(product.price) || 0,
+              unitPrice: parseFloat(product.unitPrice || product.price) || 0,
               discount: 0
             }))
           : [{ productId: '', quantity: '', unitPrice: '', discount: '' }]
@@ -158,7 +170,7 @@ export default function CreateQuotationPage() {
       return;
     }
     if (formData.items.some(item => !item.productId || item.quantity === '' || item.unitPrice === '')) {
-      setError("Please ensure all item fields (Product, Quantity, Price) are filled for each item.");
+      setError("Please ensure all item fields (Product, Quantity) are filled for each item.");
       setIsSubmitting(false);
       return;
     }
@@ -184,7 +196,7 @@ export default function CreateQuotationPage() {
         })),
         terms: formData.terms || '',
         notes: formData.notes || '',
-        advancePaymentPercentage: parseInt(formData.advancePaymentPercentage) || 20
+        advancePaymentPercentage: parseInt(formData.advancePaymentPercentage) || 50
       };
 
       const response = await createQuotation(formattedData);
@@ -310,7 +322,7 @@ export default function CreateQuotationPage() {
               {formData.items.map((item, index) => (
                 <div key={index} className="p-4 border border-fourth rounded-lg md:grid md:grid-cols-12 md:gap-x-4 md:gap-y-2 md:items-end bg-white shadow-sm space-y-3 md:space-y-0">
                   {/* Product Select */}
-                  <div className="md:col-span-4">
+                  <div className="md:col-span-3">
                     <label htmlFor={`product_id_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
                       Product <span className="text-red-500">*</span>
                     </label>
@@ -364,22 +376,27 @@ export default function CreateQuotationPage() {
                     />
                   </div>
 
-                  {/* Unit Price Input */}
+                  {/* Unit Price Input - Now Read Only */}
                   <div className="md:col-span-2">
                     <label htmlFor={`unit_price_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
-                      Unit Price <span className="text-red-500">*</span>
+                      Unit Price
                     </label>
-                    <input
-                      type="number"
-                      id={`unit_price_${index}`}
-                      value={item.unitPrice}
-                      onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
-                      min="0"
-                      step="0.01"
-                      placeholder="Price"
-                      className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400"
-                      required
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium z-10">₹</span>
+                      <input
+                        type="number"
+                        id={`unit_price_${index}`}
+                        value={item.unitPrice}
+                        readOnly
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="mt-1 block w-full pl-8 pr-8 py-2 bg-gray-50 border border-fourth rounded-lg shadow-sm text-sm text-secondary font-medium cursor-not-allowed"
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full" title="Auto-filled from product selection"></div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Discount Input */}
@@ -393,14 +410,33 @@ export default function CreateQuotationPage() {
                       value={item.discount}
                       onChange={(e) => handleItemChange(index, 'discount', e.target.value)}
                       min="0"
-                      max="100"
-                      placeholder="e.g. 10"
+                      max="5"
+                      placeholder="e.g. 2"
                       className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400"
                     />
                   </div>
+
+                  {/* Item Total - New Field */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Item Total
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium z-10">₹</span>
+                      <input
+                        type="text"
+                        value={calculateItemTotal(item).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        readOnly
+                        className="mt-1 block w-full pl-8 pr-8 py-2 bg-gray-50 border border-fourth rounded-lg shadow-sm text-sm text-secondary font-medium cursor-not-allowed"
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                        <div className="w-2 h-2 bg-green-400 rounded-full" title="Auto-calculated after discount"></div>
+                      </div>
+                    </div>
+                  </div>
                   
                   {/* Remove Item Button */}
-                  <div className="md:col-span-2 flex items-end justify-end">
+                  <div className="md:col-span-1 flex items-end justify-end">
                     {formData.items.length > 1 && (
                       <button
                         type="button"
@@ -494,7 +530,7 @@ export default function CreateQuotationPage() {
                 />
                 <span className="ml-2 text-secondary">%</span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Minimum advance payment required (1-100%). Default is 20%.</p>
+              <p className="text-xs text-gray-500 mt-1">Minimum advance payment required (1-100%). Default is 50%.</p>
             </div>
           </section>
         </form>

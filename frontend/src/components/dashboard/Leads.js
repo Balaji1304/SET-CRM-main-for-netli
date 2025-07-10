@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 export default function Leads() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
   const navigate = useNavigate();
 
   return (
@@ -49,9 +48,10 @@ export default function Leads() {
                   <option value="">All Statuses</option>
                   {[
                     { value: 'pending', label: 'Pending' },
-                    { value: 'closed', label: 'Closed' },
                     { value: 'active', label: 'Active' },
-                    { value: 'in_progress', label: 'In Progress' }
+                    { value: 'on_hold', label: 'On Hold' },
+                    { value: 'closed_won', label: 'Closed Won' },
+                    { value: 'closed_lost', label: 'Closed Lost' }
                   ].map(option => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -60,27 +60,7 @@ export default function Leads() {
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
               </div>
-              <div className="relative flex-1 sm:flex-initial">
-                <select
-                  value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value)}
-                  className="pl-4 pr-10 py-2 w-full border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-sm text-secondary bg-tertiary"
-                >
-                  <option value="">All Sources</option>
-                  {[
-                    { value: 'exhibition', label: 'Exhibition' },
-                    { value: 'facebook', label: 'Facebook' },
-                    { value: 'website', label: 'Website' },
-                    { value: 'referral', label: 'Referral' },
-                    { value: 'cold_call', label: 'Cold Call' }
-                  ].map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
-              </div>
+
               <button
                 onClick={() => navigate('/dashboard/add-lead')}
                 className="inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-lg text-tertiary bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap"
@@ -94,7 +74,6 @@ export default function Leads() {
         <LeadsTable 
           searchTerm={searchTerm}
           statusFilter={statusFilter}
-          sourceFilter={sourceFilter}
         />
       </div>
     </div>

@@ -38,10 +38,9 @@ export default function ReportsPage() {
           className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
         >
           <option value="all">All Categories</option>
-          <option value="solar_panels">Solar Panels</option>
-          <option value="inverters">Inverters</option>
-          <option value="batteries">Batteries</option>
-          <option value="accessories">Accessories</option>
+          <option value="Solar Water Heaters">Solar Water Heaters</option>
+          <option value="Solar Street Lights">Solar Street Lights</option>
+          <option value="Solar Dryers">Solar Dryers</option>
         </select>
       </div>
 
