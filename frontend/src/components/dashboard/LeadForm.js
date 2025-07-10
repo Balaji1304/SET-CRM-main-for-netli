@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createLead, getLead, updateLead } from '../../services/leadService';
 import { getProducts } from '../../services/productService';
 import { getPowerPlantConfigurations } from '../../services/bundleService';
-import { generateUniqueId, createDefaultFormState, ensureUniqueIds } from '../../utils/generateId';
+import { generateUniqueId, ensureUniqueIds } from '../../utils/generateId';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -168,6 +168,7 @@ export default function LeadForm() {
   const [isLoadingBundles, setIsLoadingBundles] = useState(true);
   const [bundleFetchError, setBundleFetchError] = useState(null);
   const [selectedProductType, setSelectedProductType] = useState('individual'); // 'individual' or 'bundle'
+  const [selectedBundles, setSelectedBundles] = useState([]); // Array of selected bundles with quantities
 
   // Geolocation state
   const [geo, setGeo] = useState({ latitude: '', longitude: '' });
@@ -232,13 +233,26 @@ export default function LeadForm() {
   }, []);
 
   const resetFormToDefaults = useCallback(() => {
-    const newDefaultState = createDefaultFormState();
+    const newDefaultState = {
+      ...defaultFormState,
+      products: [{ 
+        id: generateUniqueId(), 
+        category: '', 
+        name: '', 
+        quantity: '1', 
+        unitPrice: '0', 
+        totalPrice: '0', 
+        productId: '' 
+      }],
+      dateCollected: new Date().toISOString().split('T')[0]
+    };
     setFormData(newDefaultState);
     setInitialFormData(newDefaultState);
     setHasUnsavedChanges(false);
     setSectionErrors({});
     setSubmissionError(null);
     setSelectedProductType('individual');
+    setSelectedBundles([]);
   }, []);
 
   useEffect(() => {
@@ -255,14 +269,33 @@ export default function LeadForm() {
             dateCollected: leadData.dateCollected ? new Date(leadData.dateCollected).toISOString().split('T')[0] : defaultFormState.dateCollected,
             followUpDateTime: leadData.followUpDateTime ? new Date(leadData.followUpDateTime).toISOString().slice(0, 16) : '',
             products: (leadData.products && leadData.products.length > 0) 
-
               ? leadData.products.map((p, index) => ({ ...p, id: p.id || p._id || `${Date.now()}_${index}` })) 
               : [{ ...defaultFormState.products[0], id: `${Date.now()}_0` }],
-
           };
+          
           setFormData(formattedLead);
           setInitialFormData(JSON.parse(JSON.stringify(formattedLead)));
           setIsEditMode(true);
+
+          // Set product type and restore bundle data
+          if (leadData.selectedProductType === 'bundle' && leadData.products?.some(p => p.isBundleItem)) {
+            setSelectedProductType('bundle');
+            // Convert products to selected bundles format
+            const bundleProducts = leadData.products.filter(p => p.isBundleItem);
+            const bundlesToRestore = bundleProducts.map(p => ({
+              id: `bundle_${Date.now()}_${Math.random()}`,
+              bundleId: p.productId,
+              bundleCode: p.bundleCode,
+              name: p.name,
+              quantity: parseInt(p.quantity) || 1,
+              unitPrice: parseFloat(p.unitPrice) || 0,
+              totalPrice: parseFloat(p.totalPrice) || 0,
+              bundleItems: p.bundleItems || []
+            }));
+            setSelectedBundles(bundlesToRestore);
+          } else {
+            setSelectedProductType('individual');
+          }
         } else {
           throw new Error(response.message || 'Failed to fetch lead details.');
         }
@@ -279,20 +312,39 @@ export default function LeadForm() {
       fetchLeadDetails(leadId);
     } else if (locationState?.lead) {
       const leadData = locationState.lead;
-       const formattedLead = {
+      const formattedLead = {
         ...defaultFormState,
         ...leadData,
         dateCollected: leadData.dateCollected ? new Date(leadData.dateCollected).toISOString().split('T')[0] : defaultFormState.dateCollected,
         followUpDateTime: leadData.followUpDateTime ? new Date(leadData.followUpDateTime).toISOString().slice(0, 16) : '',
         products: (leadData.products && leadData.products.length > 0) 
-
             ? leadData.products.map((p, index) => ({ ...p, id: p.id || p._id || `${Date.now()}_${index}` })) 
             : [{ ...defaultFormState.products[0], id: `${Date.now()}_0` }],
-
       };
+      
       setFormData(formattedLead);
       setInitialFormData(JSON.parse(JSON.stringify(formattedLead)));
       setIsEditMode(true);
+
+      // Set product type and restore bundle data
+      if (leadData.selectedProductType === 'bundle' && leadData.products?.some(p => p.isBundleItem)) {
+        setSelectedProductType('bundle');
+        // Convert products to selected bundles format
+        const bundleProducts = leadData.products.filter(p => p.isBundleItem);
+        const bundlesToRestore = bundleProducts.map(p => ({
+          id: `bundle_${Date.now()}_${Math.random()}`,
+          bundleId: p.productId,
+          bundleCode: p.bundleCode,
+          name: p.name,
+          quantity: parseInt(p.quantity) || 1,
+          unitPrice: parseFloat(p.unitPrice) || 0,
+          totalPrice: parseFloat(p.totalPrice) || 0,
+          bundleItems: p.bundleItems || []
+        }));
+        setSelectedBundles(bundlesToRestore);
+      } else {
+        setSelectedProductType('individual');
+      }
     } else {
       resetFormToDefaults();
       setIsEditMode(false);
@@ -304,6 +356,44 @@ export default function LeadForm() {
     const initialDataString = JSON.stringify(initialFormData);
     setHasUnsavedChanges(currentDataString !== initialDataString);
   }, [formData, initialFormData]);
+
+  // Restore bundle selection details after bundles data is loaded (for edit mode)
+  useEffect(() => {
+    if (
+      isEditMode &&
+      selectedProductType === 'bundle' &&
+      selectedBundles.length > 0 &&
+      Object.keys(bundlesData).length > 0
+    ) {
+      const allBundles = Object.values(bundlesData).flat();
+      const updatedBundles = selectedBundles.map(selectedBundle => {
+        const foundBundle = allBundles.find(b => b._id === selectedBundle.bundleId);
+        
+        if (foundBundle) {
+          return {
+            ...selectedBundle,
+            bundleData: foundBundle // Store full bundle data for reference
+          };
+        } else {
+          console.warn('Bundle not found in available bundles:', selectedBundle.bundleId);
+          return selectedBundle;
+        }
+      });
+      
+      // Check if any bundles were not found
+      const missingBundles = selectedBundles.filter(sb => 
+        !allBundles.find(b => b._id === sb.bundleId)
+      );
+      
+      if (missingBundles.length > 0) {
+        const missingNames = missingBundles.map(b => b.name).join(', ');
+        setSubmissionError(`Some original bundles are no longer available: ${missingNames}. Please select different bundles.`);
+      }
+      
+      setSelectedBundles(updatedBundles);
+      console.log('Bundles restored for edit mode:', updatedBundles.length);
+    }
+  }, [isEditMode, selectedProductType, bundlesData]);
 
   // Ensure all products have unique IDs
   useEffect(() => {
@@ -341,43 +431,47 @@ export default function LeadForm() {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    setFormData(prev => ({ 
+      ...prev, 
+      [name]: type === 'checkbox' ? checked : (value ?? '') 
+    }));
   };
 
   const handleProductPropertyChange = (index, field, value) => {
-    const updatedProducts = formData.products.map((p, i) => {
-      if (i === index) {
-        const updatedProduct = { ...p, [field]: value };
-        
-        // Ensure product has an ID
-        if (!updatedProduct.id) {
-          updatedProduct.id = generateUniqueId();
-        }
-        
-    if (field === 'category') {
-      updatedProducts[index].name = '';
-      updatedProducts[index].unitPrice = defaultFormState.products[0].unitPrice;
-      updatedProducts[index].totalPrice = defaultFormState.products[0].totalPrice;
-      updatedProducts[index].productId = '';
-    }
+    const updatedProducts = [...formData.products];
+    
+    if (index < updatedProducts.length) {
+      updatedProducts[index] = { ...updatedProducts[index], [field]: value ?? '' };
+      
+      // Ensure product has an ID
+      if (!updatedProducts[index].id) {
+        updatedProducts[index].id = generateUniqueId();
+      }
+      
+      if (field === 'category') {
+        updatedProducts[index].name = '';
+        updatedProducts[index].unitPrice = '0';
+        updatedProducts[index].totalPrice = '0';
+        updatedProducts[index].productId = '';
+      }
 
-    if (field === 'name' && value) {
-          const category = updatedProduct.category;
-      const selectedProduct = productsData[category]?.find(p => p.name === value);
-      if (selectedProduct) {
-        updatedProducts[index].unitPrice = selectedProduct.price.toString();
-        updatedProducts[index].totalPrice = (parseFloat(updatedProducts[index].quantity) * parseFloat(selectedProduct.price)).toString();
-        updatedProducts[index].productId = selectedProduct._id;
+      if (field === 'name' && value) {
+        const category = updatedProducts[index].category;
+        const selectedProduct = productsData[category]?.find(p => p.name === value);
+        if (selectedProduct) {
+          updatedProducts[index].unitPrice = selectedProduct.price.toString();
+          updatedProducts[index].totalPrice = (parseFloat(updatedProducts[index].quantity || '1') * parseFloat(selectedProduct.price)).toString();
+          updatedProducts[index].productId = selectedProduct._id;
+        }
+      }
+      
+      // Calculate totalPrice when quantity changes
+      if (field === 'quantity') {
+        const quantity = parseFloat(value || '0');
+        const unitPrice = parseFloat(updatedProducts[index].unitPrice || '0');
+        updatedProducts[index].totalPrice = ((quantity || 0) * (unitPrice || 0)).toString();
       }
     }
-    
-    // Calculate totalPrice when quantity changes
-    if (field === 'quantity') {
-      const quantity = parseFloat(value);
-      const unitPrice = parseFloat(updatedProducts[index].unitPrice);
-      updatedProducts[index].totalPrice = ((quantity || 0) * (unitPrice || 0)).toString();
-    }
-
     
     setFormData(prev => ({ ...prev, products: updatedProducts }));
   };
@@ -409,6 +503,105 @@ export default function LeadForm() {
     }
   };
 
+  const handleProductTypeChange = (type) => {
+    // If in edit mode and there are existing products, show confirmation
+    if (isEditMode && formData.products.length > 0 && type !== selectedProductType) {
+      const currentTypeText = selectedProductType === 'bundle' ? 'Solar Power Plant System' : 'Individual Products';
+      const newTypeText = type === 'bundle' ? 'Solar Power Plant System' : 'Individual Products';
+      
+      setConfirmDialogProps({
+        isOpen: true,
+        title: 'Change Product Type',
+        message: `Are you sure you want to change from "${currentTypeText}" to "${newTypeText}"? This will clear all current product selections and cannot be undone.`,
+        onConfirm: () => {
+          performProductTypeChange(type);
+          setShowConfirmDialog(false);
+        },
+        onClose: () => setShowConfirmDialog(false),
+        confirmText: 'Yes, Change Type',
+        isDestructive: true
+      });
+      setShowConfirmDialog(true);
+    } else {
+      performProductTypeChange(type);
+    }
+  };
+
+  const performProductTypeChange = (type) => {
+    setSelectedProductType(type);
+    if (type === 'individual') {
+      setSelectedBundles([]);
+      // Reset to default individual products
+      setFormData(prev => ({
+        ...prev,
+        products: [{ id: `${Date.now()}_0`, category: '', name: '', quantity: '1', unitPrice: '0', totalPrice: '0', productId: '' }]
+      }));
+    } else {
+      // Reset products for bundle mode
+      setSelectedBundles([]);
+      setFormData(prev => ({
+        ...prev,
+        products: []
+      }));
+    }
+  };
+
+  const addBundleSelection = (bundle) => {
+    const newBundle = {
+      id: `bundle_${Date.now()}_${Math.random()}`,
+      bundleId: bundle._id,
+      bundleCode: bundle.bundleCode,
+      name: bundle.name,
+      quantity: 1,
+      unitPrice: bundle.finalPrice,
+      totalPrice: bundle.finalPrice,
+      bundleData: bundle
+    };
+    
+    setSelectedBundles(prev => [...prev, newBundle]);
+    updateFormDataWithBundles([...selectedBundles, newBundle]);
+  };
+
+  const removeBundleSelection = (bundleId) => {
+    const updatedBundles = selectedBundles.filter(b => b.id !== bundleId);
+    setSelectedBundles(updatedBundles);
+    updateFormDataWithBundles(updatedBundles);
+  };
+
+  const updateBundleQuantity = (bundleId, quantity) => {
+    const updatedBundles = selectedBundles.map(bundle => 
+      bundle.id === bundleId 
+        ? { 
+            ...bundle, 
+            quantity: parseInt(quantity) || 1,
+            totalPrice: (bundle.unitPrice * (parseInt(quantity) || 1))
+          }
+        : bundle
+    );
+    setSelectedBundles(updatedBundles);
+    updateFormDataWithBundles(updatedBundles);
+  };
+
+  const updateFormDataWithBundles = (bundles) => {
+    const bundleProducts = bundles.map(bundle => ({
+      id: bundle.id,
+      category: 'solar_power_plant_system',
+      name: bundle.name,
+      quantity: bundle.quantity.toString(),
+      unitPrice: bundle.unitPrice.toString(),
+      totalPrice: bundle.totalPrice.toString(),
+      productId: bundle.bundleId,
+      bundleCode: bundle.bundleCode,
+      isBundleItem: true,
+      bundleItems: bundle.bundleData?.items || bundle.bundleItems || []
+    }));
+    
+    setFormData(prev => ({
+      ...prev,
+      products: bundleProducts
+    }));
+  };
+
   const validateForm = () => {
     const errors = {};
     if (!formData.leadType) errors.leadInfo = { ...errors.leadInfo, leadType: 'Lead Type is required.' };
@@ -425,17 +618,32 @@ export default function LeadForm() {
 
     if (!formData.customerType) errors.businessInfo = { ...errors.businessInfo, customerType: 'Customer Type is required.' };
     
-    const validProducts = formData.products.filter(p => p.category && p.name && p.quantity && p.unitPrice && p.totalPrice && p.productId);
-    if (validProducts.length === 0) {
+    // Product validation based on type
+    if (selectedProductType === 'individual') {
+      const validProducts = formData.products.filter(p => p.category && p.name && p.quantity && p.unitPrice && p.totalPrice && p.productId);
+      if (validProducts.length === 0) {
         errors.productInfo = { general: 'At least one complete product entry is required.' };
-    } else {
+      } else {
         formData.products.forEach((product, index) => {
-            if ((product.category || product.name || product.quantity || product.unitPrice || product.totalPrice) && 
-                !(product.category && product.name && product.quantity && product.unitPrice && product.totalPrice && product.productId)) {
-                if (!errors.productInfo) errors.productInfo = {}; 
-                errors.productInfo[index] = 'Please complete all fields (Category, Product, Quantity) for this product.';
-            }
+          if ((product.category || product.name || product.quantity || product.unitPrice || product.totalPrice) && 
+              !(product.category && product.name && product.quantity && product.unitPrice && product.totalPrice && product.productId)) {
+            if (!errors.productInfo) errors.productInfo = {}; 
+            errors.productInfo[index] = 'Please complete all fields (Category, Product, Quantity) for this product.';
+          }
         });
+      }
+    } else if (selectedProductType === 'bundle') {
+      if (selectedBundles.length === 0) {
+        errors.productInfo = { general: 'Please select at least one Solar Power Plant System bundle.' };
+      } else {
+        // Validate each bundle
+        selectedBundles.forEach((bundle, index) => {
+          if (bundle.quantity < 1) {
+            if (!errors.productInfo) errors.productInfo = {};
+            errors.productInfo[`bundle_${index}`] = `Bundle "${bundle.name}" quantity must be at least 1.`;
+          }
+        });
+      }
     }
 
     if (!formData.interestStage) errors.additionalInfo = { ...errors.additionalInfo, interestStage: 'Stage of Interest is required.' };
@@ -490,18 +698,38 @@ export default function LeadForm() {
     setIsSubmitting(true);
     setSubmissionError(null);
     try {
-      const productsToSubmit = formData.products
-        .filter(p => p.category && p.name && p.quantity && p.unitPrice && p.totalPrice && p.productId)
-        .map(p => ({
-          productId: p.productId,
-          category: p.category,
-          name: p.name,
-          quantity: parseInt(p.quantity, 10),
-          unitPrice: parseFloat(p.unitPrice),
-          totalPrice: parseFloat(p.totalPrice),
+      let productsToSubmit = [];
+      
+      if (selectedProductType === 'individual') {
+        productsToSubmit = formData.products
+          .filter(p => p.category && p.name && p.quantity && p.unitPrice && p.totalPrice && p.productId)
+          .map(p => ({
+            productId: p.productId,
+            category: p.category,
+            name: p.name,
+            quantity: parseInt(p.quantity, 10),
+            unitPrice: parseFloat(p.unitPrice),
+            totalPrice: parseFloat(p.totalPrice),
+          }));
+      } else if (selectedProductType === 'bundle') {
+        productsToSubmit = selectedBundles.map(bundle => ({
+          productId: bundle.bundleId,
+          bundleCode: bundle.bundleCode,
+          category: 'solar_power_plant_system',
+          name: bundle.name,
+          quantity: parseInt(bundle.quantity, 10),
+          unitPrice: parseFloat(bundle.unitPrice),
+          totalPrice: parseFloat(bundle.totalPrice),
+          isBundleItem: true,
+          bundleItems: bundle.bundleData?.items || bundle.bundleItems || []
         }));
+      }
 
-      const payload = { ...formData, products: productsToSubmit };
+      const payload = { 
+        ...formData, 
+        products: productsToSubmit,
+        selectedProductType: selectedProductType
+      };
       payload.products.forEach(p => delete p.id);
       // Add geolocation if available
       if (geo.latitude && geo.longitude) {
@@ -546,7 +774,7 @@ export default function LeadForm() {
         type={type}
         id={name}
         name={name}
-        value={formData[name]}
+        value={formData[name] ?? ''}
         onChange={handleInputChange}
         placeholder={placeholder}
         required={required}
@@ -564,7 +792,7 @@ export default function LeadForm() {
                     <select
           id={name}
           name={name}
-          value={formData[name]}
+          value={formData[name] ?? ''}
           onChange={handleInputChange}
           required={required}
           className={`block w-full px-3 py-2.5 sm:py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-sm appearance-none text-secondary touch-target ${sectionErrors[section]?.[name] ? 'border-red-500' : ''}`}
@@ -706,15 +934,459 @@ export default function LeadForm() {
           <section>
             {renderSectionHeader('Products & Budget', 'productInfo')}
 
-            {productFetchError && (
+            {(productFetchError || bundleFetchError) && (
                 <div className="mb-4 p-3 sm:p-4 bg-yellow-50 border border-yellow-300 text-yellow-700 rounded-lg flex items-start gap-2">
                     <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm sm:text-base">{productFetchError}</span>
+                    <span className="text-sm sm:text-base">{productFetchError || bundleFetchError}</span>
                 </div>
               )}
+
+            {/* Product Type Selection */}
+            <div className="bg-white rounded-lg border border-fourth shadow-sm p-4 sm:p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-semibold text-secondary">Product Type Selection</h4>
+                {isEditMode && (
+                  <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full font-medium">
+                    📝 Editing Mode
+                  </span>
+                )}
+              </div>
+              
+              {isEditMode && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    <strong>Note:</strong> This lead was originally created with{' '}
+                    <span className="font-medium">
+                      {selectedProductType === 'bundle' ? 'Solar Power Plant System' : 'Individual Products'}
+                    </span>
+                    . You can change the product type, but this will clear the current product selection.
+                  </p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label className={`flex items-center space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-all ${
+                  selectedProductType === 'individual' 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="productType"
+                    value="individual"
+                    checked={selectedProductType === 'individual'}
+                    onChange={(e) => handleProductTypeChange(e.target.value)}
+                    className="w-4 h-4 text-primary border-gray-300 focus:ring-primary"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-secondary">Individual Products</span>
+                      {selectedProductType === 'individual' && (
+                        <span className="w-2 h-2 bg-primary rounded-full"></span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600">Select individual products from our catalog</p>
+                  </div>
+                </label>
+                <label className={`flex items-center space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-all ${
+                  selectedProductType === 'bundle' 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="productType"
+                    value="bundle"
+                    checked={selectedProductType === 'bundle'}
+                    onChange={(e) => handleProductTypeChange(e.target.value)}
+                    className="w-4 h-4 text-primary border-gray-300 focus:ring-primary"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-secondary">Solar Power Plant Systems</span>
+                      {selectedProductType === 'bundle' && (
+                        <span className="w-2 h-2 bg-primary rounded-full"></span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600">Choose from pre-configured solar power plant bundles</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Bundle Selection Interface */}
+            {selectedProductType === 'bundle' && (
+              <>
+                {/* Selected Bundles Table - Desktop & Tablet */}
+                <div className="hidden md:block bg-white rounded-lg border border-fourth shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead className="bg-gray-50 border-b border-fourth">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[30%]">
+                            Bundle Name <span className="text-red-500">*</span>
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[20%]">
+                            KVA Rating
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[14%]">
+                            Qty <span className="text-red-500">*</span>
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[18%]">
+                            Unit Price
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[18%]">
+                            Total Price
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[8%]">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-fourth">
+                        {selectedBundles.map((bundle, index) => (
+                          <tr key={bundle.id} className="hover:bg-gray-50 transition-colors duration-150">
+                            {/* Bundle Name */}
+                            <td className="px-4 py-4">
+                              <div>
+                                <div className="font-medium text-secondary">{bundle.name}</div>
+                                <div className="text-xs text-gray-500">{bundle.bundleCode}</div>
+                                <div className="text-xs text-gray-500">
+                                  {bundle.bundleData?.items?.length || 0} components
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* KVA Rating */}
+                            <td className="px-4 py-4">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                {bundle.bundleData?.subcategory?.toUpperCase() || 'N/A'}
+                              </span>
+                            </td>
+
+                            {/* Quantity */}
+                            <td className="px-4 py-4">
+                              <div className="flex items-center justify-center space-x-1">
+                                <button
+                                  type="button"
+                                  onClick={() => updateBundleQuantity(bundle.id, bundle.quantity - 1)}
+                                  className="p-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600 hover:text-gray-800 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={bundle.quantity <= 1}
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                  </svg>
+                                </button>
+                                <input
+                                  type="number"
+                                  value={bundle.quantity}
+                                  min="1"
+                                  onChange={(e) => updateBundleQuantity(bundle.id, e.target.value)}
+                                  className="w-12 px-1 py-1.5 bg-white border border-fourth rounded text-center text-sm text-secondary transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => updateBundleQuantity(bundle.id, bundle.quantity + 1)}
+                                  className="p-1 rounded border border-gray-300 hover:bg-gray-50 text-gray-600 hover:text-gray-800 transition-colors duration-150"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Unit Price */}
+                            <td className="px-4 py-4">
+                              <div className="text-sm font-medium text-secondary">
+                                ₹{bundle.unitPrice.toLocaleString()}
+                              </div>
+                              {bundle.bundleData?.discountPercentage > 0 && (
+                                <div className="text-xs text-green-600">
+                                  {bundle.bundleData.discountPercentage}% off
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Total Price */}
+                            <td className="px-4 py-4">
+                              <div className="text-sm font-bold text-primary">
+                                ₹{bundle.totalPrice.toLocaleString()}
+                              </div>
+                            </td>
+
+                            {/* Action */}
+                            <td className="px-4 py-4 text-center">
+                              <button
+                                type="button"
+                                onClick={() => removeBundleSelection(bundle.id)}
+                                className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors duration-150"
+                                title="Remove bundle"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                                     {/* Bundle Error Messages */}
+                   {Object.keys(sectionErrors.productInfo || {}).filter(key => key.startsWith('bundle_')).length > 0 && (
+                     <div className="p-4 bg-red-50 border-l-4 border-red-400">
+                       {Object.keys(sectionErrors.productInfo || {}).map((key) => (
+                         key.startsWith('bundle_') && (
+                           <p key={key} className="text-sm text-red-700">{sectionErrors.productInfo[key]}</p>
+                         )
+                       ))}
+                     </div>
+                   )}
+
+                   {/* Add Bundle Section */}
+                   <div className="p-6 bg-gray-50 border-t border-fourth">
+                     <h5 className="text-base font-medium text-secondary mb-4">Add Solar Power Plant System</h5>
+                    {isLoadingBundles ? (
+                      <div className="text-center py-4">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">Loading available bundles...</p>
+                      </div>
+                    ) : bundleFetchError ? (
+                      <div className="text-center py-4">
+                        <AlertTriangle className="w-6 h-6 text-red-500 mx-auto mb-2" />
+                        <p className="text-sm text-red-600">Failed to load bundles. Please try again.</p>
+                      </div>
+                    ) : Object.keys(bundlesData).length === 0 ? (
+                      <div className="text-center py-4">
+                        <Package className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">No power plant configurations available.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {Object.values(bundlesData).flat().map((bundle) => {
+                          const isAlreadySelected = selectedBundles.some(sb => sb.bundleId === bundle._id);
+                          return (
+                            <div 
+                              key={bundle._id}
+                              className={`border rounded-lg p-3 transition-all ${
+                                isAlreadySelected
+                                  ? 'border-gray-300 bg-gray-100 opacity-60' 
+                                  : 'border-gray-200 hover:border-primary/50 hover:bg-primary/5 cursor-pointer'
+                              }`}
+                              onClick={() => !isAlreadySelected && addBundleSelection(bundle)}
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <h6 className="font-medium text-sm text-secondary">{bundle.name}</h6>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                      {bundle.subcategory?.toUpperCase() || 'N/A'}
+                                    </span>
+                                  </div>
+                                </div>
+                                {isAlreadySelected ? (
+                                  <Check className="w-4 h-4 text-green-600" />
+                                ) : (
+                                  <Plus className="w-4 h-4 text-primary" />
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-600 mb-2">{bundle.bundleCode}</p>
+                              <div className="space-y-1 text-xs text-gray-600">
+                                <div className="flex justify-between">
+                                  <span>Components:</span>
+                                  <span>{bundle.items?.length || 0}</span>
+                                </div>
+                                <div className="flex justify-between font-medium text-primary">
+                                  <span>Price:</span>
+                                  <span>₹{bundle.finalPrice?.toLocaleString()}</span>
+                                </div>
+                                {bundle.discountPercentage > 0 && (
+                                  <div className="flex justify-between text-green-600">
+                                    <span>Discount:</span>
+                                    <span>{bundle.discountPercentage}%</span>
+                                  </div>
+                                )}
+                              </div>
+                              {isAlreadySelected && (
+                                <div className="mt-2 text-xs text-gray-500 font-medium">
+                                  ✓ Already Selected
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Selected Bundles Cards - Mobile */}
+                <div className="block md:hidden space-y-4">
+                  {selectedBundles.map((bundle, index) => (
+                    <div key={bundle.id} className="bg-white rounded-lg border border-fourth shadow-sm p-4">
+                      <div className="flex justify-between items-start mb-4">
+                        <h4 className="text-sm font-semibold text-secondary">Bundle #{index + 1}</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeBundleSelection(bundle.id)}
+                          className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors duration-150"
+                          title="Remove bundle"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <div className="font-medium text-secondary">{bundle.name}</div>
+                          <div className="text-sm text-gray-600">{bundle.bundleCode}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                              {bundle.bundleData?.subcategory?.toUpperCase() || 'N/A'}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {bundle.bundleData?.items?.length || 0} components
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                          <div className="flex items-center space-x-3">
+                            <button
+                              type="button"
+                              onClick={() => updateBundleQuantity(bundle.id, bundle.quantity - 1)}
+                              className="p-2.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-600 hover:text-gray-800 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={bundle.quantity <= 1}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                              </svg>
+                            </button>
+                            <input
+                              type="number"
+                              value={bundle.quantity}
+                              min="1"
+                              onChange={(e) => updateBundleQuantity(bundle.id, e.target.value)}
+                              className="flex-1 px-4 py-3 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-base text-secondary text-center transition-all duration-150"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateBundleQuantity(bundle.id, bundle.quantity + 1)}
+                              className="p-2.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-600 hover:text-gray-800 transition-colors duration-150"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-100">
+                          <div>
+                            <div className="text-sm text-gray-600">Unit Price</div>
+                            <div className="font-medium text-secondary">₹{bundle.unitPrice.toLocaleString()}</div>
+                            {bundle.bundleData?.discountPercentage > 0 && (
+                              <div className="text-xs text-green-600">
+                                {bundle.bundleData.discountPercentage}% off
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-sm text-gray-600">Total Price</div>
+                            <div className="font-bold text-primary">₹{bundle.totalPrice.toLocaleString()}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                                     {/* Bundle Error Messages - Mobile */}
+                   {(sectionErrors.productInfo?.general || Object.keys(sectionErrors.productInfo || {}).filter(key => key.startsWith('bundle_')).length > 0) && (
+                     <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                       {sectionErrors.productInfo?.general && (
+                         <p className="text-sm text-red-700 mb-2">{sectionErrors.productInfo.general}</p>
+                       )}
+                       {Object.keys(sectionErrors.productInfo || {}).map((key) => (
+                         key.startsWith('bundle_') && (
+                           <p key={key} className="text-sm text-red-700">{sectionErrors.productInfo[key]}</p>
+                         )
+                       ))}
+                     </div>
+                   )}
+
+                   {/* Add Bundle Button - Mobile */}
+                   <div className="bg-white rounded-lg border border-fourth shadow-sm p-4">
+                     <h5 className="text-base font-medium text-secondary mb-4">Add Solar Power Plant System</h5>
+                    {isLoadingBundles ? (
+                      <div className="text-center py-4">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">Loading available bundles...</p>
+                      </div>
+                    ) : bundleFetchError ? (
+                      <div className="text-center py-4">
+                        <AlertTriangle className="w-6 h-6 text-red-500 mx-auto mb-2" />
+                        <p className="text-sm text-red-600">Failed to load bundles. Please try again.</p>
+                      </div>
+                    ) : Object.keys(bundlesData).length === 0 ? (
+                      <div className="text-center py-4">
+                        <Package className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">No power plant configurations available.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-3">
+                        {Object.values(bundlesData).flat().map((bundle) => {
+                          const isAlreadySelected = selectedBundles.some(sb => sb.bundleId === bundle._id);
+                          return (
+                            <div 
+                              key={bundle._id}
+                              className={`border rounded-lg p-3 transition-all ${
+                                isAlreadySelected
+                                  ? 'border-gray-300 bg-gray-100 opacity-60' 
+                                  : 'border-gray-200 hover:border-primary/50 hover:bg-primary/5'
+                              }`}
+                              onClick={() => !isAlreadySelected && addBundleSelection(bundle)}
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <h6 className="font-medium text-sm text-secondary">{bundle.name}</h6>
+                                  <p className="text-xs text-gray-600">{bundle.bundleCode}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                      {bundle.subcategory?.toUpperCase() || 'N/A'}
+                                    </span>
+                                  </div>
+                                </div>
+                                {isAlreadySelected ? (
+                                  <Check className="w-5 h-5 text-green-600" />
+                                ) : (
+                                  <Plus className="w-5 h-5 text-primary" />
+                                )}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                <div>Components: {bundle.items?.length || 0}</div>
+                                <div className="font-medium text-primary">₹{bundle.finalPrice?.toLocaleString()}</div>
+                              </div>
+                              {isAlreadySelected && (
+                                <div className="mt-2 text-xs text-gray-500 font-medium">
+                                  ✓ Already Selected
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
             
-            {/* Products Table - Desktop & Tablet */}
-            <div className="hidden md:block bg-white rounded-lg border border-fourth shadow-sm overflow-hidden">
+            {/* Individual Products Section */}
+            {selectedProductType === 'individual' && (
+              <>
+                {/* Products Table - Desktop & Tablet */}
+                <div className="hidden md:block bg-white rounded-lg border border-fourth shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="min-w-full">
                   <thead className="bg-gray-50 border-b border-fourth">
@@ -747,7 +1419,7 @@ export default function LeadForm() {
                           <div className="relative">
                             <select
                               id={`product_category_${index}`} 
-                              value={product.category}
+                              value={product.category ?? ''}
                               onChange={(e) => handleProductPropertyChange(index, 'category', e.target.value)}
                               disabled={isLoadingProducts}
                               required
@@ -769,7 +1441,7 @@ export default function LeadForm() {
                           <div className="relative">
                             <select
                               id={`product_name_${index}`} 
-                              value={product.name}
+                              value={product.name ?? ''}
                               onChange={(e) => handleProductPropertyChange(index, 'name', e.target.value)}
                               disabled={!product.category || isLoadingProducts}
                               required
@@ -801,7 +1473,7 @@ export default function LeadForm() {
                             <input
                               type="number"
                               id={`product_quantity_${index}`} 
-                              value={product.quantity}
+                              value={product.quantity ?? '1'}
                               min="1"
                               onChange={(e) => handleProductPropertyChange(index, 'quantity', e.target.value)}
                               required
@@ -827,7 +1499,7 @@ export default function LeadForm() {
                             <input
                               type="number"
                               id={`product_unitPrice_${index}`} 
-                              value={product.unitPrice}
+                              value={product.unitPrice ?? '0'}
                               min="0" 
                               step="0.01" 
                               readOnly
@@ -847,7 +1519,7 @@ export default function LeadForm() {
                             <input
                               type="number"
                               id={`product_totalPrice_${index}`} 
-                              value={product.totalPrice}
+                              value={product.totalPrice ?? '0'}
                               min="0" 
                               step="0.01" 
                               readOnly
@@ -880,9 +1552,9 @@ export default function LeadForm() {
                 </table>
               </div>
 
-              {/* Error Messages */}
+                                    {/* Error Messages */}
               {Object.keys(sectionErrors.productInfo || {}).map((key) => (
-                key !== 'general' && (
+                key !== 'general' && !key.startsWith('bundle_') && (
                   <div key={key} className="px-6 py-2 bg-red-50 border-l-4 border-red-400">
                     <p className="text-sm text-red-700">Product {parseInt(key) + 1}: {sectionErrors.productInfo[key]}</p>
                   </div>
@@ -936,7 +1608,7 @@ export default function LeadForm() {
                       <div className="relative">
                         <select
                           id={`mobile_product_category_${index}`} 
-                          value={product.category}
+                          value={product.category ?? ''}
                           onChange={(e) => handleProductPropertyChange(index, 'category', e.target.value)}
                           disabled={isLoadingProducts}
                           required
@@ -961,7 +1633,7 @@ export default function LeadForm() {
                       <div className="relative">
                         <select
                           id={`mobile_product_name_${index}`} 
-                          value={product.name}
+                          value={product.name ?? ''}
                           onChange={(e) => handleProductPropertyChange(index, 'name', e.target.value)}
                           disabled={!product.category || isLoadingProducts}
                           required
@@ -997,7 +1669,7 @@ export default function LeadForm() {
                           <input
                             type="number"
                             id={`mobile_product_quantity_${index}`} 
-                            value={product.quantity}
+                            value={product.quantity ?? '1'}
                             min="1"
                             onChange={(e) => handleProductPropertyChange(index, 'quantity', e.target.value)}
                             required
@@ -1025,7 +1697,7 @@ export default function LeadForm() {
                           <input
                             type="number"
                             id={`mobile_product_unitPrice_${index}`} 
-                            value={product.unitPrice}
+                            value={product.unitPrice ?? '0'}
                             min="0" 
                             step="0.01" 
                             readOnly
@@ -1047,7 +1719,7 @@ export default function LeadForm() {
                           <input
                             type="number"
                             id={`mobile_product_totalPrice_${index}`} 
-                            value={product.totalPrice}
+                            value={product.totalPrice ?? '0'}
                             min="0" 
                             step="0.01" 
                             readOnly
@@ -1088,20 +1760,34 @@ export default function LeadForm() {
               </button>
             </div>
 
+                </>
+              )}
+
             {/* Budget Summary */}
             <div className="mt-6 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20 p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h4 className="text-lg font-semibold text-secondary mb-1">Budget Summary</h4>
-                  <p className="text-sm text-gray-600">Total estimated cost for all products</p>
+                  <p className="text-sm text-gray-600">
+                    {selectedProductType === 'individual' 
+                      ? 'Total estimated cost for all products' 
+                      : 'Total estimated cost for all solar power plant systems'
+                    }
+                  </p>
                 </div>
                 <div className="text-left sm:text-right">
                   <div className="text-sm text-gray-600 mb-1">Grand Total</div>
                   <div className="text-2xl sm:text-3xl font-bold text-primary">
-                    ₹{formData.products.reduce((acc, p) => acc + (parseFloat(p.totalPrice) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₹{selectedProductType === 'individual' 
+                        ? formData.products.reduce((acc, p) => acc + (parseFloat(p.totalPrice) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : selectedBundles.reduce((acc, b) => acc + b.totalPrice, 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      }
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    {formData.products.filter(p => p.totalPrice && parseFloat(p.totalPrice) > 0).length} product(s) selected
+                    {selectedProductType === 'individual' 
+                      ? `${formData.products.filter(p => p.totalPrice && parseFloat(p.totalPrice) > 0).length} product(s) selected`
+                      : `${selectedBundles.length} solar power plant system(s) selected`
+                    }
                   </div>
                 </div>
               </div>

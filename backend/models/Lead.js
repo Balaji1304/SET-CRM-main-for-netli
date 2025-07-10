@@ -3,13 +3,11 @@ const mongoose = require('mongoose');
 const productSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product',
     required: [true, 'Product ID is required']
   },
   category: {
     type: String,
-    required: [true, 'Product category is required'],
-    enum: ['Solar Water Heaters', 'Solar Street Lights', 'Solar Dryers']
+    required: [true, 'Product category is required']
   },
   name: {
     type: String,
@@ -29,6 +27,19 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Total price is required'],
     min: [0, 'Total price cannot be negative']
+  },
+  // Bundle-specific fields
+  isBundleItem: {
+    type: Boolean,
+    default: false
+  },
+  bundleCode: {
+    type: String,
+    required: false
+  },
+  bundleItems: {
+    type: Array,
+    default: []
   }
 }, {
   _id: false
@@ -109,6 +120,11 @@ const leadSchema = new mongoose.Schema({
   },
 
   // Product Information
+  selectedProductType: {
+    type: String,
+    enum: ['individual', 'bundle'],
+    default: 'individual'
+  },
   products: [productSchema],
   productRequirements: {
     type: String,
