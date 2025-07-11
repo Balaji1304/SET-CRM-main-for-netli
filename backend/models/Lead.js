@@ -340,7 +340,8 @@ leadSchema.pre('save', function(next) {
       if (product.unitPrice < 0) {
         return next(new Error(`Product ${i + 1}: Unit price cannot be negative`));
       }
-
+    }
+  }
   // Auto-set preferred contact method if not specified
   if (!this.preferredContactMethod) {
     if (this.email && this.whatsapp) {
