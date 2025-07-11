@@ -80,11 +80,12 @@ const leadSchema = new mongoose.Schema({
     },
     unique: true,
     sparse: true, // Allow multiple documents with null/undefined email
+
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   phone: {
     type: String,
-    required: [true, 'Phone number is required']
+    required: false
   },
   countryCode: {
     type: String,
@@ -92,7 +93,12 @@ const leadSchema = new mongoose.Schema({
   },
   whatsapp: {
     type: String,
-    required: [true, 'WhatsApp number is required']
+    required: false
+  },
+  preferredContactMethod: {
+    type: String,
+    enum: ['email', 'whatsapp', 'both'],
+    default: 'email'
   },
   billingAddress: {
     type: String,
@@ -234,6 +240,7 @@ leadSchema.pre('save', function(next) {
     });
   }
   
+
   // Auto-update completion status for enquiry-generated leads
   if (this.createdFromEnquiry && this.leadCompletionStatus === 'incomplete') {
     console.log(`Checking completion status for enquiry-generated lead ${this._id}...`);
@@ -333,6 +340,16 @@ leadSchema.pre('save', function(next) {
       if (product.unitPrice < 0) {
         return next(new Error(`Product ${i + 1}: Unit price cannot be negative`));
       }
+
+  // Auto-set preferred contact method if not specified
+  if (!this.preferredContactMethod) {
+    if (this.email && this.whatsapp) {
+      this.preferredContactMethod = 'both';
+    } else if (this.email) {
+      this.preferredContactMethod = 'email';
+    } else if (this.whatsapp) {
+      this.preferredContactMethod = 'whatsapp';
+
     }
   }
   
@@ -344,6 +361,13 @@ leadSchema.pre('validate', function(next) {
   // Ensure required fields are properly set
   if (!this.billingAddress && this.address) {
     this.billingAddress = this.address;
+  }
+  
+  // Validate that at least one contact method is provided
+  if (!this.email && !this.whatsapp) {
+    const error = new Error('At least one contact method (email or whatsapp) is required');
+    error.name = 'ValidationError';
+    return next(error);
   }
   
   next();

@@ -2,6 +2,7 @@ const Invoice = require('../models/Invoice');
 const Quotation = require('../models/Quotation');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
+const { sendInvoiceNotification } = require('../utils/sendNotification');
 const { generateInvoiceNumber } = require('../utils/generateNumbers');
 const generatePDF = require('../utils/generatePDF');
 const mongoose = require('mongoose');
@@ -95,17 +96,14 @@ exports.createInvoice = async (req, res) => {
 
     const pdfBuffer = await generatePDF('invoice', emailData);
 
-    // Send invoice email
-    await sendEmail({
-      email: customer.email,
-      subject: `Invoice ${invoice.invoiceNumber} - Sunlit CRM`,
-      template: 'invoice',
-      data: emailData,
-      attachments: [{
-        filename: `Invoice_${invoice.invoiceNumber}.pdf`,
-        content: pdfBuffer
-      }]
-    });
+    // Send invoice notification via available channels
+    try {
+      await sendInvoiceNotification(populatedInvoice, pdfBuffer);
+      console.log(`Invoice notification sent for ${invoice.invoiceNumber}`);
+    } catch (notificationError) {
+      console.error(`Failed to send invoice notification for ${invoice.invoiceNumber}:`, notificationError.message);
+      // Continue with success response even if notification fails
+    }
 
     // Return success response with populated invoice
     const returnInvoice = await Invoice.findById(invoice._id)

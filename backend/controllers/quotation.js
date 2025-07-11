@@ -3,6 +3,7 @@ const QuotationItem = require('../models/QuotationItem');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
 const sendEmail = require('../utils/sendEmail');
+const { sendQuotationNotification, sendWelcomeNotification } = require('../utils/sendNotification');
 const { generateQuotationNumber } = require('../utils/generateNumbers');
 const generatePDF = require('../utils/generatePDF');
 const { registerHelpers } = require('../utils/handlebarsHelpers');
@@ -522,30 +523,28 @@ exports.sendQuotation = async (req, res) => {
       emailData.paymentLink = paymentLink.short_url;
 
     try {
-      // Update quotation and send email in parallel
-      const [updatedQuotation] = await Promise.all([
-        Quotation.findByIdAndUpdate(
-          quotation._id,
-          {
-            status: 'sent',
-            advancePaymentAmount: advanceAmount,
-            razorpayPaymentLinkId: paymentLink.id,
-            razorpayPaymentLink: paymentLink.short_url,
-            paymentLinkExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-          },
-          { new: true }
-        ).populate('lead', 'firstName lastName email').populate('createdBy', 'name'),
-        sendEmail({
-          email: quotation.lead.email,
-          subject: `Quotation ${quotation.quotationNumber}`,
-          template: 'quotation',
-          data: emailData,
-          attachments: [{
-            filename: `Quotation_${quotation.quotationNumber}.pdf`,
-            content: pdfBuffer
-          }]
-        })
-      ]);
+      // Update quotation status first
+      const updatedQuotation = await Quotation.findByIdAndUpdate(
+        quotation._id,
+        {
+          status: 'sent',
+          advancePaymentAmount: advanceAmount,
+          razorpayPaymentLinkId: paymentLink.id,
+          razorpayPaymentLink: paymentLink.short_url,
+          paymentLinkExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        },
+        { new: true }
+      ).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod').populate('createdBy', 'name');
+
+      // Send notification via available channels (email and/or WhatsApp)
+      try {
+        const notificationResult = await sendQuotationNotification(updatedQuotation, quotationItems, pdfBuffer);
+        console.log('Notification results:', notificationResult);
+      } catch (notificationError) {
+        console.error('Notification failed but quotation marked as sent:', notificationError.message);
+        // Continue with success response even if notification fails
+        // The quotation is still marked as sent and can be resent later
+      }
 
       // Return data in the new format
       const quotationWithItems = updatedQuotation.toObject();
@@ -559,13 +558,13 @@ exports.sendQuotation = async (req, res) => {
         data: quotationWithItems
       });
     } catch (error) {
-      console.error('Error updating quotation or sending email:', error);
+      console.error('Error updating quotation or sending notifications:', error);
       // Revert status to draft
       await Quotation.findByIdAndUpdate(quotation._id, { status: 'draft' }, { new: false });
       notifyClient(req.user.id, quotation._id, 'draft');
       return res.status(400).json({
         success: false,
-        message: 'Failed to update quotation or send email'
+        message: 'Failed to update quotation or send notifications'
       });
     }
   } catch (error) {
@@ -766,15 +765,11 @@ const approveQuotation = async (quotationInstance) => {
       console.log(`New user created: ${leadUserId} for email ${lead.email}`);
       
       try {
-        await sendEmail({
-          email: user.email,
-          subject: 'Welcome to Sunlit CRM - Your Account Details',
-          template: 'welcome',
-          data: { name: user.name, email: user.email, password }
-        });
-        console.log(`Welcome email sent to ${user.email}`);
-      } catch (emailError) {
-        console.error(`Failed to send welcome email to ${user.email}:`, emailError);
+        // Send welcome notification via available channels
+        await sendWelcomeNotification(user, password);
+        console.log(`Welcome notification sent to ${user.email}`);
+      } catch (notificationError) {
+        console.error(`Failed to send welcome notification to ${user.email}:`, notificationError.message);
       }
     }
     

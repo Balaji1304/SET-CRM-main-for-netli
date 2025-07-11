@@ -23,13 +23,27 @@ const customerSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Email is required'],
+    required: false,
     unique: true,
+    sparse: true, // Allow multiple null values
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   phone: {
     type: String,
-    required: [true, 'Phone number is required']
+    required: false
+  },
+  whatsapp: {
+    type: String,
+    required: false
+  },
+  countryCode: {
+    type: String,
+    default: '+91'
+  },
+  preferredContactMethod: {
+    type: String,
+    enum: ['email', 'whatsapp', 'both'],
+    default: 'email'
   },
   businessName: {
     type: String
@@ -53,9 +67,31 @@ const customerSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Validation to ensure at least one contact method is provided
+customerSchema.pre('validate', function(next) {
+  if (!this.email && !this.whatsapp) {
+    const error = new Error('At least one contact method (email or whatsapp) is required');
+    error.name = 'ValidationError';
+    return next(error);
+  }
+  next();
+});
+
 // Update the 'updatedAt' field before saving
 customerSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  
+  // Auto-set preferred contact method if not specified
+  if (!this.preferredContactMethod) {
+    if (this.email && this.whatsapp) {
+      this.preferredContactMethod = 'both';
+    } else if (this.email) {
+      this.preferredContactMethod = 'email';
+    } else if (this.whatsapp) {
+      this.preferredContactMethod = 'whatsapp';
+    }
+  }
+  
   next();
 });
 
