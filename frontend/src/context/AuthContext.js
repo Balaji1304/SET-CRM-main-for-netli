@@ -125,8 +125,14 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Login failed');
+        let errorMessage = 'Login failed';
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (parseError) {
+          errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await res.json();
@@ -138,8 +144,9 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
         setToken(data.token);
         return true;
+      } else {
+        throw new Error(data.message || 'Login failed');
       }
-      return false;
     } catch (error) {
       throw error;
     }

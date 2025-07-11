@@ -39,7 +39,6 @@ export const createDefaultFormState = () => ({
   ],
   bundles: [], // For power plant system bundles
   productRequirements: '',
-  interestStage: 'new_lead',
   dateCollected: new Date().toISOString().split('T')[0],
   followUpRequired: false,
   followUpDateTime: '',

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Edit2, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Phone, Mail, Building2, Calendar } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Edit2, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Phone, Mail, Building2, Calendar, FileText, AlertCircle } from 'lucide-react';
 import { getLeads, deleteLead } from '../../services/leadService';
 
 const formatEnumValue = (value) => {
@@ -13,6 +13,7 @@ const formatEnumValue = (value) => {
 
 export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,26 +26,42 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
 
   const itemsPerPage = 10;
 
-  useEffect(() => {
-    const fetchLeads = async () => {
-      setLoading(true);
-      try {
-        const response = await getLeads();
-        if (response.success) {
-          setLeads(response.data);
-          setError(null);
-        } else {
-          setError(response.message || 'Failed to fetch leads');
-        }
-      } catch (err) {
-        setError(err.message || 'An error occurred while fetching leads');
-      } finally {
-        setLoading(false);
+  const fetchLeads = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await getLeads();
+      if (response.success) {
+        setLeads(response.data);
+        setError(null);
+      } else {
+        setError(response.message || 'Failed to fetch leads');
       }
-    };
-
-    fetchLeads();
+    } catch (err) {
+      setError(err.message || 'An error occurred while fetching leads');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchLeads();
+  }, [fetchLeads]);
+
+  // Handle location state changes (e.g., returning from edit with success message)
+  useEffect(() => {
+    if (location.state?.toastMessage) {
+      setSuccessMessage(location.state.toastMessage);
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
+      
+      // Refresh leads data after successful operation
+      fetchLeads();
+      
+      // Clear the location state to prevent repeated notifications
+      window.history.replaceState({}, document.title, location.pathname);
+    }
+  }, [location.state, fetchLeads]);
 
   const filteredLeads = leads.filter(lead => {
     const searchString = [
@@ -111,9 +128,8 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
     try {
       const response = await deleteLead(selectedLead._id || selectedLead.id);
       if (response.success) {
-        setLeads(prevLeads => prevLeads.filter(l => 
-          (l._id || l.id) !== (selectedLead._id || selectedLead.id)
-        ));
+        // Refresh the entire leads list to ensure data consistency
+        await fetchLeads();
         setSuccessMessage('Lead deleted successfully');
         setShowSuccessToast(true);
         setTimeout(() => setShowSuccessToast(false), 3000);
@@ -128,17 +144,36 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
     } finally {
       setIsDeleting(false);
     }
-  }, [selectedLead, isDeleting]);
+  }, [selectedLead, isDeleting, fetchLeads]);
 
   // Mobile Card Component
   const LeadCard = ({ lead }) => (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <div className={`rounded-lg border p-4 space-y-4 shadow-sm hover:shadow-md transition-all duration-200 ${
+      lead.createdFromEnquiry 
+        ? 'bg-blue-50 border-blue-200 border-l-4 border-l-blue-400' 
+        : 'bg-white border-gray-200'
+    }`}>
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">
-            {`${lead.firstName} ${lead.lastName}`}
-          </h3>
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className={`text-lg font-semibold ${lead.createdFromEnquiry ? 'text-blue-800' : 'text-gray-900'}`}>
+              {`${lead.firstName} ${lead.lastName}`}
+            </h3>
+            {lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' && (
+              <AlertTriangle 
+                className="w-5 h-5 text-orange-500 flex-shrink-0" 
+                title="Lead information incomplete - requires completion by salesperson"
+              />
+            )}
+          </div>
+          
+          {lead.createdFromEnquiry && (
+            <div className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded-md inline-block mb-2">
+              From Enquiry Form
+            </div>
+          )}
+          
           <div className="flex items-center space-x-4 text-sm text-gray-600">
             <div className="flex items-center space-x-1">
               <Phone className="w-4 h-4" />
@@ -168,7 +203,12 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
       <div className="space-y-2">
         <div className="flex items-center space-x-2 text-sm text-gray-600">
           <Mail className="w-4 h-4" />
-          <span className="truncate">{lead.email}</span>
+          <span className="truncate">
+            {lead.email || (lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' 
+              ? <span className="text-gray-400 italic">To be provided by salesperson</span>
+              : 'N/A'
+            )}
+          </span>
         </div>
         {lead.businessName && (
           <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -245,7 +285,7 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
         <p className="text-lg font-semibold text-red-600 mb-2">Error Fetching Leads</p>
         <p className="text-sm text-secondary mb-4">{error}</p>
         <button 
-          onClick={() => { setError(null); window.location.reload(); }}
+          onClick={() => { setError(null); fetchLeads(); }}
           className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity touch-target"
         >
           Try Again
@@ -299,18 +339,35 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                   currentLeads.map((lead) => (
                     <tr
                       key={lead._id || lead.id}
-                      className="hover:bg-gray-50 transition-colors duration-150 ease-in-out"
+                      className={`transition-colors duration-150 ease-in-out ${
+                        lead.createdFromEnquiry 
+                          ? 'bg-blue-50/50 hover:bg-blue-50 border-l-4 border-blue-200' 
+                          : 'hover:bg-gray-50'
+                      }`}
                     >
-                      <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium text-gray-900 w-32 lg:w-40">
-                        <div className="truncate">
-                          {`${lead.firstName} ${lead.lastName}`}
+                      <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium w-32 lg:w-40">
+                        <div className="flex items-center gap-2">
+                          <div className={`truncate ${lead.createdFromEnquiry ? 'text-blue-800' : 'text-gray-900'}`}>
+                            {`${lead.firstName} ${lead.lastName}`}
+                          </div>
+                          {lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' && (
+                            <AlertTriangle 
+                              className="w-4 h-4 text-orange-500 flex-shrink-0" 
+                              title="Lead information incomplete - requires completion by salesperson"
+                            />
+                          )}
                         </div>
                       </td>
                       <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
                         <div className="truncate">{lead.phone}</div>
                       </td>
                       <td className="hidden 2xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-48">
-                        <div className="truncate">{lead.email}</div>
+                        <div className="truncate">
+                          {lead.email || (lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' 
+                            ? <span className="text-gray-400 italic">To be provided by salesperson</span>
+                            : lead.email || 'N/A'
+                          )}
+                        </div>
                       </td>
                       <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-36">
                         <div className="truncate">{lead.businessName}</div>

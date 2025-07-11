@@ -22,8 +22,46 @@ import {
   ShoppingBag,
   Bell as BellIcon,
   Settings,
-  Plus
+  Plus,
+  ChevronRight
 } from 'lucide-react';
+
+// Custom styles for mobile sidebar
+const mobileStyles = `
+  .mobile-sidebar-item {
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .mobile-sidebar-item:hover {
+    transform: translateX(4px);
+  }
+  
+  .mobile-sidebar-item.active {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  }
+  
+  .mobile-profile-gradient {
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  }
+  
+  .mobile-nav-separator {
+    background: linear-gradient(90deg, transparent 0%, #e5e7eb 50%, transparent 100%);
+  }
+  
+  /* Ensure proper mobile viewport height handling */
+  .mobile-sidebar-container {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for better mobile support */
+  }
+  
+  /* Add safe area padding for mobile devices with notches */
+  @supports (padding: max(0px)) {
+    .mobile-bottom-section {
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+  }
+`;
 
 const getNavigation = (userRole) => {
   // Common items for all roles
@@ -49,6 +87,10 @@ const getNavigation = (userRole) => {
     sales_person: [
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
+    ],
+    front_office_executive: [
+      { name: 'New Enquiry', href: '/dashboard/enquiry', icon: UserPlus },
+      { name: 'Lead Assignment', href: '/dashboard/lead-assignment', icon: Users },
     ],
     inventory_manager: [
       { name: 'Products', href: '/dashboard/products', icon: Box },
@@ -121,75 +163,146 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
   const isEffectivelyCollapsed = !isMobile && !isHovered;
 
   if (isMobile) {
-    // Mobile view remains unchanged
+    // Modern Mobile Sidebar Design
     return (
-      <div className="h-full bg-white flex flex-col overflow-y-auto">
-        {/* User Profile Header for Mobile */}
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-full bg-orange-500 flex items-center justify-center text-white">
-              <span className="text-lg font-semibold">{user?.name?.[0] || 'U'}</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-medium">{user?.name || 'User'}</span>
-              <span className="text-xs text-gray-500">{user?.role?.replace('_', ' ') || 'Role'}</span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Navigation Items - Mobile */}
-        <div className="flex-1 py-2">
-          <nav className="px-4 space-y-1">
-            {navigation.flatMap(section => 
-              section.items.map(item => {
-                const isActive = 
-                  location.pathname === item.href || 
-                  (item.href === '/dashboard/quotations' && 
-                   (location.pathname === '/dashboard/quotations/create' || 
-                    location.pathname.startsWith('/dashboard/quotations/'))) ||
-                  (item.href === '/dashboard/leads' && 
-                   (location.pathname.startsWith('/dashboard/edit-lead/') ||
-                    location.pathname === '/dashboard/add-lead')) ||
-                  (item.href === '/dashboard/products' && location.pathname.startsWith('/dashboard/products/')) ||
-                  (item.href === '/dashboard/schedule' && location.pathname.startsWith('/dashboard/schedule/'));
+      <>
+        <style>{mobileStyles}</style>
+        <div className="mobile-sidebar-container bg-white flex flex-col">
+          {/* Modern Header Section */}
+          <div className="relative overflow-hidden shrink-0">
+            {/* Background Gradient */}
+            <div className="mobile-profile-gradient p-6 pb-8">
+              <div className="flex items-center space-x-4">
+                {/* Modern Avatar */}
+                <div className="relative">
+                  <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center shadow-lg">
+                    <span className="text-2xl font-bold text-white">
+                      {user?.name?.[0]?.toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-green-400 border-2 border-white rounded-full"></div>
+                </div>
                 
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleItemClick(item);
-                    }}
-                    className={`
-                      flex items-center rounded-md py-3 px-4
-                      ${isActive
-                        ? 'bg-orange-500 text-white' 
-                        : 'text-gray-700 hover:bg-gray-50'}
-                    `}
-                  >
-                    <item.icon className="h-5 w-5 mr-3" />
-                    <span className="text-sm font-medium">{item.name}</span>
-                  </Link>
-                );
-              })
-            )}
-          </nav>
-        </div>
-        
-        {/* Bottom Actions - Mobile */}
-        <div className="border-t mt-auto">
-          <div className="px-4 py-2">
-            <button
-              onClick={handleLogout} // Use the unified handleLogout
-              className="flex items-center rounded-md py-3 px-4 w-full text-gray-700 hover:bg-gray-50"
-            >
-              <LogOut className="h-5 w-5 mr-3" />
-              <span className="text-sm font-medium">Logout</span>
-            </button>
+                {/* User Info */}
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl font-semibold text-white truncate">
+                    {user?.name || 'User Name'}
+                  </h2>
+                  <p className="text-orange-100 text-sm font-medium capitalize">
+                    {(user?.role?.replace('_', ' ') || 'User Role').split(' ').map(word => 
+                      word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ')}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Decorative Wave */}
+            <div className="absolute bottom-0 left-0 right-0 h-4">
+              <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="h-full w-full">
+                <path 
+                  d="M0,60 C120,30 240,90 360,60 C480,30 600,90 720,60 C840,30 960,90 1080,60 C1140,45 1170,37.5 1200,30 L1200,120 L0,120 Z" 
+                  fill="white"
+                />
+              </svg>
+            </div>
+          </div>
+          
+          {/* Navigation Section - This will scroll */}
+          <div className="flex-1 px-4 py-2 overflow-y-auto min-h-0">
+            <nav className="space-y-1">
+              {navigation.flatMap(section => 
+                section.items.map((item, index) => {
+                  const isActive = 
+                    location.pathname === item.href || 
+                    (item.href === '/dashboard/quotations' && 
+                     (location.pathname === '/dashboard/quotations/create' || 
+                      location.pathname.startsWith('/dashboard/quotations/'))) ||
+                    (item.href === '/dashboard/leads' && 
+                     (location.pathname.startsWith('/dashboard/edit-lead/') ||
+                      location.pathname === '/dashboard/add-lead')) ||
+                    (item.href === '/dashboard/products' && location.pathname.startsWith('/dashboard/products/')) ||
+                    (item.href === '/dashboard/schedule' && location.pathname.startsWith('/dashboard/schedule/'));
+                  
+                  return (
+                    <Link
+                      key={`${item.name}-${index}`}
+                      to={item.href}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleItemClick(item);
+                      }}
+                      className={`
+                        mobile-sidebar-item group flex items-center justify-between 
+                        rounded-xl py-3.5 px-4 mb-1
+                        ${isActive
+                          ? 'active text-white shadow-lg' 
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}
+                        transition-all duration-200 ease-in-out
+                      `}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`
+                          p-2 rounded-lg transition-all duration-200
+                          ${isActive 
+                            ? 'bg-white/20 text-white' 
+                            : 'bg-gray-100 text-gray-600 group-hover:bg-orange-100 group-hover:text-orange-600'}
+                        `}>
+                          <item.icon className="h-5 w-5" />
+                        </div>
+                        <span className="text-sm font-medium">{item.name}</span>
+                      </div>
+                      
+                      {!isActive && (
+                        <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors duration-200" />
+                      )}
+                    </Link>
+                  );
+                })
+              )}
+            </nav>
+          </div>
+          
+          {/* Bottom Section - Always Visible */}
+          <div className="flex-shrink-0 bg-white border-t border-gray-100 mobile-bottom-section">
+            {/* Settings Button */}
+            <div className="px-4 pt-3 pb-1">
+              <Link
+                to="/dashboard/settings"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleItemClick({ href: '/dashboard/settings' });
+                }}
+                className="mobile-sidebar-item group flex items-center justify-between rounded-xl py-3.5 px-4 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 ease-in-out"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-lg bg-gray-100 text-gray-600 group-hover:bg-orange-100 group-hover:text-orange-600 transition-all duration-200">
+                    <Settings className="h-5 w-5" />
+                  </div>
+                  <span className="text-sm font-medium">Settings</span>
+                </div>
+                <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors duration-200" />
+              </Link>
+            </div>
+            
+            {/* Logout Button */}
+            <div className="px-4 pb-4 pt-1">
+              <button
+                onClick={handleLogout}
+                className="mobile-sidebar-item group flex items-center justify-between w-full rounded-xl py-3.5 px-4 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 ease-in-out"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-lg bg-red-100 text-red-600 group-hover:bg-red-200 transition-all duration-200">
+                    <LogOut className="h-5 w-5" />
+                  </div>
+                  <span className="text-sm font-medium">Sign Out</span>
+                </div>
+                <ChevronRight className="h-4 w-4 text-red-400 group-hover:text-red-600 transition-colors duration-200" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 

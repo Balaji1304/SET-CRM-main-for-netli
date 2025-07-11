@@ -34,6 +34,8 @@ import InvoicePage from './app/invoice/[id]/page';
 import TaskDetailPage from './app/schedule/[taskId]/page';
 import PackagesPage from './app/packages/page';
 import BundlesPage from './app/bundles/page';
+import EnquiryPage from './app/enquiry/page';
+import LeadAssignmentPage from './app/lead-assignment/page';
 
 function App() {
   return (
@@ -51,16 +53,16 @@ function App() {
           <Route 
             path="/invoice/:id" 
             element={ 
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'inventory_manager', 'product_head', 'service_engineer', 'admin', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'admin', 'sales_head']}>
                 <InvoicePage />
               </ProtectedRoute>
             }
           />
           
-          <Route
+                    <Route 
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head']}>
                 <DashboardLayout />
               </ProtectedRoute>
             }
@@ -104,6 +106,18 @@ function App() {
               </ProtectedRoute>
             } />
 
+            {/* Front Office Executive routes */}
+            <Route path="enquiry" element={
+              <ProtectedRoute allowedRoles={['front_office_executive']}>
+                <EnquiryPage />
+              </ProtectedRoute>
+            } />
+            <Route path="lead-assignment" element={
+              <ProtectedRoute allowedRoles={['front_office_executive']}>
+                <LeadAssignmentPage />
+              </ProtectedRoute>
+            } />
+
             {/* Other routes... */}
             <Route path="reports" element={<ReportsPage />} />
             <Route path="knowledge-base" element={<KnowledgeBasePage />} />
@@ -113,7 +127,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="leads" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'front_office_executive', 'sales_head']}>
                 <Leads />
               </ProtectedRoute>
             } />

@@ -90,17 +90,13 @@ exports.getLead = async (req, res) => {
 // @access  Private
 exports.updateLead = async (req, res) => {
   try {
-    const lead = await Lead.findOneAndUpdate(
-      {
-        _id: req.params.id,
-        createdBy: req.user.id
-      },
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    );
+    console.log(`Updating lead ${req.params.id} with data:`, req.body);
+    
+    // Find the lead first
+    const lead = await Lead.findOne({
+      _id: req.params.id,
+      createdBy: req.user.id
+    });
 
     if (!lead) {
       return res.status(404).json({
@@ -109,11 +105,24 @@ exports.updateLead = async (req, res) => {
       });
     }
 
+    console.log(`Found lead - createdFromEnquiry: ${lead.createdFromEnquiry}, leadCompletionStatus: ${lead.leadCompletionStatus}`);
+
+    // Update the lead fields
+    Object.keys(req.body).forEach(key => {
+      lead[key] = req.body[key];
+    });
+
+    // Save the lead (this will trigger pre-save middleware)
+    const updatedLead = await lead.save();
+    
+    console.log(`Lead saved - new leadCompletionStatus: ${updatedLead.leadCompletionStatus}`);
+
     res.json({
       success: true,
-      data: lead
+      data: updatedLead
     });
   } catch (error) {
+    console.error('Error updating lead:', error);
     res.status(400).json({
       success: false,
       message: `Failed to update lead: ${error.message}`

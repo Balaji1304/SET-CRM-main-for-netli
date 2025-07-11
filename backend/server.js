@@ -88,6 +88,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 // Routes
 app.use('/api/auth', require('./routes/auth.js'));
 app.use('/api/leads', require('./routes/leads.js'));
+app.use('/api/enquiries', require('./routes/enquiries.js'));
 app.use('/api/products', require('./routes/products.js'));
 app.use('/api/bundles', require('./routes/productBundle.js'));
 app.use('/api/solar-bundle-items', require('./routes/solarBundleItem.js'));
