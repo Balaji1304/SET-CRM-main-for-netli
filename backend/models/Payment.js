@@ -11,36 +11,49 @@ const paymentSchema = new mongoose.Schema({
     required: true,
     min: [0, 'Amount paid cannot be negative'] 
   },
-  paidAt: { 
+  paymentDate: { 
     type: Date, 
     default: Date.now 
   },
   paymentMethod: { 
     type: String,
     enum: ['cash', 'check', 'bank_transfer', 'razorpay', 'other'],
-    default: 'cash'
+    default: 'other'
   },
-  transactionId: {
+  referenceNumber: {
     type: String
   },
-  receiptNumber: {
+  remarks: {
     type: String
   },
-  notes: {
-    type: String
+  status: {
+    type: String,
+    enum: ['pending_approval', 'approved', 'rejected'],
+    default: 'pending_approval'
   },
-  isAdvancePayment: {
-    type: Boolean,
-    default: false
+  rejectionReason: {
+    type: String,
+    trim: true
   },
-  createdBy: {
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  approvedAt: {
+    type: Date
+  },
+  initiatedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  createdAt: {
+  initiatedAt: {
     type: Date,
     default: Date.now
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   updatedAt: {
     type: Date,

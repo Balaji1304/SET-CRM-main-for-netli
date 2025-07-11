@@ -36,6 +36,7 @@ import PackagesPage from './app/packages/page';
 import BundlesPage from './app/bundles/page';
 import EnquiryPage from './app/enquiry/page';
 import LeadAssignmentPage from './app/lead-assignment/page';
+import VerifyPaymentsPage from './app/payments/verify/page';
 
 function App() {
   return (
@@ -53,7 +54,7 @@ function App() {
           <Route 
             path="/invoice/:id" 
             element={ 
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'admin', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'admin', 'sales_head', 'accounts_department']}>
                 <InvoicePage />
               </ProtectedRoute>
             }
@@ -62,7 +63,7 @@ function App() {
                     <Route 
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'accounts_department']}>
                 <DashboardLayout />
               </ProtectedRoute>
             }
@@ -78,6 +79,11 @@ function App() {
             <Route path="payments/remaining" element={
               <ProtectedRoute allowedRoles={['customer']}>
                 <RemainingPaymentPage />
+              </ProtectedRoute>
+            } />
+            <Route path="payments/verify" element={
+              <ProtectedRoute allowedRoles={['accounts_department']}>
+                <VerifyPaymentsPage />
               </ProtectedRoute>
             } />
             <Route path="payment-success" element={

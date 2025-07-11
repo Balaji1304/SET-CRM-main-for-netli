@@ -5,9 +5,11 @@ import {
   getQuotations, 
   sendQuotation, 
   approveQuotation, 
-  closeQuotation, 
-  confirmOfflinePayment 
+  closeQuotation
 } from '../../services/quotationService';
+import { initiatePayment } from '../../services/paymentService';
+import Toast from '../../components/Toast';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 // Helper to format enum values or status strings
 const formatDisplayValue = (value) => {
@@ -41,11 +43,11 @@ function StandalonePaymentModal({
       onSetPaymentError('No quotation selected');
       return;
     }
-    if (!paymentDetails.amount || !paymentDetails.transactionNo || !paymentDetails.paymentDate) {
+    if (!paymentDetails.amountPaid || !paymentDetails.referenceNumber || !paymentDetails.paymentDate) {
       onSetPaymentError('Please fill in all required fields');
       return;
     }
-    const amount = parseFloat(paymentDetails.amount);
+    const amount = parseFloat(paymentDetails.amountPaid);
     if (isNaN(amount) || amount <= 0) {
       onSetPaymentError('Please enter a valid payment amount');
       return;
@@ -67,7 +69,7 @@ function StandalonePaymentModal({
               <IndianRupee className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Confirm Payment</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Send for Approval</h2>
               <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Quotation: {selectedQuotation.quotationNumber}</p>
             </div>
           </div>
@@ -121,9 +123,9 @@ function StandalonePaymentModal({
                     id="paymentAmount"
                     type="text"
                     inputMode="decimal"
-                    value={paymentDetails.amount}
-                    onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, amount: e.target.value }))}
-                    className={`w-full pl-8 pr-4 py-3 sm:py-3.5 border rounded-xl focus:ring-2 focus:border-primary transition-all duration-200 text-sm sm:text-base font-medium placeholder-gray-400 ${paymentError && !paymentDetails.amount ? 'border-red-400 ring-2 ring-red-100 bg-red-50/50' : 'border-gray-300 focus:ring-primary/20 bg-gray-50/50'}`}
+                    value={paymentDetails.amountPaid}
+                    onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, amountPaid: e.target.value }))}
+                    className={`w-full pl-8 pr-4 py-3 sm:py-3.5 border rounded-xl focus:ring-2 focus:border-primary transition-all duration-200 text-sm sm:text-base font-medium placeholder-gray-400 ${paymentError && !paymentDetails.amountPaid ? 'border-red-400 ring-2 ring-red-100 bg-red-50/50' : 'border-gray-300 focus:ring-primary/20 bg-gray-50/50'}`}
                     placeholder="0.00"
                     required
                   />
@@ -167,15 +169,15 @@ function StandalonePaymentModal({
               
               {/* Transaction Reference */}
               <div>
-                <label htmlFor="transactionNo" className="block text-sm font-semibold text-gray-700 mb-2">
+                <label htmlFor="referenceNumber" className="block text-sm font-semibold text-gray-700 mb-2">
                   Transaction Reference <span className="text-red-500">*</span>
                 </label>
                 <input
-                  id="transactionNo"
+                  id="referenceNumber"
                   type="text"
-                  value={paymentDetails.transactionNo}
-                  onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, transactionNo: e.target.value }))}
-                  className={`w-full px-4 py-3 sm:py-3.5 border rounded-xl focus:ring-2 focus:border-primary transition-all duration-200 text-sm sm:text-base font-medium placeholder-gray-400 ${paymentError && !paymentDetails.transactionNo ? 'border-red-400 ring-2 ring-red-100 bg-red-50/50' : 'border-gray-300 focus:ring-primary/20 bg-gray-50/50'}`}
+                  value={paymentDetails.referenceNumber}
+                  onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, referenceNumber: e.target.value }))}
+                  className={`w-full px-4 py-3 sm:py-3.5 border rounded-xl focus:ring-2 focus:border-primary transition-all duration-200 text-sm sm:text-base font-medium placeholder-gray-400 ${paymentError && !paymentDetails.referenceNumber ? 'border-red-400 ring-2 ring-red-100 bg-red-50/50' : 'border-gray-300 focus:ring-primary/20 bg-gray-50/50'}`}
                   placeholder="Enter transaction number or reference"
                   required
                 />
@@ -183,13 +185,13 @@ function StandalonePaymentModal({
               
               {/* Notes */}
               <div>
-                <label htmlFor="paymentNotes" className="block text-sm font-semibold text-gray-700 mb-2">
+                <label htmlFor="remarks" className="block text-sm font-semibold text-gray-700 mb-2">
                   Additional Notes
                 </label>
                 <textarea
-                  id="paymentNotes"
-                  value={paymentDetails.notes}
-                  onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, notes: e.target.value }))}
+                  id="remarks"
+                  value={paymentDetails.remarks}
+                  onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, remarks: e.target.value }))}
                   rows="3"
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-sm sm:text-base placeholder-gray-400 bg-gray-50/50 resize-none"
                   placeholder="Any additional payment details or notes..."
@@ -228,8 +230,8 @@ function StandalonePaymentModal({
               type="button"
               className="w-full sm:w-auto px-6 py-3 bg-primary text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-all duration-150 flex items-center justify-center min-w-[140px] touch-target shadow-lg hover:shadow-xl"
             >
-              <IndianRupee className="w-4 h-4 mr-2" />
-              Confirm Payment
+              <Send className="w-4 h-4 mr-2" />
+              Send for Approval
             </button>
           </div>
         </div>
@@ -248,11 +250,11 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedQuotationForPayment, setSelectedQuotationForPayment] = useState(null);
   const [paymentDetails, setPaymentDetails] = useState({
-    amount: '',
-    transactionNo: '',
+    amountPaid: '',
+    referenceNumber: '',
     paymentMethod: 'cash',
     paymentDate: new Date().toISOString().split('T')[0],
-    notes: ''
+    remarks: ''
   });
   const [loadingAction, setLoadingAction] = useState({}); // Tracks loading state for specific actions like send, approve
   const [loadingActionType, setLoadingActionType] = useState({}); // Tracks which specific action is loading for each quotation
@@ -260,7 +262,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
   const [confirmDialogProps, setConfirmDialogProps] = useState({ message: '', onConfirm: null });
   const [actionInProgress, setActionInProgress] = useState(false); // For modal confirm button
   const [paymentError, setPaymentError] = useState(''); // Specifically for payment modal
-  const [successToast, setSuccessToast] = useState({ show: false, message: '' });
+  const [successToast, setSuccessToast] = useState({ show: false, message: '', type: 'success' });
 
 
   const fetchQuotationsCallback = useCallback(async () => {
@@ -301,59 +303,61 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     return classes[status] || 'bg-gray-100 text-gray-700 border border-gray-300';
   };
 
-  const showToast = (message) => {
-    setSuccessToast({ show: true, message });
-    setTimeout(() => setSuccessToast({ show: false, message: '' }), 3000);
+  const showToast = (message, type = 'success') => {
+    setSuccessToast({ show: true, message, type });
+    setTimeout(() => setSuccessToast({ show: false, message: '', type: 'success' }), 3000);
   };
 
   const handleAction = async (actionFn, quotationId, successMessage, updateLocalState, actionType) => {
     setLoadingAction(prev => ({ ...prev, [quotationId]: true }));
     setLoadingActionType(prev => ({ ...prev, [quotationId]: actionType }));
-    setActionInProgress(true);
     try {
-      const response = await actionFn(quotationId);
+      const response = await actionFn();
       if (response.success) {
-        if (updateLocalState) {
-          setQuotations(prev => updateLocalState(prev, response.data));
-        } else {
-          fetchQuotationsCallback(); // Fallback to refetch if no specific update logic
-        }
         showToast(successMessage);
+        if (updateLocalState) {
+          updateLocalState(response.data);
+        } else {
+            setQuotations(prev => prev.map(q => q._id === quotationId ? { ...q, ...response.data.quotation } : q));
+        }
       } else {
-        throw new Error(response.message || 'Action failed');
+        showToast(response.message || 'An error occurred.', 'error');
       }
     } catch (err) {
-      console.error('Action error:', err);
-      setError(err.message || 'An error occurred'); // Show error in a more prominent way if needed
+      showToast(err.message || 'An action failed.', 'error');
     } finally {
       setLoadingAction(prev => ({ ...prev, [quotationId]: false }));
       setLoadingActionType(prev => ({ ...prev, [quotationId]: null }));
-      setActionInProgress(false);
-      setShowConfirmDialog(false);
     }
   };
 
   const handleSendQuotation = (id) => handleAction(
-    sendQuotation,
+    () => sendQuotation(id),
     id,
     'Quotation sent successfully!',
-    (prev, data) => prev.map(q => q._id === id ? data : q),
+    null,
     'send'
   );
 
   const handleApproveQuotation = (id) => handleAction(
-    approveQuotation,
+    () => approveQuotation(id),
     id,
-    'Quotation approved successfully!',
-    (prev, data) => prev.map(q => q._id === id ? { ...q, status: 'approved', ...(data || {}) } : q),
+    'Quotation approved! Please enter payment details to send for approval.',
+    (data) => {
+      if (data.customerPurchaseId) {
+        const approvedQuotation = quotations.find(q => q._id === id);
+        setSelectedQuotationForPayment({ ...approvedQuotation, ...data.quotation, customerPurchaseId: data.customerPurchaseId });
+        setShowPaymentModal(true);
+      }
+    },
     'approve'
   );
 
   const handleCloseQuotation = (id) => handleAction(
-    closeQuotation, // This is likely a reject/close action
+    () => closeQuotation(id),
     id,
     'Quotation closed successfully!',
-    (prev, data) => prev.map(q => q._id === id ? { ...q, status: 'closed', ...(data || {}) } : q),
+    null,
     'close'
   );
 
@@ -364,43 +368,32 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
 
   const handleClosePaymentModal = () => {
     setShowPaymentModal(false);
-    setPaymentDetails({ amount: '', transactionNo: '', paymentMethod: 'cash', paymentDate: new Date().toISOString().split('T')[0], notes: '' });
+    setPaymentDetails({ amountPaid: '', referenceNumber: '', paymentMethod: 'cash', paymentDate: new Date().toISOString().split('T')[0], remarks: '' });
     setPaymentError('');
     setSelectedQuotationForPayment(null);
   };
 
-  const handleOfflinePaymentSubmit = async () => {
+  const handleSendForApprovalSubmit = async () => {
     setActionInProgress(true);
     setPaymentError('');
     try {
-      const amount = parseFloat(paymentDetails.amount);
-      const paymentData = { ...paymentDetails, amount };
-      const response = await confirmOfflinePayment(selectedQuotationForPayment._id, paymentData);
+      const paymentData = {
+        ...paymentDetails,
+        amountPaid: parseFloat(paymentDetails.amountPaid),
+        customerPurchaseId: selectedQuotationForPayment.customerPurchaseId
+      };
       
-      // Check for partial success (backend indicates success but with a message detailing a subsequent failure)
-      if (response.success && response.message && 
-          (response.message.toLowerCase().includes('fail') || 
-           response.message.toLowerCase().includes('error') || 
-           response.message.toLowerCase().includes('e11000'))) {
-        // This is a partial success; payment recorded but approval or other steps failed.
-        setPaymentError(response.message); // Show specific error in modal
-        showToast(response.message); // Show a more informative toast (could be styled as warning/error)
-        // Do not close modal, let user see the error.
-        // Still refetch to show actual state if backend partially updated quotation.
-        fetchQuotationsCallback(); 
-      } else if (response.success) {
-        // This is a full success.
-        showToast('Offline payment confirmed successfully! Quotation approved.');
+      const response = await initiatePayment(paymentData);
+      
+      if (response.success) {
+        showToast('Payment sent for approval successfully!');
         handleClosePaymentModal();
         fetchQuotationsCallback(); 
       } else {
-        // This is a clear failure from the backend.
-        setPaymentError(response.message || 'Failed to confirm payment');
+        setPaymentError(response.message || 'Failed to send payment for approval.');
       }
-    } catch (err) {
-      // Network or other unexpected errors during the API call.
-      setPaymentError(err.message || 'An error occurred during payment confirmation.');
-      showToast(err.message || 'An error occurred during payment confirmation.');
+    } catch (error) {
+      setPaymentError(error.message || 'An error occurred while sending for approval.');
     } finally {
       setActionInProgress(false);
     }
@@ -409,33 +402,22 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
   const ConfirmActionDialog = () => {
     if (!showConfirmDialog) return null;
     return (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
-        <div className="bg-tertiary p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 ease-out">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold text-secondary">Confirm Action</h3>
-            <button onClick={() => setShowConfirmDialog(false)} className="p-1 rounded-full hover:bg-fourth">
-                <X className="w-5 h-5 text-gray-500"/>
-            </button>
-          </div>
-          <p className="text-sm text-gray-600 mb-6">{confirmDialogProps.message}</p>
-          <div className="flex justify-end space-x-3">
-            <button
-              onClick={() => setShowConfirmDialog(false)}
-              disabled={actionInProgress}
-              className="px-4 py-2 border border-fourth rounded-lg text-sm font-medium text-secondary hover:bg-fourth transition-colors duration-150 ease-in-out disabled:opacity-60"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => { if (confirmDialogProps.onConfirm) confirmDialogProps.onConfirm(); }}
-              disabled={actionInProgress}
-              className={`px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out disabled:opacity-60 flex items-center justify-center min-w-[80px]`}
-            >
-              {actionInProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Confirm'}
-            </button>
-          </div>
-        </div>
-      </div>
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        onConfirm={() => {
+          if (confirmDialogProps.onConfirm) {
+            confirmDialogProps.onConfirm();
+          }
+          setShowConfirmDialog(false);
+        }}
+        onCancel={() => setShowConfirmDialog(false)}
+        title="Confirm Action"
+        message={confirmDialogProps.message}
+        confirmText="Yes, Confirm"
+        cancelText="Cancel"
+        isLoading={actionInProgress}
+      />
     );
   };
 
@@ -615,11 +597,17 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         selectedQuotation={selectedQuotationForPayment} // Use dedicated state
         paymentDetails={paymentDetails}
         onPaymentDetailsChange={setPaymentDetails}
-        onSubmit={handleOfflinePaymentSubmit} // Use specific submit handler
+        onSubmit={handleSendForApprovalSubmit} // Use specific submit handler
         paymentError={paymentError}
         onSetPaymentError={setPaymentError}
       />
       <ConfirmActionDialog />
+      <Toast
+        isOpen={successToast.show}
+        onClose={() => setSuccessToast({ ...successToast, show: false })}
+        message={successToast.message}
+        type={successToast.type}
+      />
       
       {/* Desktop/Tablet Table View */}
       <div className="hidden md:flex md:flex-col md:flex-1 md:overflow-hidden">
