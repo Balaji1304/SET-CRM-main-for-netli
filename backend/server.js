@@ -95,6 +95,7 @@ app.use('/api/quotations', require('./routes/quotation.js'));
 app.use('/api/payments', require('./routes/paymentRoutes.js'));
 app.use('/api/tickets', require('./routes/tickets.js'));
 app.use('/api/invoices', require('./routes/invoices.js'));
+app.use('/api/whatsapp', require('./routes/whatsapp.js'));
 app.use(
   '/api/customer-purchases',
   require('./routes/customerPurchaseRoutes.js')
