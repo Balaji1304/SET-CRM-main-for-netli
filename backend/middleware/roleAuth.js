@@ -1,6 +1,7 @@
 const rolePermissions = {
   customer: ['/api/tickets', '/api/payments', '/api/quotations/customer-products'],
   sales_person: ['/api/leads', '/api/quotations', '/api/invoices'],
+  front_office_executive: ['/api/enquiries', '/api/leads'],
   inventory_manager: ['/api/products', '/api/bundles'],
   product_head: ['/api/schedule', '/api/maintenance', '/api/notifications/', '/api/bundles'],
   service_engineer: ['/api/service-customers', '/api/performance'],

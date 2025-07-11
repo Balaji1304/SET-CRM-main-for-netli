@@ -126,7 +126,6 @@ exports.convertLeadToCustomer = async (req, res) => {
     await quotation.save();
 
     // Update lead status
-    lead.interestStage = 'quotation_sent';
     lead.status = 'closed';
     await lead.save();
 
@@ -496,8 +495,8 @@ exports.createQuotationFromLead = async (req, res) => {
       createdQuotationItems.push(quotationItem);
     }
 
-    // Update lead status
-    lead.interestStage = 'in_negotiation';
+    // Update lead status to active as quotation is being processed
+    lead.status = 'active';
     await lead.save();
 
     // Return data with quotationItems

@@ -50,11 +50,15 @@ export default function CreateQuotationPage() {
       setLeads(leadsData.data.map(lead => ({
         ...lead,
         products: lead.products.map(product => ({
-          id: product.productId._id,
-          name: product.productId.name,
+          id: product.productId?._id || product.productId,
+          name: product.name,
           price: product.unitPrice || product.price,
           unitPrice: product.unitPrice || product.price,
-          quantity: product.quantity
+          quantity: product.quantity,
+          category: product.category,
+          isBundleItem: product.isBundleItem || false,
+          bundleCode: product.bundleCode,
+          bundleItems: product.bundleItems || []
         }))
       })));
 
@@ -138,11 +142,14 @@ export default function CreateQuotationPage() {
   const handleLeadSelect = (leadId) => {
     const selectedLead = leads.find(lead => lead._id === leadId);
     if (selectedLead) {
+      // Filter only individual products for quotation (bundle products not supported yet)
+      const individualProducts = selectedLead.products.filter(product => !product.isBundleItem);
+      
       setFormData(prev => ({
         ...prev,
         leadId,
-        items: selectedLead.products.length > 0 
-          ? selectedLead.products.map(product => ({
+        items: individualProducts.length > 0 
+          ? individualProducts.map(product => ({
               productId: product.id,
               quantity: parseInt(product.quantity) || 1,
               unitPrice: parseFloat(product.unitPrice || product.price) || 0,
@@ -337,15 +344,20 @@ export default function CreateQuotationPage() {
                       >
                         <option value="">Select Product</option>
                         {selectedLead?.products.length > 0 && (
-                          <optgroup label="Lead's Interested Products">
+                          <optgroup key="lead-products" label="Lead's Interested Products">
                             {selectedLead.products.map(product => (
-                              <option key={product.id} value={product.id}>
-                                {product.name}
+                              <option 
+                                key={product.id} 
+                                value={product.isBundleItem ? '' : product.id}
+                                disabled={product.isBundleItem}
+                                className={product.isBundleItem ? 'text-gray-400 italic' : ''}
+                              >
+                                {product.name} {product.isBundleItem ? `(Bundle: ${product.bundleCode} - Not yet supported)` : ''}
                               </option>
                             ))}
                           </optgroup>
                         )}
-                        <optgroup label={selectedLead?.products.length > 0 ? "All Other Products" : "All Products"}>
+                        <optgroup key="all-products" label={selectedLead?.products.length > 0 ? "All Other Products" : "All Products"}>
                           {allProducts
                             .filter(p => !selectedLead?.products.some(sp => sp.id === p._id))
                             .map(product => (

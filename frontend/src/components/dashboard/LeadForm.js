@@ -63,35 +63,25 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText
 
 const FORM_OPTIONS = {
   leadTypes: [
-    { value: 'new_customer', label: 'New Customer' },
     { value: 'referral', label: 'Referral' },
-    { value: 'event_lead', label: 'Event Lead' },
+    { value: 'indiamart', label: 'IndiaMART' },
     { value: 'exhibition', label: 'Exhibition' },
     { value: 'facebook', label: 'Facebook' },
     { value: 'instagram', label: 'Instagram' },
-    { value: 'linkedin', label: 'LinkedIn' },
     { value: 'google_ads', label: 'Google Ads' },
     { value: 'website', label: 'Website Inquiry' },
     { value: 'cold_call', label: 'Cold Call' },
-    { value: 'walk_in', label: 'Walk-in' }
+    { value: 'walk_in', label: 'Walk-in' },
+    { value: 'paper_ad', label: 'Paper Ad' },
+    { value: 'existing_customer', label: 'Existing Customer' },
+    { value: 'other', label: 'Other' }
   ],
   customerTypes: [
-    { value: 'individual', label: 'Individual' },
+    { value: 'end_user', label: 'End User' },
     { value: 'plumber', label: 'Plumber' },
     { value: 'dealer', label: 'Dealer' },
     { value: 'builder', label: 'Builder' },
-    { value: 'architect', label: 'Architect' },
-    { value: 'business_owner', label: 'Business Owner' },
     { value: 'other', label: 'Other' }
-  ],
-  interestStages: [
-    { value: 'new_lead', label: 'New Lead' },
-    { value: 'contacted', label: 'Contacted' },
-    { value: 'qualified', label: 'Qualified' },
-    { value: 'proposal_sent', label: 'Proposal Sent' },
-    { value: 'negotiation', label: 'Negotiation' },
-    { value: 'won', label: 'Won' },
-    { value: 'lost', label: 'Lost' }
   ],
   statuses: [
     { value: 'active', label: 'Active' },
@@ -106,6 +96,7 @@ const FORM_OPTIONS = {
 
   const defaultFormState = {
     leadType: '',
+    customLeadType: '',
     status: 'pending',
     firstName: '',
     lastName: '',
@@ -117,12 +108,12 @@ const FORM_OPTIONS = {
     shippingAddress: '',
     businessName: '',
     customerType: '',
+    customCustomerType: '',
     gstinUin: '',
     products: [
     { id: `${Date.now()}_0`, category: '', name: '', quantity: '1', unitPrice: '0', totalPrice: '0', productId: '' }
     ],
     productRequirements: '',
-    interestStage: 'new_lead',
     dateCollected: new Date().toISOString().split('T')[0],
     followUpRequired: false,
     followUpDateTime: '',
@@ -605,11 +596,11 @@ export default function LeadForm() {
   const validateForm = () => {
     const errors = {};
     if (!formData.leadType) errors.leadInfo = { ...errors.leadInfo, leadType: 'Lead Type is required.' };
+    if (formData.leadType === 'other' && !formData.customLeadType) errors.leadInfo = { ...errors.leadInfo, customLeadType: 'Please specify the lead type.' };
     if (!formData.status) errors.leadInfo = { ...errors.leadInfo, status: 'Status is required.' };
     if (!formData.dateCollected) errors.leadInfo = { ...errors.leadInfo, dateCollected: 'Enquiry Date is required.' };
 
     if (!formData.firstName) errors.personalInfo = { ...errors.personalInfo, firstName: 'First Name is required.' };
-    if (!formData.lastName) errors.personalInfo = { ...errors.personalInfo, lastName: 'Last Name is required.' };
     if (!formData.email) errors.personalInfo = { ...errors.personalInfo, email: 'Email is required.' };
     else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.personalInfo = { ...errors.personalInfo, email: 'Email is invalid.' };
     if (!formData.phone) errors.personalInfo = { ...errors.personalInfo, phone: 'Phone number is required.' };
@@ -617,6 +608,7 @@ export default function LeadForm() {
     if (!formData.billingAddress) errors.personalInfo = { ...errors.personalInfo, billingAddress: 'Billing address is required.' };
 
     if (!formData.customerType) errors.businessInfo = { ...errors.businessInfo, customerType: 'Customer Type is required.' };
+    if (formData.customerType === 'other' && !formData.customCustomerType) errors.businessInfo = { ...errors.businessInfo, customCustomerType: 'Please specify the customer type.' };
     
     // Product validation based on type
     if (selectedProductType === 'individual') {
@@ -645,8 +637,6 @@ export default function LeadForm() {
         });
       }
     }
-
-    if (!formData.interestStage) errors.additionalInfo = { ...errors.additionalInfo, interestStage: 'Stage of Interest is required.' };
 
     if (formData.followUpRequired && !formData.followUpDateTime) {
       errors.additionalInfo = { ...errors.additionalInfo, followUpDateTime: 'Follow-up date and time is required.' };
@@ -849,6 +839,23 @@ export default function LeadForm() {
             {renderSectionHeader('Lead Information', 'leadInfo')}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {renderSelectField('leadType', 'Lead Type', FORM_OPTIONS.leadTypes, true, 'leadInfo')}
+              {formData.leadType === 'other' && (
+                <div className="w-full">
+                  <label htmlFor="customLeadType" className="block text-sm font-medium text-gray-700 mb-1 sm:mb-1">
+                    Specify Lead Type <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="customLeadType"
+                    name="customLeadType"
+                    value={formData.customLeadType ?? ''}
+                    onChange={handleInputChange}
+                    placeholder="Enter lead type"
+                    required
+                    className={`mt-1 block w-full px-3 py-2.5 sm:py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-sm text-secondary placeholder-gray-400 touch-target ${sectionErrors.leadInfo?.customLeadType ? 'border-red-500' : ''}`}
+                  />
+                </div>
+              )}
               {renderSelectField('status', 'Status', FORM_OPTIONS.statuses, true, 'leadInfo')}
               {renderInputField('dateCollected', ' Enquiry Date', 'date', '', true, 'leadInfo')}
                 </div>
@@ -858,7 +865,7 @@ export default function LeadForm() {
             {renderSectionHeader('Personal Information', 'personalInfo')}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {renderInputField('firstName', 'First Name', 'text', 'Enter first name', true, 'personalInfo')}
-              {renderInputField('lastName', 'Last Name', 'text', 'Enter last name', true, 'personalInfo')}
+              {renderInputField('lastName', 'Last Name', 'text', 'Enter last name', false, 'personalInfo')}
               {renderInputField('email', 'Email Address', 'email', 'name@example.com', true, 'personalInfo')}
               <div className="w-full">
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
@@ -925,6 +932,23 @@ export default function LeadForm() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {renderInputField('businessName', 'Business Name', 'text', 'Enter business name', false, 'businessInfo')}
               {renderSelectField('customerType', 'Customer Type', FORM_OPTIONS.customerTypes, true, 'businessInfo')}
+              {formData.customerType === 'other' && (
+                <div className="w-full sm:col-span-2">
+                  <label htmlFor="customCustomerType" className="block text-sm font-medium text-gray-700 mb-1 sm:mb-1">
+                    Specify Customer Type <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="customCustomerType"
+                    name="customCustomerType"
+                    value={formData.customCustomerType ?? ''}
+                    onChange={handleInputChange}
+                    placeholder="Enter customer type"
+                    required
+                    className={`mt-1 block w-full px-3 py-2.5 sm:py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-sm text-secondary placeholder-gray-400 touch-target ${sectionErrors.businessInfo?.customCustomerType ? 'border-red-500' : ''}`}
+                  />
+                </div>
+              )}
               </div>
               <div className="mt-4 sm:mt-6">
                 {renderInputField('gstinUin', 'GSTIN/UIN', 'text', 'Enter GSTIN or UIN number', false, 'businessInfo')}
@@ -1815,30 +1839,6 @@ export default function LeadForm() {
             <div className="bg-white rounded-lg border border-fourth shadow-sm overflow-hidden">
               <div className="p-4 sm:p-6 space-y-6">
                 
-                {/* Interest Stage */}
-                <div>
-                  <label htmlFor="interestStage" className="block text-sm font-medium text-gray-700 mb-2">
-                    Stage of Interest <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="interestStage"
-                      name="interestStage"
-                      value={formData.interestStage}
-                      onChange={handleInputChange}
-                      required
-                      className={`block w-full px-4 py-3 sm:py-2.5 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm sm:text-sm appearance-none text-secondary touch-target ${sectionErrors.additionalInfo?.interestStage ? 'border-red-500' : ''}`}
-                    >
-                      <option value="">Select stage of interest</option>
-                      {FORM_OPTIONS.interestStages.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
-                  </div>
-                  {sectionErrors.additionalInfo?.interestStage && (
-                    <p className="text-xs text-red-500 mt-1">{sectionErrors.additionalInfo.interestStage}</p>
-                  )}
-                </div>
-
                 {/* Follow-Up Section */}
                 <div className="border-t border-fourth pt-6">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

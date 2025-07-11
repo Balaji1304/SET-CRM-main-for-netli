@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, AlertCircle, ExternalLink, FileText, Clock, ArrowRight, Loader2, AlertTriangle, ShoppingBag } from 'lucide-react';
-import { getCustomerPurchases, getPaymentHistory } from '../../services/customerService';
+import { getMyPurchases, getPaymentHistory } from '../../services/customerService';
 
 export default function PaymentsPage() {
   const [purchases, setPurchases] = useState([]);
@@ -26,7 +26,7 @@ export default function PaymentsPage() {
       }
 
       const [purchasesResponse, paymentsResponse] = await Promise.all([
-        getCustomerPurchases(),
+        getMyPurchases(),
         getPaymentHistory()
       ]);
 

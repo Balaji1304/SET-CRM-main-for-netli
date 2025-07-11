@@ -276,12 +276,59 @@ const Dashboard = () => {
     </>
   );
 
+  const renderFrontOfficeExecutiveDashboard = () => (
+    <>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+        {renderCommonCard('Enquiries Created Today', formatNumber(summaryData.enquiriesToday || 0), <UserPlus />)}
+        {renderCommonCard('Pending Assignments', formatNumber(summaryData.pendingAssignments || 0), <Users />)}
+        {renderCommonCard('Leads Assigned Today', formatNumber(summaryData.leadsAssignedToday || 0), <CheckCircle2 />)}
+      </div>
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+        {renderSection("Quick Actions", <Package />, 
+          <div className="space-y-3">
+            <button
+              onClick={() => window.location.href = '/dashboard/enquiry'}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity"
+            >
+              <UserPlus className="w-4 h-4" />
+              Create New Enquiry
+            </button>
+            <button
+              onClick={() => window.location.href = '/dashboard/lead-assignment'}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-secondary text-white rounded-lg hover:opacity-90 transition-opacity"
+            >
+              <Users className="w-4 h-4" />
+              Assign Leads
+            </button>
+          </div>
+        )}
+        {renderSection("Today's Activity", <Clock />, 
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-2 border-b border-fourth">
+              <span className="text-sm text-secondary">New Enquiries Captured</span>
+              <span className="text-sm font-semibold text-primary">{summaryData.enquiriesToday || 0}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-fourth">
+              <span className="text-sm text-secondary">Leads Successfully Assigned</span>
+              <span className="text-sm font-semibold text-green-600">{summaryData.leadsAssignedToday || 0}</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-secondary">Awaiting Assignment</span>
+              <span className="text-sm font-semibold text-orange-600">{summaryData.pendingAssignments || 0}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
   const renderDashboardByRole = () => {
     switch (user?.role) {
       case 'product_head': return renderProductHeadDashboard();
       case 'customer': return renderCustomerDashboard();
       case 'sales_person':
       case 'sales_representative': return renderSalesDashboard();
+      case 'front_office_executive': return renderFrontOfficeExecutiveDashboard();
       case 'inventory_manager': return renderInventoryDashboard();
       case 'service_engineer': return renderServiceEngineerDashboard();
       case 'sales_head': return renderSalesHeadDashboard();

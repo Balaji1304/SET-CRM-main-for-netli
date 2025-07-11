@@ -3,11 +3,11 @@ const mongoose = require('mongoose');
 const productSchema = new mongoose.Schema({
   productId: {
     type: mongoose.Schema.Types.ObjectId,
-    required: [true, 'Product ID is required']
+    required: false  // Make flexible - will be validated in pre-save middleware
   },
   category: {
     type: String,
-    required: [true, 'Product category is required']
+    required: false  // Make flexible - will be validated in pre-save middleware
   },
   name: {
     type: String,
@@ -51,9 +51,14 @@ const leadSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Lead type is required'],
     enum: {
-      values: ['new_customer', 'referral', 'event_lead', 'exhibition', 'facebook', 'instagram', 'linkedin', 'google_ads', 'website', 'cold_call', 'walk_in'],
-      message: 'Lead type must be one of: new_customer, referral, event_lead, exhibition, facebook, instagram, linkedin, google_ads, website, cold_call, walk_in'
+      values: ['referral', 'indiamart', 'exhibition', 'facebook', 'instagram', 'google_ads', 'website', 'cold_call', 'walk_in', 'paper_ad', 'existing_customer', 'other'],
+      message: 'Lead type must be one of: referral, indiamart, exhibition, facebook, instagram, google_ads, website, cold_call, walk_in, paper_ad, existing_customer, other'
     }
+  },
+  customLeadType: {
+    type: String,
+    required: false,
+    trim: true
   },
 
   // Personal Information
@@ -64,14 +69,18 @@ const leadSchema = new mongoose.Schema({
   },
   lastName: {
     type: String,
-    required: [true, 'Last name is required'],
+    required: false,
     trim: true
   },
   email: {
     type: String,
-    required: false,
+    required: function() {
+      // Email is only required for complete leads or non-enquiry leads
+      return this.leadCompletionStatus === 'complete' || !this.createdFromEnquiry;
+    },
     unique: true,
-    sparse: true, // Allow multiple null values
+    sparse: true, // Allow multiple documents with null/undefined email
+
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   phone: {
@@ -115,9 +124,14 @@ const leadSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Customer type is required'],
     enum: {
-      values: ['individual', 'plumber', 'dealer', 'builder', 'architect', 'business_owner', 'other'],
-      message: 'Customer type must be one of: individual, plumber, dealer, builder, architect, business_owner, other'
+      values: ['end_user', 'plumber', 'dealer', 'builder', 'other'],
+      message: 'Customer type must be one of: end_user, plumber, dealer, builder, other'
     }
+  },
+  customCustomerType: {
+    type: String,
+    required: false,
+    trim: true
   },
   gstinUin: {
     type: String,
@@ -138,17 +152,25 @@ const leadSchema = new mongoose.Schema({
   },
 
   // Additional Information
-  interestStage: {
-    type: String,
-    required: [true, 'Interest stage is required'],
-    enum: {
-      values: ['new_lead', 'contacted', 'qualified', 'proposal_sent', 'negotiation', 'won', 'lost'],
-      message: 'Interest stage must be one of: new_lead, contacted, qualified, proposal_sent, negotiation, won, lost'
-    }
-  },
   dateCollected: {
     type: Date,
     required: [true, 'Date of lead collection is required']
+  },
+  
+  // Enquiry Integration Fields
+  createdFromEnquiry: {
+    type: Boolean,
+    default: false
+  },
+  enquiryId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Enquiry',
+    required: false
+  },
+  leadCompletionStatus: {
+    type: String,
+    enum: ['complete', 'incomplete', 'pending_completion'],
+    default: 'complete'
   },
   followUpRequired: {
     type: Boolean,
@@ -218,6 +240,107 @@ leadSchema.pre('save', function(next) {
     });
   }
   
+
+  // Auto-update completion status for enquiry-generated leads
+  if (this.createdFromEnquiry && this.leadCompletionStatus === 'incomplete') {
+    console.log(`Checking completion status for enquiry-generated lead ${this._id}...`);
+    console.log(`Products:`, this.products);
+    console.log(`Selected product type:`, this.selectedProductType);
+    
+    // Check if lead now has proper product information
+    const hasValidProducts = this.products && this.products.length > 0 && 
+      this.products.every(product => {
+        // Skip placeholder products
+        if (product.name === 'Products to be specified by salesperson') {
+          console.log(`Skipping placeholder product: ${product.name}`);
+          return false;
+        }
+        
+        // For individual products, check required fields
+        if (this.selectedProductType === 'individual') {
+          const isValid = product.productId && product.category && product.name && 
+                          product.quantity > 0 && product.unitPrice >= 0;
+          console.log(`Individual product ${product.name} validation:`, {
+            productId: !!product.productId,
+            category: !!product.category,
+            name: !!product.name,
+            quantity: product.quantity > 0,
+            unitPrice: product.unitPrice >= 0,
+            isValid
+          });
+          return isValid;
+        }
+        // For bundles, check bundle-specific fields
+        else if (this.selectedProductType === 'bundle') {
+          const isValid = product.name && product.quantity > 0 && product.unitPrice >= 0 &&
+                          (product.isBundleItem || product.productId);
+          console.log(`Bundle product ${product.name} validation:`, {
+            name: !!product.name,
+            quantity: product.quantity > 0,
+            unitPrice: product.unitPrice >= 0,
+            bundleOrProduct: !!(product.isBundleItem || product.productId),
+            isValid
+          });
+          return isValid;
+        }
+        return false;
+      });
+    
+    // Also check if email is provided (not required but indicates completion)
+    const hasEmail = this.email && this.email !== undefined && !this.email.includes('temp.setcrmleads.com');
+    
+    console.log(`Completion check results:`, {
+      hasValidProducts,
+      hasEmail,
+      productsCount: this.products?.length || 0
+    });
+    
+    // Mark as complete if products are properly filled
+    if (hasValidProducts) {
+      this.leadCompletionStatus = 'complete';
+      console.log(`✅ Lead ${this._id} marked as COMPLETE - products filled by salesperson`);
+    } else {
+      console.log(`❌ Lead ${this._id} remains INCOMPLETE - products not fully filled`);
+    }
+  }
+  
+  // Validate product requirements for complete leads (non-enquiry or completed enquiry)
+  if (this.leadCompletionStatus === 'complete' || !this.createdFromEnquiry) {
+    if (!this.products || this.products.length === 0) {
+      return next(new Error('At least one product is required for complete leads'));
+    }
+    
+    for (let i = 0; i < this.products.length; i++) {
+      const product = this.products[i];
+      
+      // For individual products
+      if (this.selectedProductType === 'individual') {
+        if (!product.productId) {
+          return next(new Error(`Product ${i + 1}: Product ID is required`));
+        }
+        if (!product.category) {
+          return next(new Error(`Product ${i + 1}: Category is required`));
+        }
+      }
+      
+      // For bundles
+      else if (this.selectedProductType === 'bundle') {
+        if (!product.isBundleItem && !product.productId) {
+          return next(new Error(`Product ${i + 1}: Either bundle item flag or product ID is required`));
+        }
+      }
+      
+      // Common validations for all products
+      if (!product.name) {
+        return next(new Error(`Product ${i + 1}: Name is required`));
+      }
+      if (!product.quantity || product.quantity < 1) {
+        return next(new Error(`Product ${i + 1}: Valid quantity is required`));
+      }
+      if (product.unitPrice < 0) {
+        return next(new Error(`Product ${i + 1}: Unit price cannot be negative`));
+      }
+
   // Auto-set preferred contact method if not specified
   if (!this.preferredContactMethod) {
     if (this.email && this.whatsapp) {
@@ -226,6 +349,7 @@ leadSchema.pre('save', function(next) {
       this.preferredContactMethod = 'email';
     } else if (this.whatsapp) {
       this.preferredContactMethod = 'whatsapp';
+
     }
   }
   
