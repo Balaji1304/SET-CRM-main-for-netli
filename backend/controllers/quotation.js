@@ -786,7 +786,7 @@ const approveQuotation = async (quotationInstance) => {
         phone: lead.phone || '',
         businessName: lead.businessName || '',
         address: lead.address || '',
-        customerType: lead.customerType || 'individual' 
+        customerType: lead.customerType || 'end_user'
       });
       await customer.save();
       console.log(`Created customer with ID: ${customer._id}`);
