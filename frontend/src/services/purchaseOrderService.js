@@ -9,6 +9,15 @@ export const getAllPurchaseOrders = async () => {
   }
 };
 
+export const getPurchaseOrderDetails = async (id) => {
+  try {
+    const res = await apiRequest(`customer-purchases/${id}`, { method: 'GET' });
+    return res.data;
+  } catch (err) {
+    throw err;
+  }
+};
+
 export const updateStatusToReadyToDispatch = async (id) => {
   try {
     const res = await apiRequest(`customer-purchases/${id}/ready-to-dispatch`, { method: 'PUT' });

@@ -34,7 +34,8 @@ import PackagesPage from './app/packages/page';
 import BundlesPage from './app/bundles/page';
 import EnquiryPage from './app/enquiry/page';
 import LeadAssignmentPage from './app/lead-assignment/page';
-import PurchaseOrderManagement from './components/PurchaseOrderManagement';
+import PurchaseOrdersPage from './app/purchase-orders/page';
+import PurchaseOrderDetailPage from './app/purchase-orders/[id]/page';
 
 function App() {
   return (
@@ -167,7 +168,12 @@ function App() {
             } />
             <Route path="purchase-orders" element={
               <ProtectedRoute allowedRoles={['product_head', 'marketing_coordinator']}>
-                <PurchaseOrderManagement />
+                <PurchaseOrdersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="purchase-orders/:id" element={
+              <ProtectedRoute allowedRoles={['product_head', 'marketing_coordinator']}>
+                <PurchaseOrderDetailPage />
               </ProtectedRoute>
             } />
             <Route path="maintenance" element={
