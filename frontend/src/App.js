@@ -14,7 +14,6 @@ import ProductBrochurePage from './app/products/[id]/brochure/page';
 import NotificationsPage from './app/notifications/page';
 import ReportsPage from './app/reports/page';
 import TicketsPage from './app/tickets/page';
-import SchedulePage from './app/schedule/page';
 import ServiceCustomersPage from './app/service-customers/page';
 import PerformancePage from './app/performance/page';
 import MaintenancePage from './app/maintenance/page';
@@ -31,11 +30,11 @@ import OrdersPage from './app/orders/page';
 import MyProductsPage from './app/my-products/page';
 import Leads from './components/dashboard/Leads';
 import InvoicePage from './app/invoice/[id]/page';
-import TaskDetailPage from './app/schedule/[taskId]/page';
 import PackagesPage from './app/packages/page';
 import BundlesPage from './app/bundles/page';
 import EnquiryPage from './app/enquiry/page';
 import LeadAssignmentPage from './app/lead-assignment/page';
+import PurchaseOrderManagement from './components/PurchaseOrderManagement';
 
 function App() {
   return (
@@ -62,7 +61,7 @@ function App() {
                     <Route 
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator']}>
                 <DashboardLayout />
               </ProtectedRoute>
             }
@@ -166,14 +165,9 @@ function App() {
                 <BundlesPage />
               </ProtectedRoute>
             } />
-            <Route path="schedule" element={
-              <ProtectedRoute allowedRoles={['product_head']}>
-                <SchedulePage />
-              </ProtectedRoute>
-            } />
-            <Route path="schedule/:taskId" element={ 
-              <ProtectedRoute allowedRoles={['product_head']}>
-                <TaskDetailPage />
+            <Route path="purchase-orders" element={
+              <ProtectedRoute allowedRoles={['product_head', 'marketing_coordinator']}>
+                <PurchaseOrderManagement />
               </ProtectedRoute>
             } />
             <Route path="maintenance" element={
@@ -224,4 +218,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;

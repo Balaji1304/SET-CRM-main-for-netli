@@ -105,9 +105,12 @@ const getNavigation = (userRole) => {
     product_head: [
       { name: 'Products', href: '/dashboard/products', icon: Box },
       { name: 'Product Bundles', href: '/dashboard/bundles', icon: Package },
-      { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar },
+      { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
       { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+    ],
+    marketing_coordinator: [
+      { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
     ],
     service_engineer: [
       { name: 'Service Customers', href: '/dashboard/service-customers', icon: Users },

@@ -3,7 +3,7 @@ const rolePermissions = {
   sales_person: ['/api/leads', '/api/quotations', '/api/invoices'],
   front_office_executive: ['/api/enquiries', '/api/leads'],
   inventory_manager: ['/api/products', '/api/bundles'],
-  product_head: ['/api/schedule', '/api/maintenance', '/api/notifications/', '/api/bundles'],
+  product_head: ['/api/maintenance', '/api/notifications/', '/api/bundles'],
   service_engineer: ['/api/service-customers', '/api/performance'],
   sales_head: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders']
 };
