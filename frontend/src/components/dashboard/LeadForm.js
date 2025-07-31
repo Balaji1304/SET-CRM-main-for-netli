@@ -544,8 +544,8 @@ export default function LeadForm() {
       bundleCode: bundle.bundleCode,
       name: bundle.name,
       quantity: 1,
-      unitPrice: bundle.finalPrice,
-      totalPrice: bundle.finalPrice,
+      unitPrice: bundle.price,
+      totalPrice: bundle.price,
       bundleData: bundle
     };
     
@@ -1125,11 +1125,6 @@ export default function LeadForm() {
                               <div className="text-sm font-medium text-secondary">
                                 ₹{bundle.unitPrice.toLocaleString()}
                               </div>
-                              {bundle.bundleData?.discountPercentage > 0 && (
-                                <div className="text-xs text-green-600">
-                                  {bundle.bundleData.discountPercentage}% off
-                                </div>
-                              )}
                             </td>
 
                             {/* Total Price */}
@@ -1222,14 +1217,8 @@ export default function LeadForm() {
                                 </div>
                                 <div className="flex justify-between font-medium text-primary">
                                   <span>Price:</span>
-                                  <span>₹{bundle.finalPrice?.toLocaleString()}</span>
+                                  <span>₹{bundle.price?.toLocaleString()}</span>
                                 </div>
-                                {bundle.discountPercentage > 0 && (
-                                  <div className="flex justify-between text-green-600">
-                                    <span>Discount:</span>
-                                    <span>{bundle.discountPercentage}%</span>
-                                  </div>
-                                )}
                               </div>
                               {isAlreadySelected && (
                                 <div className="mt-2 text-xs text-gray-500 font-medium">
@@ -1310,11 +1299,6 @@ export default function LeadForm() {
                           <div>
                             <div className="text-sm text-gray-600">Unit Price</div>
                             <div className="font-medium text-secondary">₹{bundle.unitPrice.toLocaleString()}</div>
-                            {bundle.bundleData?.discountPercentage > 0 && (
-                              <div className="text-xs text-green-600">
-                                {bundle.bundleData.discountPercentage}% off
-                              </div>
-                            )}
                           </div>
                           <div>
                             <div className="text-sm text-gray-600">Total Price</div>
@@ -1389,7 +1373,7 @@ export default function LeadForm() {
                               </div>
                               <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                 <div>Components: {bundle.items?.length || 0}</div>
-                                <div className="font-medium text-primary">₹{bundle.finalPrice?.toLocaleString()}</div>
+                                <div className="font-medium text-primary">₹{bundle.price?.toLocaleString()}</div>
                               </div>
                               {isAlreadySelected && (
                                 <div className="mt-2 text-xs text-gray-500 font-medium">

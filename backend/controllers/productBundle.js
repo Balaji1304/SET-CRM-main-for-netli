@@ -2,6 +2,7 @@ const ProductBundle = require('../models/ProductBundle');
 const Product = require('../models/Product');
 const SolarBundleItem = require('../models/SolarBundleItem');
 const { errorHandler, AppError } = require('../utils/errorHandler');
+const { getBundleTerms, getAllBundleTerms } = require('../utils/termsAndConditions');
 
 // @desc    Get all product bundles
 // @route   GET /api/bundles
@@ -79,12 +80,12 @@ exports.createBundle = async (req, res) => {
       subcategory,
       description,
       items,
-      basePrice,
-      discountPercentage,
+      price,
       specifications,
       supportedBrands,
       imageUrls,
-      tags
+      tags,
+      termsAndConditions
     } = req.body;
 
     // Check if bundle code already exists
@@ -113,12 +114,12 @@ exports.createBundle = async (req, res) => {
       subcategory,
       description,
       items: processedItems || [],
-      basePrice: basePrice || 0,
-      discountPercentage: discountPercentage || 0,
+      price: price || 0,
       specifications,
       supportedBrands: supportedBrands || [],
       imageUrls: imageUrls || [],
       tags: tags || [],
+      termsAndConditions: termsAndConditions || getBundleTerms(),
       createdBy: req.user.id
     });
 
@@ -163,13 +164,13 @@ exports.updateBundle = async (req, res) => {
       subcategory,
       description,
       items,
-      basePrice,
-      discountPercentage,
+      price,
       specifications,
       supportedBrands,
       imageUrls,
       tags,
-      isActive
+      isActive,
+      termsAndConditions
     } = req.body;
 
     // Validate solar items if items are being updated
@@ -193,13 +194,13 @@ exports.updateBundle = async (req, res) => {
         subcategory,
         description,
         items: processedItems,
-        basePrice,
-        discountPercentage,
+        price,
         specifications,
         supportedBrands,
         imageUrls,
         tags,
-        isActive
+        isActive,
+        termsAndConditions
       },
       { new: true, runValidators: true }
     ).populate({
@@ -296,6 +297,40 @@ exports.getCompatibleProducts = async (req, res) => {
     res.json({
       success: true,
       data: solarItems
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Get default terms and conditions for bundles
+// @route   GET /api/bundles/default-terms
+// @access  Private
+exports.getDefaultBundleTerms = async (req, res) => {
+  try {
+    const terms = getBundleTerms();
+    
+    res.json({
+      success: true,
+      data: {
+        termsAndConditions: terms
+      }
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Get all available bundle terms and conditions
+// @route   GET /api/bundles/all-terms
+// @access  Private
+exports.getAllBundleTerms = async (req, res) => {
+  try {
+    const allTerms = getAllBundleTerms();
+    
+    res.json({
+      success: true,
+      data: allTerms
     });
   } catch (error) {
     errorHandler(res, error);

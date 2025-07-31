@@ -3,6 +3,7 @@ const fs = require('fs');
 const cloudinary = require('../config/cloudinary');
 const { optimizeImage } = require('../utils/imageOptimizer');
 const { promisify } = require('util');
+const { getProductTerms, getAllProductTerms } = require('../utils/termsAndConditions');
 
 // Promisify cloudinary API methods
 const deleteFolder = promisify(cloudinary.api.delete_folder.bind(cloudinary.api));
@@ -29,6 +30,11 @@ exports.getProducts = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const { images, brochure, ...productData } = req.body;
+    
+    // Auto-fill terms and conditions if not provided
+    if (!productData.termsAndConditions && productData.category) {
+      productData.termsAndConditions = getProductTerms(productData.category);
+    }
     
     // Create product first to get the ID
     const product = await Product.create(productData);
@@ -306,5 +312,51 @@ exports.uploadBrochure = async (req, res) => {
     res.json(product);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Get default terms and conditions for a category
+exports.getDefaultTerms = async (req, res) => {
+  try {
+    const { category } = req.query;
+    
+    if (!category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Category is required'
+      });
+    }
+
+    const terms = getProductTerms(category);
+    
+    res.json({
+      success: true,
+      data: {
+        category,
+        termsAndConditions: terms
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching default terms and conditions'
+    });
+  }
+};
+
+// Get all available terms and conditions
+exports.getAllTerms = async (req, res) => {
+  try {
+    const allTerms = getAllProductTerms();
+    
+    res.json({
+      success: true,
+      data: allTerms
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching terms and conditions'
+    });
   }
 };

@@ -8,7 +8,9 @@ const {
   updateBundle,
   deleteBundle,
   getPowerPlantConfigurations,
-  getCompatibleProducts
+  getCompatibleProducts,
+  getDefaultBundleTerms,
+  getAllBundleTerms
 } = require('../controllers/productBundle');
 
 // Public routes (for displaying bundles to customers)
@@ -17,6 +19,8 @@ router.get('/power-plants/configurations', protect, getPowerPlantConfigurations)
 // Protected routes - all authenticated users can view
 router.get('/', protect, getBundles);
 router.get('/compatible-products', protect, getCompatibleProducts);
+router.get('/terms/default', protect, getDefaultBundleTerms);
+router.get('/terms/all', protect, getAllBundleTerms);
 router.get('/:id', protect, getBundle);
 
 // Admin/Product Head/Inventory Manager only routes

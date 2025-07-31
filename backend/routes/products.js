@@ -8,7 +8,9 @@ const {
   getProduct,
   updateProduct,
   deleteProduct,
-  uploadBrochure
+  uploadBrochure,
+  getDefaultTerms,
+  getAllTerms
 } = require('../controllers/products');
 
 // Configure multer for file uploads
@@ -32,6 +34,11 @@ if (!fs.existsSync(uploadDir)){
 
 // Public routes that don't require auth
 router.get('/', getProducts);
+
+// Terms and conditions routes (must come before /:id route)
+router.get('/terms/default', getDefaultTerms);
+router.get('/terms/all', getAllTerms);
+
 router.get('/:id', getProduct);
 
 // Protected routes

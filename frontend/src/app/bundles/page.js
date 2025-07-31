@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Package, Plus, Edit2, Trash2, Eye, Filter, Search, Loader2, AlertTriangle, ArrowLeft, Save } from 'lucide-react';
-import { getBundles, deleteBundle, createBundle, getBundle, updateBundle, getCompatibleProducts } from '../../services/bundleService';
+import { getBundles, deleteBundle, createBundle, getBundle, updateBundle, getCompatibleProducts, getDefaultBundleTerms } from '../../services/bundleService';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
 const formatCurrency = (amount) => {
@@ -45,15 +45,14 @@ export default function BundlesPage() {
     subcategory: '2kva',
     supportedBrands: [],
     items: [],
-    basePrice: 0,
-    discountPercentage: 0,
-    finalPrice: 0,
+    price: 0,
     specifications: {
       powerOutput: '',
       efficiency: '',
       warranty: '',
       installationType: ''
     },
+    termsAndConditions: '',
     isActive: true
   });
   const [formLoading, setFormLoading] = useState(false);
@@ -84,7 +83,7 @@ export default function BundlesPage() {
       }
       
       // Reset form for create mode with clean state
-      setBundleForm({
+      const initialForm = {
         name: '',
         bundleCode: '',
         description: '',
@@ -92,17 +91,35 @@ export default function BundlesPage() {
         subcategory: '2kva',
         supportedBrands: [],
         items: [],
-        basePrice: 0,
-        discountPercentage: 0,
-        finalPrice: 0,
+        price: 0,
         specifications: {
           powerOutput: '',
           efficiency: '',
           warranty: '',
           installationType: ''
         },
+        termsAndConditions: '',
         isActive: true
-      });
+      };
+      
+      setBundleForm(initialForm);
+      
+      // Auto-fill default terms and conditions for bundles
+      const loadDefaultTerms = async () => {
+        try {
+          const response = await getDefaultBundleTerms();
+          if (response.success && response.data.termsAndConditions) {
+            setBundleForm(prev => ({
+              ...prev,
+              termsAndConditions: response.data.termsAndConditions
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching default bundle terms:', error);
+        }
+      };
+      
+      loadDefaultTerms();
       
       // Load solar components for selection
       fetchSolarComponents();
@@ -166,8 +183,7 @@ export default function BundlesPage() {
         if (response.data.length > 0 && (!bundleForm.items || bundleForm.items.length === 0)) {
           const initialItems = response.data.map(component => ({
             solarItem: component._id,
-            quantity: 0,
-            notes: ''
+            quantity: 0
           }));
           setBundleForm(prev => ({
             ...prev,
@@ -196,7 +212,7 @@ export default function BundlesPage() {
         throw new Error('Name and Bundle Code are required');
       }
       
-      // Prepare form data - ensure finalPrice is properly calculated
+      // Prepare form data
       const formData = {
         name: bundleForm.name.trim(),
         bundleCode: bundleForm.bundleCode.trim().toUpperCase(),
@@ -213,11 +229,10 @@ export default function BundlesPage() {
           ? bundleForm.description.trim() 
           : 'Power plant bundle system',
         items: bundleForm.items || [],
-        basePrice: Number(bundleForm.basePrice) || 0,
-        discountPercentage: Number(bundleForm.discountPercentage) || 0,
-        finalPrice: bundleForm.basePrice - (bundleForm.basePrice * bundleForm.discountPercentage / 100),
+        price: Number(bundleForm.price) || 0,
         specifications: bundleForm.specifications || {},
         supportedBrands: bundleForm.supportedBrands || [],
+        termsAndConditions: bundleForm.termsAndConditions || '',
         isActive: bundleForm.isActive !== false
       };
       
@@ -239,9 +254,7 @@ export default function BundlesPage() {
           subcategory: '2kva',
           supportedBrands: [],
           items: [],
-          basePrice: 0,
-          discountPercentage: 0,
-          finalPrice: 0,
+          price: 0,
           specifications: {
             powerOutput: '',
             efficiency: '',
@@ -277,19 +290,11 @@ export default function BundlesPage() {
     }
   };
 
-  const handleFormChange = (field, value) => {
-    setBundleForm(prev => {
-      const updated = { ...prev, [field]: value };
-      
-      // Auto-calculate final price when base price or discount changes
-      if (field === 'basePrice' || field === 'discountPercentage') {
-        const basePrice = field === 'basePrice' ? value : updated.basePrice;
-        const discount = field === 'discountPercentage' ? value : updated.discountPercentage;
-        updated.finalPrice = basePrice - (basePrice * discount / 100);
-      }
-      
-      return updated;
-    });
+  const handleFormChange = async (field, value) => {
+    setBundleForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const handleSpecificationChange = (field, value) => {
@@ -317,17 +322,6 @@ export default function BundlesPage() {
       items: prev.items.map(item =>
         item.solarItem === componentId
           ? { ...item, quantity: quantity }
-          : item
-      )
-    }));
-  };
-
-  const updateComponentNotes = (componentId, notes) => {
-    setBundleForm(prev => ({
-      ...prev,
-      items: prev.items.map(item =>
-        item.solarItem === componentId
-          ? { ...item, notes: notes }
           : item
       )
     }));
@@ -529,6 +523,19 @@ export default function BundlesPage() {
                     <option value="false">Inactive</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Price (₹) *</label>
+                  <input
+                    type="number"
+                    value={bundleForm.price}
+                    onChange={(e) => handleFormChange('price', parseFloat(e.target.value) || 0)}
+                    required
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
+                    placeholder="100000"
+                  />
+                </div>
               </div>
             </div>
 
@@ -547,51 +554,6 @@ export default function BundlesPage() {
                     <span className="text-sm text-secondary">{formatBrandName(brand)}</span>
                   </label>
                 ))}
-              </div>
-            </div>
-
-            {/* Pricing */}
-            <div className="bg-tertiary rounded-lg border border-fourth p-6">
-              <h3 className="text-lg font-semibold text-secondary mb-4">Pricing</h3>
-              
-
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Base Price (₹) *</label>
-                  <input
-                    type="number"
-                    value={bundleForm.basePrice}
-                    onChange={(e) => handleFormChange('basePrice', parseFloat(e.target.value) || 0)}
-                    required
-                    min="0"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
-                    placeholder="100000"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Discount (%)</label>
-                  <input
-                    type="number"
-                    value={bundleForm.discountPercentage}
-                    onChange={(e) => handleFormChange('discountPercentage', parseFloat(e.target.value) || 0)}
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary"
-                    placeholder="5"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Final Price (₹)</label>
-                  <input
-                    type="number"
-                    value={bundleForm.finalPrice}
-                    readOnly
-                    className="w-full px-3 py-2 border border-fourth rounded-lg bg-gray-50 text-gray-600"
-                  />
-                </div>
               </div>
             </div>
 
@@ -642,6 +604,27 @@ export default function BundlesPage() {
               </div>
             </div>
 
+            {/* Terms and Conditions */}
+            <div className="bg-tertiary rounded-lg border border-fourth p-6">
+              <h3 className="text-lg font-semibold text-secondary mb-4">Terms and Conditions</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                These terms and conditions will be included in quotations for this solar power plant bundle. Default terms are automatically loaded for all bundles.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Terms and Conditions</label>
+                <textarea
+                  value={bundleForm.termsAndConditions}
+                  onChange={(e) => handleFormChange('termsAndConditions', e.target.value)}
+                  rows={8}
+                  className="w-full px-3 py-2 border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary resize-vertical"
+                  placeholder="Enter terms and conditions for this bundle..."
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {bundleForm.termsAndConditions.length}/5000 characters
+                </p>
+              </div>
+            </div>
+
             {/* Solar Components */}
             <div className="bg-tertiary rounded-lg border border-fourth p-6">
               <h3 className="text-lg font-semibold text-secondary mb-4">Solar Power Plant Components</h3>
@@ -687,18 +670,6 @@ export default function BundlesPage() {
                               placeholder="0"
                             />
                           </div>
-                        </div>
-                        
-                        {/* Optional Notes */}
-                        <div className="mt-3">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
-                          <input
-                            type="text"
-                            value={bundleItem?.notes || ''}
-                            onChange={(e) => updateComponentNotes(component._id, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary text-sm"
-                            placeholder="Any specific requirements or notes for this component..."
-                          />
                         </div>
                       </div>
                     );
@@ -856,19 +827,9 @@ export default function BundlesPage() {
                       <span className="text-secondary font-medium">{bundle.items?.length || 0} products</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Base Price:</span>
-                      <span className="text-secondary font-medium">{formatCurrency(bundle.basePrice)}</span>
+                      <span className="text-gray-600">Price:</span>
+                      <span className="text-primary font-bold">{formatCurrency(bundle.price)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Final Price:</span>
-                      <span className="text-primary font-bold">{formatCurrency(bundle.finalPrice)}</span>
-                    </div>
-                    {bundle.discountPercentage > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Discount:</span>
-                        <span className="text-green-600 font-medium">{bundle.discountPercentage}%</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Supported Brands */}
