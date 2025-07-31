@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 import AssignTaskModal from '../../components/dashboard/AssignTaskModal';
+import ConfirmDialog from '../../components/ConfirmDialog';
 import { useNavigate } from 'react-router-dom';
 
 // Icons
@@ -208,6 +209,13 @@ export default function PurchaseOrdersPage() {
   // State for date selection
   const [selectedDates, setSelectedDates] = useState({});
   const [savingDate, setSavingDate] = useState(null);
+  
+  // State for confirmation dialog
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmData, setConfirmData] = useState(null);
+  const [confirmTitle, setConfirmTitle] = useState('');
+  const [confirmMessage, setConfirmMessage] = useState('');
 
   const fetchPurchaseOrders = useCallback(async () => {
     try {
@@ -235,13 +243,32 @@ export default function PurchaseOrdersPage() {
     }
   };
 
-  const handleUpdateStatus = async (id) => {
+  const handleUpdateStatus = (id) => {
+    setConfirmTitle('Ready to Dispatch');
+    setConfirmMessage('Are you sure you want to mark this purchase order as Ready to Dispatch?');
+    setConfirmAction('readyToDispatch');
+    setConfirmData(id);
+    setShowConfirmDialog(true);
+  };
+  
+  const confirmUpdateStatus = async (id) => {
     try {
+      // Update the UI immediately before API call
+      setPurchaseOrders(prev =>
+        prev.map(po =>
+          po._id === id
+            ? { ...po, serviceTaskStatus: 'ready_to_dispatch' }
+            : po
+        )
+      );
+      
+      // Then make the API call
       await updateStatusToReadyToDispatch(id);
       toast.success('Status updated to Ready to Dispatch.');
-      fetchPurchaseOrders(); // Refresh data
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to update status.');
+      // Refresh data in case of error to ensure UI is in sync
+      fetchPurchaseOrders();
     }
   };
 
@@ -253,18 +280,41 @@ export default function PurchaseOrdersPage() {
     }));
   };
 
-  const handleAllocateDate = async (id) => {
+  const handleAllocateDate = (id) => {
     const date = selectedDates[id];
     if (!date) {
       toast.error('Please select a date first.');
       return;
     }
 
+    setConfirmTitle('Allocate Installation Date');
+    setConfirmMessage(`Are you sure you want to allocate ${new Date(date).toLocaleDateString()} as the installation date?`);
+    setConfirmAction('allocateDate');
+    setConfirmData({ id, date });
+    setShowConfirmDialog(true);
+  };
+  
+  const confirmAllocateDate = async (data) => {
+    const { id, date } = data;
+    
     setSavingDate(id);
     try {
+      // Update the UI immediately before API call
+      setPurchaseOrders(prev =>
+        prev.map(po =>
+          po._id === id
+            ? { 
+                ...po, 
+                serviceTaskStatus: 'installation_date_allocated',
+                installationDate: date
+              }
+            : po
+        )
+      );
+      
+      // Then make the API call
       await allocateInstallationDate(id, date);
       toast.success('Installation date allocated.');
-      fetchPurchaseOrders(); // Refresh data
       
       // Clear the selected date for this ID
       setSelectedDates(prev => {
@@ -274,12 +324,15 @@ export default function PurchaseOrdersPage() {
       });
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to allocate date.');
+      // Refresh data in case of error to ensure UI is in sync
+      fetchPurchaseOrders();
     } finally {
       setSavingDate(null);
     }
   };
 
   const openAssignTaskModal = (order) => {
+    // Open the engineer assignment modal directly without confirmation
     setSelectedOrder(order);
     setShowAssignTaskModal(true);
     fetchEngineers();
@@ -291,29 +344,72 @@ export default function PurchaseOrdersPage() {
   };
 
   const handleTaskAssignment = useCallback(
-    async (assignmentData) => {
+    (assignmentData) => {
       if (!selectedOrder) return;
 
-      try {
-        setIsAssigning(true);
-        // Use the installation date that was already allocated by the marketing coordinator
-        const dataToSubmit = {
-          assignedEngineerId: assignmentData.assignedEngineerId,
-          serviceDueDate: selectedOrder.installationDate, // Use the pre-allocated installation date
-          serviceAssignmentNotes: assignmentData.serviceAssignmentNotes,
-        };
-        await assignTask(selectedOrder._id, dataToSubmit);
-        toast.success('Task assigned to engineer successfully.');
-        closeAssignTaskModal();
-        fetchPurchaseOrders(); // Refresh data
-      } catch (error) {
-        toast.error(error.response?.data?.error || 'Failed to assign task.');
-      } finally {
-        setIsAssigning(false);
-      }
+      // Store the assignment data for confirmation
+      const engineerName = engineers.find(e => e._id === assignmentData.assignedEngineerId)?.name || 'Unknown Engineer';
+      
+      // Show confirmation dialog instead of immediately updating
+      setConfirmTitle('Assign Service Engineer');
+      setConfirmMessage(`Are you sure you want to assign ${engineerName} to this purchase order?`);
+      setConfirmAction('assignTask');
+      setConfirmData({
+        selectedOrderId: selectedOrder._id,
+        assignmentData: assignmentData,
+        engineerName: engineerName
+      });
+      setShowConfirmDialog(true);
+      
+      // Don't close the modal yet - it will be closed after confirmation
+      setIsAssigning(false);
     },
-    [selectedOrder, fetchPurchaseOrders]
+    [selectedOrder, engineers, setConfirmTitle, setConfirmMessage, setConfirmAction, setConfirmData, setShowConfirmDialog]
   );
+  
+  // This function will be called after confirmation
+  const confirmTaskAssignment = async (data) => {
+    const { selectedOrderId, assignmentData, engineerName } = data;
+    
+    try {
+      setIsAssigning(true);
+      
+      // Use the installation date that was already allocated by the marketing coordinator
+      const dataToSubmit = {
+        assignedEngineerId: assignmentData.assignedEngineerId,
+        serviceDueDate: selectedOrder.installationDate, // Use the pre-allocated installation date
+        serviceAssignmentNotes: assignmentData.serviceAssignmentNotes,
+      };
+      
+      // Update the UI immediately before API call
+      setPurchaseOrders(prev => 
+        prev.map(po => 
+          po._id === selectedOrderId 
+            ? { 
+                ...po, 
+                serviceTaskStatus: 'assigned',
+                assignedEngineerId: { 
+                  _id: assignmentData.assignedEngineerId,
+                  name: engineerName
+                }
+              } 
+            : po
+        )
+      );
+      
+      // Make the API call after updating the UI
+      await assignTask(selectedOrderId, dataToSubmit);
+      
+      toast.success('Task assigned to engineer successfully.');
+      closeAssignTaskModal();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to assign task.');
+      // Refresh data in case of error to ensure UI is in sync
+      fetchPurchaseOrders();
+    } finally {
+      setIsAssigning(false);
+    }
+  };
 
   const viewPurchaseOrder = (id) => {
     navigate(`/dashboard/purchase-orders/${id}`);
@@ -680,6 +776,41 @@ export default function PurchaseOrdersPage() {
           formatDate={(date) => new Date(date).toLocaleDateString()}
         />
       )}
+      
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        onConfirm={handleConfirm}
+        title={confirmTitle}
+        message={confirmMessage}
+      />
     </div>
   );
+  
+  // Function to handle confirmation actions
+  function handleConfirm() {
+    // Close the confirm dialog
+    setShowConfirmDialog(false);
+    
+    // Process the action based on the type
+    switch (confirmAction) {
+      case 'readyToDispatch':
+        // Let confirmUpdateStatus handle the state update
+        confirmUpdateStatus(confirmData);
+        break;
+        
+      case 'allocateDate':
+        // Let confirmAllocateDate handle the state update
+        confirmAllocateDate(confirmData);
+        break;
+        
+      case 'assignTask':
+        // Handle engineer assignment confirmation
+        confirmTaskAssignment(confirmData);
+        break;
+        
+      default:
+        break;
+    }
+  }
 }
