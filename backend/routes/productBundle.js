@@ -20,8 +20,8 @@ router.get('/compatible-products', protect, getCompatibleProducts);
 router.get('/:id', protect, getBundle);
 
 // Admin/Product Head/Inventory Manager only routes
-router.post('/', protect, authorize('admin', 'product_head', 'inventory_manager'), createBundle);
-router.put('/:id', protect, authorize('admin', 'product_head', 'inventory_manager'), updateBundle);
-router.delete('/:id', protect, authorize('admin', 'product_head', 'inventory_manager'), deleteBundle);
+router.post('/', protect, authorize('admin', 'product_head'), createBundle);
+router.put('/:id', protect, authorize('admin', 'product_head'), updateBundle);
+router.delete('/:id', protect, authorize('admin', 'product_head'), deleteBundle);
 
 module.exports = router; 

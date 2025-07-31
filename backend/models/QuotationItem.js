@@ -36,7 +36,7 @@ const quotationItemSchema = new mongoose.Schema({
     default: 0,
     min: [0, 'Discount cannot be negative']
   },
-  subtotal: { 
+  total: { 
     type: Number, 
     required: true 
   },

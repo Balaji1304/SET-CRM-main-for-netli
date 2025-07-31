@@ -71,17 +71,7 @@ exports.convertLeadToCustomer = async (req, res) => {
     }
 
     // Financials from Quotation
-    const purchaseSubtotal = quotation.subtotal; // Assumes quotation.subtotal is correct
-    const purchaseTaxPercentage = 18; // Hardcoded 18% tax rate
-    const purchaseTaxAmount = Number((purchaseSubtotal * (purchaseTaxPercentage / 100)).toFixed(2));
-    // quotation.total should already reflect subtotal + 18% tax
     const purchaseTotalAmount = quotation.total; 
-
-    // Validate if quotation.total matches our new calculation
-    if (Math.abs(purchaseTotalAmount - (purchaseSubtotal + purchaseTaxAmount)) > 0.01) {
-        console.warn(`Discrepancy in Quotation total vs. re-calculated total during lead conversion. Quotation ID: ${quotation._id}. Quotation.total: ${quotation.total}, Calculated: ${purchaseSubtotal + purchaseTaxAmount}`);
-        // Consider using the re-calculated total if quotation.total is deemed unreliable.
-    }
 
     const calculatedAdvanceAmount = advanceAmount || (purchaseTotalAmount * (quotation.advancePaymentPercentage / 100));
     const remainingAmount = purchaseTotalAmount - calculatedAdvanceAmount;
@@ -95,9 +85,6 @@ exports.convertLeadToCustomer = async (req, res) => {
       purchaseID,
       customerId: customer._id,
       quotationId: quotation._id,
-      subtotal: purchaseSubtotal,         // Store subtotal from quotation
-      taxPercentage: purchaseTaxPercentage, // Store defined percentage (18%)
-      taxAmount: purchaseTaxAmount,         // Store calculated tax amount
       advancePaid: calculatedAdvanceAmount,
       totalAmount: purchaseTotalAmount,     // Use quotation.total
       remainingAmount: remainingAmount,
@@ -159,7 +146,7 @@ exports.getCustomerPurchases = async (req, res) => {
     const purchases = await CustomerPurchase.find({ customerId })
       .populate({
         path: 'quotationId',
-        select: 'quotationNumber subtotal tax total validUntil'
+        select: 'quotationNumber total validUntil'
       });
 
     // For each purchase, get the quotation items
@@ -201,7 +188,7 @@ exports.getCustomerPurchasesByUser = async (req, res) => {
     const purchases = await CustomerPurchase.find({ customerId: customer._id })
       .populate({
         path: 'quotationId',
-        select: 'quotationNumber subtotal tax total validUntil advancePaymentPercentage'
+        select: 'quotationNumber total validUntil advancePaymentPercentage'
       })
       .sort({ purchaseDate: -1 }); // Newest first
 
@@ -407,7 +394,7 @@ exports.getPurchaseDetails = async (req, res) => {
       })
       .populate({
         path: 'quotationId',
-        select: 'quotationNumber subtotal tax total validUntil createdBy advancePaymentStatus',
+        select: 'quotationNumber total validUntil createdBy advancePaymentStatus',
         populate: {
             path: 'createdBy',
             select: 'name email'
@@ -478,7 +465,7 @@ exports.getPurchaseOrdersForManagement = async (req, res) => {
 exports.createQuotationFromLead = async (req, res) => {
   try {
     const { leadId } = req.params;
-    const { quotationItems, subtotal, tax, total, validUntil, terms, notes } = req.body;
+    const { quotationItems, total, validUntil, terms, notes } = req.body;
 
     // Find the lead
     const lead = await Lead.findById(leadId);
@@ -494,8 +481,6 @@ exports.createQuotationFromLead = async (req, res) => {
     const quotation = await Quotation.create({
       lead: lead._id,
       quotationNumber,
-      subtotal,
-      tax,
       total,
       validUntil: validUntil || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default 7 days validity
       terms,
@@ -519,7 +504,7 @@ exports.createQuotationFromLead = async (req, res) => {
         quantity: item.quantity,
         unitPrice: item.unitPrice || product.price,
         discount: item.discount || 0,
-        subtotal: (item.quantity * (item.unitPrice || product.price)) - (item.discount || 0)
+        total: (item.quantity * (item.unitPrice || product.price)) - (item.discount || 0)
       });
 
       createdQuotationItems.push(quotationItem);

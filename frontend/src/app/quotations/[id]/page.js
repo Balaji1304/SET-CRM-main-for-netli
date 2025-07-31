@@ -470,19 +470,7 @@ export default function QuotationDetailsPage() {
             {/* Totals Section */}
             <div className="mt-6 border-t border-gray-200 pt-4">
               <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-medium text-gray-700">Subtotal</span>
-                  <span className="font-semibold text-gray-900">
-                    ₹{quotation.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="font-medium text-gray-700">Tax ({quotation.taxPercentage || 18}%)</span>
-                  <span className="font-semibold text-gray-900">
-                    ₹{quotation.tax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-lg font-bold border-t border-gray-200 pt-3">
+                <div className="flex justify-between items-center text-lg font-bold">
                   <span className="text-secondary">Total Amount</span>
                   <span className="text-primary">
                     ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

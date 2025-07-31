@@ -224,8 +224,6 @@ const sendQuotationNotification = async (quotation, quotationItems, pdfBuffer = 
       discount: item.discount || 0,
       total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
     })),
-    subtotal: quotation.subtotal,
-    tax: quotation.tax,
     total: quotation.total,
     terms: quotation.terms,
     notes: quotation.notes,
@@ -271,9 +269,7 @@ const sendInvoiceNotification = async (invoice, pdfBuffer = null) => {
       discount: item.discount,
       total: item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)
     })),
-    subtotal: invoice.subtotal,
-    tax: invoice.tax,
-    total: invoice.total,
+    total: invoice.totalAmount,
     dueDate: invoice.dueDate?.toLocaleDateString(),
     businessDetails: {
       name: process.env.BUSINESS_NAME || 'Sunlit CRM',

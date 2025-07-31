@@ -50,19 +50,7 @@ const invoiceSchema = new mongoose.Schema({
     unique: true // Each purchase should have only one final invoice
   },
   items: [invoiceItemSchema],
-  subtotal: { // Sum of all itemTotals before tax
-    type: Number,
-    required: true
-  },
-  taxAmount: { // Tax amount applied
-    type: Number,
-    default: 0
-  },
-  taxPercentage: { // Tax percentage applied
-    type: Number,
-    default: 0
-  },
-  totalAmount: { // Final amount (subtotal + taxAmount)
+  totalAmount: { // Final amount
     type: Number,
     required: true
   },

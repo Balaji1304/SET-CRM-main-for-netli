@@ -277,15 +277,7 @@ export default function PurchaseOrderDetailPage() {
             <div className="mt-4 pt-4 border-t border-gray-100">
               <h4 className="text-sm font-semibold mb-2">Payment Summary</h4>
               <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal:</span>
-                  <span className="font-medium">₹{purchase.subtotal?.toFixed(2) || '0.00'}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax ({purchase.taxPercentage}%):</span>
-                  <span className="font-medium">₹{purchase.taxAmount?.toFixed(2) || '0.00'}</span>
-                </div>
-                <div className="flex justify-between text-sm font-semibold pt-1 border-t border-gray-100 mt-1">
+                <div className="flex justify-between text-sm font-semibold">
                   <span>Total:</span>
                   <span>₹{purchase.totalAmount?.toFixed(2) || '0.00'}</span>
                 </div>

@@ -53,7 +53,7 @@ function App() {
           <Route 
             path="/invoice/:id" 
             element={ 
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'admin', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'admin', 'sales_head']}>
                 <InvoicePage />
               </ProtectedRoute>
             }
@@ -62,7 +62,7 @@ function App() {
                     <Route 
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator']}>
                 <DashboardLayout />
               </ProtectedRoute>
             }
@@ -137,32 +137,32 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="products" element={
-              <ProtectedRoute allowedRoles={['inventory_manager']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <ProductListPage />
               </ProtectedRoute>
             } />
             <Route path="products/add" element={
-              <ProtectedRoute allowedRoles={['inventory_manager']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <AddProductPage />
               </ProtectedRoute>
             } />
             <Route path="products/:id/edit" element={
-              <ProtectedRoute allowedRoles={['inventory_manager']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <EditProductPage />
               </ProtectedRoute>
             } />
             <Route path="bundles" element={
-              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <BundlesPage />
               </ProtectedRoute>
             } />
             <Route path="bundles/create" element={
-              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <BundlesPage />
               </ProtectedRoute>
             } />
             <Route path="bundles/:id/edit" element={
-              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <BundlesPage />
               </ProtectedRoute>
             } />

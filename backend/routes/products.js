@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const {
   getProducts,
   createProduct,
@@ -35,8 +35,8 @@ router.get('/', getProducts);
 router.get('/:id', getProduct);
 
 // Protected routes
-router.post('/', protect, upload.single('brochure'), createProduct);
-router.put('/:id', protect, upload.single('brochure'), updateProduct);
-router.delete('/:id', protect, deleteProduct);
+router.post('/', protect, authorize('admin', 'product_head'), upload.single('brochure'), createProduct);
+router.put('/:id', protect, authorize('admin', 'product_head'), upload.single('brochure'), updateProduct);
+router.delete('/:id', protect, authorize('admin', 'product_head'), deleteProduct);
 
 module.exports = router;
