@@ -15,9 +15,13 @@ const quotationItemSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ProductBundle'
   },
+  customizedProductId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CustomizedProduct'
+  },
   itemType: {
     type: String,
-    enum: ['product', 'bundle'],
+    enum: ['product', 'bundle', 'customized'],
     required: true,
     default: 'product'
   },
@@ -63,15 +67,21 @@ const quotationItemSchema = new mongoose.Schema({
 
 // Validation and pre-save hooks
 quotationItemSchema.pre('save', function(next) {
-  // Ensure either productId or bundleId is provided, not both
+  // Ensure either productId, bundleId, or customizedProductId is provided, not multiple
   if (this.itemType === 'product' && !this.productId) {
     return next(new Error('ProductId is required when itemType is product'));
   }
   if (this.itemType === 'bundle' && !this.bundleId) {
     return next(new Error('BundleId is required when itemType is bundle'));
   }
-  if (this.productId && this.bundleId) {
-    return next(new Error('Cannot have both productId and bundleId in the same item'));
+  if (this.itemType === 'customized' && !this.customizedProductId) {
+    return next(new Error('CustomizedProductId is required when itemType is customized'));
+  }
+  
+  // Ensure only one type of product reference is set
+  const referenceCount = [this.productId, this.bundleId, this.customizedProductId].filter(Boolean).length;
+  if (referenceCount > 1) {
+    return next(new Error('Cannot have multiple product references in the same item'));
   }
   
   this.updatedAt = Date.now();

@@ -2,6 +2,7 @@ const Quotation = require('../models/Quotation');
 const QuotationItem = require('../models/QuotationItem');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
+const CustomizedProduct = require('../models/CustomizedProduct');
 const sendEmail = require('../utils/sendEmail');
 const { sendQuotationNotification, sendWelcomeNotification } = require('../utils/sendNotification');
 const { generateQuotationNumber } = require('../utils/generateNumbers');
@@ -48,7 +49,9 @@ exports.getQuotations = async (req, res) => {
     // Get quotation items for all quotations in a single query
     const quotationIds = quotations.map(q => q._id);
     const allQuotationItems = await QuotationItem.find({ quotationId: { $in: quotationIds } })
-      .populate('productId');
+      .populate('productId')
+      .populate('bundleId')
+      .populate('customizedProductId');
     
     // Group quotation items by quotation ID for efficient lookup
     const itemsByQuotationId = {};
@@ -110,7 +113,9 @@ exports.getQuotation = async (req, res) => {
 
     // Get quotation items
     const quotationItems = await QuotationItem.find({ quotationId: quotation._id })
-      .populate('productId');
+      .populate('productId')
+      .populate('bundleId')
+      .populate('customizedProductId');
 
     // Convert to object for modification
     const quotationData = quotation.toObject();
@@ -200,24 +205,49 @@ exports.createQuotation = async (req, res) => {
     // Create quotation items
     const createdQuotationItems = [];
     for (const item of quotationItems) {
-      if (!item.productId) {
-        throw new AppError('Product ID is required for each item', 400);
+      // Determine item type and validate required fields
+      let itemType = 'product';
+      let referenceId = null;
+      
+      if (item.productId) {
+        itemType = 'product';
+        referenceId = item.productId;
+      } else if (item.bundleId) {
+        itemType = 'bundle';
+        referenceId = item.bundleId;
+      } else if (item.customizedProductId) {
+        itemType = 'customized';
+        referenceId = item.customizedProductId;
+      } else {
+        throw new AppError('Product ID, Bundle ID, or Customized Product ID is required for each item', 400);
       }
+
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
-      const discountPercentage = Number(item.discount || 0); // Assuming item.discount is percentage
+      const discountPercentage = Number(item.discount || 0);
 
       // Calculate total for this specific QuotationItem
       const itemTotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
       
-      const quotationItem = await QuotationItem.create({
+      const quotationItemData = {
         quotationId: quotation._id,
-        productId: item.productId,
+        itemType: itemType,
         quantity: quantity,
         unitPrice: unitPrice,
-        discount: discountPercentage, // Store discount as percentage
-        total: itemTotal // Store correctly calculated item total
-      });
+        discount: discountPercentage,
+        total: itemTotal
+      };
+
+      // Set the appropriate reference field
+      if (itemType === 'product') {
+        quotationItemData.productId = referenceId;
+      } else if (itemType === 'bundle') {
+        quotationItemData.bundleId = referenceId;
+      } else if (itemType === 'customized') {
+        quotationItemData.customizedProductId = referenceId;
+      }
+
+      const quotationItem = await QuotationItem.create(quotationItemData);
       createdQuotationItems.push(quotationItem);
     }
 

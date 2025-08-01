@@ -40,6 +40,16 @@ const productSchema = new mongoose.Schema({
   bundleItems: {
     type: Array,
     default: []
+  },
+  // Customized product fields
+  isCustomizedProduct: {
+    type: Boolean,
+    default: false
+  },
+  customizedProductId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CustomizedProduct',
+    required: false
   }
 }, {
   _id: false
@@ -142,7 +152,7 @@ const leadSchema = new mongoose.Schema({
   // Product Information
   selectedProductType: {
     type: String,
-    enum: ['individual', 'bundle'],
+    enum: ['individual', 'bundle', 'customized'],
     default: 'individual'
   },
   products: [productSchema],

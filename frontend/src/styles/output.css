@@ -975,8 +975,14 @@ video {
 .w-9 {
   width: 2.25rem;
 }
+.w-\[10\%\] {
+  width: 10%;
+}
 .w-\[14\%\] {
   width: 14%;
+}
+.w-\[15\%\] {
+  width: 15%;
 }
 .w-\[16\%\] {
   width: 16%;
@@ -995,6 +1001,9 @@ video {
 }
 .w-\[32\%\] {
   width: 32%;
+}
+.w-\[35\%\] {
+  width: 35%;
 }
 .w-\[6\%\] {
   width: 6%;
@@ -2734,6 +2743,11 @@ video {
 .hover\:text-red-700:hover {
   --tw-text-opacity: 1;
   color: rgb(185 28 28 / var(--tw-text-opacity, 1));
+}
+
+.hover\:text-red-800:hover {
+  --tw-text-opacity: 1;
+  color: rgb(153 27 27 / var(--tw-text-opacity, 1));
 }
 
 .hover\:text-white:hover {

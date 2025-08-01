@@ -32,6 +32,10 @@ exports.getLeads = async (req, res) => {
       .populate({
         path: 'products.productId',
         select: 'name category price specifications _id'
+      })
+      .populate({
+        path: 'products.customizedProductId',
+        select: 'name unitPrice modelNumber description specifications imageUrls _id'
       });
 
     res.json({
@@ -61,6 +65,9 @@ exports.getLead = async (req, res) => {
     }).populate({
       path: 'products.productId',
       select: 'name category price specifications'
+    }).populate({
+      path: 'products.customizedProductId',
+      select: 'name unitPrice modelNumber description specifications imageUrls'
     });
 
     if (!lead) {

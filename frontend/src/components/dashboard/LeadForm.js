@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createLead, getLead, updateLead } from '../../services/leadService';
 import { getProducts } from '../../services/productService';
 import { getPowerPlantConfigurations } from '../../services/bundleService';
+import { createCustomizedProduct, updateCustomizedProduct } from '../../services/customizedProductService';
 import { generateUniqueId, ensureUniqueIds } from '../../utils/generateId';
 
 // Custom styles for better mobile experience
@@ -113,6 +114,9 @@ const FORM_OPTIONS = {
     products: [
     { id: `${Date.now()}_0`, category: '', name: '', quantity: '1', unitPrice: '0', totalPrice: '0', productId: '' }
     ],
+    customizedProducts: [
+    { id: `${Date.now()}_0`, name: '', unitPrice: '0', quantity: '1', totalPrice: '0' }
+    ],
     productRequirements: '',
     dateCollected: new Date().toISOString().split('T')[0],
     followUpRequired: false,
@@ -158,8 +162,11 @@ export default function LeadForm() {
   const [bundlesData, setBundlesData] = useState({});
   const [isLoadingBundles, setIsLoadingBundles] = useState(true);
   const [bundleFetchError, setBundleFetchError] = useState(null);
-  const [selectedProductType, setSelectedProductType] = useState('individual'); // 'individual' or 'bundle'
+  const [selectedProductType, setSelectedProductType] = useState('individual'); // 'individual', 'bundle', or 'customized'
   const [selectedBundles, setSelectedBundles] = useState([]); // Array of selected bundles with quantities
+
+  // Customized product state
+  const [customizedProducts, setCustomizedProducts] = useState([]);
 
   // Geolocation state
   const [geo, setGeo] = useState({ latitude: '', longitude: '' });
@@ -244,6 +251,7 @@ export default function LeadForm() {
     setSubmissionError(null);
     setSelectedProductType('individual');
     setSelectedBundles([]);
+    setCustomizedProducts([]);
   }, []);
 
   useEffect(() => {
@@ -284,6 +292,19 @@ export default function LeadForm() {
               bundleItems: p.bundleItems || []
             }));
             setSelectedBundles(bundlesToRestore);
+          } else if (leadData.selectedProductType === 'customized' && leadData.products?.some(p => p.isCustomizedProduct)) {
+            setSelectedProductType('customized');
+            // Convert products to customized products format
+            const customizedProductData = leadData.products
+              .filter(p => p.isCustomizedProduct)
+              .map(p => ({
+                id: `custom_${Date.now()}_${Math.random()}`,
+                customizedProductId: p.customizedProductId,
+                name: p.name,
+                quantity: parseInt(p.quantity) || 1,
+                unitPrice: parseFloat(p.unitPrice) || 0
+              }));
+            setCustomizedProducts(customizedProductData);
           } else {
             setSelectedProductType('individual');
           }
@@ -333,6 +354,19 @@ export default function LeadForm() {
           bundleItems: p.bundleItems || []
         }));
         setSelectedBundles(bundlesToRestore);
+      } else if (leadData.selectedProductType === 'customized' && leadData.products?.some(p => p.isCustomizedProduct)) {
+        setSelectedProductType('customized');
+        // Convert products to customized products format
+        const customizedProductData = leadData.products
+          .filter(p => p.isCustomizedProduct)
+          .map(p => ({
+            id: `custom_${Date.now()}_${Math.random()}`,
+            customizedProductId: p.customizedProductId,
+            name: p.name,
+            quantity: parseInt(p.quantity) || 1,
+            unitPrice: parseFloat(p.unitPrice) || 0
+          }));
+        setCustomizedProducts(customizedProductData);
       } else {
         setSelectedProductType('individual');
       }
@@ -494,11 +528,46 @@ export default function LeadForm() {
     }
   };
 
+  // Customized Products Handlers
+  const addCustomizedProduct = () => {
+    setCustomizedProducts(prev => [
+      ...prev,
+      {
+        id: `custom_${Date.now()}_${prev.length}`,
+        name: '',
+        quantity: 1,
+        unitPrice: 0
+      }
+    ]);
+  };
+
+  const removeCustomizedProduct = (index) => {
+    setCustomizedProducts(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleCustomizedProductChange = (index, field, value) => {
+    setCustomizedProducts(prev => {
+      const updated = [...prev];
+      if (index < updated.length) {
+        updated[index] = { ...updated[index], [field]: value };
+      }
+      return updated;
+    });
+  };
+
   const handleProductTypeChange = (type) => {
     // If in edit mode and there are existing products, show confirmation
-    if (isEditMode && formData.products.length > 0 && type !== selectedProductType) {
-      const currentTypeText = selectedProductType === 'bundle' ? 'Solar Power Plant System' : 'Individual Products';
-      const newTypeText = type === 'bundle' ? 'Solar Power Plant System' : 'Individual Products';
+    if (isEditMode && (formData.products.length > 0 || selectedBundles.length > 0 || customizedProducts.length > 0) && type !== selectedProductType) {
+      const getTypeText = (productType) => {
+        switch(productType) {
+          case 'bundle': return 'Solar Power Plant System';
+          case 'customized': return 'Customized Products';
+          default: return 'Individual Products';
+        }
+      };
+      
+      const currentTypeText = getTypeText(selectedProductType);
+      const newTypeText = getTypeText(type);
       
       setConfirmDialogProps({
         isOpen: true,
@@ -522,18 +591,34 @@ export default function LeadForm() {
     setSelectedProductType(type);
     if (type === 'individual') {
       setSelectedBundles([]);
+      setCustomizedProducts([]);
       // Reset to default individual products
       setFormData(prev => ({
         ...prev,
         products: [{ id: `${Date.now()}_0`, category: '', name: '', quantity: '1', unitPrice: '0', totalPrice: '0', productId: '' }]
       }));
-    } else {
+    } else if (type === 'bundle') {
       // Reset products for bundle mode
+      setSelectedBundles([]);
+      setCustomizedProducts([]);
+      setFormData(prev => ({
+        ...prev,
+        products: []
+      }));
+    } else if (type === 'customized') {
+      // Reset for customized products mode
       setSelectedBundles([]);
       setFormData(prev => ({
         ...prev,
         products: []
       }));
+      // Initialize with one empty customized product
+      setCustomizedProducts([{
+        id: `custom_${Date.now()}_0`,
+        name: '',
+        quantity: 1,
+        unitPrice: 0
+      }]);
     }
   };
 
@@ -636,6 +721,23 @@ export default function LeadForm() {
           }
         });
       }
+    } else if (selectedProductType === 'customized') {
+      if (customizedProducts.length === 0) {
+        errors.productInfo = { general: 'Please add at least one customized product.' };
+      } else {
+        // Validate each customized product
+        const validCustomizedProducts = customizedProducts.filter(p => p.name && p.quantity > 0 && p.unitPrice > 0);
+        if (validCustomizedProducts.length === 0) {
+          errors.productInfo = { general: 'At least one complete customized product entry is required.' };
+        } else {
+          customizedProducts.forEach((product, index) => {
+            if (!product.name || product.quantity <= 0 || product.unitPrice <= 0) {
+              if (!errors.productInfo) errors.productInfo = {};
+              errors.productInfo[`custom_${index}`] = 'Please complete all fields (Product Name, Quantity > 0, Unit Price > 0) for this customized product.';
+            }
+          });
+        }
+      }
     }
 
     if (formData.followUpRequired && !formData.followUpDateTime) {
@@ -713,6 +815,19 @@ export default function LeadForm() {
           isBundleItem: true,
           bundleItems: bundle.bundleData?.items || bundle.bundleItems || []
         }));
+      } else if (selectedProductType === 'customized') {
+        // For customized products, we'll include basic product info in the lead
+        // and create detailed customized product records after lead creation
+        productsToSubmit = customizedProducts
+          .filter(p => p.name && p.quantity > 0 && p.unitPrice > 0)
+          .map(product => ({
+            category: 'customized',
+            name: product.name,
+            quantity: parseInt(product.quantity, 10),
+            unitPrice: parseFloat(product.unitPrice),
+            totalPrice: parseFloat(product.quantity * product.unitPrice),
+            isCustomizedProduct: true
+          }));
       }
 
       const payload = { 
@@ -730,6 +845,103 @@ export default function LeadForm() {
       const response = isEditMode ? await updateLead(leadId, payload) : await createLead(payload);
 
       if (response.success) {
+        // If creating a new lead with customized products, create the detailed customized product records
+        if (!isEditMode && selectedProductType === 'customized' && customizedProducts.length > 0) {
+          try {
+            const createdLeadId = response.data._id;
+            const customizedProductPromises = customizedProducts
+              .filter(p => p.name && p.quantity > 0 && p.unitPrice > 0)
+              .map(async (product, index) => {
+                const customizedProductData = {
+                  name: product.name,
+                  unitPrice: product.unitPrice,
+                  leadId: createdLeadId
+                };
+                const result = await createCustomizedProduct(customizedProductData);
+                return { ...result, originalIndex: index };
+              });
+
+            const createdCustomizedProducts = await Promise.all(customizedProductPromises);
+            
+            // Update the lead with the customized product IDs
+            const updatedProducts = productsToSubmit.map((product, index) => {
+              const createdProduct = createdCustomizedProducts.find(cp => cp.originalIndex === index);
+              if (createdProduct && createdProduct.success) {
+                return {
+                  ...product,
+                  customizedProductId: createdProduct.data._id
+                };
+              }
+              return product;
+            });
+
+            // Update the lead with the customizedProductId references
+            await updateLead(createdLeadId, {
+              products: updatedProducts
+            });
+
+            console.log('Customized product records created and lead updated successfully');
+          } catch (customizedProductError) {
+            console.error('Error creating customized product records:', customizedProductError);
+            // Don't fail the whole operation if customized product creation fails
+            // The lead was created successfully with the basic product info
+          }
+        }
+
+        // If editing a lead with customized products, update the customized product records
+        if (isEditMode && selectedProductType === 'customized' && customizedProducts.length > 0) {
+          try {
+            const customizedProductPromises = customizedProducts
+              .filter(p => p.name && p.quantity > 0 && p.unitPrice > 0)
+              .map(async (product, index) => {
+                const customizedProductData = {
+                  name: product.name,
+                  unitPrice: product.unitPrice,
+                  leadId: leadId
+                };
+
+                if (product.customizedProductId) {
+                  // Update existing customized product
+                  const result = await updateCustomizedProduct(product.customizedProductId, customizedProductData);
+                  return { ...result, originalIndex: index, existingId: product.customizedProductId };
+                } else {
+                  // Create new customized product for this lead
+                  const result = await createCustomizedProduct(customizedProductData);
+                  return { ...result, originalIndex: index };
+                }
+              });
+
+            const processedCustomizedProducts = await Promise.all(customizedProductPromises);
+            
+            // Update lead products with any new customized product IDs
+            let needsLeadUpdate = false;
+            const updatedProducts = productsToSubmit.map((product, index) => {
+              const processedProduct = processedCustomizedProducts.find(cp => cp.originalIndex === index);
+              if (processedProduct && processedProduct.success && !processedProduct.existingId) {
+                // This is a newly created customized product, add the ID
+                needsLeadUpdate = true;
+                return {
+                  ...product,
+                  customizedProductId: processedProduct.data._id
+                };
+              }
+              return product;
+            });
+
+            if (needsLeadUpdate) {
+              await updateLead(leadId, {
+                products: updatedProducts
+              });
+            }
+
+            console.log('Customized product records updated successfully');
+          } catch (customizedProductError) {
+            console.error('Error updating customized product records:', customizedProductError);
+            // Don't fail the whole operation if customized product update fails
+            // The lead was updated successfully with the basic product info
+          }
+        }
+
         setHasUnsavedChanges(false);
         navigate('/dashboard/leads', { state: { toastMessage: `Lead ${isEditMode ? 'updated' : 'created'} successfully!` } });
       } else {
@@ -981,7 +1193,7 @@ export default function LeadForm() {
                   <p className="text-sm text-blue-700">
                     <strong>Note:</strong> This lead was originally created with{' '}
                     <span className="font-medium">
-                      {selectedProductType === 'bundle' ? 'Solar Power Plant System' : 'Individual Products'}
+                      {selectedProductType === 'bundle' ? 'Solar Power Plant System' : selectedProductType === 'customized' ? 'Customized Products' : 'Individual Products'}
                     </span>
                     . You can change the product type, but this will clear the current product selection.
                   </p>
@@ -1033,6 +1245,29 @@ export default function LeadForm() {
                       )}
                     </div>
                     <p className="text-xs text-gray-600">Choose from pre-configured solar power plant bundles</p>
+                  </div>
+                </label>
+                <label className={`flex items-center space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-all ${
+                  selectedProductType === 'customized' 
+                    ? 'border-primary bg-primary/5' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="productType"
+                    value="customized"
+                    checked={selectedProductType === 'customized'}
+                    onChange={(e) => handleProductTypeChange(e.target.value)}
+                    className="w-4 h-4 text-primary border-gray-300 focus:ring-primary"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-secondary">Customized Products</span>
+                      {selectedProductType === 'customized' && (
+                        <span className="w-2 h-2 bg-primary rounded-full"></span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600">Request products not in our catalog</p>
                   </div>
                 </label>
               </div>
@@ -1386,6 +1621,175 @@ export default function LeadForm() {
                       </div>
                     )}
                   </div>
+                </div>
+              </>
+            )}
+
+            {/* Customized Products Section */}
+            {selectedProductType === 'customized' && (
+              <>
+                {/* Customized Products Table - Desktop & Tablet */}
+                <div className="hidden md:block bg-white rounded-lg border border-fourth shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead className="bg-gray-50 border-b border-fourth">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[35%]">
+                            Product Name <span className="text-red-500">*</span>
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[15%]">
+                            Qty <span className="text-red-500">*</span>
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[20%]">
+                            Unit Price <span className="text-red-500">*</span>
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[20%]">
+                            Total Price
+                          </th>
+                          <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[10%]">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-fourth">
+                        {customizedProducts.map((product, index) => (
+                          <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={product.name}
+                                onChange={(e) => handleCustomizedProductChange(index, 'name', e.target.value)}
+                                placeholder="Enter product name"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                              />
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <input
+                                type="number"
+                                value={product.quantity}
+                                onChange={(e) => handleCustomizedProductChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                                min="1"
+                                className="w-20 px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-center"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={product.unitPrice}
+                                onChange={(e) => handleCustomizedProductChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                min="0"
+                                step="0.01"
+                                placeholder="Enter unit price"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm font-medium text-secondary">
+                                ₹{(product.quantity * product.unitPrice).toLocaleString()}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => removeCustomizedProduct(index)}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                                title="Remove product"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Add Product Button */}
+                  <div className="p-4 border-t border-fourth bg-gray-50">
+                    <button
+                      type="button"
+                      onClick={addCustomizedProduct}
+                      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Customized Product
+                    </button>
+                  </div>
+                </div>
+
+                {/* Customized Products Cards - Mobile */}
+                <div className="md:hidden space-y-4">
+                  {customizedProducts.map((product, index) => (
+                    <div key={index} className="bg-white rounded-lg border border-fourth shadow-sm p-4">
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-secondary mb-1">
+                            Product Name <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={product.name}
+                            onChange={(e) => handleCustomizedProductChange(index, 'name', e.target.value)}
+                            placeholder="Enter product name"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-secondary mb-1">
+                              Quantity <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              value={product.quantity}
+                              onChange={(e) => handleCustomizedProductChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                              min="1"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-secondary mb-1">
+                              Unit Price <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              value={product.unitPrice}
+                              onChange={(e) => handleCustomizedProductChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              step="0.01"
+                              placeholder="Enter unit price"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between items-center pt-2 border-t">
+                          <div className="text-sm font-medium text-secondary">
+                            Total: ₹{(product.quantity * product.unitPrice).toLocaleString()}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeCustomizedProduct(index)}
+                            className="text-red-600 hover:text-red-800 transition-colors p-1"
+                            title="Remove product"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Add Product Button - Mobile */}
+                  <button
+                    type="button"
+                    onClick={addCustomizedProduct}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Customized Product
+                  </button>
                 </div>
               </>
             )}
@@ -1779,22 +2183,32 @@ export default function LeadForm() {
                   <p className="text-sm text-gray-600">
                     {selectedProductType === 'individual' 
                       ? 'Total estimated cost for all products' 
-                      : 'Total estimated cost for all solar power plant systems'
+                      : selectedProductType === 'bundle'
+                      ? 'Total estimated cost for all solar power plant systems'
+                      : 'Total estimated cost for all customized products'
                     }
                   </p>
                 </div>
                 <div className="text-left sm:text-right">
                   <div className="text-sm text-gray-600 mb-1">Grand Total</div>
                   <div className="text-2xl sm:text-3xl font-bold text-primary">
-                    ₹{selectedProductType === 'individual' 
-                        ? formData.products.reduce((acc, p) => acc + (parseFloat(p.totalPrice) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                        : selectedBundles.reduce((acc, b) => acc + b.totalPrice, 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    ₹{(() => {
+                      if (selectedProductType === 'individual') {
+                        return formData.products.reduce((acc, p) => acc + (parseFloat(p.totalPrice) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                      } else if (selectedProductType === 'bundle') {
+                        return selectedBundles.reduce((acc, b) => acc + b.totalPrice, 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                      } else if (selectedProductType === 'customized') {
+                        return customizedProducts.reduce((acc, p) => acc + (p.quantity * p.unitPrice || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                       }
+                      return '0.00';
+                    })()}
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     {selectedProductType === 'individual' 
                       ? `${formData.products.filter(p => p.totalPrice && parseFloat(p.totalPrice) > 0).length} product(s) selected`
-                      : `${selectedBundles.length} solar power plant system(s) selected`
+                      : selectedProductType === 'bundle'
+                      ? `${selectedBundles.length} solar power plant system(s) selected`
+                      : `${customizedProducts.filter(p => p.name && p.quantity > 0 && p.unitPrice > 0).length} customized product(s) selected`
                     }
                   </div>
                 </div>
