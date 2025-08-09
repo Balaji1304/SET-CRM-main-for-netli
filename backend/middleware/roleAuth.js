@@ -6,7 +6,7 @@ const rolePermissions = {
   product_head: ['/api/maintenance', '/api/notifications/', '/api/bundles'],
   service_engineer: ['/api/service-customers', '/api/performance'],
   sales_head: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders'],
-  accounts_department: ['/api/quotations']
+  accounts_department: ['/api/quotations', '/api/customer-purchases']
 };
 
 exports.checkRolePermission = (req, res, next) => {

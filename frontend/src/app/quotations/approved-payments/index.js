@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, CreditCard } from 'lucide-react';
+import { Search, CreditCard, Check, X } from 'lucide-react';
 import { getQuotations } from '../../../services/quotationService';
+import { apiRequest } from '../../../services/apiConfig';
 
 export default function ApprovedPaymentsPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
 
   useEffect(() => {
     fetchRows();
@@ -32,6 +34,21 @@ export default function ApprovedPaymentsPage() {
     return rows.filter(r => (r.quotationNumber || '').toLowerCase().includes(s) || (r.lead?.email || '').toLowerCase().includes(s));
   }, [rows, q]);
 
+  const approveManual = async (purchaseId, paymentId) => {
+    try {
+      await apiRequest(`customer-purchases/${purchaseId}/payments/${paymentId}/verify`, { method: 'PUT' }, false);
+      setActionMessage('Payment verified');
+      fetchRows();
+    } catch (e) { setActionMessage(e.message || 'Failed to verify'); }
+  };
+  const rejectManual = async (purchaseId, paymentId) => {
+    try {
+      await apiRequest(`customer-purchases/${purchaseId}/payments/${paymentId}/reject`, { method: 'PUT', body: { reason: 'Not matched' } }, false);
+      setActionMessage('Payment rejected');
+      fetchRows();
+    } catch (e) { setActionMessage(e.message || 'Failed to reject'); }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="border-b border-fourth pb-5 mb-8">
@@ -45,6 +62,9 @@ export default function ApprovedPaymentsPage() {
           </div>
         </div>
         <div className="flex-1 overflow-auto">
+          {actionMessage && (
+            <div className="p-3 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200">{actionMessage}</div>
+          )}
           {loading ? (
             <div className="p-6 text-gray-500">Loading...</div>
           ) : error ? (
@@ -78,6 +98,12 @@ export default function ApprovedPaymentsPage() {
                         <div>Ref: {row.offlineTransactionNo || row.razorpayPaymentId || 'N/A'}</div>
                         <div>Date: {row.advancePaymentConfirmedAt ? new Date(row.advancePaymentConfirmedAt).toLocaleDateString('en-GB') : (row.paymentDate ? new Date(row.paymentDate).toLocaleDateString('en-GB') : 'N/A')}</div>
                       </div>
+                      {row.customerPurchaseDetails && row.customerPurchaseDetails.paymentReviewStatus === 'pending_verification' && row.payments?.length ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <button className="px-3 py-1.5 text-xs rounded bg-emerald-600 text-white flex items-center gap-1" onClick={()=>approveManual(row.customerPurchaseDetails._id, row.payments[0]?._id)}><Check className="w-3 h-3"/>Verify</button>
+                          <button className="px-3 py-1.5 text-xs rounded bg-red-600 text-white flex items-center gap-1" onClick={()=>rejectManual(row.customerPurchaseDetails._id, row.payments[0]?._id)}><X className="w-3 h-3"/>Reject</button>
+                        </div>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

@@ -18,6 +18,9 @@ const {
   getPurchaseOrdersForManagement,
   updateStatusToReadyToDispatch,
   allocateInstallationDate,
+  recordManualPayment,
+  verifyManualPayment,
+  rejectManualPayment,
 } = require('../controllers/customerPurchaseController');
 
 // Create quotation from lead
@@ -43,8 +46,15 @@ router.route('/my-purchases').get(protect, getCustomerPurchasesByUser);
 // Get all purchases for logged-in customer
 router.route('/approved').get(protect, authorize('sales_head'), getApprovedPurchases);
 
-// Record payment for a purchase
+// Record payment for a purchase (legacy)
 router.post('/:purchaseId/payment', protect, recordPayment);
+
+// Customer: record manual payment
+router.post('/:purchaseId/payments/manual', protect, recordManualPayment);
+
+// Accounts: verify/reject manual payment
+router.put('/:purchaseId/payments/:paymentId/verify', protect, verifyManualPayment);
+router.put('/:purchaseId/payments/:paymentId/reject', protect, rejectManualPayment);
 
 // Get payment history for all purchases of the current customer
 router.get('/payments/history', protect, getAllPaymentHistory);

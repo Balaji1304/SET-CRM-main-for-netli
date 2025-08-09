@@ -234,7 +234,7 @@ exports.getCustomerPurchasesByUser = async (req, res) => {
   }
 };
 
-// Record additional payment for a purchase
+// Record additional payment for a purchase (legacy/internal)
 exports.recordPayment = async (req, res) => {
   try {
     const { purchaseId } = req.params;
@@ -296,6 +296,113 @@ exports.recordPayment = async (req, res) => {
         purchase
       }
     });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// Customer records a manual payment for a purchase
+// POST /api/customer-purchases/:purchaseId/payments/manual
+exports.recordManualPayment = async (req, res) => {
+  try {
+    const { purchaseId } = req.params;
+    const { amount, paymentMethod, reference, paymentDate, notes } = req.body;
+
+    const purchase = await CustomerPurchase.findById(purchaseId).populate('customerId');
+    if (!purchase) throw new AppError('Purchase not found', 404);
+
+    if (!req.user || req.user.role !== 'customer') {
+      throw new AppError('Only customers can record manual payments', 403);
+    }
+    if (purchase.customerId && purchase.customerId.email && req.user.email && purchase.customerId.email !== req.user.email) {
+      throw new AppError('Not authorized to record payment for this purchase', 403);
+    }
+
+    const amt = Number(amount);
+    if (isNaN(amt) || amt <= 0) throw new AppError('Invalid amount', 400);
+    if (amt > purchase.remainingAmount + 1e-6) throw new AppError('Amount exceeds remaining balance', 400);
+
+    const allowedMethods = ['cash', 'check', 'bank_transfer', 'other'];
+    if (!allowedMethods.includes(paymentMethod)) throw new AppError('Invalid payment method', 400);
+    if (!reference || typeof reference !== 'string') throw new AppError('Reference number is required', 400);
+
+    const paidAt = paymentDate ? new Date(paymentDate) : new Date();
+    if (isNaN(paidAt.getTime())) throw new AppError('Invalid payment date', 400);
+    if (paidAt.getTime() > Date.now() + 60 * 1000) throw new AppError('Payment date cannot be in the future', 400);
+
+    try {
+      const payment = await Payment.create({
+        customerPurchaseId: purchase._id,
+        amountPaid: amt,
+        paymentMethod,
+        transactionId: reference,
+        notes: notes || '',
+        paidAt,
+        isAdvancePayment: false,
+        createdBy: req.user._id
+      });
+
+      const newRemaining = Number((purchase.remainingAmount - amt).toFixed(2));
+      purchase.remainingAmount = Math.max(newRemaining, 0);
+      purchase.isFullyPaid = purchase.remainingAmount <= 0.01;
+      purchase.paymentReviewStatus = 'pending_verification';
+      await purchase.save();
+
+      return res.status(201).json({
+        success: true,
+        message: 'Payment recorded and pending verification',
+        data: { paymentId: payment._id, remainingAmount: purchase.remainingAmount, isFullyPaid: purchase.isFullyPaid }
+      });
+    } catch (err) {
+      if (err && err.code === 11000 && err.keyPattern && err.keyPattern.transactionId) {
+        throw new AppError('This reference number is already used. Please enter a unique reference.', 400);
+      }
+      throw err;
+    }
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// Accounts verifies a manual payment
+exports.verifyManualPayment = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'accounts_department') throw new AppError('Only Accounts can verify payments', 403);
+    const { purchaseId, paymentId } = req.params;
+    const purchase = await CustomerPurchase.findById(purchaseId);
+    if (!purchase) throw new AppError('Purchase not found', 404);
+    const payment = await Payment.findById(paymentId);
+    if (!payment || String(payment.customerPurchaseId) !== String(purchase._id)) throw new AppError('Payment not found for this purchase', 404);
+
+    purchase.paymentReviewStatus = 'verified';
+    await purchase.save();
+
+    return res.json({ success: true, message: 'Payment verified' });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// Accounts rejects a manual payment (restores remaining)
+exports.rejectManualPayment = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'accounts_department') throw new AppError('Only Accounts can reject payments', 403);
+    const { purchaseId, paymentId } = req.params;
+    const { reason } = req.body;
+    const purchase = await CustomerPurchase.findById(purchaseId);
+    if (!purchase) throw new AppError('Purchase not found', 404);
+    const payment = await Payment.findById(paymentId);
+    if (!payment || String(payment.customerPurchaseId) !== String(purchase._id)) throw new AppError('Payment not found for this purchase', 404);
+
+    purchase.remainingAmount = Number((purchase.remainingAmount + payment.amountPaid).toFixed(2));
+    purchase.isFullyPaid = purchase.remainingAmount <= 0.01;
+    purchase.paymentReviewStatus = 'rejected';
+    await purchase.save();
+
+    payment.notes = `${payment.notes || ''} [Rejected: ${reason || 'no reason provided'}]`;
+    await payment.save();
+
+    return res.json({ success: true, message: 'Payment rejected and amount restored' });
   } catch (error) {
     errorHandler(res, error);
   }
@@ -874,3 +981,8 @@ exports.allocateInstallationDate = async (req, res) => {
     errorHandler(res, error);
   }
 };
+
+// Export new manual payment functions for routing
+exports.recordManualPayment = exports.recordManualPayment;
+exports.verifyManualPayment = exports.verifyManualPayment;
+exports.rejectManualPayment = exports.rejectManualPayment;
