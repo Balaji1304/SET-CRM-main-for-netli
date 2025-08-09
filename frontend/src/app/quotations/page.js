@@ -46,6 +46,7 @@ export default function QuotationsPage() {
                   <option value="">All Statuses</option>
                   <option value="draft">Draft</option>
                   <option value="sent">Sent</option>
+                  <option value="pending_approval">Pending Approval</option>
                   <option value="approved">Approved</option>
                   <option value="rejected">Rejected</option>
                   <option value="expired">Expired</option>

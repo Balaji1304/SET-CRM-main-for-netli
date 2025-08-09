@@ -11,7 +11,7 @@ const razorpay = require('../config/razorpay');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { notifyClient } = require('../utils/websocket');
+const { notifyClient, notifyRole } = require('../utils/websocket');
 const { errorHandler, AppError } = require('../utils/errorHandler');
 const Customer = require('../models/Customer');
 const CustomerPurchase = require('../models/CustomerPurchase');
@@ -38,6 +38,17 @@ exports.getQuotations = async (req, res) => {
       const leads = await Lead.find({ email: req.user.email });
       const leadIds = leads.map(lead => lead._id);
       query.lead = { $in: leadIds };
+    }
+
+    // Accounts department: allow status filter for pending_approval or approved
+    if (req.user.role === 'accounts_department') {
+      const requestedStatus = req.query.status;
+      if (requestedStatus === 'approved') {
+        query.status = 'approved';
+      } else {
+        // default
+        query.status = 'pending_approval';
+      }
     }
 
     const quotations = await Quotation.find(query)
@@ -108,6 +119,11 @@ exports.getQuotation = async (req, res) => {
       }
     }
 
+    // Accounts department can only view quotations in pending_approval
+    if (req.user.role === 'accounts_department' && quotation.status !== 'pending_approval') {
+      throw new AppError('Not authorized to access this quotation', 403);
+    }
+
     // Get quotation items
     const quotationItems = await QuotationItem.find({ quotationId: quotation._id })
       .populate('productId');
@@ -161,6 +177,9 @@ exports.getQuotation = async (req, res) => {
 // @route   POST /api/quotations
 exports.createQuotation = async (req, res) => {
   try {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+      throw new AppError('Only sales roles can create quotations', 403);
+    }
     const { leadId, quotationItems, terms, notes, advancePaymentPercentage } = req.body;
 
     // Validate advance payment percentage
@@ -247,6 +266,9 @@ exports.createQuotation = async (req, res) => {
 exports.updateQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+      throw new AppError('Only sales roles can update quotations', 403);
+    }
 
     if (!quotation) {
       throw new AppError('Quotation not found', 404);
@@ -344,6 +366,9 @@ exports.updateQuotation = async (req, res) => {
 exports.deleteQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+      return res.status(403).json({ success: false, message: 'Only sales roles can delete quotations' });
+    }
 
     if (!quotation) {
       return res.status(404).json({
@@ -379,7 +404,7 @@ exports.deleteQuotation = async (req, res) => {
 exports.sendQuotation = async (req, res) => {
   try {
     // Check if user has permission to send quotations
-    if (!req.user || req.user.role !== 'sales_person') {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to send quotations'
@@ -550,7 +575,12 @@ exports.sendQuotation = async (req, res) => {
       const quotationWithItems = updatedQuotation.toObject();
       quotationWithItems.quotationItems = quotationItems;
 
-      // Notify sent status
+      // Append audit log
+      updatedQuotation.auditLogs = updatedQuotation.auditLogs || [];
+      updatedQuotation.auditLogs.push({ action: 'sent_to_customer', by: req.user.id, details: { from: 'draft', to: 'sent' } });
+      await updatedQuotation.save();
+
+      // Notify sales creator about sent status
       notifyClient(req.user.id, updatedQuotation._id, 'sent');
 
       return res.json({
@@ -586,28 +616,49 @@ exports.handleApproveQuotation = async (req, res) => {
       throw new AppError('Quotation not found', 404);
     }
 
-    if (quotation.status !== 'sent') {
-      throw new AppError('Can only approve quotations that have been sent', 400);
+    if (quotation.status !== 'pending_approval') {
+      throw new AppError('Can only approve quotations that are in pending_approval status', 400);
     }
 
     if (!quotation.lead || !quotation.lead.email) {
       throw new AppError('Lead data is incomplete. Email is required for approval.', 400);
     }
 
-    // If payment isn't confirmed yet, set it up for manual approval by sales team
+    // Role and segregation of duties: only accounts can approve and cannot approve their own
+    if (req.user.role !== 'accounts_department') {
+      throw new AppError('Only Accounts Department can approve quotations', 403);
+    }
+    if (quotation.createdBy && quotation.createdBy.toString() === req.user.id) {
+      throw new AppError('Segregation of duties: You cannot approve a quotation you created', 403);
+    }
+
+    // Enforce payment confirmation before approval
     if (quotation.advancePaymentStatus !== 'CONFIRMED') {
-      console.log(`Quotation ${quotation._id}: Advance payment not confirmed. Setting up for manual approval.`);
+      // Validate that offline payment details are present and sufficient
       const advancePercentage = quotation.advancePaymentPercentage || 20;
-      const advanceAmount = Number((quotation.total * (advancePercentage / 100)).toFixed(2));
-      
-      quotation.advancePaymentStatus = 'CONFIRMED'; 
-      quotation.advancePaymentAmount = advanceAmount;
-      quotation.advancePaymentConfirmedAt = new Date();
-      quotation.paymentMethod = quotation.paymentMethod || 'cash'; 
-      quotation.offlineTransactionNo = quotation.offlineTransactionNo || `MANUAL-APPROVE-${Date.now()}`;
-      
-      await quotation.save(); 
-      console.log(`Quotation ${quotation._id}: Updated with manual payment details before approval.`);
+      const requiredAdvance = Number((quotation.total * (advancePercentage / 100)).toFixed(2));
+      const paidAmount = Number(quotation.advancePaymentAmount || 0);
+
+      if (isNaN(paidAmount) || paidAmount <= 0) {
+        throw new AppError('Missing or invalid advance amount. Please ensure offline payment amount is recorded.', 400);
+      }
+
+      if (paidAmount + 1e-6 < requiredAdvance) {
+        throw new AppError(`Advance paid (₹${paidAmount.toFixed(2)}) is less than required minimum (₹${requiredAdvance.toFixed(2)}).`, 400);
+      }
+
+      if (!quotation.paymentMethod) {
+        throw new AppError('Payment method is required for offline payments.', 400);
+      }
+
+      // At least some reference or date must exist for audit
+      if (!quotation.offlineTransactionNo && !quotation.razorpayPaymentId) {
+        throw new AppError('Reference number is required for offline payment verification.', 400);
+      }
+
+      quotation.advancePaymentStatus = 'CONFIRMED';
+      quotation.advancePaymentConfirmedAt = quotation.advancePaymentConfirmedAt || new Date();
+      await quotation.save();
     }
 
     const approvedQuotation = await approveQuotation(quotation); 
@@ -617,6 +668,18 @@ exports.handleApproveQuotation = async (req, res) => {
 
     const quotationWithItems = approvedQuotation.toObject();
     quotationWithItems.quotationItems = quotationItems;
+
+    // Audit log
+    approvedQuotation.auditLogs = approvedQuotation.auditLogs || [];
+    approvedQuotation.auditLogs.push({ action: 'approved', by: req.user.id, details: { to: 'approved' } });
+    await approvedQuotation.save();
+
+    try {
+      // Notify creator about approval
+      if (typeof notifyClient === 'function') {
+        notifyClient(approvedQuotation.createdBy, approvedQuotation._id, 'approved');
+      }
+    } catch (_) {}
 
     res.json({
       success: true,
@@ -698,33 +761,26 @@ exports.handleRazorpayWebhook = async (req, res) => {
         return res.json({ status: 'error', message: 'Quotation not found' });
       }
 
-      // Update payment status
+      // Update payment status and auto-approve for online payments
       quotation.advancePaymentStatus = 'CONFIRMED';
       quotation.advancePaymentConfirmedAt = new Date();
       quotation.razorpayPaymentId = payment_link.payment_id;
-      await quotation.save();
-      console.log(`Payment status updated to CONFIRMED for quotation: ${quotation._id}`);
+      quotation.auditLogs = quotation.auditLogs || [];
+      quotation.auditLogs.push({ action: 'payment_confirmed', details: { source: 'razorpay_webhook' } });
 
       try {
-        // Use the helper function to create customer and approve quotation
         const approvedQuotation = await approveQuotation(quotation);
-        console.log(`Quotation ${approvedQuotation._id} approved successfully`);
 
-        // Notify client about the status change if websocket utils are available
+        // Notify creator about approval
         if (typeof notifyClient === 'function') {
-          const userId = quotation.createdBy;
-          notifyClient(userId, quotation._id, 'approved');
-          console.log(`Notification sent to user ${userId} about quotation approval`);
+          const userId = approvedQuotation.createdBy;
+          notifyClient(userId, approvedQuotation._id, 'approved');
         }
-        
+
         return res.json({ status: 'success', message: 'Payment processed and quotation approved' });
-      } catch (error) {
-        console.error('Error in auto-approval process:', error.message, error.stack);
-        return res.json({ 
-          status: 'partial', 
-          message: 'Payment recorded but approval failed',
-          error: error.message
-        });
+      } catch (approvalError) {
+        console.error('Auto-approval error after webhook:', approvalError.message);
+        return res.json({ status: 'partial', message: 'Payment recorded but approval failed', error: approvalError.message });
       }
     } else {
       console.log(`Ignoring webhook event: ${event} (not handled)`);
@@ -887,7 +943,12 @@ exports.confirmOfflinePayment = async (req, res) => {
       throw new AppError('Quotation not found', 404);
     }
 
-    if (quotation.status === 'approved') {
+    // Block offline confirmation if already paid via Razorpay
+    if (quotation.razorpayPaymentId) {
+      throw new AppError('Online payment already recorded. Offline confirmation is disabled for this quotation.', 400);
+    }
+
+    if (quotation.status === 'approved' || quotation.status === 'pending_approval') {
         console.log(`Quotation ${quotation._id} is already approved. Offline payment confirmation redundant unless updating details.`);
         const items = await QuotationItem.find({ quotationId: quotation._id }).populate('productId');
         const approvedQuotationWithItems = quotation.toObject();
@@ -928,23 +989,49 @@ exports.confirmOfflinePayment = async (req, res) => {
     if (notes) quotation.paymentNotes = notes;
     
     await quotation.save();
+
+    // Attempt to cancel/expire any active Razorpay payment link for this quotation
+    try {
+      if (quotation.razorpayPaymentLinkId) {
+        await razorpay.paymentLink.cancel(quotation.razorpayPaymentLinkId);
+        quotation.razorpayPaymentLinkId = undefined;
+        quotation.razorpayPaymentLink = undefined;
+        await quotation.save();
+      }
+    } catch (plErr) {
+      console.warn('Failed to cancel Razorpay payment link (non-blocking):', plErr.message);
+    }
     console.log(`Quotation ${quotation._id}: Updated with offline payment details.`);
 
-    const approvedQuotation = await approveQuotation(quotation); 
+    // Move to pending_approval and notify accounts
+    quotation.status = 'pending_approval';
+    quotation.auditLogs = quotation.auditLogs || [];
+    quotation.auditLogs.push({ action: 'payment_confirmed_offline', by: req.user.id });
+    quotation.auditLogs.push({ action: 'moved_to_pending_approval' });
+    await quotation.save();
+
+    try {
+      if (typeof notifyRole === 'function') {
+        notifyRole('accounts_department', { quotationId: quotation._id.toString(), status: 'pending_approval' });
+      }
+    } catch (_) {}
 
     const quotationItems = await QuotationItem.find({ quotationId: approvedQuotation._id })
       .populate('productId');
 
-    const quotationWithItems = approvedQuotation.toObject(); 
+    const quotationWithItems = quotation.toObject(); 
     quotationWithItems.quotationItems = quotationItems;
     
     res.json({
       success: true,
-      message: 'Offline payment confirmed and quotation approved successfully.',
+      message: 'Offline payment confirmed; awaiting accounts approval.',
       data: quotationWithItems 
     });
   } catch (error) {
     console.error('Error in confirmOfflinePayment:', error);
+    if (error && error.code === 11000 && error.keyPattern && error.keyPattern.offlineTransactionNo) {
+      return res.status(400).json({ success: false, message: 'This transaction/reference number is already used. Please enter a unique reference.' });
+    }
     errorHandler(res, error);
   }
 };
@@ -1390,7 +1477,7 @@ exports.manualConfirmPayment = async (req, res) => {
       // Approve the quotation
       try {
         console.log(`Approving quotation ${quotationId}`);
-        const approvedQuotation = await approveQuotation(quotation);
+    const approvedQuotation = await approveQuotation(quotation); 
         
         // Notify the sales person if websocket utils are available
         if (typeof notifyClient === 'function') {

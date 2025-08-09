@@ -4,9 +4,11 @@ import { apiRequest, invalidateCache } from './apiConfig';
  * Get all quotations
  * @returns {Promise<Object>} - Response with quotations list
  */
-export const getQuotations = async () => {
+export const getQuotations = async (noCache = false, params = {}) => {
   try {
-    const response = await apiRequest('quotations');
+    const query = new URLSearchParams(params).toString();
+    const endpoint = query ? `quotations?${query}` : 'quotations';
+    const response = await apiRequest(endpoint, {}, !noCache);
     return response;
   } catch (error) {
     console.error('Error fetching quotations:', error);
@@ -132,6 +134,20 @@ export const confirmOfflinePayment = async (id, paymentData) => {
   // Invalidate quotations cache after payment confirmation
   invalidateCache('quotations');
   return response;
+};
+
+/**
+ * Check live payment status for a quotation
+ * @param {string} id - Quotation ID
+ * @returns {Promise<Object>} - Response with paymentStatus, quotationStatus
+ */
+export const checkQuotationPaymentStatus = async (id) => {
+  try {
+    return await apiRequest(`quotations/${id}/payment-status`, { method: 'GET' }, false);
+  } catch (error) {
+    console.error('Error checking quotation payment status:', error);
+    throw error;
+  }
 };
 
 /**

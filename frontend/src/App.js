@@ -19,6 +19,8 @@ import PerformancePage from './app/performance/page';
 import MaintenancePage from './app/maintenance/page';
 import KnowledgeBasePage from './app/knowledge-base/page';
 import QuotationsPage from './app/quotations/page';
+import AccountsApprovalsPage from './app/quotations/pending-approvals';
+import ApprovedPaymentsPage from './app/quotations/approved-payments';
 import CreateQuotationPage from './app/quotations/create/page';
 import QuotationDetailsPage from './app/quotations/[id]/page';
 import EditQuotationPage from './app/quotations/[id]/edit/page';
@@ -61,7 +63,7 @@ function App() {
                     <Route 
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department']}>
                 <DashboardLayout />
               </ProtectedRoute>
             }
@@ -188,6 +190,16 @@ function App() {
             <Route path="quotations" element={
               <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
                 <QuotationsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="quotations/pending-approvals" element={
+              <ProtectedRoute allowedRoles={['accounts_department']}>
+                <AccountsApprovalsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="quotations/approved-payments" element={
+              <ProtectedRoute allowedRoles={['accounts_department']}>
+                <ApprovedPaymentsPage />
               </ProtectedRoute>
             } />
             <Route path="quotations/create" element={

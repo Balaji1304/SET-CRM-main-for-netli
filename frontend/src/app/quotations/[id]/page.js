@@ -68,7 +68,7 @@ export default function QuotationDetailsPage() {
           case 'CONNECTED':
             console.log('WebSocket authenticated');
             break;
-          case 'QUOTATION_STATUS':
+           case 'QUOTATION_STATUS':
             if (data.quotationId === id) {
               if (data.status === 'sent') {
                 // Update quotation state locally instead of refetching
@@ -80,6 +80,14 @@ export default function QuotationDetailsPage() {
                 setIsSendingQuotation(false);
               } else if (data.status === 'draft') {
                 setIsSendingQuotation(false);
+              } else if (data.status === 'pending_approval') {
+                setQuotation(prev => prev ? { ...prev, status: 'pending_approval', advancePaymentStatus: 'CONFIRMED' } : prev);
+                setToastMessage('Payment confirmed. Awaiting accounts approval.');
+                setShowToast(true);
+              } else if (data.status === 'approved') {
+                setQuotation(prev => prev ? { ...prev, status: 'approved', advancePaymentStatus: 'CONFIRMED' } : prev);
+                setToastMessage('Quotation approved.');
+                setShowToast(true);
               }
             }
             break;
@@ -347,6 +355,9 @@ export default function QuotationDetailsPage() {
                 <Check className="h-4 w-4" />
                 Approve
               </button>
+            )}
+            {quotation.status === 'pending_approval' && (
+              <span className="px-3 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-700 border border-amber-200">Awaiting Accounts Approval</span>
             )}
             {quotation.status === 'approved' && (
               <div className="flex flex-col space-y-2">

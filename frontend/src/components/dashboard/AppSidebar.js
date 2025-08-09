@@ -102,6 +102,10 @@ const getNavigation = (userRole) => {
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
       { name: 'Packages', href: '/dashboard/packages', icon: Plus },
     ],
+    accounts_department: [
+      { name: 'Pending Approvals', href: '/dashboard/quotations/pending-approvals', icon: FileText },
+      { name: 'Approved Payments', href: '/dashboard/quotations/approved-payments', icon: CreditCard },
+    ],
     product_head: [
       { name: 'Products', href: '/dashboard/products', icon: Box },
       { name: 'Product Bundles', href: '/dashboard/bundles', icon: Package },
@@ -124,6 +128,7 @@ const getNavigation = (userRole) => {
       { name: 'Generative Canvas', href: '/dashboard/generative-canvas', icon: BookOpen },
       { name: 'Performance', href: '/dashboard/performance', icon: BarChart },
     ],
+    // NOTE: accounts_department is defined above to include both pages
   };
 
   // For customer role, don't include Reports in bottom items
