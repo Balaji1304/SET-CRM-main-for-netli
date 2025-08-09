@@ -1,117 +1,710 @@
-import React, { useState } from 'react';
-import { Search, Filter } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Search, Filter, Plus, Eye, Calendar, User, Tag, AlertTriangle, Clock, CheckCircle, XCircle, MessageCircle, Paperclip, X, Upload, FileText, Image } from 'lucide-react';
+import { getMyTickets, createTicket } from '../../services/ticketService';
+import TicketDetailModal from '../../components/TicketDetailModal';
+import { useAuth } from '../../context/AuthContext';
 
 const TicketsPage = () => {
-  const [tickets] = useState([
-    {
-      id: "T-1001",
-      customer: "Alice Johnson",
-      issue: "Solar Panel Malfunction",
-      status: "Open",
-      priority: "High",
-      date: "2024-02-25",
-    },
-    {
-      id: "T-1002",
-      customer: "Bob Smith",
-      issue: "Inverter Installation",
-      status: "In Progress",
-      priority: "Medium",
-      date: "2024-02-24",
-    },
-    // Add more sample tickets as needed
-  ]);
+  const { user } = useAuth();
+  const [tickets, setTickets] = useState([]);
+  const [filteredTickets, setFilteredTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [form, setForm] = useState({ title: '', description: '', category: '' });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [attachments, setAttachments] = useState([]);
+  const [uploadPreview, setUploadPreview] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getMyTickets();
+        setTickets(res.data || []);
+        setFilteredTickets(res.data || []);
+      } catch (e) {
+        setError(e.message || 'Failed to load tickets');
+        if (window.showToast) {
+          window.showToast(e.message || 'Failed to load tickets', 'error');
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // Filter tickets based on search and filters
+  useEffect(() => {
+    let filtered = tickets;
+
+    if (searchTerm) {
+      filtered = filtered.filter(ticket =>
+        ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ticket.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(ticket => ticket.status === statusFilter);
+    }
+
+    if (priorityFilter !== 'all') {
+      filtered = filtered.filter(ticket => ticket.priority === priorityFilter);
+    }
+
+    setFilteredTickets(filtered);
+  }, [tickets, searchTerm, statusFilter, priorityFilter]);
+
+  const validateForm = () => {
+    const errors = {};
+    if (!form.title.trim()) errors.title = 'Title is required';
+    if (!form.description.trim()) errors.description = 'Description is required';
+    if (!form.category.trim()) errors.category = 'Category is required';
+    if (form.title.length > 100) errors.title = 'Title must be less than 100 characters';
+    if (form.description.length > 1000) errors.description = 'Description must be less than 1000 characters';
+    
+    // File validation
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    
+    for (let file of attachments) {
+      if (file.size > maxFileSize) {
+        errors.attachments = 'Files must be smaller than 5MB';
+        break;
+      }
+      if (!allowedTypes.includes(file.type)) {
+        errors.attachments = 'Only images, PDF, text, and Word documents are allowed';
+        break;
+      }
+    }
+    
+    if (attachments.length > 3) {
+      errors.attachments = 'Maximum 3 files allowed';
+    }
+    
+    return errors;
+  };
+
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    const newFiles = [...attachments, ...files].slice(0, 3); // Limit to 3 files
+    setAttachments(newFiles);
+    
+    // Create previews
+    const previews = newFiles.map(file => {
+      const preview = {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        url: null
+      };
+      
+      if (file.type.startsWith('image/')) {
+        preview.url = URL.createObjectURL(file);
+      }
+      
+      return preview;
+    });
+    
+    setUploadPreview(previews);
+  };
+
+  const removeFile = (index) => {
+    const newAttachments = attachments.filter((_, i) => i !== index);
+    const newPreviews = uploadPreview.filter((_, i) => i !== index);
+    
+    // Revoke object URL to prevent memory leaks
+    if (uploadPreview[index]?.url) {
+      URL.revokeObjectURL(uploadPreview[index].url);
+    }
+    
+    setAttachments(newAttachments);
+    setUploadPreview(newPreviews);
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (fileType) => {
+    if (fileType.startsWith('image/')) return <Image className="h-4 w-4" />;
+    if (fileType === 'application/pdf') return <FileText className="h-4 w-4 text-red-500" />;
+    return <FileText className="h-4 w-4" />;
+  };
+
+  const submitCreate = async () => {
+    const errors = validateForm();
+    setFormErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
+      if (window.showToast) {
+        window.showToast('Please fix the form errors', 'warning');
+      }
+      return;
+    }
+
+    try {
+      setError('');
+      setLoading(true);
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('title', form.title);
+      formData.append('description', form.description);
+      formData.append('category', form.category);
+      
+      // Append files
+      attachments.forEach((file, index) => {
+        formData.append('attachments', file);
+      });
+      
+      const res = await createTicket(formData);
+      setTickets((prev) => [res.data, ...prev]);
+      
+      // Clear form and files
+      setShowCreateModal(false);
+      setForm({ title: '', description: '', category: '' });
+      setFormErrors({});
+      setAttachments([]);
+      setUploadPreview([]);
+      
+      // Clean up object URLs
+      uploadPreview.forEach(preview => {
+        if (preview.url) {
+          URL.revokeObjectURL(preview.url);
+        }
+      });
+      
+      if (window.showToast) {
+        window.showToast('Ticket created successfully', 'success');
+      }
+    } catch (e) {
+      setError(e.message || 'Failed to create ticket');
+      if (window.showToast) {
+        window.showToast(e.message || 'Failed to create ticket', 'error');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTicketClick = (ticket) => {
+    setSelectedTicket(ticket);
+    setShowModal(true);
+  };
+
+  const handleTicketUpdate = (updatedTicket) => {
+    setTickets(prev => prev.map(t => t._id === updatedTicket._id ? updatedTicket : t));
+    if (window.showToast) {
+      window.showToast('Ticket updated successfully', 'success');
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      open: 'bg-orange-100 text-orange-800',
+      assigned: 'bg-blue-100 text-blue-800',
+      in_progress: 'bg-purple-100 text-purple-800',
+      awaiting_customer: 'bg-yellow-100 text-yellow-800',
+      resolved: 'bg-green-100 text-green-800',
+      closed: 'bg-gray-100 text-gray-800',
+      reopened: 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getPriorityColor = (priority) => {
+    const colors = {
+      high: 'bg-red-100 text-red-800 border-red-200',
+      medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      low: 'bg-green-100 text-green-800 border-green-200'
+    };
+    return colors[priority] || 'bg-gray-100 text-gray-800 border-gray-200';
+  };
+
+  const getPriorityIcon = (priority) => {
+    switch (priority) {
+      case 'high':
+        return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      case 'medium':
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'low':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      default:
+        return <Clock className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'open':
+        return <XCircle className="h-4 w-4 text-orange-500" />;
+      case 'assigned':
+        return <User className="h-4 w-4 text-blue-500" />;
+      case 'in_progress':
+        return <Clock className="h-4 w-4 text-purple-500" />;
+      case 'awaiting_customer':
+        return <MessageCircle className="h-4 w-4 text-yellow-500" />;
+      case 'resolved':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'closed':
+        return <XCircle className="h-4 w-4 text-gray-500" />;
+      case 'reopened':
+        return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      default:
+        return <Clock className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getTimeAgo = (date) => {
+    const now = new Date();
+    const ticketDate = new Date(date);
+    const diffInHours = Math.floor((now - ticketDate) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    return ticketDate.toLocaleDateString();
+  };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-2rem)] relative">
-      <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Tickets Management</h2>
-          <p className="text-muted-foreground mt-1">View and manage service tickets</p>
+              <h1 className="text-2xl font-bold text-gray-900">My Support Tickets</h1>
+              <p className="text-gray-600 mt-1">Track and manage your support requests</p>
         </div>
-        <button className="px-4 py-2 bg-[#FF7300] text-white rounded-lg hover:bg-orange-600">
-          Create Ticket
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center space-x-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors shadow-sm"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Create New Ticket</span>
         </button>
       </div>
-
-      <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-input sticky top-0 bg-white z-20">
-          <div className="flex items-center space-x-2 mb-4">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search tickets..."
-                className="pl-10 pr-4 py-2 border border-input rounded-lg w-full sm:w-[300px] focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-            </div>
-            <button className="p-2 border border-input rounded-lg hover:bg-orange-50">
-              <Filter className="h-4 w-4 text-gray-500" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-auto">
-          <table className="min-w-full">
-            <thead className="bg-orange-500 border-b border-input sticky top-0 z-10">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                  Ticket ID
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                  Customer
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                  Issue
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                  Priority
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                  Date
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-input">
-              {tickets.map((ticket) => (
-                <tr key={ticket.id} className="hover:bg-orange-50/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {ticket.id}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {ticket.customer}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {ticket.issue}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${ticket.status === 'Open' ? 'bg-orange-100 text-orange-800' : 
-                      ticket.status === 'In Progress' ? 'bg-blue-100 text-blue-800' : 
-                      'bg-green-100 text-green-800'}`}>
-                      {ticket.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${ticket.priority === 'High' ? 'bg-orange-100 text-orange-800' : 
-                      ticket.priority === 'Medium' ? 'bg-blue-100 text-blue-800' : 
-                      'bg-green-100 text-green-800'}`}>
-                      {ticket.priority}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {ticket.date}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+
+        {/* Search and Filter Bar */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+            <div className="flex-1 max-w-lg">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                  placeholder="Search tickets by title, description, or category..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              />
+            </div>
+            </div>
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              >
+                <option value="all">All Status</option>
+                <option value="open">Open</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="awaiting_customer">Awaiting Customer</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              >
+                <option value="all">All Priority</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+          </div>
+          {(searchTerm || statusFilter !== 'all' || priorityFilter !== 'all') && (
+            <div className="mt-4 pt-4 border-t border-gray-200 text-sm text-gray-600">
+              Showing {filteredTickets.length} of {tickets.length} tickets
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                  setPriorityFilter('all');
+                }}
+                className="ml-4 text-orange-600 hover:text-orange-800"
+              >
+                Clear filters
+            </button>
+          </div>
+          )}
+        </div>
+
+        {/* Tickets Grid */}
+        <div className="space-y-4">
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              ))}
+            </div>
+          ) : filteredTickets.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="mx-auto h-24 w-24 text-gray-400 mb-4">
+                <Tag className="h-full w-full" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all' 
+                  ? 'No tickets match your filters' 
+                  : 'No tickets yet'}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all'
+                  ? 'Try adjusting your search criteria or filters.'
+                  : 'Create your first support ticket to get started.'}
+              </p>
+              {!(searchTerm || statusFilter !== 'all' || priorityFilter !== 'all') && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span>Create Your First Ticket</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTickets.map((ticket) => (
+                <div
+                  key={ticket._id}
+                  className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                  onClick={() => handleTicketClick(ticket)}
+                >
+                  <div className="p-6">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-2">
+                        {getPriorityIcon(ticket.priority)}
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(ticket.priority)}`}>
+                          {ticket.priority.toUpperCase()}
+                    </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {getStatusIcon(ticket.status)}
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(ticket.status)}`}>
+                          {ticket.status.replace('_', ' ').toUpperCase()}
+                    </span>
+                      </div>
+                    </div>
+
+                    {/* Title and Description */}
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors">
+                        {ticket.title}
+                      </h3>
+                      <p className="text-gray-600 text-sm line-clamp-3">
+                        {ticket.description}
+                      </p>
+                    </div>
+
+                    {/* Metadata */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        <Tag className="h-4 w-4" />
+                        <span>{ticket.category}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm text-gray-500">
+                        <Calendar className="h-4 w-4" />
+                        <span>Created {getTimeAgo(ticket.createdAt)}</span>
+                      </div>
+                      {ticket.assignedEngineerId && (
+                        <div className="flex items-center space-x-2 text-sm text-gray-500">
+                          <User className="h-4 w-4" />
+                          <span>Assigned to {ticket.assignedEngineerId.name}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        {ticket.comments && ticket.comments.length > 0 && (
+                          <div className="flex items-center space-x-1">
+                            <MessageCircle className="h-3 w-3" />
+                            <span>{ticket.comments.length}</span>
+                          </div>
+                        )}
+                        {ticket.attachments && ticket.attachments.length > 0 && (
+                          <div className="flex items-center space-x-1">
+                            <Paperclip className="h-3 w-3" />
+                            <span>{ticket.attachments.length}</span>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTicketClick(ticket);
+                        }}
+                        className="flex items-center space-x-1 text-orange-600 hover:text-orange-800 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span>View Details</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Create Ticket Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Create Support Ticket</h2>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setForm({ title: '', description: '', category: '' });
+                  setFormErrors({});
+                  setAttachments([]);
+                  setUploadPreview([]);
+                  // Clean up object URLs
+                  uploadPreview.forEach(preview => {
+                    if (preview.url) {
+                      URL.revokeObjectURL(preview.url);
+                    }
+                  });
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={(e) => { e.preventDefault(); submitCreate(); }} className="p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
+                    formErrors.title ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Brief description of your issue"
+                  maxLength={100}
+                />
+                {formErrors.title && <p className="text-red-500 text-sm mt-1">{formErrors.title}</p>}
+                <p className="text-gray-500 text-xs mt-1">{form.title.length}/100 characters</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent ${
+                    formErrors.category ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Select a category</option>
+                  <option value="Technical Support">Technical Support</option>
+                  <option value="Billing">Billing</option>
+                  <option value="Product Issue">Product Issue</option>
+                  <option value="Feature Request">Feature Request</option>
+                  <option value="Installation">Installation</option>
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Other">Other</option>
+                </select>
+                {formErrors.category && <p className="text-red-500 text-sm mt-1">{formErrors.category}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={6}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none ${
+                    formErrors.description ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Please provide detailed information about your issue, including steps to reproduce if applicable..."
+                  maxLength={1000}
+                />
+                {formErrors.description && <p className="text-red-500 text-sm mt-1">{formErrors.description}</p>}
+                <p className="text-gray-500 text-xs mt-1">{form.description.length}/1000 characters</p>
+              </div>
+
+                            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Attachments (Optional)
+                </label>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center w-full">
+                    <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                      attachments.length >= 3 
+                        ? 'border-gray-200 bg-gray-50 cursor-not-allowed' 
+                        : 'border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400'
+                    }`}>
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <Upload className="w-8 h-8 mb-2 text-gray-400" />
+                        <p className="mb-2 text-sm text-gray-500">
+                          <span className="font-semibold">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Images, PDF, DOC (Max 5MB, up to 3 files)
+                        </p>
+                      </div>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*,.pdf,.doc,.docx,.txt"
+                        onChange={handleFileSelect}
+                        disabled={attachments.length >= 3}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                  
+                  {formErrors.attachments && (
+                    <p className="text-red-500 text-sm">{formErrors.attachments}</p>
+                  )}
+                  
+                  {uploadPreview.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-gray-700">Selected Files:</p>
+                      {uploadPreview.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center space-x-3">
+                            {file.url ? (
+                              <img 
+                                src={file.url} 
+                                alt={file.name}
+                                className="w-10 h-10 object-cover rounded"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+                                {getFileIcon(file.type)}
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 truncate max-w-xs">
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatFileSize(file.size)}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle className="h-5 w-5 text-blue-500 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900">Priority Assignment</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Priority will be assigned by our product team based on the issue severity and business impact. 
+                      We'll review your ticket and assign the appropriate priority level.
+                    </p>
+        </div>
+      </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setForm({ title: '', description: '', category: '' });
+                    setFormErrors({});
+                    setAttachments([]);
+                    setUploadPreview([]);
+                    // Clean up object URLs
+                    uploadPreview.forEach(preview => {
+                      if (preview.url) {
+                        URL.revokeObjectURL(preview.url);
+                      }
+                    });
+                  }}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>}
+                  <span>{loading ? 'Creating...' : 'Create Ticket'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Ticket Detail Modal */}
+      {showModal && selectedTicket && (
+        <TicketDetailModal
+          ticket={selectedTicket}
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          userRole={user?.role}
+          onUpdate={handleTicketUpdate}
+        />
+      )}
     </div>
   );
 };

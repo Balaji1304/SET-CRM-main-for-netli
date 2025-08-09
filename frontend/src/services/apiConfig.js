@@ -60,7 +60,7 @@ const createCacheKey = (url, method, body) => {
  * @param {boolean} isFormData - Whether the body is FormData
  * @returns {Promise<Object>} - Parsed JSON response
  */
-export const apiRequest = async (endpoint, options = {}, useCache = options.method === undefined || options.method === 'GET', isFormData = false) => {
+export const apiRequest = async (endpoint, options = {}, useCache = options.method === undefined || options.method === 'GET', isFormData = options.body instanceof FormData) => {
   const url = `${API_URL}/${endpoint}`;
   const method = options.method || 'GET';
   const cacheKey = useCache ? createCacheKey(url, method, options.body) : null;

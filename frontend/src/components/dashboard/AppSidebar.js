@@ -111,6 +111,7 @@ const getNavigation = (userRole) => {
       { name: 'Product Bundles', href: '/dashboard/bundles', icon: Package },
       { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
       { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
+      { name: 'Tickets Queue', href: '/dashboard/ticket-queue', icon: Ticket },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     marketing_coordinator: [
@@ -119,13 +120,7 @@ const getNavigation = (userRole) => {
     service_engineer: [
       { name: 'Service Customers', href: '/dashboard/service-customers', icon: Users },
       { name: 'Cases', href: '/dashboard/cases', icon: Ticket },
-      { name: 'Contacts', href: '/dashboard/contacts', icon: Users },
-      { name: 'Accounts', href: '/dashboard/accounts', icon: FileText },
-      { name: 'Sales', href: '/dashboard/sales', icon: BarChart },
       { name: 'Service', href: '/dashboard/service', icon: Wrench },
-      { name: 'Outreach', href: '/dashboard/outreach', icon: Bell },
-      { name: 'Commerce', href: '/dashboard/commerce', icon: ShoppingBag },
-      { name: 'Generative Canvas', href: '/dashboard/generative-canvas', icon: BookOpen },
       { name: 'Performance', href: '/dashboard/performance', icon: BarChart },
     ],
     // NOTE: accounts_department is defined above to include both pages

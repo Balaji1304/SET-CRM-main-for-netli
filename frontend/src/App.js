@@ -5,6 +5,7 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import LeadForm from './components/dashboard/LeadForm';
 import DashboardLayout from './components/dashboard/DashboardLayout';
+import { ToastContainer } from './components/Toast';
 
 import ProductListPage from './app/products/page';
 import AddProductPage from './app/products/add/page';
@@ -12,6 +13,7 @@ import ProductDetailsPage from './app/products/[id]/page';
 import EditProductPage from './app/products/[id]/edit/page';
 import ProductBrochurePage from './app/products/[id]/brochure/page';
 import NotificationsPage from './app/notifications/page';
+import CasesPage from './app/cases/page';
 import ReportsPage from './app/reports/page';
 import TicketsPage from './app/tickets/page';
 import ServiceCustomersPage from './app/service-customers/page';
@@ -37,11 +39,13 @@ import BundlesPage from './app/bundles/page';
 import EnquiryPage from './app/enquiry/page';
 import LeadAssignmentPage from './app/lead-assignment/page';
 import PurchaseOrderManagement from './components/PurchaseOrderManagement';
+import TicketQueuePage from './app/ticket-queue/page';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
+        <ToastContainer />
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
@@ -97,7 +101,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="notifications" element={
-              <ProtectedRoute allowedRoles={['customer']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'accounts_department']}>
                 <NotificationsPage />
               </ProtectedRoute>
             } />
@@ -172,9 +176,19 @@ function App() {
                 <PurchaseOrderManagement />
               </ProtectedRoute>
             } />
+            <Route path="ticket-queue" element={
+              <ProtectedRoute allowedRoles={['product_head']}>
+                <TicketQueuePage />
+              </ProtectedRoute>
+            } />
             <Route path="maintenance" element={
               <ProtectedRoute allowedRoles={['product_head']}>
                 <MaintenancePage />
+              </ProtectedRoute>
+            } />
+            <Route path="cases" element={
+              <ProtectedRoute allowedRoles={['service_engineer']}>
+                <CasesPage />
               </ProtectedRoute>
             } />
             <Route path="service-customers" element={
