@@ -438,7 +438,9 @@ exports.sendQuotation = async (req, res) => {
 
     // Get quotation items
     const quotationItems = await QuotationItem.find({ quotationId: quotation._id })
-      .populate('productId');
+      .populate('productId')
+      .populate('bundleId')
+      .populate('customizedProductId');
 
     if (quotationItems.length === 0) {
       return res.status(400).json({
@@ -487,20 +489,65 @@ exports.sendQuotation = async (req, res) => {
 
     // Format items for email using the quotation items
     const formattedItems = await Promise.all(
-      quotationItems.map(async (item) => ({
-        product: {
-          ...item.productId.toObject(),
-          specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
-            name: key,
-            value: value
-          })),
-          images: (item.productId.imageUrls || []).map(url => ({ url }))
-        },
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discount: item.discount || 0,
-        total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
-      }))
+      quotationItems.map(async (item) => {
+        let product = null;
+        
+        // Handle regular products
+        if (item.productId) {
+          product = {
+            ...item.productId.toObject(),
+            specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
+              name: key,
+              value: value
+            })),
+            images: (item.productId.imageUrls || []).map(url => ({ url }))
+          };
+        }
+        // Handle customized products
+        else if (item.customizedProductId) {
+          const customizedProduct = item.customizedProductId;
+          
+          // Build specifications from the customized product
+          const specifications = [];
+          if (customizedProduct.modelNumber) {
+            specifications.push({ name: 'Model Number', value: customizedProduct.modelNumber });
+          }
+          
+          // Add all specifications from the customized product
+          Object.entries(customizedProduct.specifications || {}).forEach(([key, value]) => {
+            if (value && value.trim()) {
+              specifications.push({ 
+                name: key.charAt(0).toUpperCase() + key.slice(1), 
+                value: value 
+              });
+            }
+          });
+          
+          product = {
+            _id: customizedProduct._id,
+            name: customizedProduct.name || 'Customized Product',
+            description: customizedProduct.description || '',
+            specifications: specifications,
+            images: (customizedProduct.imageUrls || []).map(url => ({ url }))
+          };
+        }
+        // Handle bundle products (if needed)
+        else if (item.bundleId) {
+          product = {
+            ...item.bundleId.toObject(),
+            specifications: [],
+            images: []
+          };
+        }
+        
+        return {
+          product: product || {},
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discount: item.discount || 0,
+          total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
+        };
+      })
     );
 
       // Process email data
@@ -650,7 +697,9 @@ exports.handleApproveQuotation = async (req, res) => {
     const approvedQuotation = await approveQuotation(quotation); 
     
     const quotationItems = await QuotationItem.find({ quotationId: approvedQuotation._id })
-      .populate('productId');
+      .populate('productId')
+      .populate('bundleId')
+      .populate('customizedProductId');
 
     const quotationWithItems = approvedQuotation.toObject();
     quotationWithItems.quotationItems = quotationItems;
@@ -916,7 +965,10 @@ exports.confirmOfflinePayment = async (req, res) => {
 
     if (quotation.status === 'approved') {
         console.log(`Quotation ${quotation._id} is already approved. Offline payment confirmation redundant unless updating details.`);
-        const items = await QuotationItem.find({ quotationId: quotation._id }).populate('productId');
+        const items = await QuotationItem.find({ quotationId: quotation._id })
+          .populate('productId')
+          .populate('bundleId')
+          .populate('customizedProductId');
         const approvedQuotationWithItems = quotation.toObject();
         approvedQuotationWithItems.quotationItems = items;
         return res.json({
@@ -960,7 +1012,9 @@ exports.confirmOfflinePayment = async (req, res) => {
     const approvedQuotation = await approveQuotation(quotation); 
 
     const quotationItems = await QuotationItem.find({ quotationId: approvedQuotation._id })
-      .populate('productId');
+      .populate('productId')
+      .populate('bundleId')
+      .populate('customizedProductId');
 
     const quotationWithItems = approvedQuotation.toObject(); 
     quotationWithItems.quotationItems = quotationItems;
@@ -1020,7 +1074,9 @@ exports.getCustomerProducts = async (req, res) => {
       // Step 4: Get all quotation items with product details
       const quotationItems = await QuotationItem.find({
         quotationId: { $in: quotationIds }
-      }).populate('productId');
+      }).populate('productId')
+        .populate('bundleId')
+        .populate('customizedProductId');
       
       // Step 5: Group quotation items by quotation ID for easier lookup
       const itemsByQuotationId = {};
