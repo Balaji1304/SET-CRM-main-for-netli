@@ -8,6 +8,7 @@ const Product = require('../models/Product');
 const { AppError, errorHandler } = require('../utils/errorHandler');
 const User = require('../models/User');
 const Package = require('../models/Package');
+const OrderTracking = require('../models/OrderTracking');
 
 // Convert lead to customer when quotation is approved
 exports.convertLeadToCustomer = async (req, res) => {
@@ -129,6 +130,34 @@ exports.convertLeadToCustomer = async (req, res) => {
     lead.status = 'closed';
     await lead.save();
 
+    // Create initial tracking record
+    try {
+      const trackingNumber = await OrderTracking.generateTrackingNumber();
+      const tracking = new OrderTracking({
+        purchaseId: customerPurchase._id,
+        trackingNumber,
+        currentStatus: 'order_placed'
+      });
+
+      await tracking.addEvent({
+        status: 'order_placed',
+        title: 'Order Placed',
+        description: 'Your order has been successfully placed and is being processed.',
+        isVisible: true
+      }, req.user.id);
+
+      // Add payment confirmation event
+      await tracking.addEvent({
+        status: 'payment_confirmed',
+        title: 'Payment Confirmed',
+        description: `Advance payment of ₹${calculatedAdvanceAmount} has been confirmed.`,
+        isVisible: true
+      }, req.user.id);
+    } catch (trackingError) {
+      console.error('Error creating tracking record:', trackingError);
+      // Don't fail the main operation if tracking creation fails
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -188,7 +217,7 @@ exports.getCustomerPurchases = async (req, res) => {
 exports.getCustomerPurchasesByUser = async (req, res) => {
   try {
     // Find customer record for current user
-    const customer = await Customer.findOne({ email: req.user.email });
+    const customer = await Customer.findOne({ user: req.user._id });
     
     if (!customer) {
       return res.status(404).json({
@@ -208,8 +237,11 @@ exports.getCustomerPurchasesByUser = async (req, res) => {
     // For each purchase, get the quotation items
     const purchasesWithItems = await Promise.all(
       purchases.map(async (purchase) => {
-        const quotationItems = await QuotationItem.find({ quotationId: purchase.quotationId._id })
-          .populate('productId');
+        let quotationItems = [];
+        if (purchase.quotationId && purchase.quotationId._id) {
+          quotationItems = await QuotationItem.find({ quotationId: purchase.quotationId._id })
+            .populate('productId');
+        }
         
         const purchaseObj = purchase.toObject();
         purchaseObj.quotationItems = quotationItems;
@@ -439,7 +471,7 @@ exports.getPaymentHistory = async (req, res) => {
 exports.getAllPaymentHistory = async (req, res) => {
   try {
     // Find customer record for current user
-    const customer = await Customer.findOne({ email: req.user.email });
+    const customer = await Customer.findOne({ user: req.user._id });
     
     if (!customer) {
       return res.status(404).json({
@@ -940,6 +972,21 @@ exports.updateStatusToReadyToDispatch = async (req, res) => {
     purchase.serviceTaskStatus = 'ready_to_dispatch';
     await purchase.save();
 
+    // Update tracking
+    try {
+      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
+      if (tracking) {
+        await tracking.addEvent({
+          status: 'ready_to_dispatch',
+          title: 'Ready to Dispatch',
+          description: 'Your order has been processed and is ready for dispatch.',
+          isVisible: true
+        }, req.user.id);
+      }
+    } catch (trackingError) {
+      console.error('Error updating tracking:', trackingError);
+    }
+
     res.status(200).json({
       success: true,
       data: purchase,
@@ -972,6 +1019,26 @@ exports.allocateInstallationDate = async (req, res) => {
     purchase.installationDate = installationDate;
     purchase.serviceTaskStatus = 'installation_date_allocated';
     await purchase.save();
+
+    // Update tracking
+    try {
+      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
+      if (tracking) {
+        // Update estimated installation date
+        tracking.estimatedInstallation = new Date(installationDate);
+        await tracking.save();
+
+        await tracking.addEvent({
+          status: 'installation_scheduled',
+          title: 'Installation Scheduled',
+          description: `Installation has been scheduled for ${new Date(installationDate).toLocaleDateString()}.`,
+          estimatedDate: new Date(installationDate),
+          isVisible: true
+        }, req.user.id);
+      }
+    } catch (trackingError) {
+      console.error('Error updating tracking:', trackingError);
+    }
 
     res.status(200).json({
       success: true,

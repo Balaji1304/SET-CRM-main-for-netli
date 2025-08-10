@@ -5,16 +5,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import TicketStatsWidget from './TicketStatsWidget';
-
-const formatNumber = (num) => {
-  if (num === 'N/A' || num === undefined || num === null) return 'N/A';
-  if (typeof num !== 'number') {
-    const parsed = parseFloat(num);
-    if (isNaN(parsed)) return num;
-    num = parsed;
-  }
-  return num.toLocaleString('en-IN');
-};
+import TrackingWidget from './TrackingWidget';
+import { formatNumber } from '../utils/formatNumber';
 
 const Dashboard = () => {
   const { user, token, loading: authLoading } = useAuth();
@@ -178,7 +170,8 @@ const Dashboard = () => {
         {renderCommonCard('My Active Purchases', formatNumber(summaryData.myRecentOrdersCount), <ShoppingCart />)}
         {renderCommonCard('My Active Quotations', formatNumber(summaryData.myActiveQuotations), <FileText />)}
             </div>
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mb-6">
+        <TrackingWidget />
         {renderSection("Recent Account Activity", <Clock />, 
           <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
             {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent activity for your account.</p>}

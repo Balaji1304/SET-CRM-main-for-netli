@@ -58,9 +58,15 @@ exports.protect = async (req, res, next) => {
   }
 };
 
-exports.authorize = (...roles) => {
+// Accepts either a list of roles (authorize('admin', 'customer'))
+// or a single array (authorize(['admin', 'customer']))
+exports.authorize = (...rolesOrArray) => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    const allowedRoles = Array.isArray(rolesOrArray[0])
+      ? rolesOrArray[0]
+      : rolesOrArray;
+
+    if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: `User role ${req.user.role} is not authorized to access this route`
@@ -68,4 +74,4 @@ exports.authorize = (...roles) => {
     }
     next();
   };
-}; 
+};

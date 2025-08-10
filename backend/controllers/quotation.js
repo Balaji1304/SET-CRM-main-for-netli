@@ -1048,8 +1048,8 @@ exports.getCustomerProducts = async (req, res) => {
       });
     }
 
-    // Step 1: Find customer record associated with this user's email
-    const customer = await Customer.findOne({ email: user.email });
+    // Step 1: Find customer record associated with this user
+    const customer = await Customer.findOne({ user: req.user._id });
 
     if (!customer) {
       return res.json({
@@ -1075,7 +1075,9 @@ exports.getCustomerProducts = async (req, res) => {
       }
       
       // Step 3: Get quotation IDs to fetch quotation items
-      const quotationIds = customerPurchases.map(purchase => purchase.quotationId._id);
+      const quotationIds = customerPurchases
+        .filter(purchase => purchase.quotationId && purchase.quotationId._id)
+        .map(purchase => purchase.quotationId._id);
       
       // Step 4: Get all quotation items with product details
       const quotationItems = await QuotationItem.find({

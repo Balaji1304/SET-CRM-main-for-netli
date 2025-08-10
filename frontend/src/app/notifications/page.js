@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Bell, Check, CheckCheck, Trash2, Filter, Search, AlertCircle, Clock, User, Package, FileText, DollarSign, X } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Bell, Check, CheckCheck, Trash2, Filter, Search, AlertCircle, Clock, User, Package, FileText, DollarSign, X, Settings, Zap, Star, Archive, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { getNotifications, getNotificationCounts, markAsRead, markAllAsRead, deleteNotification } from '../../services/notificationService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -13,6 +13,10 @@ const NotificationsPage = () => {
   const [filterType, setFilterType] = useState('all');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'list'
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadNotifications();
@@ -44,6 +48,22 @@ const NotificationsPage = () => {
       setCounts(res.data);
     } catch (e) {
       console.error('Failed to load notification counts:', e);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([loadNotifications(), loadCounts()]);
+      if (window.showToast) {
+        window.showToast('Notifications refreshed', 'success');
+      }
+    } catch (e) {
+      if (window.showToast) {
+        window.showToast('Failed to refresh notifications', 'error');
+      }
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -118,7 +138,7 @@ const NotificationsPage = () => {
   };
 
   const selectAll = () => {
-    const allIds = filteredNotifications.map(n => n._id);
+    const allIds = filteredAndSortedNotifications.map(n => n._id);
     setSelectedNotifications(allIds);
   };
 
@@ -177,29 +197,166 @@ const NotificationsPage = () => {
     return notificationDate.toLocaleDateString();
   };
 
-  const filteredNotifications = notifications.filter(notification => {
-    if (searchTerm) {
-      return notification.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             notification.message.toLowerCase().includes(searchTerm.toLowerCase());
-    }
-    return true;
-  });
+  // Role-specific notification types
+  const getRoleSpecificTypes = (userRole) => {
+    const typesByRole = {
+      customer: [
+        { value: 'ticket_created', label: 'My Tickets' },
+        { value: 'ticket_assigned', label: 'Ticket Updates' },
+        { value: 'ticket_status_changed', label: 'Status Changes' },
+        { value: 'quotation_approved', label: 'Quotations' },
+        { value: 'payment_received', label: 'Payments' }
+      ],
+      product_head: [
+        { value: 'ticket_created', label: 'New Tickets' },
+        { value: 'ticket_assigned', label: 'Assignments' },
+        { value: 'purchase_order_created', label: 'Purchase Orders' },
+        { value: 'system_announcement', label: 'System Updates' }
+      ],
+      service_engineer: [
+        { value: 'ticket_assigned', label: 'My Assignments' },
+        { value: 'ticket_status_changed', label: 'Status Updates' },
+        { value: 'ticket_commented', label: 'Comments' }
+      ],
+      sales_person: [
+        { value: 'lead_assigned', label: 'Lead Assignments' },
+        { value: 'quotation_approved', label: 'Quotations' },
+        { value: 'quotation_rejected', label: 'Quote Updates' }
+      ],
+      sales_head: [
+        { value: 'lead_assigned', label: 'Team Leads' },
+        { value: 'quotation_approved', label: 'Quotations' },
+        { value: 'purchase_order_created', label: 'Purchase Orders' },
+        { value: 'payment_received', label: 'Payments' }
+      ],
+      accounts_department: [
+        { value: 'payment_received', label: 'Payments' },
+        { value: 'purchase_order_created', label: 'Purchase Orders' },
+        { value: 'quotation_approved', label: 'Approved Quotes' }
+      ],
+      inventory_manager: [
+        { value: 'purchase_order_created', label: 'Purchase Orders' },
+        { value: 'purchase_order_updated', label: 'Order Updates' }
+      ],
+      front_office_executive: [
+        { value: 'lead_assigned', label: 'Lead Updates' },
+        { value: 'ticket_created', label: 'Customer Tickets' }
+      ]
+    };
+    return typesByRole[userRole] || [];
+  };
+
+  // Enhanced filtering and sorting
+  const filteredAndSortedNotifications = useMemo(() => {
+    let filtered = notifications.filter(notification => {
+      // Search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        if (!notification.title.toLowerCase().includes(searchLower) &&
+            !notification.message.toLowerCase().includes(searchLower) &&
+            !notification.sender?.name?.toLowerCase().includes(searchLower)) {
+          return false;
+        }
+      }
+
+      // Type filter
+      if (filterType !== 'all' && notification.type !== filterType) {
+        return false;
+      }
+
+      // Priority filter
+      if (priorityFilter !== 'all' && notification.priority !== priorityFilter) {
+        return false;
+      }
+
+      // Unread filter
+      if (showUnreadOnly && notification.read) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Sort notifications
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        case 'oldest':
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        case 'priority':
+          const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+          return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+        case 'unread':
+          return a.read - b.read; // Unread first
+        default:
+          return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+    });
+
+    return filtered;
+  }, [notifications, searchTerm, filterType, priorityFilter, showUnreadOnly, sortBy]);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+            {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-6">
-        <div>
-              <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-              <p className="text-gray-600 mt-1">Stay updated with your latest activities</p>
+            <div className="flex items-center space-x-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 flex items-center space-x-2">
+                  <Bell className="h-6 w-6 text-orange-500" />
+                  <span>Notifications</span>
+                  {counts.unread > 0 && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      {counts.unread} new
+                    </span>
+                  )}
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  Stay updated with your latest activities • {user?.role?.replace('_', ' ').toUpperCase()}
+                </p>
+              </div>
             </div>
             <div className="flex items-center space-x-3">
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Refresh notifications"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+              
+              <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    viewMode === 'cards' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Cards
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                    viewMode === 'list' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  List
+                </button>
+              </div>
+
               {counts.unread > 0 && (
                 <button
                   onClick={handleMarkAllAsRead}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  className="flex items-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                 >
                   <CheckCheck className="h-4 w-4" />
                   <span>Mark All Read</span>
@@ -213,47 +370,118 @@ const NotificationsPage = () => {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-        {/* Filters and Search */}
+                {/* Enhanced Filters and Search */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-            <div className="flex-1 max-w-lg">
+          <div className="flex flex-col space-y-4">
+            {/* Search Bar */}
+            <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search notifications..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+                <input
+                  type="text"
+                  placeholder="Search notifications by title, message, or sender..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                />
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+
+            {/* Filter Controls */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Type Filter - Role Specific */}
+              <div className="flex items-center space-x-2">
+                <Filter className="h-4 w-4 text-gray-500" />
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                >
+                  <option value="all">All Types</option>
+                  {getRoleSpecificTypes(user?.role).map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Priority Filter */}
               <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
               >
-                <option value="all">All Types</option>
-                <option value="ticket_created">New Tickets</option>
-                <option value="ticket_assigned">Assignments</option>
-                <option value="purchase_order_created">Purchase Orders</option>
-                <option value="quotation_approved">Quotations</option>
-                <option value="payment_received">Payments</option>
+                <option value="all">All Priorities</option>
+                <option value="urgent">🔴 Urgent</option>
+                <option value="high">🟠 High</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="low">🟢 Low</option>
               </select>
+
+              {/* Sort Options */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="priority">By Priority</option>
+                <option value="unread">Unread First</option>
+              </select>
+
+              {/* Unread Toggle */}
               <button
                 onClick={() => setShowUnreadOnly(!showUnreadOnly)}
-                className={`px-4 py-2.5 rounded-lg border transition-colors ${
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg border transition-colors text-sm ${
                   showUnreadOnly 
-                    ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                    ? 'bg-orange-100 border-orange-300 text-orange-700' 
                     : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                Unread Only
+                {showUnreadOnly ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                <span>{showUnreadOnly ? 'Show All' : 'Unread Only'}</span>
               </button>
+
+              {/* Clear Filters */}
+              {(filterType !== 'all' || priorityFilter !== 'all' || showUnreadOnly || searchTerm) && (
+                <button
+                  onClick={() => {
+                    setFilterType('all');
+                    setPriorityFilter('all');
+                    setShowUnreadOnly(false);
+                    setSearchTerm('');
+                  }}
+                  className="flex items-center space-x-1 px-3 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                >
+                  <X className="h-4 w-4" />
+                  <span>Clear Filters</span>
+                </button>
+              )}
             </div>
-            </div>
+
+            {/* Active Filters Display */}
+            {(filterType !== 'all' || priorityFilter !== 'all' || showUnreadOnly) && (
+              <div className="flex items-center space-x-2 text-sm">
+                <span className="text-gray-500">Active filters:</span>
+                {filterType !== 'all' && (
+                  <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs">
+                    {getRoleSpecificTypes(user?.role).find(t => t.value === filterType)?.label || filterType}
+                  </span>
+                )}
+                {priorityFilter !== 'all' && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                    {priorityFilter} priority
+                  </span>
+                )}
+                {showUnreadOnly && (
+                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                    Unread only
+                  </span>
+                )}
+              </div>
+            )}
           </div>
+        </div>
 
         {/* Bulk Actions */}
         {selectedNotifications.length > 0 && (
@@ -318,7 +546,7 @@ const NotificationsPage = () => {
                 Try Again
               </button>
             </div>
-          ) : filteredNotifications.length === 0 ? (
+          ) : filteredAndSortedNotifications.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
               <Bell className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Notifications</h3>
@@ -330,28 +558,42 @@ const NotificationsPage = () => {
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-4">
                   <button
-                    onClick={selectedNotifications.length === filteredNotifications.length ? clearSelection : selectAll}
-                    className="text-sm text-blue-600 hover:text-blue-800"
+                    onClick={selectedNotifications.length === filteredAndSortedNotifications.length ? clearSelection : selectAll}
+                    className="text-sm text-orange-600 hover:text-orange-800"
                   >
-                    {selectedNotifications.length === filteredNotifications.length ? 'Deselect All' : 'Select All'}
+                    {selectedNotifications.length === filteredAndSortedNotifications.length ? 'Deselect All' : 'Select All'}
                   </button>
+                  {selectedNotifications.length > 0 && (
+                    <span className="text-sm text-gray-500">
+                      {selectedNotifications.length} selected
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-gray-600">
-                  {filteredNotifications.length} notification{filteredNotifications.length > 1 ? 's' : ''}
+                  {filteredAndSortedNotifications.length} notification{filteredAndSortedNotifications.length > 1 ? 's' : ''}
+                  {filteredAndSortedNotifications.length !== notifications.length && (
+                    <span className="text-gray-400"> of {notifications.length}</span>
+                  )}
                 </p>
-                  </div>
+              </div>
 
-              {filteredNotifications.map((notification) => (
+              {/* Notifications Display */}
+              <div className={viewMode === 'cards' ? 'space-y-3' : 'space-y-0'}>
+                {filteredAndSortedNotifications.map((notification) => (
                 <div
                   key={notification._id}
-                  className={`bg-white rounded-lg shadow-sm border-l-4 border border-gray-200 p-6 transition-all duration-200 hover:shadow-md ${
-                    !notification.read ? 'bg-blue-50/30' : ''
-                  } ${getPriorityColor(notification.priority)}`}
+                  className={`bg-white transition-all duration-200 hover:shadow-md ${
+                    !notification.read ? 'bg-orange-50/30' : ''
+                  } ${
+                    viewMode === 'cards' 
+                      ? `rounded-lg shadow-sm border-l-4 border border-gray-200 p-6 ${getPriorityColor(notification.priority)}`
+                      : 'border-b border-gray-200 p-4 hover:bg-gray-50'
+                  }`}
                 >
-                  <div className="flex items-start space-x-4">
+                                    <div className={`flex items-start ${viewMode === 'cards' ? 'space-x-4' : 'space-x-3'}`}>
                     <input
                       type="checkbox"
                       checked={selectedNotifications.includes(notification._id)}
@@ -360,70 +602,96 @@ const NotificationsPage = () => {
                     />
                     
                     <div className="flex-shrink-0 mt-1">
-                      {getNotificationIcon(notification.type)}
+                      <div className={`${viewMode === 'cards' ? 'p-2' : 'p-1.5'} rounded-full ${
+                        notification.priority === 'urgent' ? 'bg-red-100' :
+                        notification.priority === 'high' ? 'bg-orange-100' :
+                        notification.priority === 'medium' ? 'bg-blue-100' :
+                        'bg-green-100'
+                      }`}>
+                        {getNotificationIcon(notification.type)}
+                      </div>
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className={`text-sm font-medium ${!notification.read ? 'text-gray-900' : 'text-gray-700'}`}>
-                          {notification.title}
-                        </h3>
+                      <div className={`flex items-center justify-between ${viewMode === 'cards' ? 'mb-2' : 'mb-1'}`}>
                         <div className="flex items-center space-x-2">
+                          <h3 className={`${viewMode === 'cards' ? 'text-sm' : 'text-xs'} font-medium ${
+                            !notification.read ? 'text-gray-900' : 'text-gray-700'
+                          }`}>
+                            {notification.title}
+                          </h3>
                           {!notification.read && (
-                            <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                            <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
                           )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
+                            notification.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                            notification.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                            notification.priority === 'medium' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {notification.priority === 'urgent' ? '🔴' :
+                             notification.priority === 'high' ? '🟠' :
+                             notification.priority === 'medium' ? '🟡' : '🟢'}
+                          </span>
                           <span className="text-xs text-gray-500">
                             {getTimeAgo(notification.createdAt)}
                           </span>
                         </div>
                       </div>
                       
-                      <p className={`text-sm ${!notification.read ? 'text-gray-700' : 'text-gray-600'} mb-3`}>
+                      <p className={`${viewMode === 'cards' ? 'text-sm mb-3' : 'text-xs mb-2'} ${
+                        !notification.read ? 'text-gray-700' : 'text-gray-600'
+                      } ${viewMode === 'list' ? 'truncate' : ''}`}>
                         {notification.message}
                       </p>
                       
-                      {notification.sender && (
-                        <div className="flex items-center space-x-2 text-xs text-gray-500 mb-2">
-                          <User className="h-3 w-3" />
-                          <span>From: {notification.sender.name}</span>
-                        </div>
-                      )}
-                      
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            notification.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                            notification.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                            notification.priority === 'medium' ? 'bg-blue-100 text-blue-800' :
-                            'bg-green-100 text-green-800'
+                          {notification.sender && (
+                            <div className="flex items-center space-x-1 text-xs text-gray-500">
+                              <User className="h-3 w-3" />
+                              <span>{notification.sender.name}</span>
+                            </div>
+                          )}
+                          
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${
+                            notification.type.includes('ticket') ? 'bg-blue-100 text-blue-800' :
+                            notification.type.includes('purchase') ? 'bg-green-100 text-green-800' :
+                            notification.type.includes('quotation') ? 'bg-purple-100 text-purple-800' :
+                            notification.type.includes('payment') ? 'bg-emerald-100 text-emerald-800' :
+                            notification.type.includes('lead') ? 'bg-orange-100 text-orange-800' :
+                            'bg-gray-100 text-gray-800'
                           }`}>
-                            {notification.priority.toUpperCase()}
+                            {notification.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </span>
                         </div>
                         
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1">
                           {!notification.read && (
-                      <button
+                            <button
                               onClick={() => handleMarkAsRead([notification._id])}
-                              className="p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded transition-colors"
+                              className="p-1.5 text-orange-500 hover:text-orange-700 hover:bg-orange-100 rounded transition-colors"
                               title="Mark as read"
-                      >
-                              <Check className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
+                            >
+                              <Check className="h-3 w-3" />
+                            </button>
+                          )}
+                          <button
                             onClick={() => handleDelete(notification._id)}
-                            className="p-1 text-red-500 hover:text-red-700 hover:bg-red-100 rounded transition-colors"
+                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded transition-colors"
                             title="Delete notification"
-                    >
-                            <Trash2 className="h-4 w-4" />
-                    </button>
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
                         </div>
                       </div>
                     </div>
+                  </div>
                 </div>
+              ))}
               </div>
-            ))}
             </>
           )}
         </div>
