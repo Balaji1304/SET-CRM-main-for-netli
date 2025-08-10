@@ -20,7 +20,7 @@ const customizedProductSchema = new mongoose.Schema({
     required: true
   },
   
-  // Additional fields entered during quotation creation
+  // Additional fields entered during quotation creation (matching Product model)
   modelNumber: {
     type: String,
     trim: true
@@ -32,7 +32,12 @@ const customizedProductSchema = new mongoose.Schema({
   },
   specifications: {
     type: Object,
-    default: {}
+    default: {
+      power: '',
+      efficiency: '',
+      warranty: '',
+      dimensions: ''
+    }
   },
   imageUrls: [{
     type: String

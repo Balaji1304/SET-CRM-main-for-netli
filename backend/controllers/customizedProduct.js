@@ -112,7 +112,8 @@ exports.updateCustomizedProduct = async (req, res) => {
       modelNumber, 
       description, 
       specifications, 
-      termsAndConditions 
+      termsAndConditions,
+      images
     } = req.body;
 
     const customizedProduct = await CustomizedProduct.findById(req.params.id);
@@ -127,8 +128,85 @@ exports.updateCustomizedProduct = async (req, res) => {
     if (specifications !== undefined) customizedProduct.specifications = specifications;
     if (termsAndConditions !== undefined) customizedProduct.termsAndConditions = termsAndConditions;
     
+    // Handle image updates if there are images
+    if (images && images.length > 0) {
+      // Create folder path based on leadId and customized product ID
+      const folderPath = `customized-products/${customizedProduct.leadId}/${customizedProduct._id}/images`;
+      
+      // Process each image - could be existing URLs or new base64 images
+      const uploadedImages = await Promise.all(
+        images.map(async (imageData) => {
+          // If it's an existing image URL, keep it
+          if (imageData.startsWith('http') || imageData.startsWith('https')) {
+            return imageData;
+          }
+
+          // Handle new image upload (base64)
+          const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Data, 'base64');
+          
+          // Upload to Cloudinary
+          const result = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              {
+                folder: folderPath,
+                use_filename: true,
+                unique_filename: true,
+                resource_type: 'image',
+                type: 'upload',
+                overwrite: true,
+                create_folder: true,
+                transformation: [
+                  { width: 800, height: 600, crop: 'limit' },
+                  { quality: 'auto' },
+                  { format: 'auto' }
+                ]
+              },
+              (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+              }
+            );
+            
+            uploadStream.end(buffer);
+          });
+
+          return result.secure_url;
+        })
+      );
+
+      // If we're removing images, delete them from Cloudinary
+      const removedImages = (customizedProduct.imageUrls || []).filter(url => !uploadedImages.includes(url));
+      if (removedImages.length > 0) {
+        try {
+          // Extract public_ids from the URLs
+          const publicIds = removedImages.map(url => {
+            const urlParts = url.split('/');
+            const filenameWithExtension = urlParts[urlParts.length - 1];
+            const filename = filenameWithExtension.split('.')[0];
+            return `customized-products/${customizedProduct.leadId}/${customizedProduct._id}/images/${filename}`;
+          });
+          
+          // Delete removed images from Cloudinary
+          await Promise.all(publicIds.map(publicId => 
+            new Promise((resolve, reject) => {
+              cloudinary.uploader.destroy(publicId, (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+              });
+            })
+          ));
+        } catch (error) {
+          console.error('Error deleting old images:', error);
+          // Continue with update even if image deletion fails
+        }
+      }
+
+      customizedProduct.imageUrls = uploadedImages;
+    }
+    
     // Mark as completed when quotation details are added
-    if (modelNumber || description || specifications) {
+    if (modelNumber || description || specifications || images) {
       customizedProduct.isCompleted = true;
     }
 

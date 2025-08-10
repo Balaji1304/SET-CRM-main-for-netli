@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createLead, getLead, updateLead } from '../../services/leadService';
 import { getProducts } from '../../services/productService';
 import { getPowerPlantConfigurations } from '../../services/bundleService';
-import { createCustomizedProduct, updateCustomizedProduct } from '../../services/customizedProductService';
+import { createCustomizedProduct, updateCustomizedProduct, getAllCustomizedProducts } from '../../services/customizedProductService';
 import { generateUniqueId, ensureUniqueIds } from '../../utils/generateId';
 
 // Custom styles for better mobile experience
@@ -167,6 +167,8 @@ export default function LeadForm() {
 
   // Customized product state
   const [customizedProducts, setCustomizedProducts] = useState([]);
+  const [existingCustomizedProducts, setExistingCustomizedProducts] = useState([]);
+  const [isLoadingCustomizedProducts, setIsLoadingCustomizedProducts] = useState(false);
 
   // Geolocation state
   const [geo, setGeo] = useState({ latitude: '', longitude: '' });
@@ -224,6 +226,20 @@ export default function LeadForm() {
         setBundleFetchError('Failed to load power plant bundles. Some features may be limited.');
       } finally {
         setIsLoadingBundles(false);
+      }
+
+      // Fetch existing customized products
+      try {
+        setIsLoadingCustomizedProducts(true);
+        const customizedResponse = await getAllCustomizedProducts();
+        if (customizedResponse.success && Array.isArray(customizedResponse.data)) {
+          setExistingCustomizedProducts(customizedResponse.data);
+        }
+      } catch (error) {
+        console.error('Error fetching existing customized products:', error);
+        // This is not critical, just log the error
+      } finally {
+        setIsLoadingCustomizedProducts(false);
       }
     };
     
@@ -529,16 +545,36 @@ export default function LeadForm() {
   };
 
   // Customized Products Handlers
-  const addCustomizedProduct = () => {
-    setCustomizedProducts(prev => [
-      ...prev,
-      {
-        id: `custom_${Date.now()}_${prev.length}`,
-        name: '',
-        quantity: 1,
-        unitPrice: 0
+  const addCustomizedProduct = (type = 'new', existingProductId = null) => {
+    if (type === 'existing' && existingProductId) {
+      // Add existing customized product
+      const existingProduct = existingCustomizedProducts.find(p => p._id === existingProductId);
+      if (existingProduct) {
+        setCustomizedProducts(prev => [
+          ...prev,
+          {
+            id: `existing_${existingProduct._id}`,
+            customizedProductId: existingProduct._id,
+            name: existingProduct.name,
+            quantity: 1,
+            unitPrice: existingProduct.unitPrice,
+            isExisting: true
+          }
+        ]);
       }
-    ]);
+    } else {
+      // Add new customized product
+      setCustomizedProducts(prev => [
+        ...prev,
+        {
+          id: `custom_${Date.now()}_${prev.length}`,
+          name: '',
+          quantity: 1,
+          unitPrice: 0,
+          isExisting: false
+        }
+      ]);
+    }
   };
 
   const removeCustomizedProduct = (index) => {
@@ -612,13 +648,8 @@ export default function LeadForm() {
         ...prev,
         products: []
       }));
-      // Initialize with one empty customized product
-      setCustomizedProducts([{
-        id: `custom_${Date.now()}_0`,
-        name: '',
-        quantity: 1,
-        unitPrice: 0
-      }]);
+      // Start with empty customized products - user needs to explicitly add them
+      setCustomizedProducts([]);
     }
   };
 
@@ -816,8 +847,7 @@ export default function LeadForm() {
           bundleItems: bundle.bundleData?.items || bundle.bundleItems || []
         }));
       } else if (selectedProductType === 'customized') {
-        // For customized products, we'll include basic product info in the lead
-        // and create detailed customized product records after lead creation
+        // For customized products, handle both existing and new products
         productsToSubmit = customizedProducts
           .filter(p => p.name && p.quantity > 0 && p.unitPrice > 0)
           .map(product => ({
@@ -826,7 +856,11 @@ export default function LeadForm() {
             quantity: parseInt(product.quantity, 10),
             unitPrice: parseFloat(product.unitPrice),
             totalPrice: parseFloat(product.quantity * product.unitPrice),
-            isCustomizedProduct: true
+            isCustomizedProduct: true,
+            // If this is an existing product, include its ID for reference
+            ...(product.existingProductId && { customizedProductId: product.existingProductId }),
+            // Mark whether this is a new product that needs to be created
+            isNewCustomizedProduct: !product.existingProductId
           }));
       }
 
@@ -845,42 +879,76 @@ export default function LeadForm() {
       const response = isEditMode ? await updateLead(leadId, payload) : await createLead(payload);
 
       if (response.success) {
-        // If creating a new lead with customized products, create the detailed customized product records
+        // If creating a new lead with customized products, create detailed records only for new products
         if (!isEditMode && selectedProductType === 'customized' && customizedProducts.length > 0) {
           try {
             const createdLeadId = response.data._id;
-            const customizedProductPromises = customizedProducts
-              .filter(p => p.name && p.quantity > 0 && p.unitPrice > 0)
-              .map(async (product, index) => {
-                const customizedProductData = {
-                  name: product.name,
-                  unitPrice: product.unitPrice,
-                  leadId: createdLeadId
-                };
-                const result = await createCustomizedProduct(customizedProductData);
-                return { ...result, originalIndex: index };
-              });
-
-            const createdCustomizedProducts = await Promise.all(customizedProductPromises);
             
-            // Update the lead with the customized product IDs
-            const updatedProducts = productsToSubmit.map((product, index) => {
-              const createdProduct = createdCustomizedProducts.find(cp => cp.originalIndex === index);
-              if (createdProduct && createdProduct.success) {
+            // Only create records for new customized products (not existing ones)
+            const newCustomizedProducts = customizedProducts.filter(p => 
+              p.name && p.quantity > 0 && p.unitPrice > 0 && !p.existingProductId
+            );
+            
+            if (newCustomizedProducts.length > 0) {
+              const customizedProductPromises = newCustomizedProducts
+                .map(async (product, index) => {
+                  const customizedProductData = {
+                    name: product.name,
+                    unitPrice: product.unitPrice,
+                    leadId: createdLeadId,
+                    // Include additional details if provided
+                    modelNumber: product.modelNumber || '',
+                    description: product.description || '',
+                    specifications: product.specifications || {},
+                    imageUrls: product.imageUrls || [],
+                    terms: product.terms || ''
+                  };
+                  const result = await createCustomizedProduct(customizedProductData);
+                  return { ...result, productId: product.id, productName: product.name };
+                });
+
+              const createdCustomizedProducts = await Promise.all(customizedProductPromises);
+              
+              // Update the lead products with the new customized product IDs
+              const updatedProducts = productsToSubmit.map((product) => {
+                // Find the created product that matches this product by name
+                const correspondingCustomizedProduct = customizedProducts.find(cp => cp.name === product.name);
+                if (correspondingCustomizedProduct && !correspondingCustomizedProduct.existingProductId) {
+                  const createdProduct = createdCustomizedProducts.find(cp => 
+                    cp.success && cp.productId === correspondingCustomizedProduct.id
+                  );
+                  
+                  if (createdProduct) {
+                    return {
+                      ...product,
+                      customizedProductId: createdProduct.data._id,
+                      isNewCustomizedProduct: undefined // Remove this temporary flag
+                    };
+                  }
+                }
                 return {
                   ...product,
-                  customizedProductId: createdProduct.data._id
+                  isNewCustomizedProduct: undefined // Remove this temporary flag
                 };
-              }
-              return product;
-            });
+              });
 
-            // Update the lead with the customizedProductId references
-            await updateLead(createdLeadId, {
-              products: updatedProducts
-            });
+              // Update the lead with the customized product ID references
+              await updateLead(createdLeadId, {
+                products: updatedProducts
+              });
 
-            console.log('Customized product records created and lead updated successfully');
+              console.log('New customized product records created and lead updated successfully');
+            } else {
+              // No new products to create, just clean up the temporary flags
+              const cleanedProducts = productsToSubmit.map(product => ({
+                ...product,
+                isNewCustomizedProduct: undefined
+              }));
+              
+              await updateLead(createdLeadId, {
+                products: cleanedProducts
+              });
+            }
           } catch (customizedProductError) {
             console.error('Error creating customized product records:', customizedProductError);
             // Don't fail the whole operation if customized product creation fails
@@ -888,44 +956,81 @@ export default function LeadForm() {
           }
         }
 
-        // If editing a lead with customized products, update the customized product records
+        // If editing a lead with customized products, handle both existing and new products
         if (isEditMode && selectedProductType === 'customized' && customizedProducts.length > 0) {
           try {
-            const customizedProductPromises = customizedProducts
-              .filter(p => p.name && p.quantity > 0 && p.unitPrice > 0)
-              .map(async (product, index) => {
+            // Separate existing products from new products
+            const existingProducts = customizedProducts.filter(p => 
+              p.name && p.quantity > 0 && p.unitPrice > 0 && p.existingProductId
+            );
+            const newProducts = customizedProducts.filter(p => 
+              p.name && p.quantity > 0 && p.unitPrice > 0 && !p.existingProductId
+            );
+            
+            let processedProducts = [];
+            
+            // Handle existing products - these don't need database updates, just references
+            existingProducts.forEach((product) => {
+              processedProducts.push({
+                success: true,
+                data: { _id: product.existingProductId },
+                productId: product.id, // Use the unique product ID for matching
+                isExisting: true
+              });
+            });
+            
+            // Handle new products - create them
+            if (newProducts.length > 0) {
+              const customizedProductPromises = newProducts.map(async (product) => {
                 const customizedProductData = {
                   name: product.name,
                   unitPrice: product.unitPrice,
-                  leadId: leadId
+                  leadId: leadId,
+                  // Include additional details if provided
+                  modelNumber: product.modelNumber || '',
+                  description: product.description || '',
+                  specifications: product.specifications || {},
+                  imageUrls: product.imageUrls || [],
+                  terms: product.terms || ''
                 };
-
-                if (product.customizedProductId) {
-                  // Update existing customized product
-                  const result = await updateCustomizedProduct(product.customizedProductId, customizedProductData);
-                  return { ...result, originalIndex: index, existingId: product.customizedProductId };
-                } else {
-                  // Create new customized product for this lead
-                  const result = await createCustomizedProduct(customizedProductData);
-                  return { ...result, originalIndex: index };
-                }
+                
+                const result = await createCustomizedProduct(customizedProductData);
+                return { 
+                  ...result, 
+                  productId: product.id, // Use the unique product ID for matching
+                  isExisting: false 
+                };
               });
 
-            const processedCustomizedProducts = await Promise.all(customizedProductPromises);
+              const createdProducts = await Promise.all(customizedProductPromises);
+              processedProducts = [...processedProducts, ...createdProducts];
+            }
             
-            // Update lead products with any new customized product IDs
+            // Update lead products with proper customized product IDs
             let needsLeadUpdate = false;
-            const updatedProducts = productsToSubmit.map((product, index) => {
-              const processedProduct = processedCustomizedProducts.find(cp => cp.originalIndex === index);
-              if (processedProduct && processedProduct.success && !processedProduct.existingId) {
-                // This is a newly created customized product, add the ID
-                needsLeadUpdate = true;
-                return {
-                  ...product,
-                  customizedProductId: processedProduct.data._id
-                };
+            const updatedProducts = productsToSubmit.map((product) => {
+              // Find processed product by matching the product names since we can't rely on indices
+              const correspondingCustomizedProduct = customizedProducts.find(cp => cp.name === product.name);
+              if (correspondingCustomizedProduct) {
+                const processedProduct = processedProducts.find(pp => pp.productId === correspondingCustomizedProduct.id);
+                
+                if (processedProduct && processedProduct.success) {
+                  if (!product.customizedProductId || !processedProduct.isExisting) {
+                    // Either this product didn't have an ID before, or it's a new product
+                    needsLeadUpdate = true;
+                    return {
+                      ...product,
+                      customizedProductId: processedProduct.data._id,
+                      isNewCustomizedProduct: undefined // Remove temporary flag
+                    };
+                  }
+                }
               }
-              return product;
+              
+              return {
+                ...product,
+                isNewCustomizedProduct: undefined // Remove temporary flag
+              };
             });
 
             if (needsLeadUpdate) {
@@ -934,7 +1039,7 @@ export default function LeadForm() {
               });
             }
 
-            console.log('Customized product records updated successfully');
+            console.log('Customized product records processed successfully');
           } catch (customizedProductError) {
             console.error('Error updating customized product records:', customizedProductError);
             // Don't fail the whole operation if customized product update fails
@@ -1628,33 +1733,211 @@ export default function LeadForm() {
             {/* Customized Products Section */}
             {selectedProductType === 'customized' && (
               <>
+                {/* Existing vs New Product Selection */}
+                <div className="bg-blue-50 rounded-lg border border-blue-200 p-4 mb-6">
+                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    Add Customized Products
+                  </h4>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Existing Product Dropdown */}
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select from Existing Products
+                      </label>
+                      <div className="flex gap-2">
+                        <select
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm"
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              addCustomizedProduct('existing', e.target.value);
+                              e.target.value = '';
+                            }
+                          }}
+                          disabled={isLoadingCustomizedProducts}
+                        >
+                          <option value="">
+                            {isLoadingCustomizedProducts 
+                              ? 'Loading...' 
+                              : existingCustomizedProducts.length > 0 
+                                ? 'Choose existing product...' 
+                                : 'No existing products found'
+                            }
+                          </option>
+                          {existingCustomizedProducts
+                            .filter(product => !customizedProducts.some(cp => cp.customizedProductId === product._id))
+                            .map(product => (
+                              <option key={product._id} value={product._id}>
+                                {product.name} - ₹{product.unitPrice} 
+                                ({product.leadId?.firstName} {product.leadId?.lastName})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Products created for other leads that can be reused
+                      </p>
+                    </div>
+
+                    {/* OR Divider */}
+                    <div className="flex items-center justify-center px-3">
+                      <div className="hidden sm:block w-px bg-gray-300 h-16"></div>
+                      <div className="sm:hidden w-full border-t border-gray-300"></div>
+                      <span className="absolute bg-blue-50 px-2 text-xs text-gray-500 font-medium">OR</span>
+                    </div>
+
+                    {/* New Product Button */}
+                    <div className="flex-1 flex flex-col justify-end">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Create New Product
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => addCustomizedProduct('new')}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add New Custom Product
+                      </button>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Create a completely new customized product
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Customized Products Table - Desktop & Tablet */}
-                <div className="hidden md:block bg-white rounded-lg border border-fourth shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead className="bg-gray-50 border-b border-fourth">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[35%]">
-                            Product Name <span className="text-red-500">*</span>
-                          </th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[15%]">
-                            Qty <span className="text-red-500">*</span>
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[20%]">
-                            Unit Price <span className="text-red-500">*</span>
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[20%]">
-                            Total Price
-                          </th>
-                          <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[10%]">
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-fourth">
-                        {customizedProducts.map((product, index) => (
-                          <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
-                            <td className="px-4 py-3">
+                {customizedProducts.length > 0 && (
+                  <div className="hidden md:block bg-white rounded-lg border border-fourth shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full">
+                        <thead className="bg-gray-50 border-b border-fourth">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[5%]">
+                              Type
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[35%]">
+                              Product Name <span className="text-red-500">*</span>
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[15%]">
+                              Qty <span className="text-red-500">*</span>
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[20%]">
+                              Unit Price <span className="text-red-500">*</span>
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[15%]">
+                              Total Price
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[10%]">
+                              Action
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-fourth">
+                          {customizedProducts.map((product, index) => (
+                            <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
+                              <td className="px-4 py-3">
+                                <div className="flex items-center">
+                                  {product.isExisting ? (
+                                    <div className="w-3 h-3 bg-green-500 rounded-full" title="Existing Product"></div>
+                                  ) : (
+                                    <div className="w-3 h-3 bg-blue-500 rounded-full" title="New Product"></div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                {product.isExisting ? (
+                                  <div>
+                                    <div className="font-medium text-sm text-gray-900">{product.name}</div>
+                                    <div className="text-xs text-gray-500">Existing product</div>
+                                  </div>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={product.name}
+                                    onChange={(e) => handleCustomizedProductChange(index, 'name', e.target.value)}
+                                    placeholder="Enter product name"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                                  />
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <input
+                                  type="number"
+                                  value={product.quantity}
+                                  onChange={(e) => handleCustomizedProductChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                                  min="1"
+                                  className="w-20 px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-center"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                {product.isExisting ? (
+                                  <div className="text-sm font-medium text-gray-900">₹{product.unitPrice}</div>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    value={product.unitPrice}
+                                    onChange={(e) => handleCustomizedProductChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="Enter unit price"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                                  />
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-sm font-medium text-secondary">
+                                  ₹{(product.quantity * product.unitPrice).toLocaleString()}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => removeCustomizedProduct(index)}
+                                  className="text-red-600 hover:text-red-800 transition-colors"
+                                  title="Remove product"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Customized Products Cards - Mobile */}
+                {customizedProducts.length > 0 && (
+                  <div className="md:hidden space-y-4">
+                    {customizedProducts.map((product, index) => (
+                      <div key={index} className="bg-white rounded-lg border border-fourth shadow-sm p-4">
+                        <div className="space-y-3">
+                          {/* Product Type Indicator */}
+                          <div className="flex items-center gap-2 mb-2">
+                            {product.isExisting ? (
+                              <>
+                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                <span className="text-xs text-gray-600">Existing Product</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                                <span className="text-xs text-gray-600">New Product</span>
+                              </>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-secondary mb-1">
+                              Product Name <span className="text-red-500">*</span>
+                            </label>
+                            {product.isExisting ? (
+                              <div className="font-medium text-sm text-gray-900 p-2 bg-gray-50 rounded-md">
+                                {product.name}
+                              </div>
+                            ) : (
                               <input
                                 type="text"
                                 value={product.name}
@@ -1662,135 +1945,70 @@ export default function LeadForm() {
                                 placeholder="Enter product name"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                               />
-                            </td>
-                            <td className="px-4 py-3 text-center">
+                            )}
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-secondary mb-1">
+                                Quantity <span className="text-red-500">*</span>
+                              </label>
                               <input
                                 type="number"
                                 value={product.quantity}
                                 onChange={(e) => handleCustomizedProductChange(index, 'quantity', parseInt(e.target.value) || 0)}
                                 min="1"
-                                className="w-20 px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-center"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="number"
-                                value={product.unitPrice}
-                                onChange={(e) => handleCustomizedProductChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                min="0"
-                                step="0.01"
-                                placeholder="Enter unit price"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                               />
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="text-sm font-medium text-secondary">
-                                ₹{(product.quantity * product.unitPrice).toLocaleString()}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <button
-                                type="button"
-                                onClick={() => removeCustomizedProduct(index)}
-                                className="text-red-600 hover:text-red-800 transition-colors"
-                                title="Remove product"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  
-                  {/* Add Product Button */}
-                  <div className="p-4 border-t border-fourth bg-gray-50">
-                    <button
-                      type="button"
-                      onClick={addCustomizedProduct}
-                      className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add Customized Product
-                    </button>
-                  </div>
-                </div>
-
-                {/* Customized Products Cards - Mobile */}
-                <div className="md:hidden space-y-4">
-                  {customizedProducts.map((product, index) => (
-                    <div key={index} className="bg-white rounded-lg border border-fourth shadow-sm p-4">
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-xs font-medium text-secondary mb-1">
-                            Product Name <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={product.name}
-                            onChange={(e) => handleCustomizedProductChange(index, 'name', e.target.value)}
-                            placeholder="Enter product name"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                          />
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-medium text-secondary mb-1">
-                              Quantity <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="number"
-                              value={product.quantity}
-                              onChange={(e) => handleCustomizedProductChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                              min="1"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                            />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-secondary mb-1">
+                                Unit Price <span className="text-red-500">*</span>
+                              </label>
+                              {product.isExisting ? (
+                                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm font-medium">
+                                  ₹{product.unitPrice}
+                                </div>
+                              ) : (
+                                <input
+                                  type="number"
+                                  value={product.unitPrice}
+                                  onChange={(e) => handleCustomizedProductChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="Enter unit price"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                                />
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium text-secondary mb-1">
-                              Unit Price <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                              type="number"
-                              value={product.unitPrice}
-                              onChange={(e) => handleCustomizedProductChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                              min="0"
-                              step="0.01"
-                              placeholder="Enter unit price"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                            />
+                          
+                          <div className="flex justify-between items-center pt-2 border-t">
+                            <div className="text-sm font-medium text-secondary">
+                              Total: ₹{(product.quantity * product.unitPrice).toLocaleString()}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeCustomizedProduct(index)}
+                              className="text-red-600 hover:text-red-800 transition-colors p-1"
+                              title="Remove product"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
-                        </div>
-                        
-                        <div className="flex justify-between items-center pt-2 border-t">
-                          <div className="text-sm font-medium text-secondary">
-                            Total: ₹{(product.quantity * product.unitPrice).toLocaleString()}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeCustomizedProduct(index)}
-                            className="text-red-600 hover:text-red-800 transition-colors p-1"
-                            title="Remove product"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                  
-                  {/* Add Product Button - Mobile */}
-                  <button
-                    type="button"
-                    onClick={addCustomizedProduct}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Customized Product
-                  </button>
-                </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {customizedProducts.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="mb-2">No customized products added yet</div>
+                    <div className="text-sm">Use the options above to add existing or create new products</div>
+                  </div>
+                )}
               </>
             )}
             

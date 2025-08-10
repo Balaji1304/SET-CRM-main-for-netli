@@ -325,9 +325,11 @@ exports.updateQuotation = async (req, res) => {
     // Create new quotation items
     const createdQuotationItems = [];
     for (const item of quotationItems) {
-      if (!item.productId) {
-        throw new AppError('Product ID is required for each item', 400);
+      // Validate that either productId or customizedProductId is provided
+      if (!item.productId && !item.customizedProductId) {
+        throw new AppError('Either Product ID or Customized Product ID is required for each item', 400);
       }
+      
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
       const discountPercentage = Number(item.discount || 0); // Assuming item.discount is percentage
@@ -335,14 +337,31 @@ exports.updateQuotation = async (req, res) => {
       // Calculate total for this specific QuotationItem
       const itemTotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
 
-      const quotationItem = await QuotationItem.create({
+      // Determine item type
+      let itemType = '';
+      if (item.productId) {
+        itemType = 'product';
+      } else if (item.customizedProductId) {
+        itemType = 'customized';
+      }
+
+      const quotationItemData = {
         quotationId: quotation._id,
-        productId: item.productId,
+        itemType: itemType,
         quantity: quantity,
         unitPrice: unitPrice,
         discount: discountPercentage, // Store discount as percentage
         total: itemTotal // Store correctly calculated item total
-      });
+      };
+
+      // Add either productId or customizedProductId
+      if (item.productId) {
+        quotationItemData.productId = item.productId;
+      } else {
+        quotationItemData.customizedProductId = item.customizedProductId;
+      }
+
+      const quotationItem = await QuotationItem.create(quotationItemData);
       createdQuotationItems.push(quotationItem);
     }
 

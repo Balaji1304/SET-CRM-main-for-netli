@@ -200,8 +200,18 @@ export default function QuotationDetailsPage() {
 
   // Mobile Item Card Component
   const ItemCard = ({ item, index }) => {
-    const productObj = item.productId;
-    const productName = productObj?.name || 'Product Name Not Available';
+    // Handle both regular products and customized products
+    const productObj = item.productId || item.customizedProductId;
+    let productName = 'Product Name Not Available';
+    
+    if (item.productId && item.productId.name) {
+      productName = item.productId.name;
+    } else if (item.customizedProductId && item.customizedProductId.name) {
+      productName = `${item.customizedProductId.name} (Customized)`;
+    } else if (productObj?.name) {
+      productName = productObj.name;
+    }
+    
     const total = item.quantity * item.unitPrice * (1 - item.discount/100);
     
     return (
@@ -437,8 +447,18 @@ export default function QuotationDetailsPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {quotation.quotationItems?.map((item, index) => {
-                      const productObj = item.productId;
-                      const productName = productObj?.name || 'Product Name Not Available';
+                      // Handle both regular products and customized products
+                      const productObj = item.productId || item.customizedProductId;
+                      let productName = 'Product Name Not Available';
+                      
+                      if (item.productId && item.productId.name) {
+                        productName = item.productId.name;
+                      } else if (item.customizedProductId && item.customizedProductId.name) {
+                        productName = `${item.customizedProductId.name} (Customized)`;
+                      } else if (productObj?.name) {
+                        productName = productObj.name;
+                      }
+                      
                       const total = item.quantity * item.unitPrice * (1 - item.discount/100);
                       
                       return (
