@@ -23,6 +23,23 @@ exports.createCustomizedProduct = async (req, res) => {
       throw new AppError('Lead not found', 404);
     }
 
+    // Check if this customized product already exists to prevent duplication
+    const existingCustomizedProduct = await CustomizedProduct.findOne({
+      leadId: leadId,
+      name: name,
+      unitPrice: parseFloat(unitPrice)
+    });
+
+    if (existingCustomizedProduct) {
+      console.log(`Duplicate prevention: Found existing customized product: ${name} - Returning existing ID: ${existingCustomizedProduct._id}`);
+      return res.status(200).json({
+        success: true,
+        data: existingCustomizedProduct,
+        message: 'Existing customized product returned'
+      });
+    }
+
+    console.log(`Creating new customized product: ${name} for lead: ${leadId}`);
     // Create customized product
     const customizedProduct = await CustomizedProduct.create({
       name,

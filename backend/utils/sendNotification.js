@@ -207,8 +207,12 @@ const sendQuotationNotification = async (quotation, quotationItems, pdfBuffer = 
       firstName: customer.firstName,
       lastName: customer.lastName,
       businessName: customer.businessName,
-      address: customer.address,
-      email: customer.email
+      billingAddress: customer.billingAddress,
+      shippingAddress: customer.shippingAddress,
+      address: customer.address, // Keep for backward compatibility
+      email: customer.email,
+      phone: customer.phone,
+      countryCode: customer.countryCode
     },
     items: quotationItems.map(item => {
       let product = {};

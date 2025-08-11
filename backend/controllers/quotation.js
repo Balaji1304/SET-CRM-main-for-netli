@@ -560,8 +560,12 @@ exports.sendQuotation = async (req, res) => {
           firstName: quotation.lead.firstName,
           lastName: quotation.lead.lastName,
           businessName: quotation.lead.businessName,
-          address: quotation.lead.address,
-          email: quotation.lead.email
+          billingAddress: quotation.lead.billingAddress,
+          shippingAddress: quotation.lead.shippingAddress,
+          address: quotation.lead.address, // Keep for backward compatibility
+          email: quotation.lead.email,
+          phone: quotation.lead.phone,
+          countryCode: quotation.lead.countryCode
         },
       items: formattedItems,
         total: quotation.total,
@@ -618,7 +622,7 @@ exports.sendQuotation = async (req, res) => {
           paymentLinkExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         },
         { new: true }
-      ).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod').populate('createdBy', 'name');
+      ).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod billingAddress shippingAddress address businessName').populate('createdBy', 'name');
 
       // Send notification via available channels (email and/or WhatsApp)
       try {

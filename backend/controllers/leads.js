@@ -1,4 +1,5 @@
 const Lead = require('../models/Lead');
+const CustomizedProduct = require('../models/CustomizedProduct');
 
 // @desc    Create new lead
 // @route   POST /api/leads
@@ -113,6 +114,53 @@ exports.updateLead = async (req, res) => {
     }
 
     console.log(`Found lead - createdFromEnquiry: ${lead.createdFromEnquiry}, leadCompletionStatus: ${lead.leadCompletionStatus}`);
+
+    // Handle customized products to prevent duplication
+    if (req.body.products && Array.isArray(req.body.products)) {
+      const processedProducts = [];
+      
+      for (const product of req.body.products) {
+        if (product.isCustomizedProduct) {
+          // Check if this customized product already exists in the database
+          const existingCustomizedProduct = await CustomizedProduct.findOne({
+            leadId: req.params.id,
+            name: product.name,
+            unitPrice: parseFloat(product.unitPrice)
+          });
+          
+          if (existingCustomizedProduct) {
+            console.log(`Found existing customized product: ${product.name} - Using existing ID: ${existingCustomizedProduct._id}`);
+            // Use the existing customized product
+            processedProducts.push({
+              ...product,
+              customizedProductId: existingCustomizedProduct._id,
+              id: existingCustomizedProduct._id.toString()
+            });
+          } else {
+            console.log(`Creating new customized product: ${product.name}`);
+            // Create new customized product
+            const newCustomizedProduct = await CustomizedProduct.create({
+              name: product.name,
+              unitPrice: parseFloat(product.unitPrice),
+              leadId: req.params.id,
+              createdBy: req.user.id
+            });
+            
+            processedProducts.push({
+              ...product,
+              customizedProductId: newCustomizedProduct._id,
+              id: newCustomizedProduct._id.toString()
+            });
+          }
+        } else {
+          // Regular product, no changes needed
+          processedProducts.push(product);
+        }
+      }
+      
+      // Update the products array with processed products
+      req.body.products = processedProducts;
+    }
 
     // Update the lead fields
     Object.keys(req.body).forEach(key => {
