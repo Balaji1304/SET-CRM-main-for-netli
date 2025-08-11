@@ -53,7 +53,7 @@ const customerSchema = new mongoose.Schema({
   },
   customerType: {
     type: String,
-    enum: ['individual', 'plumber', 'dealer', 'business_owner']
+    enum: ['end_user', 'plumber', 'dealer', 'builder', 'other']
   },
   createdAt: {
     type: Date,

@@ -35,30 +35,23 @@ const AssignTaskModal = ({
       return;
     }
     if (!serviceDueDate) {
-      setInternalError('Please select a service due date.');
+      setInternalError('Installation date is not set. Please contact the Marketing Coordinator.');
       return;
     }
-    // Validate due date is not in the past
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    if (new Date(serviceDueDate) < today) {
-        setInternalError('Service due date cannot be in the past.');
-        return;
-    }
-
+    
     onAssign({
       assignedEngineerId,
-      serviceDueDate,
+      // serviceDueDate is now read-only and passed from the task's installation date
       serviceAssignmentNotes,
     });
   };
 
   if (!task) return null;
 
-  const subjectText = `Service Installation for Purchase ID: ${task.purchaseID}`;
   const customerName = task.customerId ? `${task.customerId.firstName} ${task.customerId.lastName}` : 'N/A';
   const relatedToText = task.purchaseID;
-  const title = task.serviceTaskStatus === 'pending_assignment' ? "Assign New Task" : "Modify Task Assignment";
+  const installationDateText = task.installationDate ? new Date(task.installationDate).toLocaleDateString() : 'Not set';
+  const title = "Assign Service Engineer for Installation";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ease-in-out">
@@ -75,20 +68,6 @@ const AssignTaskModal = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Subject (Read-only) */}
-          <div>
-            <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
-              Subject
-            </label>
-            <input
-              type="text"
-              id="subject"
-              value={subjectText}
-              readOnly
-              className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            />
-          </div>
-
           {/* Customer Name (Read-only) */}
           <div>
             <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
@@ -106,7 +85,7 @@ const AssignTaskModal = ({
           {/* Related To (Read-only) */}
           <div>
             <label htmlFor="relatedTo" className="block text-sm font-medium text-gray-700 mb-1">
-              Related To (Purchase ID)
+              Purchase Order ID
             </label>
             <input
               type="text"
@@ -147,10 +126,10 @@ const AssignTaskModal = ({
             </div>
           </div>
 
-          {/* Due Date */}
+          {/* Installation Date (Read-only) */}
           <div>
             <label htmlFor="serviceDueDate" className="block text-sm font-medium text-gray-700 mb-1">
-              Due Date <span className="text-red-500">*</span>
+              Installation Date (Set by Marketing Coordinator)
             </label>
             <div className="relative">
                 <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -158,12 +137,12 @@ const AssignTaskModal = ({
                 type="date"
                 id="serviceDueDate"
                 value={serviceDueDate}
-                onChange={(e) => setServiceDueDate(e.target.value)}
-                className={`w-full p-2 pl-10 border ${internalError && !serviceDueDate ? 'border-red-500' : 'border-gray-300'} rounded-md focus:ring-2 focus:ring-orange-500 focus:border-orange-500`}
-                disabled={isAssigning}
-                min={new Date().toISOString().split('T')[0]} // Prevent past dates
+                readOnly
+                className={`w-full p-2 pl-10 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500`}
+                disabled={true}
                 />
             </div>
+            <p className="mt-1 text-xs text-gray-500">This date was already fixed after discussing with the customer.</p>
           </div>
           
           {/* Assignment Notes */}

@@ -176,9 +176,6 @@ export default function InvoicePage() {
     companyDetails,
     customerDetails,
     items,
-    subtotal,
-    taxAmount,
-    taxPercentage,
     totalAmount,
     paidAmount,
     paymentStatus,
@@ -292,17 +289,6 @@ export default function InvoicePage() {
 
         <div className="flex flex-col sm:flex-row justify-end items-start mb-8">
           <div className="w-full sm:w-1/2 md:w-2/5 lg:w-1/3 space-y-2">
-            <div className="flex justify-between text-gray-700">
-              <span>Subtotal:</span>
-              <span>{formatCurrency(getSafe(() => subtotal, 0))}</span>
-            </div>
-            {getSafe(() => taxAmount, 0) > 0 && (
-              <div className="flex justify-between text-gray-700">
-                <span>Tax ({getSafe(() => taxPercentage, 0)}%):</span>
-                <span>{formatCurrency(getSafe(() => taxAmount, 0))}</span>
-              </div>
-            )}
-            <div className="border-t border-gray-300 my-2"></div>
             <div className="flex justify-between text-gray-900 font-bold text-lg">
               <span>Total Amount:</span>
               <span>{formatCurrency(getSafe(() => totalAmount, 0))}</span>

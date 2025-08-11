@@ -15,6 +15,9 @@ const {
   assignTaskToEngineer,
   getProductHeadTasks,
   getApprovedPurchases,
+  getPurchaseOrdersForManagement,
+  updateStatusToReadyToDispatch,
+  allocateInstallationDate,
 } = require('../controllers/customerPurchaseController');
 
 // Create quotation from lead
@@ -22,6 +25,11 @@ router.post('/lead/:leadId/quotation', protect, createQuotationFromLead);
 
 // Convert lead to customer when quotation is approved
 router.post('/quotation/:quotationId/approve', protect, convertLeadToCustomer);
+
+// This is the new primary route for the PO Management page
+router
+  .route('/')
+  .get(protect, authorize('product_head', 'marketing_coordinator'), getPurchaseOrdersForManagement);
 
 // Get all purchases for a customer
 router.get('/customer/:customerId', protect, getCustomerPurchases);
@@ -34,10 +42,6 @@ router.route('/my-purchases').get(protect, getCustomerPurchasesByUser);
 
 // Get all purchases for logged-in customer
 router.route('/approved').get(protect, authorize('sales_head'), getApprovedPurchases);
-
-router
-  .route('/')
-  .get(protect, authorize('admin', 'sales'), getCustomerPurchases);
 
 // Record payment for a purchase
 router.post('/:purchaseId/payment', protect, recordPayment);
@@ -70,11 +74,19 @@ router.put(
   assignTaskToEngineer
 );
 
-// New route for getting all tasks for Product Head
-router.get(
-  '/tasks/all-product-head',
+router.put(
+  '/:purchaseId/ready-to-dispatch',
   protect,
-  getProductHeadTasks
+  authorize('product_head'),
+  updateStatusToReadyToDispatch
 );
 
-module.exports = router; 
+router.put(
+  '/:purchaseId/allocate-installation-date',
+  protect,
+  authorize('marketing_coordinator'),
+  allocateInstallationDate
+);
+
+
+module.exports = router;

@@ -96,4 +96,21 @@ export const uploadProductBrochure = async (id, formData) => {
   // Invalidate products cache after brochure upload
   invalidateCache('products');
   return data;
+};
+
+/**
+ * Get default terms and conditions for a product category
+ * @param {string} category - Product category
+ * @returns {Promise<Object>} - Response with terms and conditions
+ */
+export const getDefaultTerms = async (category) => {
+  return await apiRequest(`products/terms/default?category=${encodeURIComponent(category)}`);
+};
+
+/**
+ * Get all available terms and conditions
+ * @returns {Promise<Object>} - Response with all terms
+ */
+export const getAllTerms = async () => {
+  return await apiRequest('products/terms/all');
 }; 

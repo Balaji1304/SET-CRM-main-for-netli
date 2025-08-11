@@ -95,11 +95,6 @@ const getNavigation = (userRole) => {
       { name: 'New Enquiry', href: '/dashboard/enquiry', icon: UserPlus },
       { name: 'Lead Assignment', href: '/dashboard/lead-assignment', icon: Users },
     ],
-    inventory_manager: [
-      { name: 'Products', href: '/dashboard/products', icon: Box },
-      { name: 'Add Product', href: '/dashboard/products/add', icon: Plus },
-      { name: 'Product Bundles', href: '/dashboard/bundles', icon: Package },
-    ],
     sales_head: [
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
@@ -108,9 +103,12 @@ const getNavigation = (userRole) => {
     product_head: [
       { name: 'Products', href: '/dashboard/products', icon: Box },
       { name: 'Product Bundles', href: '/dashboard/bundles', icon: Package },
-      { name: 'Schedule', href: '/dashboard/schedule', icon: Calendar },
+      { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
       { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+    ],
+    marketing_coordinator: [
+      { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
     ],
     service_engineer: [
       { name: 'Service Customers', href: '/dashboard/service-customers', icon: Users },

@@ -66,22 +66,12 @@ exports.convertLeadToCustomer = async (req, res) => {
         phone: lead.phone,
         businessName: lead.businessName,
         address: lead.address,
-        customerType: lead.customerType
+        customerType: lead.customerType || 'end_user'
       });
     }
 
     // Financials from Quotation
-    const purchaseSubtotal = quotation.subtotal; // Assumes quotation.subtotal is correct
-    const purchaseTaxPercentage = 18; // Hardcoded 18% tax rate
-    const purchaseTaxAmount = Number((purchaseSubtotal * (purchaseTaxPercentage / 100)).toFixed(2));
-    // quotation.total should already reflect subtotal + 18% tax
     const purchaseTotalAmount = quotation.total; 
-
-    // Validate if quotation.total matches our new calculation
-    if (Math.abs(purchaseTotalAmount - (purchaseSubtotal + purchaseTaxAmount)) > 0.01) {
-        console.warn(`Discrepancy in Quotation total vs. re-calculated total during lead conversion. Quotation ID: ${quotation._id}. Quotation.total: ${quotation.total}, Calculated: ${purchaseSubtotal + purchaseTaxAmount}`);
-        // Consider using the re-calculated total if quotation.total is deemed unreliable.
-    }
 
     const calculatedAdvanceAmount = advanceAmount || (purchaseTotalAmount * (quotation.advancePaymentPercentage / 100));
     const remainingAmount = purchaseTotalAmount - calculatedAdvanceAmount;
@@ -95,9 +85,6 @@ exports.convertLeadToCustomer = async (req, res) => {
       purchaseID,
       customerId: customer._id,
       quotationId: quotation._id,
-      subtotal: purchaseSubtotal,         // Store subtotal from quotation
-      taxPercentage: purchaseTaxPercentage, // Store defined percentage (18%)
-      taxAmount: purchaseTaxAmount,         // Store calculated tax amount
       advancePaid: calculatedAdvanceAmount,
       totalAmount: purchaseTotalAmount,     // Use quotation.total
       remainingAmount: remainingAmount,
@@ -159,7 +146,7 @@ exports.getCustomerPurchases = async (req, res) => {
     const purchases = await CustomerPurchase.find({ customerId })
       .populate({
         path: 'quotationId',
-        select: 'quotationNumber subtotal tax total validUntil'
+        select: 'quotationNumber total validUntil'
       });
 
     // For each purchase, get the quotation items
@@ -201,7 +188,7 @@ exports.getCustomerPurchasesByUser = async (req, res) => {
     const purchases = await CustomerPurchase.find({ customerId: customer._id })
       .populate({
         path: 'quotationId',
-        select: 'quotationNumber subtotal tax total validUntil advancePaymentPercentage'
+        select: 'quotationNumber total validUntil advancePaymentPercentage'
       })
       .sort({ purchaseDate: -1 }); // Newest first
 
@@ -407,7 +394,7 @@ exports.getPurchaseDetails = async (req, res) => {
       })
       .populate({
         path: 'quotationId',
-        select: 'quotationNumber subtotal tax total validUntil createdBy advancePaymentStatus',
+        select: 'quotationNumber total validUntil createdBy advancePaymentStatus',
         populate: {
             path: 'createdBy',
             select: 'name email'
@@ -444,11 +431,41 @@ exports.getPurchaseDetails = async (req, res) => {
   }
 };
 
+// @desc    Get all purchase orders for the management page
+// @route   GET /api/customer-purchases
+// @access  Private (product_head, marketing_coordinator)
+exports.getPurchaseOrdersForManagement = async (req, res) => {
+  try {
+    // These are the statuses relevant for the PO Management page
+    const relevantStatuses = [
+      'pending_assignment', 
+      'ready_to_dispatch', 
+      'installation_date_allocated', 
+      'assigned'
+    ];
+
+    const purchaseOrders = await CustomerPurchase.find({
+      serviceTaskStatus: { $in: relevantStatuses },
+    })
+      .populate('customerId', 'firstName lastName')
+      .populate('assignedEngineerId', 'name')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: purchaseOrders.length,
+      data: purchaseOrders,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
 // Create a quotation with items based on lead's product interests
 exports.createQuotationFromLead = async (req, res) => {
   try {
     const { leadId } = req.params;
-    const { quotationItems, subtotal, tax, total, validUntil, terms, notes } = req.body;
+    const { quotationItems, total, validUntil, terms, notes } = req.body;
 
     // Find the lead
     const lead = await Lead.findById(leadId);
@@ -464,8 +481,6 @@ exports.createQuotationFromLead = async (req, res) => {
     const quotation = await Quotation.create({
       lead: lead._id,
       quotationNumber,
-      subtotal,
-      tax,
       total,
       validUntil: validUntil || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Default 7 days validity
       terms,
@@ -489,7 +504,7 @@ exports.createQuotationFromLead = async (req, res) => {
         quantity: item.quantity,
         unitPrice: item.unitPrice || product.price,
         discount: item.discount || 0,
-        subtotal: (item.quantity * (item.unitPrice || product.price)) - (item.discount || 0)
+        total: (item.quantity * (item.unitPrice || product.price)) - (item.discount || 0)
       });
 
       createdQuotationItems.push(quotationItem);
@@ -606,19 +621,8 @@ exports.assignTaskToEngineer = async (req, res) => {
     const { purchaseId } = req.params;
     const { assignedEngineerId, serviceDueDate, serviceAssignmentNotes } = req.body;
 
-    if (!assignedEngineerId || !serviceDueDate) {
-      throw new AppError('Assigned engineer and service due date are required', 400);
-    }
-
-    // Validate serviceDueDate is in the future (optional, but good practice)
-    if (new Date(serviceDueDate) < new Date()) {
-        // throw new AppError('Service due date must be in the future', 400);
-        // Allow same day assignment, but not past
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        if (new Date(serviceDueDate) < today) {
-            throw new AppError('Service due date cannot be in the past', 400);
-        }
+    if (!assignedEngineerId) {
+      throw new AppError('Assigned engineer is required', 400);
     }
 
     const purchase = await CustomerPurchase.findById(purchaseId)
@@ -632,28 +636,28 @@ exports.assignTaskToEngineer = async (req, res) => {
       throw new AppError('Purchase is not active or advance payment not confirmed', 400);
     }
 
-    if (purchase.serviceTaskStatus !== 'pending_assignment') {
-      // Allow re-assignment if already assigned but not yet completed/cancelled
-      if (!['assigned', 'scheduled', 'on_hold'].includes(purchase.serviceTaskStatus)) {
-        throw new AppError(`Task is currently ${purchase.serviceTaskStatus} and cannot be assigned.`, 400);
-      }
-      console.log(`Re-assigning task for purchase ${purchaseId}. Previous status: ${purchase.serviceTaskStatus}`);
+    // In the new workflow, we need to check for installation_date_allocated status
+    if (purchase.serviceTaskStatus !== 'installation_date_allocated') {
+      throw new AppError(`Purchase must have an allocated installation date before assigning an engineer. Current status: ${purchase.serviceTaskStatus}`, 400);
+    }
+
+    if (!purchase.installationDate) {
+      throw new AppError('Installation date must be set before assigning an engineer', 400);
     }
     
     // Check if the assignedEngineerId is a valid service engineer
     const engineer = await User.findOne({ _id: assignedEngineerId, role: 'service_engineer' });
     if (!engineer) {
-        throw new AppError('Invalid Service Engineer selected or user is not a service engineer.', 404);
+      throw new AppError('Invalid Service Engineer selected or user is not a service engineer.', 404);
     }
 
     purchase.assignedEngineerId = assignedEngineerId;
-    purchase.serviceDueDate = serviceDueDate;
-    purchase.serviceAssignmentNotes = serviceAssignmentNotes || purchase.serviceAssignmentNotes; // Keep old notes if new are not provided
-    purchase.serviceTaskStatus = 'assigned'; // Set status to assigned
+    // Use the installation date that was set by the marketing coordinator
+    purchase.serviceDueDate = purchase.installationDate;
+    purchase.serviceAssignmentNotes = serviceAssignmentNotes || purchase.serviceAssignmentNotes;
+    purchase.serviceTaskStatus = 'assigned';
     
     await purchase.save();
-
-    // TODO: Consider sending a notification to the service engineer here
 
     res.status(200).json({
       success: true,
@@ -734,6 +738,36 @@ exports.getProductHeadTasks = async (req, res) => {
   }
 };
 
+// @desc    Get all purchase orders for the management page
+// @route   GET /api/customer-purchases
+// @access  Private (product_head, marketing_coordinator)
+exports.getPurchaseOrdersForManagement = async (req, res) => {
+  try {
+    // These are the statuses relevant for the PO Management page
+    const relevantStatuses = [
+      'pending_assignment', 
+      'ready_to_dispatch', 
+      'installation_date_allocated', 
+      'assigned'
+    ];
+
+    const purchaseOrders = await CustomerPurchase.find({
+      serviceTaskStatus: { $in: relevantStatuses },
+    })
+      .populate('customerId', 'firstName lastName')
+      .populate('assignedEngineerId', 'name')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: purchaseOrders.length,
+      data: purchaseOrders,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
 // @desc    Get all approved purchases that are not yet packaged
 // @route   GET /api/customer-purchases/approved
 // @access  Private(sales_head)
@@ -763,4 +797,65 @@ exports.getApprovedPurchases = async (req, res) => {
   } catch (error) {
     errorHandler(res, error);
   }
-}; 
+};
+
+// @desc    Update purchase status to 'Ready to Dispatch'
+// @route   PUT /api/customer-purchases/:purchaseId/ready-to-dispatch
+// @access  Private (Product Head)
+exports.updateStatusToReadyToDispatch = async (req, res) => {
+  try {
+    const purchase = await CustomerPurchase.findById(req.params.purchaseId).populate('customerId', 'firstName lastName');
+
+    if (!purchase) {
+      throw new AppError('Purchase not found', 404);
+    }
+
+    // This is the first step for the Product Head in the new workflow.
+    if (purchase.serviceTaskStatus !== 'pending_assignment') {
+      throw new AppError(`Purchase status must be 'pending_assignment' to dispatch. Current status: ${purchase.serviceTaskStatus}`, 400);
+    }
+
+    purchase.serviceTaskStatus = 'ready_to_dispatch';
+    await purchase.save();
+
+    res.status(200).json({
+      success: true,
+      data: purchase,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Allocate installation date for a purchase
+// @route   PUT /api/customer-purchases/:purchaseId/allocate-installation-date
+// @access  Private (Marketing Coordinator)
+exports.allocateInstallationDate = async (req, res) => {
+  try {
+    const { installationDate } = req.body;
+    if (!installationDate) {
+      throw new AppError('Installation date is required', 400);
+    }
+
+    const purchase = await CustomerPurchase.findById(req.params.purchaseId);
+
+    if (!purchase) {
+      throw new AppError('Purchase not found', 404);
+    }
+
+    if (purchase.serviceTaskStatus !== 'ready_to_dispatch') {
+      throw new AppError('Purchase is not yet ready for dispatch', 400);
+    }
+
+    purchase.installationDate = installationDate;
+    purchase.serviceTaskStatus = 'installation_date_allocated';
+    await purchase.save();
+
+    res.status(200).json({
+      success: true,
+      data: purchase,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};

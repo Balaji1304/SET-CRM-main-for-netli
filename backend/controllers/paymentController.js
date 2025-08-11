@@ -175,6 +175,104 @@ exports.rejectPayment = async (req, res, next) => {
       data: payment
     });
   } catch (error) {
-    next(error);
+    errorHandler(res, error);
   }
-}; 
+};
+
+// Helper function to create an invoice if the purchase is fully paid
+async function createInvoiceIfFullyPaid(purchaseId, userId) {
+  const Invoice = require('../models/Invoice');
+  const CustomerPurchase = require('../models/CustomerPurchase');
+  const QuotationItem = require('../models/QuotationItem');
+  const Product = require('../models/Product');
+
+  const purchase = await CustomerPurchase.findById(purchaseId)
+    .populate('customerId')
+    .populate('quotationId', 'lead');
+
+  if (!purchase) {
+    console.error(`createInvoiceIfFullyPaid: Purchase not found for ID ${purchaseId}`);
+    return;
+  }
+
+  if (!purchase.isFullyPaid) {
+    console.log(`createInvoiceIfFullyPaid: Purchase ${purchaseId} is not fully paid. Invoice not generated.`);
+    return;
+  }
+
+  const existingInvoice = await Invoice.findOne({ customerPurchase: purchaseId });
+  if (existingInvoice) {
+    console.log(`createInvoiceIfFullyPaid: Invoice already exists for purchase ${purchaseId}.`);
+    return;
+  }
+
+  const quotationItems = await QuotationItem.find({ quotationId: purchase.quotationId._id })
+    .populate('productId', 'name description');
+
+  if (!quotationItems || quotationItems.length === 0) {
+    console.error(`createInvoiceIfFullyPaid: No quotation items found for quotation ${purchase.quotationId._id}. Cannot generate invoice items.`);
+    return;
+  }
+
+  const invoiceNumber = await Invoice.generateInvoiceNumber();
+
+  const itemsForInvoice = quotationItems.map(qItem => ({
+    product: qItem.productId._id,
+    name: qItem.productId.name,
+    description: qItem.productId.description,
+    quantity: qItem.quantity,
+    unitPrice: qItem.unitPrice,
+    discountPercentage: qItem.discount || 0,
+    itemTotal: qItem.total
+  }));
+
+  const invoiceTotalAmount = purchase.totalAmount;
+  
+  const sumOfItemTotals = itemsForInvoice.reduce((sum, item) => sum + (item.itemTotal || 0), 0);
+  if (Math.abs(sumOfItemTotals - invoiceTotalAmount) > 0.01) {
+      console.warn(`Discrepancy: Sum of invoice item totals (${sumOfItemTotals}) does not match CustomerPurchase total (${invoiceTotalAmount}) for CP ID ${purchaseId}.`);
+  }
+
+  const companyDetails = {
+    name: process.env.COMPANY_NAME || "Sunlit Systems",
+    address: process.env.COMPANY_ADDRESS || "#27, Dr. Jaganatha Nagar, Near CIT, Opp. to CMC, Coimbatore - 641 014",
+    phone: process.env.COMPANY_PHONE || " +919842291069",
+    email: process.env.COMPANY_EMAIL || "info@sunlitsolarindia.com",
+    logoUrl: process.env.COMPANY_LOGO_URL || "https://res.cloudinary.com/dcua87ney/image/upload/v1746715647/logo2_kmndu4.png",
+    taxId: process.env.COMPANY_TAX_ID || "GSTIN1234567890"
+  };
+
+  let customerDetails = {
+    name: purchase.customerId?.name || `${purchase.customerId?.firstName} ${purchase.customerId?.lastName}`.trim() || 'N/A',
+    email: purchase.customerId?.email || 'N/A',
+    phone: purchase.customerId?.phone || 'N/A',
+    billingAddress: purchase.customerId?.billingAddress || purchase.customerId?.address || (purchase.quotationId?.lead ? purchase.quotationId.lead.address : 'N/A'),
+    shippingAddress: purchase.customerId?.shippingAddress || purchase.customerId?.billingAddress || purchase.customerId?.address || (purchase.quotationId?.lead ? purchase.quotationId.lead.address : 'N/A')
+  };
+  
+  if (purchase.customerId && purchase.quotationId && purchase.quotationId.lead && customerDetails.name === 'N/A') {
+    const lead = purchase.quotationId.lead;
+    customerDetails.name = `${lead.firstName} ${lead.lastName}`.trim();
+    customerDetails.email = lead.email;
+    customerDetails.phone = lead.phone;
+    customerDetails.billingAddress = lead.address;
+  }
+
+  const newInvoice = new Invoice({
+    invoiceNumber,
+    customer: purchase.customerId._id,
+    quotation: purchase.quotationId._id,
+    customerPurchase: purchaseId,
+    items: itemsForInvoice,
+    totalAmount: invoiceTotalAmount,
+    paidAmount: invoiceTotalAmount,
+    paymentStatus: 'PAID',
+    issueDate: new Date(),
+    companyDetails,
+    customerDetails,
+    createdBy: userId
+  });
+
+  await newInvoice.save();
+  console.log(`Invoice ${invoiceNumber} generated successfully for purchase ${purchaseId} using CustomerPurchase financials.`);
+} 

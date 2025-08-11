@@ -308,16 +308,6 @@
 
     <div class="totals-section-right">
       <div class="totals-summary-box">
-        <div class="summary-row">
-          <span class="summary-label">Subtotal:</span>
-          <span class="summary-value">{{formatCurrency subtotal}}</span>
-        </div>
-        {{#if taxAmount}}
-        <div class="summary-row">
-          <span class="summary-label">Tax ({{taxPercentage}}%):</span>
-          <span class="summary-value">{{formatCurrency taxAmount}}</span>
-        </div>
-        {{/if}}
         <div class="summary-row grand-total-row">
           <span class="summary-label">Total Amount:</span>
           <span class="summary-value">{{formatCurrency totalAmount}}</span>
