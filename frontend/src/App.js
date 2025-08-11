@@ -14,6 +14,7 @@ import ProductBrochurePage from './app/products/[id]/brochure/page';
 import NotificationsPage from './app/notifications/page';
 import ReportsPage from './app/reports/page';
 import TicketsPage from './app/tickets/page';
+import SchedulePage from './app/schedule/page';
 import ServiceCustomersPage from './app/service-customers/page';
 import PerformancePage from './app/performance/page';
 import MaintenancePage from './app/maintenance/page';
@@ -30,14 +31,12 @@ import OrdersPage from './app/orders/page';
 import MyProductsPage from './app/my-products/page';
 import Leads from './components/dashboard/Leads';
 import InvoicePage from './app/invoice/[id]/page';
+import TaskDetailPage from './app/schedule/[taskId]/page';
 import PackagesPage from './app/packages/page';
 import BundlesPage from './app/bundles/page';
 import EnquiryPage from './app/enquiry/page';
 import LeadAssignmentPage from './app/lead-assignment/page';
-import PurchaseOrdersPage from './app/purchase-orders/page';
-import PurchaseOrderDetailPage from './app/purchase-orders/[id]/page';
 import VerifyPaymentsPage from './app/payments/verify/page';
-
 
 function App() {
   return (
@@ -55,7 +54,7 @@ function App() {
           <Route 
             path="/invoice/:id" 
             element={ 
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'admin', 'sales_head', 'accounts_department']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'admin', 'sales_head', 'accounts_department']}>
                 <InvoicePage />
               </ProtectedRoute>
             }
@@ -64,7 +63,7 @@ function App() {
                     <Route 
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'accounts_department']}>
                 <DashboardLayout />
               </ProtectedRoute>
             }
@@ -144,43 +143,43 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="products" element={
-              <ProtectedRoute allowedRoles={['product_head']}>
+              <ProtectedRoute allowedRoles={['inventory_manager']}>
                 <ProductListPage />
               </ProtectedRoute>
             } />
             <Route path="products/add" element={
-              <ProtectedRoute allowedRoles={['product_head']}>
+              <ProtectedRoute allowedRoles={['inventory_manager']}>
                 <AddProductPage />
               </ProtectedRoute>
             } />
             <Route path="products/:id/edit" element={
-              <ProtectedRoute allowedRoles={['product_head']}>
+              <ProtectedRoute allowedRoles={['inventory_manager']}>
                 <EditProductPage />
               </ProtectedRoute>
             } />
             <Route path="bundles" element={
-              <ProtectedRoute allowedRoles={['product_head']}>
+              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
                 <BundlesPage />
               </ProtectedRoute>
             } />
             <Route path="bundles/create" element={
-              <ProtectedRoute allowedRoles={['product_head']}>
+              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
                 <BundlesPage />
               </ProtectedRoute>
             } />
             <Route path="bundles/:id/edit" element={
-              <ProtectedRoute allowedRoles={['product_head']}>
+              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
                 <BundlesPage />
               </ProtectedRoute>
             } />
-            <Route path="purchase-orders" element={
-              <ProtectedRoute allowedRoles={['product_head', 'marketing_coordinator']}>
-                <PurchaseOrdersPage />
+            <Route path="schedule" element={
+              <ProtectedRoute allowedRoles={['product_head']}>
+                <SchedulePage />
               </ProtectedRoute>
             } />
-            <Route path="purchase-orders/:id" element={
-              <ProtectedRoute allowedRoles={['product_head', 'marketing_coordinator']}>
-                <PurchaseOrderDetailPage />
+            <Route path="schedule/:taskId" element={ 
+              <ProtectedRoute allowedRoles={['product_head']}>
+                <TaskDetailPage />
               </ProtectedRoute>
             } />
             <Route path="maintenance" element={
@@ -231,4 +230,4 @@ function App() {
   );
 }
 
-export default App;
+export default App; 

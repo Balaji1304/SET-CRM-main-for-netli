@@ -17,6 +17,21 @@ const customerPurchaseSchema = new mongoose.Schema({
     ref: 'Quotation', 
     required: true 
   },
+  subtotal: {
+    type: Number,
+    required: true,
+    default: 0
+  },
+  taxPercentage: {
+    type: Number,
+    required: true,
+    default: 0 
+  },
+  taxAmount: {
+    type: Number,
+    required: true,
+    default: 0
+  },
   advancePaid: { 
     type: Number, 
     required: true,
@@ -67,12 +82,8 @@ const customerPurchaseSchema = new mongoose.Schema({
   },
   serviceTaskStatus: {
     type: String,
-    enum: ['pending_assignment', 'assigned', 'scheduled', 'in_progress', 'completed', 'cancelled', 'on_hold', 'ready_to_dispatch', 'installation_date_allocated'],
+    enum: ['pending_assignment', 'assigned', 'scheduled', 'in_progress', 'completed', 'cancelled', 'on_hold'],
     default: 'pending_assignment'
-  },
-  installationDate: {
-    type: Date,
-    default: null
   },
   serviceAssignmentNotes: {
     type: String,

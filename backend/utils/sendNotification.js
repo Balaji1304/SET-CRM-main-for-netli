@@ -207,72 +207,25 @@ const sendQuotationNotification = async (quotation, quotationItems, pdfBuffer = 
       firstName: customer.firstName,
       lastName: customer.lastName,
       businessName: customer.businessName,
-      billingAddress: customer.billingAddress,
-      shippingAddress: customer.shippingAddress,
-      address: customer.address, // Keep for backward compatibility
-      email: customer.email,
-      phone: customer.phone,
-      countryCode: customer.countryCode
+      address: customer.address,
+      email: customer.email
     },
-    items: quotationItems.map(item => {
-      let product = {};
-      
-      // Handle regular products
-      if (item.productId) {
-        product = {
-          ...item.productId.toObject(),
-          specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
-            name: key,
-            value: value
-          })),
-          images: (item.productId.imageUrls || []).map(url => ({ url }))
-        };
-      }
-      // Handle customized products
-      else if (item.customizedProductId) {
-        const customizedProduct = item.customizedProductId;
-        
-        // Build specifications from the customized product
-        const specifications = [];
-        if (customizedProduct.modelNumber) {
-          specifications.push({ name: 'Model Number', value: customizedProduct.modelNumber });
-        }
-        
-        // Add all specifications from the customized product
-        Object.entries(customizedProduct.specifications || {}).forEach(([key, value]) => {
-          if (value && value.trim()) {
-            specifications.push({ 
-              name: key.charAt(0).toUpperCase() + key.slice(1), 
-              value: value 
-            });
-          }
-        });
-        
-        product = {
-          _id: customizedProduct._id,
-          name: customizedProduct.name || 'Customized Product',
-          description: customizedProduct.description || '',
-          specifications: specifications,
-          images: (customizedProduct.imageUrls || []).map(url => ({ url }))
-        };
-      }
-      // Handle bundle products (if needed)
-      else if (item.bundleId) {
-        product = {
-          ...item.bundleId.toObject(),
-          specifications: [],
-          images: []
-        };
-      }
-      
-      return {
-        product: product,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discount: item.discount || 0,
-        total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
-      };
-    }),
+    items: quotationItems.map(item => ({
+      product: {
+        ...item.productId.toObject(),
+        specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
+          name: key,
+          value: value
+        })),
+        images: (item.productId.imageUrls || []).map(url => ({ url }))
+      },
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discount: item.discount || 0,
+      total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
+    })),
+    subtotal: quotation.subtotal,
+    tax: quotation.tax,
     total: quotation.total,
     terms: quotation.terms,
     notes: quotation.notes,
@@ -318,7 +271,9 @@ const sendInvoiceNotification = async (invoice, pdfBuffer = null) => {
       discount: item.discount,
       total: item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)
     })),
-    total: invoice.totalAmount,
+    subtotal: invoice.subtotal,
+    tax: invoice.tax,
+    total: invoice.total,
     dueDate: invoice.dueDate?.toLocaleDateString(),
     businessDetails: {
       name: process.env.BUSINESS_NAME || 'Sunlit CRM',

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { ArrowLeft, Trash2, Upload, X, AlertTriangle, Loader2 } from 'lucide-react';
 import { createProduct } from '../../../services/productService';
-import { getProducts, getDefaultTerms } from '../../../services/productService';
+import { getProducts } from '../../../services/productService';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -108,7 +108,7 @@ export default function AddProductPage() {
     setHasUnsavedChanges(hasChanges);
   }, [formData, brochureFile]);
 
-  const handleChange = async (e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     if (name.startsWith('spec_')) {
       const specField = name.replace('spec_', '');
@@ -124,21 +124,6 @@ export default function AddProductPage() {
         ...prevState,
         [name]: value
       }));
-      
-      // Auto-fill terms and conditions when category changes
-      if (name === 'category' && value) {
-        try {
-          const response = await getDefaultTerms(value);
-          if (response.success && response.data.termsAndConditions) {
-            setFormData(prevState => ({
-              ...prevState,
-              termsAndConditions: response.data.termsAndConditions
-            }));
-          }
-        } catch (error) {
-          console.error('Error fetching default terms:', error);
-        }
-      }
     }
   };
 

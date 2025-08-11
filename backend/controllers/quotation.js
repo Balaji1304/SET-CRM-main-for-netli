@@ -2,7 +2,6 @@ const Quotation = require('../models/Quotation');
 const QuotationItem = require('../models/QuotationItem');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
-const CustomizedProduct = require('../models/CustomizedProduct');
 const sendEmail = require('../utils/sendEmail');
 const { sendQuotationNotification, sendWelcomeNotification } = require('../utils/sendNotification');
 const { generateQuotationNumber } = require('../utils/generateNumbers');
@@ -49,9 +48,7 @@ exports.getQuotations = async (req, res) => {
     // Get quotation items for all quotations in a single query
     const quotationIds = quotations.map(q => q._id);
     const allQuotationItems = await QuotationItem.find({ quotationId: { $in: quotationIds } })
-      .populate('productId')
-      .populate('bundleId')
-      .populate('customizedProductId');
+      .populate('productId');
     
     // Group quotation items by quotation ID for efficient lookup
     const itemsByQuotationId = {};
@@ -113,9 +110,7 @@ exports.getQuotation = async (req, res) => {
 
     // Get quotation items
     const quotationItems = await QuotationItem.find({ quotationId: quotation._id })
-      .populate('productId')
-      .populate('bundleId')
-      .populate('customizedProductId');
+      .populate('productId');
 
     // Convert to object for modification
     const quotationData = quotation.toObject();
@@ -174,9 +169,9 @@ exports.createQuotation = async (req, res) => {
       throw new AppError('Advance payment percentage must be between 1 and 100', 400);
     }
 
-    // Calculate total for Quotation (overall)
-    // This requires individual quotation item totals to be calculated first
-    let calculatedTotal = 0;
+    // Calculate totals for Quotation (overall)
+    // This requires individual quotation item subtotals to be calculated first
+    let calculatedQuotationSubtotal = 0;
     for (const item of quotationItems) {
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
@@ -184,14 +179,19 @@ exports.createQuotation = async (req, res) => {
       if (isNaN(quantity) || isNaN(unitPrice) || isNaN(discountPercentage)) {
         throw new AppError('Invalid item quantity, unit price, or discount percentage.', 400);
       }
-      calculatedTotal += quantity * unitPrice * (1 - discountPercentage / 100);
+      calculatedQuotationSubtotal += quantity * unitPrice * (1 - discountPercentage / 100);
     }
-    const total = Number(calculatedTotal.toFixed(2));
+    calculatedQuotationSubtotal = Number(calculatedQuotationSubtotal.toFixed(2));
+
+    const tax = Number((calculatedQuotationSubtotal * 0.18).toFixed(2)); // Assuming 18% tax on the corrected subtotal
+    const total = Number((calculatedQuotationSubtotal + tax).toFixed(2));
 
     // Create quotation
     const quotation = await Quotation.create({
       lead: leadId,
       quotationNumber: await generateQuotationNumber(),
+      subtotal: calculatedQuotationSubtotal, // Use the correctly calculated subtotal
+      tax,
       total,
       terms,
       notes,
@@ -205,49 +205,24 @@ exports.createQuotation = async (req, res) => {
     // Create quotation items
     const createdQuotationItems = [];
     for (const item of quotationItems) {
-      // Determine item type and validate required fields
-      let itemType = 'product';
-      let referenceId = null;
-      
-      if (item.productId) {
-        itemType = 'product';
-        referenceId = item.productId;
-      } else if (item.bundleId) {
-        itemType = 'bundle';
-        referenceId = item.bundleId;
-      } else if (item.customizedProductId) {
-        itemType = 'customized';
-        referenceId = item.customizedProductId;
-      } else {
-        throw new AppError('Product ID, Bundle ID, or Customized Product ID is required for each item', 400);
+      if (!item.productId) {
+        throw new AppError('Product ID is required for each item', 400);
       }
-
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
-      const discountPercentage = Number(item.discount || 0);
+      const discountPercentage = Number(item.discount || 0); // Assuming item.discount is percentage
 
-      // Calculate total for this specific QuotationItem
-      const itemTotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
+      // Calculate subtotal for this specific QuotationItem
+      const itemSubtotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
       
-      const quotationItemData = {
+      const quotationItem = await QuotationItem.create({
         quotationId: quotation._id,
-        itemType: itemType,
+        productId: item.productId,
         quantity: quantity,
         unitPrice: unitPrice,
-        discount: discountPercentage,
-        total: itemTotal
-      };
-
-      // Set the appropriate reference field
-      if (itemType === 'product') {
-        quotationItemData.productId = referenceId;
-      } else if (itemType === 'bundle') {
-        quotationItemData.bundleId = referenceId;
-      } else if (itemType === 'customized') {
-        quotationItemData.customizedProductId = referenceId;
-      }
-
-      const quotationItem = await QuotationItem.create(quotationItemData);
+        discount: discountPercentage, // Store discount as percentage
+        subtotal: itemSubtotal // Store correctly calculated item subtotal
+      });
       createdQuotationItems.push(quotationItem);
     }
 
@@ -291,8 +266,8 @@ exports.updateQuotation = async (req, res) => {
       throw new AppError('Advance payment percentage must be between 1 and 100', 400);
     }
 
-    // Recalculate total for Quotation (overall) based on updated items
-    let calculatedTotal = 0;
+    // Recalculate totals for Quotation (overall) based on updated items
+    let calculatedQuotationSubtotal = 0;
     for (const item of quotationItems) {
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
@@ -300,14 +275,19 @@ exports.updateQuotation = async (req, res) => {
       if (isNaN(quantity) || isNaN(unitPrice) || isNaN(discountPercentage)) {
         throw new AppError('Invalid item quantity, unit price, or discount percentage.', 400);
       }
-      calculatedTotal += quantity * unitPrice * (1 - discountPercentage / 100);
+      calculatedQuotationSubtotal += quantity * unitPrice * (1 - discountPercentage / 100);
     }
-    const total = Number(calculatedTotal.toFixed(2));
+    calculatedQuotationSubtotal = Number(calculatedQuotationSubtotal.toFixed(2));
+    
+    const tax = Number((calculatedQuotationSubtotal * 0.18).toFixed(2)); // Assuming 18% tax
+    const total = Number((calculatedQuotationSubtotal + tax).toFixed(2));
 
     // Update quotation
     const updatedData = {
       terms,
       notes,
+      subtotal: calculatedQuotationSubtotal, // Use the correctly calculated subtotal
+      tax,
       total,
       advancePaymentPercentage: percentage,
       updatedAt: Date.now()
@@ -325,43 +305,24 @@ exports.updateQuotation = async (req, res) => {
     // Create new quotation items
     const createdQuotationItems = [];
     for (const item of quotationItems) {
-      // Validate that either productId or customizedProductId is provided
-      if (!item.productId && !item.customizedProductId) {
-        throw new AppError('Either Product ID or Customized Product ID is required for each item', 400);
+      if (!item.productId) {
+        throw new AppError('Product ID is required for each item', 400);
       }
-      
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
       const discountPercentage = Number(item.discount || 0); // Assuming item.discount is percentage
 
-      // Calculate total for this specific QuotationItem
-      const itemTotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
+      // Calculate subtotal for this specific QuotationItem
+      const itemSubtotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
 
-      // Determine item type
-      let itemType = '';
-      if (item.productId) {
-        itemType = 'product';
-      } else if (item.customizedProductId) {
-        itemType = 'customized';
-      }
-
-      const quotationItemData = {
+      const quotationItem = await QuotationItem.create({
         quotationId: quotation._id,
-        itemType: itemType,
+        productId: item.productId,
         quantity: quantity,
         unitPrice: unitPrice,
         discount: discountPercentage, // Store discount as percentage
-        total: itemTotal // Store correctly calculated item total
-      };
-
-      // Add either productId or customizedProductId
-      if (item.productId) {
-        quotationItemData.productId = item.productId;
-      } else {
-        quotationItemData.customizedProductId = item.customizedProductId;
-      }
-
-      const quotationItem = await QuotationItem.create(quotationItemData);
+        subtotal: itemSubtotal // Store correctly calculated item subtotal
+      });
       createdQuotationItems.push(quotationItem);
     }
 
@@ -438,9 +399,7 @@ exports.sendQuotation = async (req, res) => {
 
     // Get quotation items
     const quotationItems = await QuotationItem.find({ quotationId: quotation._id })
-      .populate('productId')
-      .populate('bundleId')
-      .populate('customizedProductId');
+      .populate('productId');
 
     if (quotationItems.length === 0) {
       return res.status(400).json({
@@ -489,65 +448,20 @@ exports.sendQuotation = async (req, res) => {
 
     // Format items for email using the quotation items
     const formattedItems = await Promise.all(
-      quotationItems.map(async (item) => {
-        let product = null;
-        
-        // Handle regular products
-        if (item.productId) {
-          product = {
-            ...item.productId.toObject(),
-            specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
-              name: key,
-              value: value
-            })),
-            images: (item.productId.imageUrls || []).map(url => ({ url }))
-          };
-        }
-        // Handle customized products
-        else if (item.customizedProductId) {
-          const customizedProduct = item.customizedProductId;
-          
-          // Build specifications from the customized product
-          const specifications = [];
-          if (customizedProduct.modelNumber) {
-            specifications.push({ name: 'Model Number', value: customizedProduct.modelNumber });
-          }
-          
-          // Add all specifications from the customized product
-          Object.entries(customizedProduct.specifications || {}).forEach(([key, value]) => {
-            if (value && value.trim()) {
-              specifications.push({ 
-                name: key.charAt(0).toUpperCase() + key.slice(1), 
-                value: value 
-              });
-            }
-          });
-          
-          product = {
-            _id: customizedProduct._id,
-            name: customizedProduct.name || 'Customized Product',
-            description: customizedProduct.description || '',
-            specifications: specifications,
-            images: (customizedProduct.imageUrls || []).map(url => ({ url }))
-          };
-        }
-        // Handle bundle products (if needed)
-        else if (item.bundleId) {
-          product = {
-            ...item.bundleId.toObject(),
-            specifications: [],
-            images: []
-          };
-        }
-        
-        return {
-          product: product || {},
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discount || 0,
-          total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
-        };
-      })
+      quotationItems.map(async (item) => ({
+        product: {
+          ...item.productId.toObject(),
+          specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
+            name: key,
+            value: value
+          })),
+          images: (item.productId.imageUrls || []).map(url => ({ url }))
+        },
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
+      }))
     );
 
       // Process email data
@@ -560,14 +474,12 @@ exports.sendQuotation = async (req, res) => {
           firstName: quotation.lead.firstName,
           lastName: quotation.lead.lastName,
           businessName: quotation.lead.businessName,
-          billingAddress: quotation.lead.billingAddress,
-          shippingAddress: quotation.lead.shippingAddress,
-          address: quotation.lead.address, // Keep for backward compatibility
-          email: quotation.lead.email,
-          phone: quotation.lead.phone,
-          countryCode: quotation.lead.countryCode
+          address: quotation.lead.address,
+          email: quotation.lead.email
         },
       items: formattedItems,
+        subtotal: quotation.subtotal,
+        tax: quotation.tax,
         total: quotation.total,
         terms: quotation.terms,
         notes: quotation.notes,
@@ -622,7 +534,7 @@ exports.sendQuotation = async (req, res) => {
           paymentLinkExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         },
         { new: true }
-      ).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod billingAddress shippingAddress address businessName').populate('createdBy', 'name');
+      ).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod').populate('createdBy', 'name');
 
       // Send notification via available channels (email and/or WhatsApp)
       try {
@@ -701,9 +613,7 @@ exports.handleApproveQuotation = async (req, res) => {
     const approvedQuotation = await approveQuotation(quotation); 
     
     const quotationItems = await QuotationItem.find({ quotationId: approvedQuotation._id })
-      .populate('productId')
-      .populate('bundleId')
-      .populate('customizedProductId');
+      .populate('productId');
 
     const quotationWithItems = approvedQuotation.toObject();
     quotationWithItems.quotationItems = quotationItems;
@@ -876,7 +786,7 @@ const approveQuotation = async (quotationInstance) => {
         phone: lead.phone || '',
         businessName: lead.businessName || '',
         address: lead.address || '',
-        customerType: lead.customerType || 'end_user'
+        customerType: lead.customerType || 'individual' 
       });
       await customer.save();
       console.log(`Created customer with ID: ${customer._id}`);
@@ -891,7 +801,14 @@ const approveQuotation = async (quotationInstance) => {
       }
     }
     
-    const purchaseTotalAmount = quotationInstance.total;
+    const purchaseSubtotal = quotationInstance.subtotal; 
+    const purchaseTaxPercentage = quotationInstance.taxPercentage || 18; 
+    const purchaseTaxAmount = Number((purchaseSubtotal * (purchaseTaxPercentage / 100)).toFixed(2));
+    const purchaseTotalAmount = Number((purchaseSubtotal + purchaseTaxAmount).toFixed(2));
+
+    if (Math.abs(purchaseTotalAmount - quotationInstance.total) > 0.01) {
+        console.warn(`Calculated total (₹${purchaseTotalAmount}) for CustomerPurchase differs from quotation.total (₹${quotationInstance.total}). Using calculated total. Quotation ID: ${quotationInstance._id}.`);
+    }
 
     const advanceAmount = quotationInstance.advancePaymentAmount; 
     if (typeof advanceAmount !== 'number' || advanceAmount < 0) {
@@ -916,6 +833,9 @@ const approveQuotation = async (quotationInstance) => {
         purchaseID, 
         customerId: customer._id,
         quotationId: quotationInstance._id,
+        subtotal: purchaseSubtotal,
+        taxPercentage: purchaseTaxPercentage,
+        taxAmount: purchaseTaxAmount,
         advancePaid: advanceAmount,
         totalAmount: purchaseTotalAmount, 
         remainingAmount: remainingAmount,
@@ -969,10 +889,7 @@ exports.confirmOfflinePayment = async (req, res) => {
 
     if (quotation.status === 'approved') {
         console.log(`Quotation ${quotation._id} is already approved. Offline payment confirmation redundant unless updating details.`);
-        const items = await QuotationItem.find({ quotationId: quotation._id })
-          .populate('productId')
-          .populate('bundleId')
-          .populate('customizedProductId');
+        const items = await QuotationItem.find({ quotationId: quotation._id }).populate('productId');
         const approvedQuotationWithItems = quotation.toObject();
         approvedQuotationWithItems.quotationItems = items;
         return res.json({
@@ -1016,9 +933,7 @@ exports.confirmOfflinePayment = async (req, res) => {
     const approvedQuotation = await approveQuotation(quotation); 
 
     const quotationItems = await QuotationItem.find({ quotationId: approvedQuotation._id })
-      .populate('productId')
-      .populate('bundleId')
-      .populate('customizedProductId');
+      .populate('productId');
 
     const quotationWithItems = approvedQuotation.toObject(); 
     quotationWithItems.quotationItems = quotationItems;
@@ -1078,9 +993,7 @@ exports.getCustomerProducts = async (req, res) => {
       // Step 4: Get all quotation items with product details
       const quotationItems = await QuotationItem.find({
         quotationId: { $in: quotationIds }
-      }).populate('productId')
-        .populate('bundleId')
-        .populate('customizedProductId');
+      }).populate('productId');
       
       // Step 5: Group quotation items by quotation ID for easier lookup
       const itemsByQuotationId = {};

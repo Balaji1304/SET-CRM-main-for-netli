@@ -1,16 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { protect, authorize } = require('../middleware/auth');
+const { protect } = require('../middleware/auth');
 const {
   getProducts,
   createProduct,
   getProduct,
   updateProduct,
   deleteProduct,
-  uploadBrochure,
-  getDefaultTerms,
-  getAllTerms
+  uploadBrochure
 } = require('../controllers/products');
 
 // Configure multer for file uploads
@@ -34,16 +32,11 @@ if (!fs.existsSync(uploadDir)){
 
 // Public routes that don't require auth
 router.get('/', getProducts);
-
-// Terms and conditions routes (must come before /:id route)
-router.get('/terms/default', getDefaultTerms);
-router.get('/terms/all', getAllTerms);
-
 router.get('/:id', getProduct);
 
 // Protected routes
-router.post('/', protect, authorize('admin', 'product_head'), upload.single('brochure'), createProduct);
-router.put('/:id', protect, authorize('admin', 'product_head'), upload.single('brochure'), updateProduct);
-router.delete('/:id', protect, authorize('admin', 'product_head'), deleteProduct);
+router.post('/', protect, upload.single('brochure'), createProduct);
+router.put('/:id', protect, upload.single('brochure'), updateProduct);
+router.delete('/:id', protect, deleteProduct);
 
 module.exports = router;

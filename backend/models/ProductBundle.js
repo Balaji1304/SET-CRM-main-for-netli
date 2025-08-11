@@ -11,6 +11,10 @@ const bundleItemSchema = new mongoose.Schema({
     required: true,
     min: 0,
     default: 0
+  },
+  notes: {
+    type: String,
+    default: ''
   }
 }, { _id: false });
 
@@ -46,10 +50,22 @@ const productBundleSchema = new mongoose.Schema({
     type: [bundleItemSchema],
     default: [] // Allow empty items array
   },
-  price: {
+  basePrice: {
     type: Number,
     required: true,
     min: 0
+  },
+  discountPercentage: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 100
+  },
+  finalPrice: {
+    type: Number,
+    required: false, // Will be calculated automatically
+    min: 0,
+    default: 0
   },
   isActive: {
     type: Boolean,
@@ -77,11 +93,6 @@ const productBundleSchema = new mongoose.Schema({
     type: String
   }],
   tags: [String],
-  termsAndConditions: {
-    type: String,
-    trim: true,
-    maxLength: [5000, 'Terms and conditions cannot be more than 5000 characters']
-  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -97,6 +108,20 @@ const productBundleSchema = new mongoose.Schema({
   }
 });
 
+// Calculate final price before validation and saving
+productBundleSchema.pre('validate', function(next) {
+  try {
+    const basePrice = Number(this.basePrice) || 0;
+    const discountPercentage = Number(this.discountPercentage) || 0;
+    const discountAmount = basePrice * (discountPercentage / 100);
+    this.finalPrice = basePrice - discountAmount;
+    next();
+  } catch (error) {
+    console.error('Error in pre-validate hook:', error);
+    next(error);
+  }
+});
+
 // Update timestamp before saving
 productBundleSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
@@ -106,6 +131,14 @@ productBundleSchema.pre('save', function(next) {
 // Virtual to get total number of items
 productBundleSchema.virtual('totalItems').get(function() {
   return this.items.reduce((total, item) => total + (item.quantity || 0), 0);
+});
+
+// Virtual to calculate savings
+productBundleSchema.virtual('savings').get(function() {
+  if (this.basePrice && this.finalPrice) {
+    return this.basePrice - this.finalPrice;
+  }
+  return 0;
 });
 
 productBundleSchema.set('toJSON', { virtuals: true });

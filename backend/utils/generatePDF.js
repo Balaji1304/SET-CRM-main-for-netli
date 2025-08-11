@@ -20,28 +20,25 @@ const generatePDF = async (template, data) => {
       format: 'A4',
       orientation: 'portrait',
       border: {
-        top: '10mm',
-        right: '10mm',
-        bottom: '10mm',
-        left: '10mm'
+        top: '8mm',
+        right: '8mm',
+        bottom: '8mm',
+        left: '8mm'
       },
       header: {
-        height: '8mm'
+        height: '10mm'
       },
       footer: {
-        height: '8mm'
+        height: '10mm'
       },
       type: 'pdf',
       quality: '100',
       timeout: 30000,
       renderDelay: 1000,
-      zoomFactor: '1.0',
+      zoomFactor: '0.58',
       base: `file://${path.resolve(__dirname, '..')}/`,
       localUrlAccess: true,
-      printBackground: true,
-      width: '210mm',
-      height: '297mm',
-      dpi: 96
+      printBackground: true
     };
 
     // Generate PDF

@@ -149,39 +149,19 @@ const Dashboard = () => {
         {renderCommonCard('Quotations (Sent)', formatNumber(summaryData.quotationStats?.sent || 0), <FileText />)}
         {renderCommonCard('Quotations (Approved)', formatNumber(summaryData.quotationStats?.approved || 0), <FileText />)}
         {renderCommonCard('Low Stock Items', summaryData.lowStockItems, <PackageSearch className="text-red-500" />, 'Count of items below threshold')}
-      </div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
-        {renderCommonCard('Total Products', formatNumber(summaryData.totalProducts), <Package />)}
-        {renderCommonCard('Items Below Reorder Level', summaryData.lowStockItemsCount, <AlertTriangle className="text-red-500" />)}
-        {renderCommonCard('Stock Turnover Rate', summaryData.inventoryStats?.stockTurnoverRate || 'N/A', <BarChart2 />)}
-      </div>
+            </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
         {renderSection("Recent Activity", <Clock />, 
           <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
             {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent activity.</p>}
           </div>
         )}
-        {renderSection("Low Stock Items", <AlertTriangle className="text-red-500" />,
-          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
-            {summaryData.lowStockItemsList?.length > 0 ? summaryData.lowStockItemsList.map((item) => (
-              <div key={item.id} className="flex justify-between items-center py-2 border-b border-fourth">
-                <span className="text-sm text-secondary">{item.name}</span>
-                <span className="text-sm font-semibold text-red-500">
-                  {item.quantity} / {item.reorderLevel}
-                </span>
-              </div>
-            )) : <p className='text-sm text-gray-500'>No items are currently low on stock.</p>}
-          </div>
-        )}
-      </div>
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mt-6">
         {renderSection("Key Performance Indicators", <TrendingUp />, 
             <div className="space-y-2">
             {summaryData.performanceMetrics && renderPerformanceItem('Tasks Completed (Overall)', summaryData.performanceMetrics.tasksCompleted)}
             {summaryData.performanceMetrics && renderPerformanceItem('Customer Satisfaction Score', summaryData.performanceMetrics.customerSatisfaction)}
             {summaryData.supportTicketsSummary && renderPerformanceItem('Currently Open Support Tickets', formatNumber(summaryData.supportTicketsSummary.openTickets))}
             {summaryData.supportTicketsSummary && renderPerformanceItem('Avg. Ticket Response Time', summaryData.supportTicketsSummary.avgResponseTime)}
-            {summaryData.inventoryStats && renderPerformanceItem('Items Below Reorder Level', summaryData.inventoryStats.itemsBelowReorderLevel)}
           </div>
         )}
       </div>
@@ -230,6 +210,35 @@ const Dashboard = () => {
             {summaryData.salesPerformance && renderPerformanceItem('Deals Closed (Approved Quotes)', formatNumber(summaryData.salesPerformance.closedDeals || 0))}
             {summaryData.salesPerformance && renderPerformanceItem('Lead to Deal Conversion Rate', summaryData.salesPerformance.conversionRate)}
               </div>
+        )}
+              </div>
+    </>
+  );
+
+  const renderInventoryDashboard = () => (
+    <>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+        {renderCommonCard('Total Product Definitions', formatNumber(summaryData.totalProducts), <Package />)}
+        {renderCommonCard('Low Stock Items', summaryData.lowStockItemsCount, <PackageSearch className="text-red-500" />)}
+      </div>
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+        {renderSection("Low Stock Items", <AlertTriangle className="text-red-500" />,
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
+            {summaryData.lowStockItems?.length > 0 ? summaryData.lowStockItems.map((item) => (
+              <div key={item.id} className="flex justify-between items-center py-2 border-b border-fourth">
+                <span className="text-sm text-secondary">{item.name}</span>
+                <span className="text-sm font-semibold text-red-500">
+                  {item.quantity} / {item.reorderLevel}
+                </span>
+              </div>
+            )) : <p className='text-sm text-gray-500'>No items are currently low on stock.</p>}
+          </div>
+        )}
+        {renderSection("Inventory Key Stats", <BarChart2 />,
+          <div className="space-y-2">
+            {summaryData.inventoryStats && renderPerformanceItem('Items Below Reorder Level', summaryData.inventoryStats.itemsBelowReorderLevel)}
+            {summaryData.inventoryStats && renderPerformanceItem('Stock Turnover Rate', summaryData.inventoryStats.stockTurnoverRate)}
+            </div>
         )}
               </div>
     </>
@@ -320,6 +329,7 @@ const Dashboard = () => {
       case 'sales_person':
       case 'sales_representative': return renderSalesDashboard();
       case 'front_office_executive': return renderFrontOfficeExecutiveDashboard();
+      case 'inventory_manager': return renderInventoryDashboard();
       case 'service_engineer': return renderServiceEngineerDashboard();
       case 'sales_head': return renderSalesHeadDashboard();
       default:

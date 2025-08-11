@@ -4,7 +4,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createLead, getLead, updateLead } from '../../services/leadService';
 import { getProducts } from '../../services/productService';
 import { getPowerPlantConfigurations } from '../../services/bundleService';
-import { createCustomizedProduct, updateCustomizedProduct, getAllCustomizedProducts } from '../../services/customizedProductService';
 import { generateUniqueId, ensureUniqueIds } from '../../utils/generateId';
 
 // Custom styles for better mobile experience
@@ -114,9 +113,6 @@ const FORM_OPTIONS = {
     products: [
     { id: `${Date.now()}_0`, category: '', name: '', quantity: '1', unitPrice: '0', totalPrice: '0', productId: '' }
     ],
-    customizedProducts: [
-    { id: `${Date.now()}_0`, name: '', unitPrice: '0', quantity: '1', totalPrice: '0' }
-    ],
     productRequirements: '',
     dateCollected: new Date().toISOString().split('T')[0],
     followUpRequired: false,
@@ -162,13 +158,8 @@ export default function LeadForm() {
   const [bundlesData, setBundlesData] = useState({});
   const [isLoadingBundles, setIsLoadingBundles] = useState(true);
   const [bundleFetchError, setBundleFetchError] = useState(null);
-  const [selectedProductType, setSelectedProductType] = useState('individual'); // 'individual', 'bundle', or 'customized'
+  const [selectedProductType, setSelectedProductType] = useState('individual'); // 'individual' or 'bundle'
   const [selectedBundles, setSelectedBundles] = useState([]); // Array of selected bundles with quantities
-
-  // Customized product state
-  const [customizedProducts, setCustomizedProducts] = useState([]);
-  const [existingCustomizedProducts, setExistingCustomizedProducts] = useState([]);
-  const [isLoadingCustomizedProducts, setIsLoadingCustomizedProducts] = useState(false);
 
   // Geolocation state
   const [geo, setGeo] = useState({ latitude: '', longitude: '' });
@@ -227,20 +218,6 @@ export default function LeadForm() {
       } finally {
         setIsLoadingBundles(false);
       }
-
-      // Fetch existing customized products
-      try {
-        setIsLoadingCustomizedProducts(true);
-        const customizedResponse = await getAllCustomizedProducts();
-        if (customizedResponse.success && Array.isArray(customizedResponse.data)) {
-          setExistingCustomizedProducts(customizedResponse.data);
-        }
-      } catch (error) {
-        console.error('Error fetching existing customized products:', error);
-        // This is not critical, just log the error
-      } finally {
-        setIsLoadingCustomizedProducts(false);
-      }
     };
     
     fetchProductsAndBundles();
@@ -267,7 +244,6 @@ export default function LeadForm() {
     setSubmissionError(null);
     setSelectedProductType('individual');
     setSelectedBundles([]);
-    setCustomizedProducts([]);
   }, []);
 
   useEffect(() => {
@@ -308,19 +284,6 @@ export default function LeadForm() {
               bundleItems: p.bundleItems || []
             }));
             setSelectedBundles(bundlesToRestore);
-          } else if (leadData.selectedProductType === 'customized' && leadData.products?.some(p => p.isCustomizedProduct)) {
-            setSelectedProductType('customized');
-            // Convert products to customized products format
-            const customizedProductData = leadData.products
-              .filter(p => p.isCustomizedProduct)
-              .map(p => ({
-                id: `custom_${Date.now()}_${Math.random()}`,
-                customizedProductId: p.customizedProductId,
-                name: p.name,
-                quantity: parseInt(p.quantity) || 1,
-                unitPrice: parseFloat(p.unitPrice) || 0
-              }));
-            setCustomizedProducts(customizedProductData);
           } else {
             setSelectedProductType('individual');
           }
@@ -370,19 +333,6 @@ export default function LeadForm() {
           bundleItems: p.bundleItems || []
         }));
         setSelectedBundles(bundlesToRestore);
-      } else if (leadData.selectedProductType === 'customized' && leadData.products?.some(p => p.isCustomizedProduct)) {
-        setSelectedProductType('customized');
-        // Convert products to customized products format
-        const customizedProductData = leadData.products
-          .filter(p => p.isCustomizedProduct)
-          .map(p => ({
-            id: `custom_${Date.now()}_${Math.random()}`,
-            customizedProductId: p.customizedProductId,
-            name: p.name,
-            quantity: parseInt(p.quantity) || 1,
-            unitPrice: parseFloat(p.unitPrice) || 0
-          }));
-        setCustomizedProducts(customizedProductData);
       } else {
         setSelectedProductType('individual');
       }
@@ -544,66 +494,11 @@ export default function LeadForm() {
     }
   };
 
-  // Customized Products Handlers
-  const addCustomizedProduct = (type = 'new', existingProductId = null) => {
-    if (type === 'existing' && existingProductId) {
-      // Add existing customized product
-      const existingProduct = existingCustomizedProducts.find(p => p._id === existingProductId);
-      if (existingProduct) {
-        setCustomizedProducts(prev => [
-          ...prev,
-          {
-            id: `existing_${existingProduct._id}`,
-            customizedProductId: existingProduct._id,
-            name: existingProduct.name,
-            quantity: 1,
-            unitPrice: existingProduct.unitPrice,
-            isExisting: true
-          }
-        ]);
-      }
-    } else {
-      // Add new customized product
-      setCustomizedProducts(prev => [
-        ...prev,
-        {
-          id: `custom_${Date.now()}_${prev.length}`,
-          name: '',
-          quantity: 1,
-          unitPrice: 0,
-          isExisting: false
-        }
-      ]);
-    }
-  };
-
-  const removeCustomizedProduct = (index) => {
-    setCustomizedProducts(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleCustomizedProductChange = (index, field, value) => {
-    setCustomizedProducts(prev => {
-      const updated = [...prev];
-      if (index < updated.length) {
-        updated[index] = { ...updated[index], [field]: value };
-      }
-      return updated;
-    });
-  };
-
   const handleProductTypeChange = (type) => {
     // If in edit mode and there are existing products, show confirmation
-    if (isEditMode && (formData.products.length > 0 || selectedBundles.length > 0 || customizedProducts.length > 0) && type !== selectedProductType) {
-      const getTypeText = (productType) => {
-        switch(productType) {
-          case 'bundle': return 'Solar Power Plant System';
-          case 'customized': return 'Customized Products';
-          default: return 'Individual Products';
-        }
-      };
-      
-      const currentTypeText = getTypeText(selectedProductType);
-      const newTypeText = getTypeText(type);
+    if (isEditMode && formData.products.length > 0 && type !== selectedProductType) {
+      const currentTypeText = selectedProductType === 'bundle' ? 'Solar Power Plant System' : 'Individual Products';
+      const newTypeText = type === 'bundle' ? 'Solar Power Plant System' : 'Individual Products';
       
       setConfirmDialogProps({
         isOpen: true,
@@ -627,29 +522,18 @@ export default function LeadForm() {
     setSelectedProductType(type);
     if (type === 'individual') {
       setSelectedBundles([]);
-      setCustomizedProducts([]);
       // Reset to default individual products
       setFormData(prev => ({
         ...prev,
         products: [{ id: `${Date.now()}_0`, category: '', name: '', quantity: '1', unitPrice: '0', totalPrice: '0', productId: '' }]
       }));
-    } else if (type === 'bundle') {
+    } else {
       // Reset products for bundle mode
       setSelectedBundles([]);
-      setCustomizedProducts([]);
       setFormData(prev => ({
         ...prev,
         products: []
       }));
-    } else if (type === 'customized') {
-      // Reset for customized products mode
-      setSelectedBundles([]);
-      setFormData(prev => ({
-        ...prev,
-        products: []
-      }));
-      // Start with empty customized products - user needs to explicitly add them
-      setCustomizedProducts([]);
     }
   };
 
@@ -660,8 +544,8 @@ export default function LeadForm() {
       bundleCode: bundle.bundleCode,
       name: bundle.name,
       quantity: 1,
-      unitPrice: bundle.price,
-      totalPrice: bundle.price,
+      unitPrice: bundle.finalPrice,
+      totalPrice: bundle.finalPrice,
       bundleData: bundle
     };
     
@@ -752,23 +636,6 @@ export default function LeadForm() {
           }
         });
       }
-    } else if (selectedProductType === 'customized') {
-      if (customizedProducts.length === 0) {
-        errors.productInfo = { general: 'Please add at least one customized product.' };
-      } else {
-        // Validate each customized product
-        const validCustomizedProducts = customizedProducts.filter(p => p.name && p.quantity > 0 && p.unitPrice > 0);
-        if (validCustomizedProducts.length === 0) {
-          errors.productInfo = { general: 'At least one complete customized product entry is required.' };
-        } else {
-          customizedProducts.forEach((product, index) => {
-            if (!product.name || product.quantity <= 0 || product.unitPrice <= 0) {
-              if (!errors.productInfo) errors.productInfo = {};
-              errors.productInfo[`custom_${index}`] = 'Please complete all fields (Product Name, Quantity > 0, Unit Price > 0) for this customized product.';
-            }
-          });
-        }
-      }
     }
 
     if (formData.followUpRequired && !formData.followUpDateTime) {
@@ -846,22 +713,6 @@ export default function LeadForm() {
           isBundleItem: true,
           bundleItems: bundle.bundleData?.items || bundle.bundleItems || []
         }));
-      } else if (selectedProductType === 'customized') {
-        // For customized products, handle both existing and new products
-        productsToSubmit = customizedProducts
-          .filter(p => p.name && p.quantity > 0 && p.unitPrice > 0)
-          .map(product => ({
-            category: 'customized',
-            name: product.name,
-            quantity: parseInt(product.quantity, 10),
-            unitPrice: parseFloat(product.unitPrice),
-            totalPrice: parseFloat(product.quantity * product.unitPrice),
-            isCustomizedProduct: true,
-            // If this is an existing product, include its ID for reference
-            ...(product.existingProductId && { customizedProductId: product.existingProductId }),
-            // Mark whether this is a new product that needs to be created
-            isNewCustomizedProduct: !product.existingProductId
-          }));
       }
 
       const payload = { 
@@ -879,174 +730,6 @@ export default function LeadForm() {
       const response = isEditMode ? await updateLead(leadId, payload) : await createLead(payload);
 
       if (response.success) {
-        // If creating a new lead with customized products, create detailed records only for new products
-        if (!isEditMode && selectedProductType === 'customized' && customizedProducts.length > 0) {
-          try {
-            const createdLeadId = response.data._id;
-            
-            // Only create records for new customized products (not existing ones)
-            const newCustomizedProducts = customizedProducts.filter(p => 
-              p.name && p.quantity > 0 && p.unitPrice > 0 && !p.existingProductId
-            );
-            
-            if (newCustomizedProducts.length > 0) {
-              const customizedProductPromises = newCustomizedProducts
-                .map(async (product, index) => {
-                  const customizedProductData = {
-                    name: product.name,
-                    unitPrice: product.unitPrice,
-                    leadId: createdLeadId,
-                    // Include additional details if provided
-                    modelNumber: product.modelNumber || '',
-                    description: product.description || '',
-                    specifications: product.specifications || {},
-                    imageUrls: product.imageUrls || [],
-                    terms: product.terms || ''
-                  };
-                  const result = await createCustomizedProduct(customizedProductData);
-                  return { ...result, productId: product.id, productName: product.name };
-                });
-
-              const createdCustomizedProducts = await Promise.all(customizedProductPromises);
-              
-              // Update the lead products with the new customized product IDs
-              const updatedProducts = productsToSubmit.map((product) => {
-                // Find the created product that matches this product by name
-                const correspondingCustomizedProduct = customizedProducts.find(cp => cp.name === product.name);
-                if (correspondingCustomizedProduct && !correspondingCustomizedProduct.existingProductId) {
-                  const createdProduct = createdCustomizedProducts.find(cp => 
-                    cp.success && cp.productId === correspondingCustomizedProduct.id
-                  );
-                  
-                  if (createdProduct) {
-                    return {
-                      ...product,
-                      customizedProductId: createdProduct.data._id,
-                      isNewCustomizedProduct: undefined // Remove this temporary flag
-                    };
-                  }
-                }
-                return {
-                  ...product,
-                  isNewCustomizedProduct: undefined // Remove this temporary flag
-                };
-              });
-
-              // Update the lead with the customized product ID references
-              await updateLead(createdLeadId, {
-                products: updatedProducts
-              });
-
-              console.log('New customized product records created and lead updated successfully');
-            } else {
-              // No new products to create, just clean up the temporary flags
-              const cleanedProducts = productsToSubmit.map(product => ({
-                ...product,
-                isNewCustomizedProduct: undefined
-              }));
-              
-              await updateLead(createdLeadId, {
-                products: cleanedProducts
-              });
-            }
-          } catch (customizedProductError) {
-            console.error('Error creating customized product records:', customizedProductError);
-            // Don't fail the whole operation if customized product creation fails
-            // The lead was created successfully with the basic product info
-          }
-        }
-
-        // If editing a lead with customized products, handle both existing and new products
-        if (isEditMode && selectedProductType === 'customized' && customizedProducts.length > 0) {
-          try {
-            // Separate existing products from new products
-            const existingProducts = customizedProducts.filter(p => 
-              p.name && p.quantity > 0 && p.unitPrice > 0 && p.existingProductId
-            );
-            const newProducts = customizedProducts.filter(p => 
-              p.name && p.quantity > 0 && p.unitPrice > 0 && !p.existingProductId
-            );
-            
-            let processedProducts = [];
-            
-            // Handle existing products - these don't need database updates, just references
-            existingProducts.forEach((product) => {
-              processedProducts.push({
-                success: true,
-                data: { _id: product.existingProductId },
-                productId: product.id, // Use the unique product ID for matching
-                isExisting: true
-              });
-            });
-            
-            // Handle new products - create them
-            if (newProducts.length > 0) {
-              const customizedProductPromises = newProducts.map(async (product) => {
-                const customizedProductData = {
-                  name: product.name,
-                  unitPrice: product.unitPrice,
-                  leadId: leadId,
-                  // Include additional details if provided
-                  modelNumber: product.modelNumber || '',
-                  description: product.description || '',
-                  specifications: product.specifications || {},
-                  imageUrls: product.imageUrls || [],
-                  terms: product.terms || ''
-                };
-                
-                const result = await createCustomizedProduct(customizedProductData);
-                return { 
-                  ...result, 
-                  productId: product.id, // Use the unique product ID for matching
-                  isExisting: false 
-                };
-              });
-
-              const createdProducts = await Promise.all(customizedProductPromises);
-              processedProducts = [...processedProducts, ...createdProducts];
-            }
-            
-            // Update lead products with proper customized product IDs
-            let needsLeadUpdate = false;
-            const updatedProducts = productsToSubmit.map((product) => {
-              // Find processed product by matching the product names since we can't rely on indices
-              const correspondingCustomizedProduct = customizedProducts.find(cp => cp.name === product.name);
-              if (correspondingCustomizedProduct) {
-                const processedProduct = processedProducts.find(pp => pp.productId === correspondingCustomizedProduct.id);
-                
-                if (processedProduct && processedProduct.success) {
-                  if (!product.customizedProductId || !processedProduct.isExisting) {
-                    // Either this product didn't have an ID before, or it's a new product
-                    needsLeadUpdate = true;
-                    return {
-                      ...product,
-                      customizedProductId: processedProduct.data._id,
-                      isNewCustomizedProduct: undefined // Remove temporary flag
-                    };
-                  }
-                }
-              }
-              
-              return {
-                ...product,
-                isNewCustomizedProduct: undefined // Remove temporary flag
-              };
-            });
-
-            if (needsLeadUpdate) {
-              await updateLead(leadId, {
-                products: updatedProducts
-              });
-            }
-
-            console.log('Customized product records processed successfully');
-          } catch (customizedProductError) {
-            console.error('Error updating customized product records:', customizedProductError);
-            // Don't fail the whole operation if customized product update fails
-            // The lead was updated successfully with the basic product info
-          }
-        }
-
         setHasUnsavedChanges(false);
         navigate('/dashboard/leads', { state: { toastMessage: `Lead ${isEditMode ? 'updated' : 'created'} successfully!` } });
       } else {
@@ -1298,7 +981,7 @@ export default function LeadForm() {
                   <p className="text-sm text-blue-700">
                     <strong>Note:</strong> This lead was originally created with{' '}
                     <span className="font-medium">
-                      {selectedProductType === 'bundle' ? 'Solar Power Plant System' : selectedProductType === 'customized' ? 'Customized Products' : 'Individual Products'}
+                      {selectedProductType === 'bundle' ? 'Solar Power Plant System' : 'Individual Products'}
                     </span>
                     . You can change the product type, but this will clear the current product selection.
                   </p>
@@ -1350,29 +1033,6 @@ export default function LeadForm() {
                       )}
                     </div>
                     <p className="text-xs text-gray-600">Choose from pre-configured solar power plant bundles</p>
-                  </div>
-                </label>
-                <label className={`flex items-center space-x-3 cursor-pointer p-3 rounded-lg border-2 transition-all ${
-                  selectedProductType === 'customized' 
-                    ? 'border-primary bg-primary/5' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}>
-                  <input
-                    type="radio"
-                    name="productType"
-                    value="customized"
-                    checked={selectedProductType === 'customized'}
-                    onChange={(e) => handleProductTypeChange(e.target.value)}
-                    className="w-4 h-4 text-primary border-gray-300 focus:ring-primary"
-                  />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-secondary">Customized Products</span>
-                      {selectedProductType === 'customized' && (
-                        <span className="w-2 h-2 bg-primary rounded-full"></span>
-                      )}
-                    </div>
-                    <p className="text-xs text-gray-600">Request products not in our catalog</p>
                   </div>
                 </label>
               </div>
@@ -1465,6 +1125,11 @@ export default function LeadForm() {
                               <div className="text-sm font-medium text-secondary">
                                 ₹{bundle.unitPrice.toLocaleString()}
                               </div>
+                              {bundle.bundleData?.discountPercentage > 0 && (
+                                <div className="text-xs text-green-600">
+                                  {bundle.bundleData.discountPercentage}% off
+                                </div>
+                              )}
                             </td>
 
                             {/* Total Price */}
@@ -1557,8 +1222,14 @@ export default function LeadForm() {
                                 </div>
                                 <div className="flex justify-between font-medium text-primary">
                                   <span>Price:</span>
-                                  <span>₹{bundle.price?.toLocaleString()}</span>
+                                  <span>₹{bundle.finalPrice?.toLocaleString()}</span>
                                 </div>
+                                {bundle.discountPercentage > 0 && (
+                                  <div className="flex justify-between text-green-600">
+                                    <span>Discount:</span>
+                                    <span>{bundle.discountPercentage}%</span>
+                                  </div>
+                                )}
                               </div>
                               {isAlreadySelected && (
                                 <div className="mt-2 text-xs text-gray-500 font-medium">
@@ -1639,6 +1310,11 @@ export default function LeadForm() {
                           <div>
                             <div className="text-sm text-gray-600">Unit Price</div>
                             <div className="font-medium text-secondary">₹{bundle.unitPrice.toLocaleString()}</div>
+                            {bundle.bundleData?.discountPercentage > 0 && (
+                              <div className="text-xs text-green-600">
+                                {bundle.bundleData.discountPercentage}% off
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div className="text-sm text-gray-600">Total Price</div>
@@ -1713,7 +1389,7 @@ export default function LeadForm() {
                               </div>
                               <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                 <div>Components: {bundle.items?.length || 0}</div>
-                                <div className="font-medium text-primary">₹{bundle.price?.toLocaleString()}</div>
+                                <div className="font-medium text-primary">₹{bundle.finalPrice?.toLocaleString()}</div>
                               </div>
                               {isAlreadySelected && (
                                 <div className="mt-2 text-xs text-gray-500 font-medium">
@@ -1727,288 +1403,6 @@ export default function LeadForm() {
                     )}
                   </div>
                 </div>
-              </>
-            )}
-
-            {/* Customized Products Section */}
-            {selectedProductType === 'customized' && (
-              <>
-                {/* Existing vs New Product Selection */}
-                <div className="bg-blue-50 rounded-lg border border-blue-200 p-4 mb-6">
-                  <h4 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                    Add Customized Products
-                  </h4>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    {/* Existing Product Dropdown */}
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select from Existing Products
-                      </label>
-                      <div className="flex gap-2">
-                        <select
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm"
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              addCustomizedProduct('existing', e.target.value);
-                              e.target.value = '';
-                            }
-                          }}
-                          disabled={isLoadingCustomizedProducts}
-                        >
-                          <option value="">
-                            {isLoadingCustomizedProducts 
-                              ? 'Loading...' 
-                              : existingCustomizedProducts.length > 0 
-                                ? 'Choose existing product...' 
-                                : 'No existing products found'
-                            }
-                          </option>
-                          {existingCustomizedProducts
-                            .filter(product => !customizedProducts.some(cp => cp.customizedProductId === product._id))
-                            .map(product => (
-                              <option key={product._id} value={product._id}>
-                                {product.name} - ₹{product.unitPrice} 
-                                ({product.leadId?.firstName} {product.leadId?.lastName})
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Products created for other leads that can be reused
-                      </p>
-                    </div>
-
-                    {/* OR Divider */}
-                    <div className="flex items-center justify-center px-3">
-                      <div className="hidden sm:block w-px bg-gray-300 h-16"></div>
-                      <div className="sm:hidden w-full border-t border-gray-300"></div>
-                      <span className="absolute bg-blue-50 px-2 text-xs text-gray-500 font-medium">OR</span>
-                    </div>
-
-                    {/* New Product Button */}
-                    <div className="flex-1 flex flex-col justify-end">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Create New Product
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => addCustomizedProduct('new')}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Add New Custom Product
-                      </button>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Create a completely new customized product
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Customized Products Table - Desktop & Tablet */}
-                {customizedProducts.length > 0 && (
-                  <div className="hidden md:block bg-white rounded-lg border border-fourth shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead className="bg-gray-50 border-b border-fourth">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[5%]">
-                              Type
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[35%]">
-                              Product Name <span className="text-red-500">*</span>
-                            </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[15%]">
-                              Qty <span className="text-red-500">*</span>
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[20%]">
-                              Unit Price <span className="text-red-500">*</span>
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider w-[15%]">
-                              Total Price
-                            </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-secondary uppercase tracking-wider w-[10%]">
-                              Action
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-fourth">
-                          {customizedProducts.map((product, index) => (
-                            <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
-                              <td className="px-4 py-3">
-                                <div className="flex items-center">
-                                  {product.isExisting ? (
-                                    <div className="w-3 h-3 bg-green-500 rounded-full" title="Existing Product"></div>
-                                  ) : (
-                                    <div className="w-3 h-3 bg-blue-500 rounded-full" title="New Product"></div>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                {product.isExisting ? (
-                                  <div>
-                                    <div className="font-medium text-sm text-gray-900">{product.name}</div>
-                                    <div className="text-xs text-gray-500">Existing product</div>
-                                  </div>
-                                ) : (
-                                  <input
-                                    type="text"
-                                    value={product.name}
-                                    onChange={(e) => handleCustomizedProductChange(index, 'name', e.target.value)}
-                                    placeholder="Enter product name"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                                  />
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <input
-                                  type="number"
-                                  value={product.quantity}
-                                  onChange={(e) => handleCustomizedProductChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                                  min="1"
-                                  className="w-20 px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-center"
-                                />
-                              </td>
-                              <td className="px-4 py-3">
-                                {product.isExisting ? (
-                                  <div className="text-sm font-medium text-gray-900">₹{product.unitPrice}</div>
-                                ) : (
-                                  <input
-                                    type="number"
-                                    value={product.unitPrice}
-                                    onChange={(e) => handleCustomizedProductChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="Enter unit price"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                                  />
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className="text-sm font-medium text-secondary">
-                                  ₹{(product.quantity * product.unitPrice).toLocaleString()}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => removeCustomizedProduct(index)}
-                                  className="text-red-600 hover:text-red-800 transition-colors"
-                                  title="Remove product"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Customized Products Cards - Mobile */}
-                {customizedProducts.length > 0 && (
-                  <div className="md:hidden space-y-4">
-                    {customizedProducts.map((product, index) => (
-                      <div key={index} className="bg-white rounded-lg border border-fourth shadow-sm p-4">
-                        <div className="space-y-3">
-                          {/* Product Type Indicator */}
-                          <div className="flex items-center gap-2 mb-2">
-                            {product.isExisting ? (
-                              <>
-                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                <span className="text-xs text-gray-600">Existing Product</span>
-                              </>
-                            ) : (
-                              <>
-                                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                                <span className="text-xs text-gray-600">New Product</span>
-                              </>
-                            )}
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-medium text-secondary mb-1">
-                              Product Name <span className="text-red-500">*</span>
-                            </label>
-                            {product.isExisting ? (
-                              <div className="font-medium text-sm text-gray-900 p-2 bg-gray-50 rounded-md">
-                                {product.name}
-                              </div>
-                            ) : (
-                              <input
-                                type="text"
-                                value={product.name}
-                                onChange={(e) => handleCustomizedProductChange(index, 'name', e.target.value)}
-                                placeholder="Enter product name"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                              />
-                            )}
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-secondary mb-1">
-                                Quantity <span className="text-red-500">*</span>
-                              </label>
-                              <input
-                                type="number"
-                                value={product.quantity}
-                                onChange={(e) => handleCustomizedProductChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                                min="1"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-secondary mb-1">
-                                Unit Price <span className="text-red-500">*</span>
-                              </label>
-                              {product.isExisting ? (
-                                <div className="px-3 py-2 bg-gray-50 rounded-md text-sm font-medium">
-                                  ₹{product.unitPrice}
-                                </div>
-                              ) : (
-                                <input
-                                  type="number"
-                                  value={product.unitPrice}
-                                  onChange={(e) => handleCustomizedProductChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                  min="0"
-                                  step="0.01"
-                                  placeholder="Enter unit price"
-                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                                />
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="flex justify-between items-center pt-2 border-t">
-                            <div className="text-sm font-medium text-secondary">
-                              Total: ₹{(product.quantity * product.unitPrice).toLocaleString()}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => removeCustomizedProduct(index)}
-                              className="text-red-600 hover:text-red-800 transition-colors p-1"
-                              title="Remove product"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Empty State */}
-                {customizedProducts.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="mb-2">No customized products added yet</div>
-                    <div className="text-sm">Use the options above to add existing or create new products</div>
-                  </div>
-                )}
               </>
             )}
             
@@ -2401,32 +1795,22 @@ export default function LeadForm() {
                   <p className="text-sm text-gray-600">
                     {selectedProductType === 'individual' 
                       ? 'Total estimated cost for all products' 
-                      : selectedProductType === 'bundle'
-                      ? 'Total estimated cost for all solar power plant systems'
-                      : 'Total estimated cost for all customized products'
+                      : 'Total estimated cost for all solar power plant systems'
                     }
                   </p>
                 </div>
                 <div className="text-left sm:text-right">
                   <div className="text-sm text-gray-600 mb-1">Grand Total</div>
                   <div className="text-2xl sm:text-3xl font-bold text-primary">
-                    ₹{(() => {
-                      if (selectedProductType === 'individual') {
-                        return formData.products.reduce((acc, p) => acc + (parseFloat(p.totalPrice) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                      } else if (selectedProductType === 'bundle') {
-                        return selectedBundles.reduce((acc, b) => acc + b.totalPrice, 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                      } else if (selectedProductType === 'customized') {
-                        return customizedProducts.reduce((acc, p) => acc + (p.quantity * p.unitPrice || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    ₹{selectedProductType === 'individual' 
+                        ? formData.products.reduce((acc, p) => acc + (parseFloat(p.totalPrice) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : selectedBundles.reduce((acc, b) => acc + b.totalPrice, 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                       }
-                      return '0.00';
-                    })()}
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     {selectedProductType === 'individual' 
                       ? `${formData.products.filter(p => p.totalPrice && parseFloat(p.totalPrice) > 0).length} product(s) selected`
-                      : selectedProductType === 'bundle'
-                      ? `${selectedBundles.length} solar power plant system(s) selected`
-                      : `${customizedProducts.filter(p => p.name && p.quantity > 0 && p.unitPrice > 0).length} customized product(s) selected`
+                      : `${selectedBundles.length} solar power plant system(s) selected`
                     }
                   </div>
                 </div>

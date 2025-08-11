@@ -11,6 +11,14 @@ const quotationSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  subtotal: {
+    type: Number,
+    required: true
+  },
+  tax: {
+    type: Number,
+    required: true
+  },
   total: {
     type: Number,
     required: true

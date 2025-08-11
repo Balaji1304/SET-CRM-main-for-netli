@@ -92,7 +92,6 @@ app.use('/api/enquiries', require('./routes/enquiries.js'));
 app.use('/api/products', require('./routes/products.js'));
 app.use('/api/bundles', require('./routes/productBundle.js'));
 app.use('/api/solar-bundle-items', require('./routes/solarBundleItem.js'));
-app.use('/api/customized-products', require('./routes/customizedProducts.js'));
 app.use('/api/quotations', require('./routes/quotation.js'));
 app.use('/api/payments', require('./routes/paymentRoutes.js'));
 app.use('/api/tickets', require('./routes/tickets.js'));
