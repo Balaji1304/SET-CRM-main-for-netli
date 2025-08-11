@@ -4,7 +4,8 @@ const rolePermissions = {
   front_office_executive: ['/api/enquiries', '/api/leads'],
   product_head: ['/api/products', '/api/bundles', '/api/maintenance', '/api/notifications/'],
   service_engineer: ['/api/service-customers', '/api/performance'],
-  sales_head: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders']
+  sales_head: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders'],
+  accounts_department: ['/api/payments', '/api/invoices'],
 };
 
 exports.checkRolePermission = (req, res, next) => {

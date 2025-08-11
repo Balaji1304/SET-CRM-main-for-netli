@@ -1,27 +1,53 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
-const { 
-  getCustomerProducts, 
-  getPendingPayments, 
-  recordPayment,
-  createRemainingPaymentLink,
-  verifyRazorpayPayment
+const { protect, authorize } = require('../middleware/auth');
+
+const {
+  initiatePayment,
+  getPendingPayments,
+  getPaymentsByPurchase,
+  approvePayment,
+  rejectPayment
 } = require('../controllers/paymentController');
 
-// Get customer's products and purchases
-router.get('/customer/products', protect, getCustomerProducts);
+// Salesperson route to initiate a payment
+router.post(
+  '/',
+  protect,
+  authorize('sales_person', 'sales_head'),
+  initiatePayment
+);
 
-// Get customer's pending payments
-router.get('/customer/pending-payments', protect, getPendingPayments);
+// Accounts Department route to get pending payments
+router.get(
+  '/pending',
+  protect,
+  authorize('accounts_department'),
+  getPendingPayments
+);
 
-// Record a new payment
-router.post('/record', protect, recordPayment);
+// Accounts Department route to approve a payment
+router.put(
+  '/:id/approve',
+  protect,
+  authorize('accounts_department'),
+  approvePayment
+);
 
-// Create Razorpay payment link for remaining payment
-router.post('/remaining/:purchaseId/razorpay-link', protect, createRemainingPaymentLink);
+// Accounts Department route to reject a payment
+router.put(
+  '/:id/reject',
+  protect,
+  authorize('accounts_department'),
+  rejectPayment
+);
 
-// Verify Razorpay payment status
-router.get('/verify/:purchaseId/:paymentLinkId', protect, verifyRazorpayPayment);
+// Route to get all payments for a specific purchase
+router.get(
+  '/purchase/:purchaseId',
+  protect,
+  authorize('sales_person', 'sales_head', 'accounts_department'),
+  getPaymentsByPurchase
+);
 
 module.exports = router; 

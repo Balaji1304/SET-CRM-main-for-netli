@@ -88,6 +88,9 @@ const getNavigation = (userRole) => {
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
     ],
+    accounts_department: [
+      { name: 'Verify Payments', href: '/dashboard/payments/verify', icon: CreditCard },
+    ],
     front_office_executive: [
       { name: 'New Enquiry', href: '/dashboard/enquiry', icon: UserPlus },
       { name: 'Lead Assignment', href: '/dashboard/lead-assignment', icon: Users },
