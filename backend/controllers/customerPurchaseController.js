@@ -964,6 +964,11 @@ exports.updateStatusToReadyToDispatch = async (req, res) => {
       throw new AppError('Purchase not found', 404);
     }
 
+    // Idempotent: if already set, return OK
+    if (purchase.serviceTaskStatus === 'ready_to_dispatch') {
+      return res.status(200).json({ success: true, message: 'Already ready_to_dispatch', data: purchase });
+    }
+
     // This is the first step for the Product Head in the new workflow.
     if (purchase.serviceTaskStatus !== 'pending_assignment') {
       throw new AppError(`Purchase status must be 'pending_assignment' to dispatch. Current status: ${purchase.serviceTaskStatus}`, 400);
@@ -976,12 +981,15 @@ exports.updateStatusToReadyToDispatch = async (req, res) => {
     try {
       const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
       if (tracking) {
-        await tracking.addEvent({
-          status: 'ready_to_dispatch',
-          title: 'Ready to Dispatch',
-          description: 'Your order has been processed and is ready for dispatch.',
-          isVisible: true
-        }, req.user.id);
+        const alreadyLogged = Array.isArray(tracking.events) && tracking.events.some(e => e.status === 'ready_to_dispatch');
+        if (!alreadyLogged) {
+          await tracking.addEvent({
+            status: 'ready_to_dispatch',
+            title: 'Ready to Dispatch',
+            description: 'Your order has been processed and is ready for dispatch.',
+            isVisible: true
+          }, req.user.id);
+        }
       }
     } catch (trackingError) {
       console.error('Error updating tracking:', trackingError);
