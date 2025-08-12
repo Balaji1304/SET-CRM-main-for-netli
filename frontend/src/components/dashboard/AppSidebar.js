@@ -92,11 +92,6 @@ const getNavigation = (userRole) => {
       { name: 'New Enquiry', href: '/dashboard/enquiry', icon: UserPlus },
       { name: 'Lead Assignment', href: '/dashboard/lead-assignment', icon: Users },
     ],
-    inventory_manager: [
-      { name: 'Products', href: '/dashboard/products', icon: Box },
-      { name: 'Add Product', href: '/dashboard/products/add', icon: Plus },
-      { name: 'Product Bundles', href: '/dashboard/bundles', icon: Package },
-    ],
     sales_head: [
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },

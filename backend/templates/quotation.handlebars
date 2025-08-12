@@ -56,6 +56,35 @@
             font-size: 16px;
             line-height: 1.8;
         }
+        /* Email-safe table layout for lead info */
+        .lead-info-email-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .lead-info-email-table td {
+            width: 50%;
+            padding: 0 15px 0 0;
+            vertical-align: top;
+        }
+        .lead-info-email-table td:last-child {
+            padding: 0 0 0 15px;
+        }
+        /* Flexbox layout for modern browsers (PDF) */
+        .lead-info-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 30px;
+            width: 100%;
+        }
+        .lead-info-left {
+            flex: 1;
+            min-width: 45%;
+        }
+        .lead-info-right {
+            flex: 1;
+            min-width: 45%;
+        }
         .lead-info-table {
             width: 100%;
             border-collapse: collapse;
@@ -66,6 +95,18 @@
         }
         .lead-info-table td:first-child {
             width: 40px; /* Width for "To" label */
+        }
+        .info-section {
+            margin-bottom: 15px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        .info-value {
+            color: #000;
+            margin-bottom: 8px;
         }
         .info-group label {
             display: block;
@@ -438,11 +479,11 @@
 
         @media print {
             body {
-                font-size: 8px !important;
-                line-height: 1.5 !important;
+                font-size: 14px !important;
+                line-height: 1.6 !important;
             }
             .container {
-                padding: 10px 15px !important;
+                padding: 15px 20px !important;
             }
             .company-header {
                 position: relative;
@@ -459,158 +500,228 @@
             }
             .company-info {
                 float: right;
-                font-size: 7px !important;
+                font-size: 13px !important;
                 line-height: 1.4 !important;
                 margin-left: auto;
             }
             .iso-text {
-                font-size: 9px !important;
-                padding: 3px 6px !important;
+                font-size: 14px !important;
+                padding: 4px 8px !important;
             }
             .lead-info, 
             .ref-section,
             .subject-line,
-            .salutation-line,
-            .specs-content,
-            .spec-value,
-            .spec-name {
-                font-size: 8px !important;
+            .salutation-line {
+                font-size: 14px !important;
+                line-height: 1.6 !important;
+                margin: 12px 0 !important;
+            }
+            .lead-info-email-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                table-layout: fixed !important;
+            }
+            .lead-info-email-table td {
+                width: 50% !important;
+                padding: 0 15px 0 0 !important;
+                vertical-align: top !important;
+            }
+            .lead-info-email-table td:last-child {
+                padding: 0 0 0 15px !important;
+            }
+            .info-section {
+                margin-bottom: 12px !important;
+            }
+            .info-label {
+                font-weight: bold !important;
+                color: #333 !important;
+                margin-bottom: 2px !important;
+                font-size: 14px !important;
+            }
+            .info-value {
+                color: #000 !important;
+                margin-bottom: 6px !important;
+                font-size: 14px !important;
                 line-height: 1.5 !important;
-                margin: 10px 0 !important;
             }
             .product-heading {
-                font-size: 10px !important;
-                margin-bottom: 10px !important;
-                padding-bottom: 5px !important;
-            }
-            .items-table {
-                font-size: 8px !important;
-                margin: 15px 0 !important;
-            }
-            .items-table th {
-                font-size: 9px !important;
-                padding: 5px !important;
-            }
-            .items-table td {
-                padding: 5px !important;
-            }
-            .specs-heading {
-                font-size: 9px !important;
-                margin-bottom: 5px !important;
-            }
-            .terms-and-conditions h3 {
-                font-size: 9px !important;
-                margin-bottom: 8px !important;
-            }
-            .terms-and-conditions div {
-                font-size: 8px !important;
-                line-height: 1.8 !important;
-            }
-            .footer {
-                font-size: 8px !important;
-                margin-top: 15px !important;
-                line-height: 1.5 !important;
-            }
-            .gallery-image {
-                max-height: 200px !important; /* Increased from 150px */
+                font-size: 18px !important;
+                margin-bottom: 15px !important;
+                padding-bottom: 8px !important;
+                font-weight: bold !important;
             }
             .product-description {
-                margin: 15px 0 !important;
-                padding: 10px 15px !important;
+                margin: 20px 0 !important;
+                padding: 15px 20px !important;
                 line-height: 1.8 !important;
+                font-size: 14px !important;
             }
-            .totals {
-                font-size: 8px !important;
+            .specs-content {
+                font-size: 14px !important;
+                line-height: 1.7 !important;
                 margin: 15px 0 !important;
-                width: 250px !important;
             }
-            .totals-row.final {
-                font-size: 9px !important;
+            .specs-heading {
+                font-size: 16px !important;
+                margin-bottom: 10px !important;
+                font-weight: bold !important;
             }
             .specs-details,
             .spec-name,
             .spec-value {
-                font-size: 8px !important;
+                font-size: 14px !important;
+                line-height: 1.6 !important;
             }
-            .specs-content {
-                font-size: 8px !important;
-                line-height: 1.5 !important;
+            .spec-name {
+                font-weight: 600 !important;
+            }
+            .items-table {
+                font-size: 14px !important;
+                margin: 20px 0 !important;
+            }
+            .items-table th {
+                font-size: 15px !important;
+                padding: 10px !important;
+                font-weight: bold !important;
+            }
+            .items-table td {
+                padding: 10px !important;
+                font-size: 14px !important;
+            }
+            .terms-and-conditions h3 {
+                font-size: 16px !important;
+                margin-bottom: 12px !important;
+                font-weight: bold !important;
+            }
+            .terms-and-conditions div {
+                font-size: 14px !important;
+                line-height: 1.8 !important;
+            }
+            .footer {
+                font-size: 14px !important;
+                margin-top: 20px !important;
+                line-height: 1.6 !important;
+            }
+            .gallery-image {
+                max-height: 200px !important;
+            }
+            .totals {
+                font-size: 14px !important;
+                margin: 20px 0 !important;
+                width: 300px !important;
+            }
+            .totals-row.final {
+                font-size: 16px !important;
+                font-weight: bold !important;
             }
             .quotation-title {
-                font-size: 14px !important;
+                font-size: 16px !important;
                 margin: 15px 0 !important;
+                font-weight: bold !important;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="company-header">
-            <div class="logo-section">
-                <img src="https://res.cloudinary.com/dcua87ney/image/upload/v1746715647/logo2_kmndu4.png" alt="Sunlit" class="company-logo">
+    <div class="container" style="width: 100%; max-width: 100%; padding: 15px 20px; box-sizing: border-box;">
+        <div class="company-header" style="position: relative; width: 100%; max-width: 100%; margin-bottom: 30px; border-bottom: 2px solid #FF7300; padding-bottom: 25px; min-height: 120px; overflow: hidden; box-sizing: border-box;">
+            <div class="logo-section" style="display: inline-block; vertical-align: top; width: 30%; max-width: 30%;">
+                <img src="https://res.cloudinary.com/dcua87ney/image/upload/v1746715647/logo2_kmndu4.png" alt="Sunlit" class="company-logo" style="width: 100%; max-width: 180px; height: auto; display: block;">
             </div>
-            <div class="company-info">
-                <p><strong>Contact Us</strong></p>
-                <p>Phone: +91 98422-91069</p>
-                <p>Email: <a href="mailto:info@sunlitsolarindia.com">info@sunlitsolarindia.com</a></p>
-                <p><strong>Address:</strong></p>
-                <p>Sunlit Systems, #27, Dr. Jaganatha Nagar,</p>
-                <p>Near CIT, Opp. to CMC,</p>
-                <p>Coimbatore - 641 014</p>
+            <div class="company-info" style="float: right; text-align: right; font-size: 14px; line-height: 1.6; color: #333; margin-left: auto; width: 65%; max-width: 65%; padding-bottom: 10px; box-sizing: border-box;">
+                <p style="margin: 0 0 2px 0;"><strong style="color: #000; display: block; margin-bottom: 2px;">Contact Us</strong></p>
+                <p style="margin: 0 0 2px 0;">Phone: +91 98422-91069</p>
+                <p style="margin: 0 0 2px 0;">Email: <a href="mailto:info@sunlitsolarindia.com" style="color: #0066cc; text-decoration: none;">info@sunlitsolarindia.com</a></p>
+                <p style="margin: 0 0 2px 0;"><strong style="color: #000; display: block; margin-bottom: 2px;">Address:</strong></p>
+                <p style="margin: 0 0 2px 0;">Sunlit Systems, #27, Dr. Jaganatha Nagar,</p>
+                <p style="margin: 0 0 2px 0;">Near CIT, Opp. to CMC,</p>
+                <p style="margin: 0 0 2px 0;">Coimbatore - 641 014</p>
             </div>
         </div>
 
-        <div class="quotation-title">
+        <div class="quotation-title" style="font-size: 16px; color: #333; margin: 20px 0; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
             <p><strong>SALES QUOTATION</strong></p>
         </div>
 
-        <div class="ref-section">
+        <div class="ref-section" style="margin-bottom: 15px; font-size: 16px;">
             <div>
                 <p>Ref. No. – {{quotationNumber}}</p>
                 <p>{{createdDate}}</p>
             </div>
         </div>
 
-        <div class="lead-info">
-            <table class="lead-info-table">
+        <div class="lead-info" style="margin: 25px 0; font-size: 16px; line-height: 1.8;">
+            <!-- Email-safe table layout -->
+            <table class="lead-info-email-table" style="width: 100%; border-collapse: collapse;">
                 <tr>
-                    <td>To</td>
-                    <td>{{lead.firstName}} {{lead.lastName}}</td>
-                </tr>
-                {{#if lead.businessName}}
-                <tr>
-                    <td></td>
-                    <td>{{lead.businessName}}</td>
-                </tr>
-                {{/if}}
-                <tr>
-                    <td></td>
-                    <td>{{lead.address}}</td>
+                    <td style="width: 50%; padding: 0 10px 0 0; vertical-align: top;">
+                        <div class="info-section" style="margin-bottom: 15px;">
+                            <div class="info-label" style="font-weight: bold; color: #333; margin-bottom: 3px;">To:</div>
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{lead.firstName}} {{lead.lastName}}</div>
+                            {{#if lead.businessName}}
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{lead.businessName}}</div>
+                            {{/if}}
+                        </div>
+                        
+                        <div class="info-section" style="margin-bottom: 15px;">
+                            <div class="info-label" style="font-weight: bold; color: #333; margin-bottom: 3px;">Billing Address:</div>
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{#if lead.billingAddress}}{{lead.billingAddress}}{{else}}{{lead.address}}{{/if}}</div>
+                        </div>
+                        
+                        {{#if lead.shippingAddress}}
+                        <div class="info-section" style="margin-bottom: 15px;">
+                            <div class="info-label" style="font-weight: bold; color: #333; margin-bottom: 3px;">Shipping Address:</div>
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{lead.shippingAddress}}</div>
+                        </div>
+                        {{/if}}
+                    </td>
+                    <td style="width: 50%; padding: 0 0 0 10px; vertical-align: top;">
+                        {{#if lead.email}}
+                        <div class="info-section" style="margin-bottom: 15px;">
+                            <div class="info-label" style="font-weight: bold; color: #333; margin-bottom: 3px;">Email:</div>
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{lead.email}}</div>
+                        </div>
+                        {{/if}}
+                        
+                        {{#if lead.phone}}
+                        <div class="info-section" style="margin-bottom: 15px;">
+                            <div class="info-label" style="font-weight: bold; color: #333; margin-bottom: 3px;">Phone:</div>
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{lead.countryCode}} {{lead.phone}}</div>
+                        </div>
+                        {{/if}}
+                        
+                        {{#if lead.whatsapp}}
+                        <div class="info-section" style="margin-bottom: 15px;">
+                            <div class="info-label" style="font-weight: bold; color: #333; margin-bottom: 3px;">WhatsApp:</div>
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{lead.countryCode}} {{lead.whatsapp}}</div>
+                        </div>
+                        {{/if}}
+                    </td>
                 </tr>
             </table>
         </div>
 
-        <div class="salutation-line">
+        <div class="salutation-line" style="font-size: 16px; margin: 15px 0; max-width: 100%; overflow-wrap: break-word; word-wrap: break-word; line-height: 1.8;">
             <p>Dear Sir/Madam,</p>
             <p>Thank you very much for the keen interest shown by you in our Solar Products. We are pleased to enclose herewith the offer.</p>
         </div>
         
 
         {{#each items}}
-        <div class="product-description">
-            <div class="product-heading">{{product.name}}</div>
+        <div class="product-description" style="margin: 20px 0; padding: 15px 20px; background: #ffffff; border-radius: 6px; width: 100%; max-width: 100%; border: 1px solid #e5e7eb; font-size: 16px; line-height: 1.8; box-sizing: border-box;">
+            <div class="product-heading" style="text-align: center; color: #FF7300; margin-bottom: 15px; font-size: 18px; font-weight: bold; border-bottom: 2px solid #FF7300; padding-bottom: 8px;">{{product.name}}</div>
             {{#if product.images.length}}
-                <div class="gallery-container">
-                    <table class="gallery-table" cellpadding="0" cellspacing="0">
+                <div class="gallery-container" style="width: 100%; text-align: center; margin: 20px 0;">
+                    <table class="gallery-table" cellpadding="0" cellspacing="0" style="width: 100%; border-spacing: 15px; margin: 0 auto;">
                         {{#imageRows product.images}}
                         <tr>
                             {{#each images}}
-                            <td style="width: {{multiply 100 (divide 1 ../rowSize)}}%;">
+                            <td style="width: {{multiply 100 (divide 1 ../rowSize)}}%; text-align: center; padding: 8px; vertical-align: middle;">
                                 <img 
                                     src="{{this.url}}"
                                     alt="Product Image"
                                     class="gallery-image"
-                                    style="max-width: 100%; height: auto; max-height: 200px;"
+                                    style="display: block; margin: 0 auto; max-width: 100%; height: auto; object-fit: contain; max-height: 200px;"
                                 />
                             </td>
                             {{/each}}
@@ -619,16 +730,16 @@
                     </table>
                 </div>
             {{/if}}
-            <div class="specs-section">
-                <div class="specs-content">{{product.description}}</div>
-                <div class="specifications-table">
-                    <h4 class="specs-heading">Specifications</h4>
-                    <table class="specs-details">
+            <div class="specs-section" style="margin-top: 15px;">
+                <div class="specs-content" style="margin: 15px 0; font-size: 16px; line-height: 1.8; color: #000; max-width: 100%; overflow-wrap: break-word; word-wrap: break-word;">{{product.description}}</div>
+                <div class="specifications-table" style="margin-top: 20px; margin-bottom: 30px; width: 100%;">
+                    <h4 class="specs-heading" style="font-size: 16px; font-weight: bold; color: #FF7300; margin-bottom: 8px; border-bottom: 2px solid #FF7300; padding-bottom: 4px;">Specifications</h4>
+                    <table class="specs-details" style="width: 100%; border-collapse: collapse; font-size: 16px; margin-top: 8px; border: 1px solid #e5e7eb;">
                         <tbody>
                             {{#each product.specifications as |spec|}}
-                            <tr>
-                                <td class="spec-name">{{spec.name}}</td>
-                                <td class="spec-value">{{spec.value}}</td>
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td class="spec-name" style="padding: 8px 16px; font-weight: 600; color: #000000; width: 40%; text-transform: capitalize; background-color: #f9fafb; font-size: 16px;">{{spec.name}}</td>
+                                <td class="spec-value" style="padding: 8px 16px; color: #000000; font-size: 16px;">{{spec.value}}</td>
                             </tr>
                             {{/each}}
                         </tbody>
@@ -638,37 +749,29 @@
         </div>
         {{/each}}
 
-        <table class="items-table">
+        <table class="items-table" style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 16px; border: 1px solid #000;">
             <thead>
                 <tr>
-                    <th>Description</th>
-                    <th>Qty</th>
-                    <th>Unit Price</th>
-                    <th>Discount</th>
-                    <th style="text-align: right">Amount</th>
+                    <th style="width: 35%; font-size: 17px; background-color: #f3f3f3; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: left;">Description</th>
+                    <th style="width: 15%; font-size: 17px; background-color: #f3f3f3; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: left;">Qty</th>
+                    <th style="width: 20%; font-size: 17px; background-color: #f3f3f3; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: left;">Unit Price</th>
+                    <th style="width: 15%; font-size: 17px; background-color: #f3f3f3; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: left;">Discount</th>
+                    <th style="width: 15%; font-size: 17px; background-color: #f3f3f3; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: right;">Amount</th>
                 </tr>
             </thead>
             <tbody>
                 {{#each items}}
                 <tr>
-                    <td>{{product.name}}</td>
-                    <td>{{quantity}}</td>
-                    <td>{{formatCurrency unitPrice}}</td>
-                    <td>{{discount}}%</td>
-                    <td class="amount-cell">{{formatCurrency total}}</td>
+                    <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">{{product.name}}</td>
+                    <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">{{quantity}}</td>
+                    <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">{{formatCurrency unitPrice}}</td>
+                    <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">{{discount}}%</td>
+                    <td class="amount-cell" style="padding: 8px; border: 1px solid #000; text-align: right; word-wrap: break-word; overflow-wrap: break-word;">{{formatCurrency total}}</td>
                 </tr>
                 {{/each}}
-                <tr>
-                    <td colspan="4" style="text-align: right"><strong>Subtotal</strong></td>
-                    <td class="amount-cell">{{formatCurrency subtotal}}</td>
-                </tr>
-                <tr>
-                    <td colspan="4" style="text-align: right"><strong>GST @18% (+)</strong></td>
-                    <td class="amount-cell">{{formatCurrency tax}}</td>
-                </tr>
-                <tr class="total-row">
-                    <td colspan="4" style="text-align: right"><strong>TOTAL AMOUNT</strong></td>
-                    <td class="amount-cell">{{formatCurrency total}}</td>
+                <tr class="total-row" style="background-color: #f3f3f3; font-weight: bold;">
+                    <td colspan="4" style="padding: 8px; border: 1px solid #000; text-align: right; word-wrap: break-word; overflow-wrap: break-word;"><strong>TOTAL AMOUNT</strong></td>
+                    <td class="amount-cell" style="padding: 8px; border: 1px solid #000; text-align: right; word-wrap: break-word; overflow-wrap: break-word;">{{formatCurrency total}}</td>
                 </tr>
             </tbody>
         </table>
@@ -682,12 +785,12 @@
             {{/if}}
         </div>
         
-        <div class="terms-and-conditions">
-            <h3>Terms and Conditions:</h3>
-            <div>{{terms}}</div>
+        <div class="terms-and-conditions" style="margin: 25px 0; page-break-inside: avoid;">
+            <h3 style="margin-bottom: 10px; font-size: 16px; font-weight: bold;">Terms and Conditions:</h3>
+            <div style="font-size: 16px; line-height: 1.8;">{{terms}}</div>
         </div>
 
-        <div class="footer">
+        <div class="footer" style="margin-top: 25px; text-align: right; page-break-inside: avoid; font-size: 16px; line-height: 1.8;">
             <p>For Sunlit Solar</p>
             <p>Authorized Signatory</p>
         </div>

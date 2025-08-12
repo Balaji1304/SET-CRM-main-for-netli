@@ -38,8 +38,10 @@ import PackagesPage from './app/packages/page';
 import BundlesPage from './app/bundles/page';
 import EnquiryPage from './app/enquiry/page';
 import LeadAssignmentPage from './app/lead-assignment/page';
-import PurchaseOrderManagement from './components/PurchaseOrderManagement';
+import PurchaseOrdersPage from './app/purchase-orders/page';
+import PurchaseOrderDetailPage from './app/purchase-orders/[id]/page';
 import TicketQueuePage from './app/ticket-queue/page';
+
 
 function App() {
   return (
@@ -58,7 +60,7 @@ function App() {
           <Route 
             path="/invoice/:id" 
             element={ 
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'admin', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'admin', 'sales_head']}>
                 <InvoicePage />
               </ProtectedRoute>
             }
@@ -67,7 +69,8 @@ function App() {
                     <Route 
             path="/dashboard"
             element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department']}>
+
                 <DashboardLayout />
               </ProtectedRoute>
             }
@@ -142,38 +145,43 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="products" element={
-              <ProtectedRoute allowedRoles={['inventory_manager']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <ProductListPage />
               </ProtectedRoute>
             } />
             <Route path="products/add" element={
-              <ProtectedRoute allowedRoles={['inventory_manager']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <AddProductPage />
               </ProtectedRoute>
             } />
             <Route path="products/:id/edit" element={
-              <ProtectedRoute allowedRoles={['inventory_manager']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <EditProductPage />
               </ProtectedRoute>
             } />
             <Route path="bundles" element={
-              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <BundlesPage />
               </ProtectedRoute>
             } />
             <Route path="bundles/create" element={
-              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <BundlesPage />
               </ProtectedRoute>
             } />
             <Route path="bundles/:id/edit" element={
-              <ProtectedRoute allowedRoles={['inventory_manager', 'product_head']}>
+              <ProtectedRoute allowedRoles={['product_head']}>
                 <BundlesPage />
               </ProtectedRoute>
             } />
             <Route path="purchase-orders" element={
               <ProtectedRoute allowedRoles={['product_head', 'marketing_coordinator']}>
-                <PurchaseOrderManagement />
+                <PurchaseOrdersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="purchase-orders/:id" element={
+              <ProtectedRoute allowedRoles={['product_head', 'marketing_coordinator']}>
+                <PurchaseOrderDetailPage />
               </ProtectedRoute>
             } />
             <Route path="ticket-queue" element={

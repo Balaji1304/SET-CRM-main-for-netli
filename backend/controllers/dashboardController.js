@@ -28,6 +28,8 @@ exports.getDashboardSummary = async (req, res, next) => {
 
   try {
     if (role === 'product_head') {
+      const lowStockProducts = await safeQuery(Product.find({ $expr: { $lte: ['$quantity', '$reorderLevel'] } }), [], 'ProductHead: Error fetching low stock products');
+      
       summaryData = {
         totalCustomers: await safeQuery(User.countDocuments({ role: 'customer' }), 0, 'ProductHead: Error fetching total customers'),
         activeOrders: await safeQuery(CustomerPurchase.countDocuments({ status: 'active' }), 0, 'ProductHead: Error fetching active orders'),
@@ -38,7 +40,19 @@ exports.getDashboardSummary = async (req, res, next) => {
         quotationStats: (await safeQuery(Quotation.aggregate([
           { $group: { _id: '$status', count: { $sum: 1 } } }
         ]), [])).reduce((acc, stat) => { acc[stat._id] = stat.count; return acc; }, {}),
-        lowStockItems: 'N/A', // Product model does not have a direct quantity field for this query
+        lowStockItems: lowStockProducts.length,
+        totalProducts: await safeQuery(Product.countDocuments(), 0, 'ProductHead: Error fetching total products'),
+        lowStockItemsCount: lowStockProducts.length,
+        inventoryStats: {
+            itemsBelowReorderLevel: lowStockProducts.length,
+            stockTurnoverRate: 'N/A' // Placeholder
+        },
+        lowStockItemsList: lowStockProducts.map(p => ({
+            id: p._id,
+            name: p.name,
+            quantity: p.quantity,
+            reorderLevel: p.reorderLevel
+        })),
         recentActivity: [
             { message: 'New Order #ORD-00124 Received', time: '2 hours ago', type: 'order'},
             { message: 'Customer "Ramesh Kumar" Meeting Scheduled', time: '5 hours ago', type: 'meeting'},
@@ -120,23 +134,6 @@ exports.getDashboardSummary = async (req, res, next) => {
             closedDeals: myQuotationStats.approved || 0, // Use count from aggregation
             conversionRate: 'N/A' // Placeholder - requires leads vs deals calculation
         }
-      };
-    } else if (role === 'inventory_manager') {
-      const lowStockProducts = await safeQuery(Product.find({ $expr: { $lte: ['$quantity', '$reorderLevel'] } }), [], 'Inventory: Error fetching low stock products');
-      
-      summaryData = {
-        totalProducts: await safeQuery(Product.countDocuments(), 0, 'Inventory: Error fetching total products'),
-        lowStockItemsCount: lowStockProducts.length,
-        inventoryStats: {
-            itemsBelowReorderLevel: lowStockProducts.length,
-            stockTurnoverRate: 'N/A' // Placeholder
-        },
-        lowStockItems: lowStockProducts.map(p => ({
-            id: p._id,
-            name: p.name,
-            quantity: p.quantity,
-            reorderLevel: p.reorderLevel
-        }))
       };
     } else if (role === 'service_engineer') {
       summaryData = {

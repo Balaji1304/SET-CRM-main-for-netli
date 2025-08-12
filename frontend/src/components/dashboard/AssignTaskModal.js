@@ -48,7 +48,6 @@ const AssignTaskModal = ({
 
   if (!task) return null;
 
-  const subjectText = `Service Installation for Purchase ID: ${task.purchaseID}`;
   const customerName = task.customerId ? `${task.customerId.firstName} ${task.customerId.lastName}` : 'N/A';
   const relatedToText = task.purchaseID;
   const installationDateText = task.installationDate ? new Date(task.installationDate).toLocaleDateString() : 'Not set';
@@ -69,20 +68,6 @@ const AssignTaskModal = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Subject (Read-only) */}
-          <div>
-            <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
-              Subject
-            </label>
-            <input
-              type="text"
-              id="subject"
-              value={subjectText}
-              readOnly
-              className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            />
-          </div>
-
           {/* Customer Name (Read-only) */}
           <div>
             <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
@@ -100,7 +85,7 @@ const AssignTaskModal = ({
           {/* Related To (Read-only) */}
           <div>
             <label htmlFor="relatedTo" className="block text-sm font-medium text-gray-700 mb-1">
-              Related To (Purchase ID)
+              Purchase Order ID
             </label>
             <input
               type="text"

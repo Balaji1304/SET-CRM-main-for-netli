@@ -99,4 +99,20 @@ export const getCompatibleProducts = async (filters = {}) => {
   
   const url = queryParams.toString() ? `bundles/compatible-products?${queryParams.toString()}` : 'bundles/compatible-products';
   return await apiRequest(url);
+};
+
+/**
+ * Get default terms and conditions for bundles
+ * @returns {Promise<Object>} - Response with terms and conditions
+ */
+export const getDefaultBundleTerms = async () => {
+  return await apiRequest('bundles/terms/default');
+};
+
+/**
+ * Get all available bundle terms and conditions
+ * @returns {Promise<Object>} - Response with all terms
+ */
+export const getAllBundleTerms = async () => {
+  return await apiRequest('bundles/terms/all');
 }; 

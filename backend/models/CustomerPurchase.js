@@ -17,21 +17,6 @@ const customerPurchaseSchema = new mongoose.Schema({
     ref: 'Quotation', 
     required: true 
   },
-  subtotal: {
-    type: Number,
-    required: true,
-    default: 0
-  },
-  taxPercentage: {
-    type: Number,
-    required: true,
-    default: 0 
-  },
-  taxAmount: {
-    type: Number,
-    required: true,
-    default: 0
-  },
   advancePaid: { 
     type: Number, 
     required: true,

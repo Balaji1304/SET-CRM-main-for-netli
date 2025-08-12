@@ -437,7 +437,7 @@ async function createInvoiceIfFullyPaid(purchaseId, userId) {
 
   const purchase = await CustomerPurchase.findById(purchaseId)
     .populate('customerId')
-    .populate('quotationId', 'lead taxPercentage');
+    .populate('quotationId', 'lead');
 
   if (!purchase) {
     console.error(`createInvoiceIfFullyPaid: Purchase not found for ID ${purchaseId}`);
@@ -472,17 +472,14 @@ async function createInvoiceIfFullyPaid(purchaseId, userId) {
     quantity: qItem.quantity,
     unitPrice: qItem.unitPrice,
     discountPercentage: qItem.discount || 0,
-    itemTotal: qItem.subtotal
+    itemTotal: qItem.total
   }));
 
-  const invoiceSubtotal = purchase.subtotal;
-  const invoiceTaxPercentage = purchase.taxPercentage;
-  const invoiceTaxAmount = purchase.taxAmount;
   const invoiceTotalAmount = purchase.totalAmount;
   
   const sumOfItemTotals = itemsForInvoice.reduce((sum, item) => sum + (item.itemTotal || 0), 0);
-  if (Math.abs(sumOfItemTotals - invoiceSubtotal) > 0.01) {
-      console.warn(`Discrepancy: Sum of invoice item totals (${sumOfItemTotals}) does not match CustomerPurchase subtotal (${invoiceSubtotal}) for CP ID ${purchaseId}.`);
+  if (Math.abs(sumOfItemTotals - invoiceTotalAmount) > 0.01) {
+      console.warn(`Discrepancy: Sum of invoice item totals (${sumOfItemTotals}) does not match CustomerPurchase total (${invoiceTotalAmount}) for CP ID ${purchaseId}.`);
   }
 
   const companyDetails = {
@@ -516,9 +513,6 @@ async function createInvoiceIfFullyPaid(purchaseId, userId) {
     quotation: purchase.quotationId._id,
     customerPurchase: purchaseId,
     items: itemsForInvoice,
-    subtotal: invoiceSubtotal,
-    taxPercentage: invoiceTaxPercentage,
-    taxAmount: invoiceTaxAmount,
     totalAmount: invoiceTotalAmount,
     paidAmount: invoiceTotalAmount,
     paymentStatus: 'PAID',

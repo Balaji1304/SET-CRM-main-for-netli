@@ -54,9 +54,7 @@ exports.createInvoice = async (req, res) => {
         unitPrice: item.unitPrice,
         discount: item.discount || 0
       })),
-      subtotal: quotation.subtotal,
-      tax: quotation.tax,
-      total: quotation.total,
+      totalAmount: quotation.total,
       dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days due date
       createdBy: req.user.id
     });
@@ -77,9 +75,7 @@ exports.createInvoice = async (req, res) => {
         discount: item.discount,
         total: item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)
       })),
-      subtotal: invoice.subtotal,
-      tax: invoice.tax,
-      total: invoice.total,
+      total: invoice.totalAmount,
       dueDate: invoice.dueDate.toLocaleDateString(),
       businessDetails: {
         name: process.env.BUSINESS_NAME || 'Sunlit CRM',
@@ -178,7 +174,7 @@ exports.getInvoiceByPurchaseId = async (req, res) => {
 
     const invoice = await Invoice.findOne({ customerPurchase: customerPurchaseId })
       .populate('customer', 'name email phone')
-      .populate('quotation', 'quotationNumber createdAt totalAmount subtotal taxAmount taxPercentage')
+      .populate('quotation', 'quotationNumber createdAt total')
       .populate('customerPurchase', 'purchaseDate totalAmount purchaseID paymentStatus status')
       .populate({
         path: 'items.product',
@@ -282,9 +278,6 @@ exports.sendExistingInvoiceEmail = async (req, res) => {
         discountPercentage: item.discountPercentage || 0,
         itemTotal: item.itemTotal // This is the net total for the item, after discount
       })),
-      subtotal: invoice.subtotal, // This is sum of all itemTotals
-      taxAmount: invoice.taxAmount,
-      taxPercentage: invoice.taxPercentage || 0, 
       totalAmount: invoice.totalAmount,
       paidAmount: invoice.paidAmount || 0, 
       paymentStatus: invoice.paymentStatus || 'N/A', 
