@@ -8,6 +8,7 @@ import {
   closeQuotation, 
   confirmOfflinePayment 
 } from '../../services/quotationService';
+import { useAuth } from '../../context/AuthContext';
 
 // Helper to format enum values or status strings
 const formatDisplayValue = (value) => {
@@ -240,6 +241,7 @@ function StandalonePaymentModal({
 
 export default function QuotationsTable({ searchTerm, statusFilter }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null); // For page-level errors
@@ -487,9 +489,9 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               </button>
             </>
           )}
-          {quotation.status === 'sent' && (
+          {(quotation.status === 'sent' || quotation.status === 'pending_approval') && (
             <>
-              {quotation.advancePaymentStatus !== 'CONFIRMED' && (
+              {user?.role !== 'accounts_department' && quotation.advancePaymentStatus !== 'CONFIRMED' && !quotation.razorpayPaymentId && (
                 <button
                   onClick={() => {
                     setSelectedQuotationForPayment(quotation);
@@ -502,14 +504,16 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                   <IndianRupee className="w-4 h-4" />
                 </button>
               )}
-              <button
-                onClick={() => openConfirmDialog('Are you sure you want to mark this quotation as approved?', () => handleApproveQuotation(quotation._id))}
-                className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
-                title="Approve Quotation"
-                disabled={loadingAction[quotation._id] || quotation.advancePaymentStatus === 'CONFIRMED'}
-              >
-                <Check className="w-4 h-4" />
-              </button>
+              {user?.role === 'accounts_department' && quotation.status === 'pending_approval' && (
+                <button
+                  onClick={() => openConfirmDialog('Confirm approval? This will lock the quotation and confirm payment.', () => handleApproveQuotation(quotation._id))}
+                  className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                  title="Approve Quotation"
+                  disabled={loadingAction[quotation._id]}
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+              )}
               <button
                 onClick={() => openConfirmDialog('Are you sure you want to close this quotation? This usually means the lead did not accept it.', () => handleCloseQuotation(quotation._id))}
                 className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
@@ -726,9 +730,9 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                               </button>
                             </>
                           )}
-                          {quotation.status === 'sent' && (
+                  {(quotation.status === 'sent' || quotation.status === 'pending_approval') && (
                             <>
-                              {quotation.advancePaymentStatus !== 'CONFIRMED' && (
+                              {user?.role !== 'accounts_department' && quotation.advancePaymentStatus !== 'CONFIRMED' && (
                                 <button
                                   onClick={() => {
                                     setSelectedQuotationForPayment(quotation);
@@ -741,14 +745,16 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                                   <IndianRupee className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
                                 </button>
                               )}
-                              <button
-                                onClick={() => openConfirmDialog('Are you sure you want to mark this quotation as approved?', () => handleApproveQuotation(quotation._id))}
-                                className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-green-200"
-                                title="Approve Quotation"
-                                disabled={loadingAction[quotation._id] || quotation.advancePaymentStatus === 'CONFIRMED'}
-                              >
-                                <Check className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-                              </button>
+                              {user?.role === 'accounts_department' && quotation.status === 'pending_approval' && (
+                                <button
+                                  onClick={() => openConfirmDialog('Confirm approval? This will lock the quotation and confirm payment.', () => handleApproveQuotation(quotation._id))}
+                                  className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-green-200"
+                                  title="Approve Quotation"
+                                  disabled={loadingAction[quotation._id] || quotation.advancePaymentStatus !== 'CONFIRMED'}
+                                >
+                                  <Check className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => openConfirmDialog('Are you sure you want to close this quotation? This usually means the lead did not accept it.', () => handleCloseQuotation(quotation._id))}
                                 className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-red-200"

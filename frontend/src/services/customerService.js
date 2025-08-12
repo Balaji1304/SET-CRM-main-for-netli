@@ -66,6 +66,18 @@ export const makePayment = async (purchaseId, paymentData) => {
 };
 
 /**
+ * Customer: record manual payment (with verification flow)
+ */
+export const recordManualPayment = async (purchaseId, data) => {
+  const response = await apiRequest(`customer-purchases/${purchaseId}/payments/manual`, {
+    method: 'POST',
+    body: data
+  }, false);
+  invalidateCache('customer-purchases');
+  return response;
+};
+
+/**
  * Create a Razorpay payment link for remaining payment
  * @param {string} purchaseId - Purchase ID
  * @returns {Promise<Object>} - Response with payment link data

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AlertCircle, Check, CreditCard, ArrowLeft } from 'lucide-react';
-import { getPurchaseDetails, makePayment, createRazorpayPaymentLink, verifyRazorpayPayment } from '../../../services/customerService';
+import { getPurchaseDetails, makePayment, createRazorpayPaymentLink, verifyRazorpayPayment, recordManualPayment } from '../../../services/customerService';
 
 export default function RemainingPaymentPage() {
   const [searchParams] = useSearchParams();
@@ -13,6 +13,7 @@ export default function RemainingPaymentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [manualSuccess, setManualSuccess] = useState(false);
   const [processingOnlinePayment, setProcessingOnlinePayment] = useState(false);
   const [paymentData, setPaymentData] = useState({
     amountPaid: '',
@@ -20,6 +21,9 @@ export default function RemainingPaymentPage() {
     transactionId: '',
     notes: ''
   });
+  const [showManual, setShowManual] = useState(false);
+  const [manual, setManual] = useState({ amount: '', method: 'cash', reference: '', date: new Date().toISOString().split('T')[0], notes: '' });
+  const [submittingManual, setSubmittingManual] = useState(false);
 
   useEffect(() => {
     if (purchaseId) {
@@ -96,15 +100,17 @@ export default function RemainingPaymentPage() {
     try {
       setLoading(true);
       
-      const formattedData = {
-        ...paymentData,
-        amountPaid: parseFloat(paymentData.amountPaid)
-      };
-      
-      const response = await makePayment(purchaseId, formattedData);
+      const response = await recordManualPayment(purchaseId, {
+        amount: parseFloat(paymentData.amountPaid),
+        paymentMethod: paymentData.paymentMethod,
+        reference: paymentData.transactionId,
+        paymentDate: new Date().toISOString().split('T')[0],
+        notes: paymentData.notes
+      });
       
       if (response.success) {
-        setSuccess(true);
+        setManualSuccess(true);
+        await fetchPurchaseDetails();
       } else {
         throw new Error(response.message || 'Payment failed');
       }
@@ -174,6 +180,31 @@ export default function RemainingPaymentPage() {
     }
   };
 
+  const submitManualPayment = async () => {
+    try {
+      setSubmittingManual(true);
+      const amt = Number(manual.amount);
+      if (isNaN(amt) || amt <= 0) throw new Error('Enter valid amount');
+      if (amt > (purchase?.remainingAmount || 0)) throw new Error('Amount exceeds remaining');
+      if (!manual.reference) throw new Error('Reference number required');
+      const res = await recordManualPayment(purchaseId, {
+        amount: amt,
+        paymentMethod: manual.method,
+        reference: manual.reference,
+        paymentDate: manual.date,
+        notes: manual.notes
+      });
+      if (!res.success) throw new Error(res.message || 'Failed to record payment');
+      setShowManual(false);
+      await fetchPurchaseDetails();
+      alert('Payment recorded and pending verification');
+    } catch (err) {
+      alert(err.message || 'Failed to record payment');
+    } finally {
+      setSubmittingManual(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -229,6 +260,11 @@ export default function RemainingPaymentPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm p-6">
+        {manualSuccess && (
+          <div className="mb-4 p-3 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+            Manual payment recorded and pending verification by Accounts.
+          </div>
+        )}
         <div className="mb-6 p-4 bg-gray-50 rounded border">
           <h3 className="font-medium mb-2">Order Summary</h3>
           <div className="grid grid-cols-2 gap-2 text-sm">

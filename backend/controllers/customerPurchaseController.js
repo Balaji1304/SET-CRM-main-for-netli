@@ -8,6 +8,7 @@ const Product = require('../models/Product');
 const { AppError, errorHandler } = require('../utils/errorHandler');
 const User = require('../models/User');
 const Package = require('../models/Package');
+const OrderTracking = require('../models/OrderTracking');
 
 // Convert lead to customer when quotation is approved
 exports.convertLeadToCustomer = async (req, res) => {
@@ -116,6 +117,34 @@ exports.convertLeadToCustomer = async (req, res) => {
     lead.status = 'closed';
     await lead.save();
 
+    // Create initial tracking record
+    try {
+      const trackingNumber = await OrderTracking.generateTrackingNumber();
+      const tracking = new OrderTracking({
+        purchaseId: customerPurchase._id,
+        trackingNumber,
+        currentStatus: 'order_placed'
+      });
+
+      await tracking.addEvent({
+        status: 'order_placed',
+        title: 'Order Placed',
+        description: 'Your order has been successfully placed and is being processed.',
+        isVisible: true
+      }, req.user.id);
+
+      // Add payment confirmation event
+      await tracking.addEvent({
+        status: 'payment_confirmed',
+        title: 'Payment Confirmed',
+        description: `Advance payment of ₹${calculatedAdvanceAmount} has been confirmed.`,
+        isVisible: true
+      }, req.user.id);
+    } catch (trackingError) {
+      console.error('Error creating tracking record:', trackingError);
+      // Don't fail the main operation if tracking creation fails
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -175,7 +204,7 @@ exports.getCustomerPurchases = async (req, res) => {
 exports.getCustomerPurchasesByUser = async (req, res) => {
   try {
     // Find customer record for current user
-    const customer = await Customer.findOne({ email: req.user.email });
+    const customer = await Customer.findOne({ user: req.user._id });
     
     if (!customer) {
       return res.status(404).json({
@@ -195,8 +224,11 @@ exports.getCustomerPurchasesByUser = async (req, res) => {
     // For each purchase, get the quotation items
     const purchasesWithItems = await Promise.all(
       purchases.map(async (purchase) => {
-        const quotationItems = await QuotationItem.find({ quotationId: purchase.quotationId._id })
-          .populate('productId');
+        let quotationItems = [];
+        if (purchase.quotationId && purchase.quotationId._id) {
+          quotationItems = await QuotationItem.find({ quotationId: purchase.quotationId._id })
+            .populate('productId');
+        }
         
         const purchaseObj = purchase.toObject();
         purchaseObj.quotationItems = quotationItems;
@@ -221,7 +253,7 @@ exports.getCustomerPurchasesByUser = async (req, res) => {
   }
 };
 
-// Record additional payment for a purchase
+// Record additional payment for a purchase (legacy/internal)
 exports.recordPayment = async (req, res) => {
   try {
     const { purchaseId } = req.params;
@@ -288,6 +320,113 @@ exports.recordPayment = async (req, res) => {
   }
 };
 
+// Customer records a manual payment for a purchase
+// POST /api/customer-purchases/:purchaseId/payments/manual
+exports.recordManualPayment = async (req, res) => {
+  try {
+    const { purchaseId } = req.params;
+    const { amount, paymentMethod, reference, paymentDate, notes } = req.body;
+
+    const purchase = await CustomerPurchase.findById(purchaseId).populate('customerId');
+    if (!purchase) throw new AppError('Purchase not found', 404);
+
+    if (!req.user || req.user.role !== 'customer') {
+      throw new AppError('Only customers can record manual payments', 403);
+    }
+    if (purchase.customerId && purchase.customerId.email && req.user.email && purchase.customerId.email !== req.user.email) {
+      throw new AppError('Not authorized to record payment for this purchase', 403);
+    }
+
+    const amt = Number(amount);
+    if (isNaN(amt) || amt <= 0) throw new AppError('Invalid amount', 400);
+    if (amt > purchase.remainingAmount + 1e-6) throw new AppError('Amount exceeds remaining balance', 400);
+
+    const allowedMethods = ['cash', 'check', 'bank_transfer', 'other'];
+    if (!allowedMethods.includes(paymentMethod)) throw new AppError('Invalid payment method', 400);
+    if (!reference || typeof reference !== 'string') throw new AppError('Reference number is required', 400);
+
+    const paidAt = paymentDate ? new Date(paymentDate) : new Date();
+    if (isNaN(paidAt.getTime())) throw new AppError('Invalid payment date', 400);
+    if (paidAt.getTime() > Date.now() + 60 * 1000) throw new AppError('Payment date cannot be in the future', 400);
+
+    try {
+      const payment = await Payment.create({
+        customerPurchaseId: purchase._id,
+        amountPaid: amt,
+        paymentMethod,
+        transactionId: reference,
+        notes: notes || '',
+        paidAt,
+        isAdvancePayment: false,
+        createdBy: req.user._id
+      });
+
+      const newRemaining = Number((purchase.remainingAmount - amt).toFixed(2));
+      purchase.remainingAmount = Math.max(newRemaining, 0);
+      purchase.isFullyPaid = purchase.remainingAmount <= 0.01;
+      purchase.paymentReviewStatus = 'pending_verification';
+      await purchase.save();
+
+      return res.status(201).json({
+        success: true,
+        message: 'Payment recorded and pending verification',
+        data: { paymentId: payment._id, remainingAmount: purchase.remainingAmount, isFullyPaid: purchase.isFullyPaid }
+      });
+    } catch (err) {
+      if (err && err.code === 11000 && err.keyPattern && err.keyPattern.transactionId) {
+        throw new AppError('This reference number is already used. Please enter a unique reference.', 400);
+      }
+      throw err;
+    }
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// Accounts verifies a manual payment
+exports.verifyManualPayment = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'accounts_department') throw new AppError('Only Accounts can verify payments', 403);
+    const { purchaseId, paymentId } = req.params;
+    const purchase = await CustomerPurchase.findById(purchaseId);
+    if (!purchase) throw new AppError('Purchase not found', 404);
+    const payment = await Payment.findById(paymentId);
+    if (!payment || String(payment.customerPurchaseId) !== String(purchase._id)) throw new AppError('Payment not found for this purchase', 404);
+
+    purchase.paymentReviewStatus = 'verified';
+    await purchase.save();
+
+    return res.json({ success: true, message: 'Payment verified' });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// Accounts rejects a manual payment (restores remaining)
+exports.rejectManualPayment = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'accounts_department') throw new AppError('Only Accounts can reject payments', 403);
+    const { purchaseId, paymentId } = req.params;
+    const { reason } = req.body;
+    const purchase = await CustomerPurchase.findById(purchaseId);
+    if (!purchase) throw new AppError('Purchase not found', 404);
+    const payment = await Payment.findById(paymentId);
+    if (!payment || String(payment.customerPurchaseId) !== String(purchase._id)) throw new AppError('Payment not found for this purchase', 404);
+
+    purchase.remainingAmount = Number((purchase.remainingAmount + payment.amountPaid).toFixed(2));
+    purchase.isFullyPaid = purchase.remainingAmount <= 0.01;
+    purchase.paymentReviewStatus = 'rejected';
+    await purchase.save();
+
+    payment.notes = `${payment.notes || ''} [Rejected: ${reason || 'no reason provided'}]`;
+    await payment.save();
+
+    return res.json({ success: true, message: 'Payment rejected and amount restored' });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
 // Get payment history for a purchase
 exports.getPaymentHistory = async (req, res) => {
   try {
@@ -319,7 +458,7 @@ exports.getPaymentHistory = async (req, res) => {
 exports.getAllPaymentHistory = async (req, res) => {
   try {
     // Find customer record for current user
-    const customer = await Customer.findOne({ email: req.user.email });
+    const customer = await Customer.findOne({ user: req.user._id });
     
     if (!customer) {
       return res.status(404).json({
@@ -810,6 +949,11 @@ exports.updateStatusToReadyToDispatch = async (req, res) => {
       throw new AppError('Purchase not found', 404);
     }
 
+    // Idempotent: if already set, return OK
+    if (purchase.serviceTaskStatus === 'ready_to_dispatch') {
+      return res.status(200).json({ success: true, message: 'Already ready_to_dispatch', data: purchase });
+    }
+
     // This is the first step for the Product Head in the new workflow.
     if (purchase.serviceTaskStatus !== 'pending_assignment') {
       throw new AppError(`Purchase status must be 'pending_assignment' to dispatch. Current status: ${purchase.serviceTaskStatus}`, 400);
@@ -817,6 +961,24 @@ exports.updateStatusToReadyToDispatch = async (req, res) => {
 
     purchase.serviceTaskStatus = 'ready_to_dispatch';
     await purchase.save();
+
+    // Update tracking
+    try {
+      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
+      if (tracking) {
+        const alreadyLogged = Array.isArray(tracking.events) && tracking.events.some(e => e.status === 'ready_to_dispatch');
+        if (!alreadyLogged) {
+          await tracking.addEvent({
+            status: 'ready_to_dispatch',
+            title: 'Ready to Dispatch',
+            description: 'Your order has been processed and is ready for dispatch.',
+            isVisible: true
+          }, req.user.id);
+        }
+      }
+    } catch (trackingError) {
+      console.error('Error updating tracking:', trackingError);
+    }
 
     res.status(200).json({
       success: true,
@@ -851,6 +1013,26 @@ exports.allocateInstallationDate = async (req, res) => {
     purchase.serviceTaskStatus = 'installation_date_allocated';
     await purchase.save();
 
+    // Update tracking
+    try {
+      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
+      if (tracking) {
+        // Update estimated installation date
+        tracking.estimatedInstallation = new Date(installationDate);
+        await tracking.save();
+
+        await tracking.addEvent({
+          status: 'installation_scheduled',
+          title: 'Installation Scheduled',
+          description: `Installation has been scheduled for ${new Date(installationDate).toLocaleDateString()}.`,
+          estimatedDate: new Date(installationDate),
+          isVisible: true
+        }, req.user.id);
+      }
+    } catch (trackingError) {
+      console.error('Error updating tracking:', trackingError);
+    }
+
     res.status(200).json({
       success: true,
       data: purchase,
@@ -859,3 +1041,8 @@ exports.allocateInstallationDate = async (req, res) => {
     errorHandler(res, error);
   }
 };
+
+// Export new manual payment functions for routing
+exports.recordManualPayment = exports.recordManualPayment;
+exports.verifyManualPayment = exports.verifyManualPayment;
+exports.rejectManualPayment = exports.rejectManualPayment;

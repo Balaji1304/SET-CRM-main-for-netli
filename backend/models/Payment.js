@@ -21,7 +21,10 @@ const paymentSchema = new mongoose.Schema({
     default: 'cash'
   },
   transactionId: {
-    type: String
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true
   },
   receiptNumber: {
     type: String

@@ -86,6 +86,11 @@ const customerPurchaseSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  paymentReviewStatus: {
+    type: String,
+    enum: ['none', 'pending_verification', 'verified', 'rejected'],
+    default: 'none'
   }
 });
 

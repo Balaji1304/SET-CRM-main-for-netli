@@ -4,16 +4,9 @@ import {
   Clock, CheckCircle2, Ticket, Users, DollarSign, Package, Briefcase, BarChart2, Settings, AlertTriangle, ShoppingCart, ListChecks, UserCheck, FileText, Users2, PackageSearch, UserCog, TrendingUp
 } from 'lucide-react';
 import axios from 'axios';
-
-const formatNumber = (num) => {
-  if (num === 'N/A' || num === undefined || num === null) return 'N/A';
-  if (typeof num !== 'number') {
-    const parsed = parseFloat(num);
-    if (isNaN(parsed)) return num;
-    num = parsed;
-  }
-  return num.toLocaleString('en-IN');
-};
+import TicketStatsWidget from './TicketStatsWidget';
+import TrackingWidget from './TrackingWidget';
+import { formatNumber } from '../utils/formatNumber';
 
 const Dashboard = () => {
   const { user, token, loading: authLoading } = useAuth();
@@ -138,6 +131,7 @@ const Dashboard = () => {
 
   const renderProductHeadDashboard = () => (
     <>
+      <TicketStatsWidget userRole={user?.role} />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Total Customers', formatNumber(summaryData.totalCustomers), <Users />)}
         {renderCommonCard('Active Purchases', formatNumber(summaryData.activeOrders), <ShoppingCart />)}
@@ -190,12 +184,14 @@ const Dashboard = () => {
 
   const renderCustomerDashboard = () => (
     <>
+      <TicketStatsWidget userRole={user?.role} />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
         {renderCommonCard('My Open Tickets', formatNumber(summaryData.myOpenTickets), <Ticket />)}
         {renderCommonCard('My Active Purchases', formatNumber(summaryData.myRecentOrdersCount), <ShoppingCart />)}
         {renderCommonCard('My Active Quotations', formatNumber(summaryData.myActiveQuotations), <FileText />)}
             </div>
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mb-6">
+        <TrackingWidget />
         {renderSection("Recent Account Activity", <Clock />, 
           <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
             {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent activity for your account.</p>}
@@ -237,6 +233,7 @@ const Dashboard = () => {
 
   const renderServiceEngineerDashboard = () => (
     <>
+      <TicketStatsWidget userRole={user?.role} />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 mb-6">
         {renderCommonCard('My Active Assigned Tasks', formatNumber(summaryData.myAssignedCustomerTasks), <UserCog />)}
         {renderCommonCard('Avg. Task Resolution Time', summaryData.avgResolutionTime, <CheckCircle2 />)}

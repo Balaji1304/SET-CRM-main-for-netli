@@ -18,6 +18,7 @@ const initWebSocket = (server) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       ws.userId = decoded.id;
+      ws.role = decoded.role;
       ws.isAlive = true;
       
       // Send connection confirmation
@@ -60,4 +61,16 @@ const notifyClient = (userId, quotationId, status) => {
   });
 };
 
-module.exports = { initWebSocket, notifyClient }; 
+const notifyRole = (role, payload) => {
+  if (!wss) return;
+  wss.clients.forEach((client) => {
+    if (client.role === role && client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify({
+        type: 'QUOTATION_STATUS',
+        ...payload
+      }));
+    }
+  });
+};
+
+module.exports = { initWebSocket, notifyClient, notifyRole };

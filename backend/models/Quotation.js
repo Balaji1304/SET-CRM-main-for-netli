@@ -17,7 +17,7 @@ const quotationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'sent', 'approved', 'rejected', 'expired', 'closed'],
+    enum: ['draft', 'sent', 'pending_approval', 'approved', 'rejected', 'expired', 'closed'],
     default: 'draft'
   },
   validUntil: {
@@ -70,11 +70,14 @@ const quotationSchema = new mongoose.Schema({
     type: Date
   },
   offlineTransactionNo: {
-    type: String
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true
   },
   paymentMethod: {
     type: String,
-    enum: ['cash', 'check', 'bank_transfer', 'other'],
+    enum: ['cash', 'check', 'bank_transfer', 'razorpay', 'other'],
     default: 'cash'
   },
   paymentDate: {
@@ -92,7 +95,15 @@ const quotationSchema = new mongoose.Schema({
   },
   closeReason: {
     type: String
-  }
+  },
+  auditLogs: [
+    {
+      action: { type: String, required: true },
+      by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      at: { type: Date, default: Date.now },
+      details: { type: Object }
+    }
+  ]
 });
 
 // Virtual populate to get QuotationItems
