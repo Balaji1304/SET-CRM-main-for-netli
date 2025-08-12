@@ -129,7 +129,6 @@ exports.updateCustomizedProduct = async (req, res) => {
       modelNumber, 
       description, 
       specifications, 
-      termsAndConditions,
       images
     } = req.body;
 
@@ -143,7 +142,6 @@ exports.updateCustomizedProduct = async (req, res) => {
     if (modelNumber !== undefined) customizedProduct.modelNumber = modelNumber;
     if (description !== undefined) customizedProduct.description = description;
     if (specifications !== undefined) customizedProduct.specifications = specifications;
-    if (termsAndConditions !== undefined) customizedProduct.termsAndConditions = termsAndConditions;
     
     // Handle image updates if there are images
     if (images && images.length > 0) {

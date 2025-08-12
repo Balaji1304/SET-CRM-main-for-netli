@@ -100,7 +100,6 @@ export default function EditQuotationPage() {
                   dimensions: fullCustomizedProduct.specifications?.dimensions || '',
                   ...fullCustomizedProduct.specifications // Include any additional specs
                 },
-                termsAndConditions: fullCustomizedProduct.termsAndConditions || '',
                 images: fullCustomizedProduct.imageUrls || []
               };
             } else {
@@ -114,7 +113,6 @@ export default function EditQuotationPage() {
                   warranty: '',
                   dimensions: ''
                 },
-                termsAndConditions: '',
                 images: []
               };
             }
@@ -229,7 +227,6 @@ export default function EditQuotationPage() {
                     dimensions: customizedProduct.specifications?.dimensions || '',
                     ...customizedProduct.specifications // Include any additional specs
                   },
-                  termsAndConditions: customizedProduct.termsAndConditions || '',
                   images: customizedProduct.imageUrls || []
                 }
               }));
@@ -366,7 +363,6 @@ export default function EditQuotationPage() {
             modelNumber: details.modelNumber || '',
             description: details.description || '',
             specifications: details.specifications || {},
-            termsAndConditions: details.termsAndConditions || '',
             // Don't include images here as they are already uploaded to Cloudinary
             isCompleted: true
           };
@@ -669,7 +665,6 @@ export default function EditQuotationPage() {
                         warranty: '',
                         dimensions: ''
                       },
-                      termsAndConditions: '',
                       images: []
                     };
                     const specifications = productDetails.specifications || { power: '', efficiency: '', warranty: '', dimensions: '' };
@@ -817,24 +812,6 @@ export default function EditQuotationPage() {
                               </div>
                             )}
                           </div>
-                        </div>
-
-                        {/* Terms and Conditions */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Terms and Conditions
-                          </label>
-                          <textarea
-                            value={productDetails.termsAndConditions || ''}
-                            onChange={(e) => handleCustomizedProductChange(productId, 'termsAndConditions', e.target.value)}
-                            placeholder="Enter product-specific terms and conditions..."
-                            rows="3"
-                            maxLength="5000"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm resize-vertical"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            {(productDetails.termsAndConditions || '').length}/5000 characters
-                          </p>
                         </div>
                       </div>
                     );

@@ -900,8 +900,7 @@ export default function LeadForm() {
                     modelNumber: product.modelNumber || '',
                     description: product.description || '',
                     specifications: product.specifications || {},
-                    imageUrls: product.imageUrls || [],
-                    terms: product.terms || ''
+                    imageUrls: product.imageUrls || []
                   };
                   const result = await createCustomizedProduct(customizedProductData);
                   return { ...result, productId: product.id, productName: product.name };
@@ -990,8 +989,7 @@ export default function LeadForm() {
                   modelNumber: product.modelNumber || '',
                   description: product.description || '',
                   specifications: product.specifications || {},
-                  imageUrls: product.imageUrls || [],
-                  terms: product.terms || ''
+                  imageUrls: product.imageUrls || []
                 };
                 
                 const result = await createCustomizedProduct(customizedProductData);

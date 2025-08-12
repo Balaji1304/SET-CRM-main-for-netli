@@ -6,12 +6,14 @@ import { createQuotation } from '../../../services/quotationService';
 import { getLeads } from '../../../services/leadService';
 import { getProducts } from '../../../services/productService';
 import { getAllCustomizedProducts, updateCustomizedProduct } from '../../../services/customizedProductService';
+import { getBundles } from '../../../services/bundleService';
 
 export default function CreateQuotationPage() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
   const [allCustomizedProducts, setAllCustomizedProducts] = useState([]);
+  const [allBundles, setAllBundles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [formData, setFormData] = useState({
@@ -23,7 +25,7 @@ export default function CreateQuotationPage() {
       unitPrice: '',
       discount: ''
     }],
-    terms: "1. Payment Terms: 50% advance payment, 50% upon completion of services/delivery of goods.\n2. Quotation Validity: This quotation is valid for 30 days from the date of issue.\n3. All disputes are subject to [Your City/Region] jurisdiction.",
+    terms: "", // Initially empty, will be set based on selected products
     notes: "We appreciate your interest in our services/products. Please feel free to contact us if you have any questions or require further clarification. We look forward to the opportunity to work with you.",
     advancePaymentPercentage: 50
   });
@@ -40,14 +42,66 @@ export default function CreateQuotationPage() {
     fetchData();
   }, []);
 
+  // Helper function to get terms and conditions based on selected products
+  const getTermsAndConditionsForProducts = (leadProducts) => {
+    // Check if lead has only one product (individual or bundle)
+    const supportedProducts = leadProducts.filter(product => !product.isCustomizedProduct && !product.isBundleItem);
+    
+    if (supportedProducts.length === 1) {
+      // Scenario 1 - Case 1: Single product
+      const singleProduct = supportedProducts[0];
+      
+      // Find the product in our data to get terms and conditions
+      let productTerms = null;
+      
+      // Check if it's a regular individual product
+      if (!singleProduct.isCustomizedProduct && !singleProduct.isBundleItem) {
+        const foundProduct = allProducts.find(p => p._id === singleProduct.id);
+        if (foundProduct && foundProduct.termsAndConditions) {
+          productTerms = foundProduct.termsAndConditions;
+        }
+      }
+      
+      // Check if it's a bundle product
+      if (singleProduct.isBundleItem) {
+        const foundBundle = allBundles.find(b => b.bundleCode === singleProduct.bundleCode);
+        if (foundBundle && foundBundle.termsAndConditions) {
+          productTerms = foundBundle.termsAndConditions;
+        }
+      }
+      
+      // Return product-specific terms if found, otherwise default template
+      return productTerms || getMultiProductTermsTemplate();
+    } else if (supportedProducts.length > 1) {
+      // Scenario 1 - Case 2: Multiple products
+      return getMultiProductTermsTemplate();
+    }
+    
+    // Default case
+    return getMultiProductTermsTemplate();
+  };
+
+  // Helper function to get the multi-product terms template
+  const getMultiProductTermsTemplate = () => {
+    return `- Prices quoted are firm and valid for _ days from the date of the offer
+- GST @12 % Included
+- Transportation:
+- Installation: Inclusive
+- Payment Terms:
+- Delivery:
+- Warranty: 
+(NOTE: Civil works to be done at site will be the responsibility of the purchaser)`;
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const [leadsData, productsData, customizedProductsData] = await Promise.all([
+      const [leadsData, productsData, customizedProductsData, bundlesData] = await Promise.all([
         getLeads(),
         getProducts(),
-        getAllCustomizedProducts()
+        getAllCustomizedProducts(),
+        getBundles()
       ]).catch(error => {
         console.error("Error fetching initial data for create quotation:", error);
         throw new Error(`Failed to fetch essential data: ${error.message}`);
@@ -141,6 +195,11 @@ export default function CreateQuotationPage() {
         throw new Error(customizedProductsData.message || 'Failed to fetch customized products');
       }
       setAllCustomizedProducts(customizedProductsData.data);
+
+      if (!bundlesData.success) {
+        throw new Error(bundlesData.message || 'Failed to fetch bundles');
+      }
+      setAllBundles(bundlesData.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError(`Error loading initial data: ${error.message}. Please try refreshing or contact support if the issue persists.`);
@@ -202,7 +261,6 @@ export default function CreateQuotationPage() {
                         warranty: '',
                         dimensions: ''
                       },
-                      termsAndConditions: existingProduct.termsAndConditions || '',
                       images: existingProduct.imageUrls || []
                     }
                   }));
@@ -239,7 +297,6 @@ export default function CreateQuotationPage() {
                         warranty: '',
                         dimensions: ''
                       },
-                      termsAndConditions: customizedProduct.termsAndConditions || '',
                       images: customizedProduct.imageUrls || []
                     }
                   }));
@@ -302,7 +359,6 @@ export default function CreateQuotationPage() {
                   warranty: '',
                   dimensions: ''
                 },
-                termsAndConditions: existingProduct.termsAndConditions || '',
                 images: existingProduct.imageUrls || []
               };
             } else {
@@ -316,7 +372,6 @@ export default function CreateQuotationPage() {
                   warranty: '',
                   dimensions: ''
                 },
-                termsAndConditions: '',
                 images: []
               };
             }
@@ -332,7 +387,6 @@ export default function CreateQuotationPage() {
                 warranty: '',
                 dimensions: ''
               },
-              termsAndConditions: '',
               images: []
             };
           }
@@ -341,9 +395,13 @@ export default function CreateQuotationPage() {
       
       setCustomizedProductDetails(customizedProductDetailsInit);
       
+      // Get automatic terms and conditions based on lead's products
+      const automaticTerms = getTermsAndConditionsForProducts(selectedLead.products);
+      
       setFormData(prev => ({
         ...prev,
         leadId,
+        terms: automaticTerms, // Set terms and conditions automatically
         items: supportedProducts.length > 0 
           ? supportedProducts.map(product => {
               const item = {
@@ -361,6 +419,7 @@ export default function CreateQuotationPage() {
       setFormData(prev => ({
         ...prev,
         leadId: '',
+        terms: '', // Clear terms when no lead is selected
         items: [{ productId: '', customizedProductId: '', quantity: '', unitPrice: '', discount: '' }]
       }));
       setCustomizedProductDetails({});
@@ -404,7 +463,6 @@ export default function CreateQuotationPage() {
             modelNumber: details.modelNumber || '',
             description: details.description || '',
             specifications: details.specifications || {},
-            termsAndConditions: details.termsAndConditions || '',
             images: details.images || [], // base64 images
             isCompleted: true
           };
@@ -589,7 +647,7 @@ export default function CreateQuotationPage() {
     );
   }
   
-  if (error && !leads.length && !allProducts.length && !allCustomizedProducts.length) {
+  if (error && !leads.length && !allProducts.length && !allCustomizedProducts.length && !allBundles.length) {
      return (
       <div className="flex flex-col flex-1 items-center justify-center min-h-[calc(100vh-var(--header-height,150px))] p-6 bg-tertiary text-center">
         <svg className="w-12 h-12 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -628,7 +686,7 @@ export default function CreateQuotationPage() {
       {/* Main Content Card */}
       <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
         <form onSubmit={handleSubmit} id="create-quotation-form" className="p-6 md:p-8 space-y-6 md:space-y-8 overflow-y-auto flex-1">
-          {error && (leads.length > 0 || allProducts.length > 0 || allCustomizedProducts.length > 0) && (
+          {error && (leads.length > 0 || allProducts.length > 0 || allCustomizedProducts.length > 0 || allBundles.length > 0) && (
             <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 border border-red-300 rounded-lg flex items-start gap-2">
               <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path></svg>
               <span>{error}</span>
@@ -708,7 +766,7 @@ export default function CreateQuotationPage() {
                         }}
                         className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm appearance-none text-secondary"
                         required
-                        disabled={!formData.leadId && !allProducts.length && !allCustomizedProducts.length}
+                        disabled={!formData.leadId && !allProducts.length && !allCustomizedProducts.length && !allBundles.length}
                       >
                         <option value="">Select Product</option>
                         {selectedLead?.products.length > 0 && (
@@ -1084,24 +1142,6 @@ export default function CreateQuotationPage() {
                               </div>
                             )}
                           </div>
-                        </div>
-
-                        {/* Terms and Conditions */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Terms and Conditions
-                          </label>
-                          <textarea
-                            value={productDetails.termsAndConditions || ''}
-                            onChange={(e) => handleCustomizedProductChange(productId, 'termsAndConditions', e.target.value)}
-                            placeholder="Enter product-specific terms and conditions..."
-                            rows="3"
-                            maxLength="5000"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm resize-vertical"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            {(productDetails.termsAndConditions || '').length}/5000 characters
-                          </p>
                         </div>
                       </div>
                     );
