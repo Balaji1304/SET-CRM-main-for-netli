@@ -113,6 +113,7 @@ const getNavigation = (userRole) => {
       { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
     ],
     service_engineer: [
+      { name: 'Installations', href: '/dashboard/installations', icon: Settings },
       { name: 'Service Customers', href: '/dashboard/service-customers', icon: Users },
       { name: 'Cases', href: '/dashboard/cases', icon: Ticket },
       { name: 'Service', href: '/dashboard/service', icon: Wrench },

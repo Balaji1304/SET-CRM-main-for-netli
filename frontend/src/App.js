@@ -41,6 +41,9 @@ import LeadAssignmentPage from './app/lead-assignment/page';
 import PurchaseOrdersPage from './app/purchase-orders/page';
 import PurchaseOrderDetailPage from './app/purchase-orders/[id]/page';
 import TicketQueuePage from './app/ticket-queue/page';
+import InstallationDashboard from './app/installations/page';
+import InstallationComplete from './app/installations/[id]/complete/page';
+import CustomerSignoff from './app/installations/[id]/signoff/page';
 
 
 function App() {
@@ -197,6 +200,21 @@ function App() {
             <Route path="cases" element={
               <ProtectedRoute allowedRoles={['service_engineer']}>
                 <CasesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="installations" element={
+              <ProtectedRoute allowedRoles={['service_engineer']}>
+                <InstallationDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="installations/:id/complete" element={
+              <ProtectedRoute allowedRoles={['service_engineer']}>
+                <InstallationComplete />
+              </ProtectedRoute>
+            } />
+            <Route path="installations/:id/signoff" element={
+              <ProtectedRoute allowedRoles={['customer']}>
+                <CustomerSignoff />
               </ProtectedRoute>
             } />
             <Route path="service-customers" element={

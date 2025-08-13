@@ -13,9 +13,9 @@ const NotificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: [
+        enum: [
       'ticket_created',
-      'ticket_assigned', 
+      'ticket_assigned',
       'ticket_status_changed',
       'ticket_commented',
       'purchase_order_created',
@@ -24,7 +24,13 @@ const NotificationSchema = new mongoose.Schema({
       'quotation_rejected',
       'payment_received',
       'lead_assigned',
-      'system_announcement'
+      'system_announcement',
+      'engineer_assigned',
+      'assignment_accepted',
+      'installation_completed',
+      'customer_approved',
+      'customer_rejected',
+      'issue_reported'
     ],
     required: true
   },

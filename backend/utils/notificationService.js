@@ -253,6 +253,110 @@ class NotificationService {
     }
   }
 
+  // Create installation notifications
+  static async createInstallationNotification(type, purchase, sender = null) {
+    try {
+      let recipients = [];
+      let title = '';
+      let message = '';
+      let priority = 'medium';
+
+      switch (type) {
+        case 'engineer_assigned':
+          // Notify the assigned engineer
+          recipients = [purchase.assignedEngineerId];
+          title = 'New Installation Assignment';
+          message = `You have been assigned to install products for order ${purchase.purchaseID}. Installation date: ${new Date(purchase.installationDate).toLocaleDateString()}`;
+          priority = 'high';
+          break;
+
+        case 'assignment_accepted':
+          // Notify customer and management
+          recipients = [purchase.customerId._id || purchase.customerId];
+          const management = await User.find({ role: { $in: ['product_head', 'marketing_coordinator'] } });
+          recipients.push(...management.map(user => user._id));
+          title = 'Installation Assignment Accepted';
+          message = `Service engineer ${sender?.name || 'Engineer'} has accepted the installation assignment for order ${purchase.purchaseID}`;
+          priority = 'medium';
+          break;
+
+        case 'installation_completed':
+          // Notify customer for sign-off
+          recipients = [purchase.customerId._id || purchase.customerId];
+          title = 'Installation Completed - Action Required';
+          message = `Your installation for order ${purchase.purchaseID} has been completed. Please review and provide feedback.`;
+          priority = 'high';
+          break;
+
+        case 'customer_approved':
+          // Notify engineer and management
+          recipients = [purchase.assignedEngineerId];
+          const approvalManagement = await User.find({ 
+            role: { $in: ['product_head', 'accounts_department'] } 
+          });
+          recipients.push(...approvalManagement.map(user => user._id));
+          title = 'Installation Approved by Customer';
+          message = `Customer has approved the installation for order ${purchase.purchaseID}. Order is now complete.`;
+          priority = 'medium';
+          break;
+
+        case 'customer_rejected':
+          // Notify engineer and management
+          recipients = [purchase.assignedEngineerId];
+          const rejectionManagement = await User.find({ 
+            role: { $in: ['product_head', 'service_engineer'] } 
+          });
+          recipients.push(...rejectionManagement.map(user => user._id));
+          title = 'Installation Issues Reported';
+          message = `Customer has reported issues with installation for order ${purchase.purchaseID}. Immediate attention required.`;
+          priority = 'high';
+          break;
+
+        case 'issue_reported':
+          // Notify management about issues
+          const issueManagement = await User.find({ 
+            role: { $in: ['product_head', 'service_engineer'] } 
+          });
+          recipients = issueManagement.map(user => user._id);
+          title = 'Installation Issue Reported';
+          message = `Service engineer has reported an issue during installation for order ${purchase.purchaseID}`;
+          priority = 'high';
+          break;
+      }
+
+      // Remove duplicates and sender from recipients
+      recipients = [...new Set(recipients.map(id => id.toString()))];
+      if (sender) {
+        recipients = recipients.filter(id => id !== sender._id.toString());
+      }
+
+      const notifications = await Promise.all(
+        recipients.map(recipientId => 
+          Notification.createNotification({
+            recipient: recipientId,
+            sender: sender?._id || null,
+            type,
+            title,
+            message,
+            priority,
+            data: {
+              purchaseId: purchase._id,
+              purchaseID: purchase.purchaseID,
+              installationStatus: purchase.installationStatus,
+              engineerName: sender?.name || purchase.assignedEngineerId?.name,
+              customerId: purchase.customerId._id || purchase.customerId
+            }
+          })
+        )
+      );
+
+      return notifications;
+    } catch (error) {
+      console.error('Error creating installation notification:', error);
+      throw error;
+    }
+  }
+
   // Get notification statistics for dashboard
   static async getNotificationStats(userId) {
     try {
