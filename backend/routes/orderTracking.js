@@ -9,7 +9,6 @@ const {
   updateShippingDetails,
   updateInstallationDetails,
   addCustomerNote,
-  getTrackingSummary,
   getMyOrderTracking,
   updateEstimatedDates
 } = require('../controllers/orderTrackingController');
