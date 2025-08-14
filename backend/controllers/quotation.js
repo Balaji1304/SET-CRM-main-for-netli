@@ -751,7 +751,7 @@ exports.handleApproveQuotation = async (req, res) => {
 
     const approvedQuotation = await approveQuotation(quotation); 
     
-    const quotationItems = await QuotationItem.find({ quotationId: approvedQuotation._id })
+    const quotationItems = await QuotationItem.find({ quotationId: quotation._id })
       .populate('productId')
       .populate('bundleId')
       .populate('customizedProductId');

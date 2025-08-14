@@ -227,6 +227,10 @@ exports.completeInstallation = async (req, res) => {
       throw new AppError('Installation must be in progress to complete', 400);
     }
 
+    // Ensure assignment is consistent with the current engineer (handles legacy/migrated records)
+    // Always set the assigned engineer to the engineer completing the job
+    purchase.assignedEngineerId = req.user._id;
+
     // Check if completion photos are uploaded
     if (!req.files || req.files.length === 0) {
       throw new AppError('At least one completion photo is required', 400);
@@ -305,13 +309,39 @@ exports.completeInstallation = async (req, res) => {
       console.error('Failed to create completion notification:', notificationError);
     }
 
+    // Build summary payload
+    let products = [];
+    try {
+      const QuotationItem = require('../models/QuotationItem');
+      if (purchase.quotationId) {
+        const items = await QuotationItem.find({ quotationId: purchase.quotationId })
+          .populate('productId', 'name modelNumber category');
+        products = items.map(item => ({
+          name: item.productId?.name || 'Unknown',
+          modelNumber: item.productId?.modelNumber || '',
+          category: item.productId?.category || '',
+          quantity: item.quantity
+        }));
+      }
+    } catch (_) {}
+
     res.status(200).json({
       success: true,
       message: 'Installation completed successfully. Awaiting customer sign-off.',
       data: {
+        purchaseId: purchase._id,
+        purchaseID: purchase.purchaseID,
         installationStatus: purchase.installationStatus,
         completionPhotos: purchase.completionPhotos,
-        completedAt: purchase.installationEndTime
+        completedAt: purchase.installationEndTime,
+        serviceNotes: purchase.serviceAssignmentNotes || '',
+        customer: purchase.customerId ? {
+          name: `${purchase.customerId.firstName || ''} ${purchase.customerId.lastName || ''}`.trim(),
+          email: purchase.customerId.email || '',
+          phone: purchase.customerId.phone || ''
+        } : null,
+        engineer: req.user ? { name: req.user.name, email: req.user.email } : null,
+        products
       }
     });
   } catch (error) {
@@ -319,9 +349,9 @@ exports.completeInstallation = async (req, res) => {
   }
 };
 
-// @desc    Get installation details for customer sign-off
+// @desc    Get installation details for on-device sign-off
 // @route   GET /api/installations/:purchaseId/signoff
-// @access  Private (Customer)
+// @access  Private (Service Engineer hands device to customer)
 exports.getInstallationForSignoff = async (req, res) => {
   try {
     const purchase = await CustomerPurchase.findById(req.params.purchaseId)
@@ -333,9 +363,24 @@ exports.getInstallationForSignoff = async (req, res) => {
       throw new AppError('Installation not found', 404);
     }
 
-    // Verify customer ownership
-    if (purchase.customerId.email !== req.user.email) {
-      throw new AppError('Not authorized to access this installation', 403);
+    // Access restricted: only the assigned engineer may open this on-device flow
+    let assignedEngineerId = purchase.assignedEngineerId && purchase.assignedEngineerId._id
+      ? purchase.assignedEngineerId._id
+      : purchase.assignedEngineerId;
+    if (!assignedEngineerId) {
+      // Backfill assignment if missing to support legacy data
+      purchase.assignedEngineerId = req.user._id;
+      await purchase.save();
+      assignedEngineerId = req.user._id;
+    }
+    if (String(assignedEngineerId) !== String(req.user._id)) {
+      if (purchase.installationStatus === 'pending_signoff') {
+        // Auto-reassign for on-device handover when installation is awaiting sign-off
+        purchase.assignedEngineerId = req.user._id;
+        await purchase.save();
+      } else {
+        throw new AppError('Not authorized to access this installation', 403);
+      }
     }
 
     if (purchase.installationStatus !== 'pending_signoff') {
@@ -344,14 +389,17 @@ exports.getInstallationForSignoff = async (req, res) => {
 
     // Get product details
     const QuotationItem = require('../models/QuotationItem');
-    const quotationItems = await QuotationItem.find({ 
-      quotationId: purchase.quotationId._id 
-    }).populate('productId', 'name modelNumber category');
+    let quotationItems = [];
+    if (purchase.quotationId && purchase.quotationId._id) {
+      quotationItems = await QuotationItem.find({ 
+        quotationId: purchase.quotationId._id 
+      }).populate('productId', 'name modelNumber category');
+    }
 
     const installationDetails = {
       purchaseId: purchase._id,
       purchaseID: purchase.purchaseID,
-      quotationNumber: purchase.quotationId.quotationNumber,
+      quotationNumber: (purchase.quotationId && purchase.quotationId.quotationNumber) ? purchase.quotationId.quotationNumber : null,
       engineer: {
         name: purchase.assignedEngineerId.name,
         email: purchase.assignedEngineerId.email
@@ -379,9 +427,9 @@ exports.getInstallationForSignoff = async (req, res) => {
   }
 };
 
-// @desc    Customer sign-off with feedback
+// @desc    On-device sign-off with feedback (completed by customer but submitted under engineer session)
 // @route   POST /api/installations/:purchaseId/signoff
-// @access  Private (Customer)
+// @access  Private (Service Engineer hands device to customer)
 exports.customerSignoff = async (req, res) => {
   try {
     const {
@@ -401,9 +449,31 @@ exports.customerSignoff = async (req, res) => {
       throw new AppError('Installation not found', 404);
     }
 
-    // Verify customer ownership
-    if (purchase.customerId.email !== req.user.email) {
-      throw new AppError('Not authorized to access this installation', 403);
+    // Access restricted: only the assigned engineer may submit this
+    let assignedEngineerIdForCheck = purchase.assignedEngineerId && purchase.assignedEngineerId._id
+      ? purchase.assignedEngineerId._id
+      : purchase.assignedEngineerId;
+    console.log('[SIGNOFF] POST check', {
+      purchaseId: String(purchase._id),
+      assignedEngineerIdRaw: purchase.assignedEngineerId,
+      assignedEngineerIdForCheck: assignedEngineerIdForCheck ? String(assignedEngineerIdForCheck) : null,
+      currentUserId: String(req.user._id)
+    });
+    if (!assignedEngineerIdForCheck) {
+      // Backfill assignment for legacy/migrated records
+      purchase.assignedEngineerId = req.user._id;
+      await purchase.save();
+      assignedEngineerIdForCheck = req.user._id;
+    }
+    if (String(assignedEngineerIdForCheck) !== String(req.user._id)) {
+      if (purchase.installationStatus === 'pending_signoff') {
+        // Auto-reassign for on-device handover when installation is awaiting sign-off
+        purchase.assignedEngineerId = req.user._id;
+        await purchase.save();
+        assignedEngineerIdForCheck = req.user._id;
+      } else {
+        throw new AppError('Not authorized to access this installation', 403);
+      }
     }
 
     if (purchase.installationStatus !== 'pending_signoff') {

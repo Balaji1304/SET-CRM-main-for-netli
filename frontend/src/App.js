@@ -43,6 +43,7 @@ import PurchaseOrderDetailPage from './app/purchase-orders/[id]/page';
 import TicketQueuePage from './app/ticket-queue/page';
 import InstallationDashboard from './app/installations/page';
 import InstallationComplete from './app/installations/[id]/complete/page';
+import InstallationCompletedSummary from './app/installations/[id]/completed/page';
 import CustomerSignoff from './app/installations/[id]/signoff/page';
 
 
@@ -212,8 +213,13 @@ function App() {
                 <InstallationComplete />
               </ProtectedRoute>
             } />
+            <Route path="installations/:id/completed" element={
+              <ProtectedRoute allowedRoles={['service_engineer']}>
+                <InstallationCompletedSummary />
+              </ProtectedRoute>
+            } />
             <Route path="installations/:id/signoff" element={
-              <ProtectedRoute allowedRoles={['customer']}>
+              <ProtectedRoute allowedRoles={['service_engineer']}>
                 <CustomerSignoff />
               </ProtectedRoute>
             } />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../../context/AuthContext';
 import { getInstallationForSignoff, submitCustomerSignoff } from '../../../../services/installationService';
 import { toast } from 'react-toastify';
@@ -8,6 +8,7 @@ const CustomerSignoff = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { state: prefilled } = useLocation();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [installation, setInstallation] = useState(null);
@@ -22,7 +23,7 @@ const CustomerSignoff = () => {
   const [hoveredRating, setHoveredRating] = useState({});
 
   useEffect(() => {
-    if (user?.role === 'customer') {
+    if (user?.role === 'service_engineer') {
       fetchInstallationDetails();
     }
   }, [user, id]);
@@ -33,8 +34,12 @@ const CustomerSignoff = () => {
       const response = await getInstallationForSignoff(id);
       setInstallation(response.data);
     } catch (error) {
-      toast.error('Failed to fetch installation details');
       console.error('Error fetching installation:', error);
+      if (prefilled) {
+        setInstallation(prefilled);
+      } else {
+        toast.error('Failed to fetch installation details');
+      }
     } finally {
       setLoading(false);
     }
@@ -71,9 +76,10 @@ const CustomerSignoff = () => {
         toast.success('Your concerns have been reported. Our team will follow up with you.');
       }
       
-      navigate('/orders');
+      navigate('/dashboard/installations');
     } catch (error) {
-      toast.error('Failed to submit sign-off');
+      const msg = error?.message || (error?.response?.data?.message) || 'Failed to submit sign-off';
+      toast.error(msg);
       console.error('Error submitting sign-off:', error);
     } finally {
       setSubmitting(false);
@@ -134,12 +140,12 @@ const CustomerSignoff = () => {
     );
   };
 
-  if (user?.role !== 'customer') {
+  if (user?.role !== 'service_engineer') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">This page is only accessible to customers.</p>
+          <p className="text-gray-600">This page is only accessible to service engineers.</p>
         </div>
       </div>
     );
@@ -177,11 +183,9 @@ const CustomerSignoff = () => {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Installation Complete!</h1>
-            <p className="text-lg text-gray-600">
-              Your installation for Order #{installation.purchaseID} has been completed.
-            </p>
+              <p className="text-lg text-gray-600">Order #{installation?.purchaseID || id} has been completed.</p>
             <p className="text-sm text-gray-500 mt-2">
-              Please review the work and provide your feedback below.
+              Please hand the device to the customer to review the work and provide feedback.
             </p>
           </div>
         </div>
@@ -193,20 +197,20 @@ const CustomerSignoff = () => {
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-2">Service Engineer</h3>
-              <p className="text-sm text-gray-900 mb-4">{installation.engineer.name}</p>
+              <p className="text-sm text-gray-900 mb-4">{installation?.engineer?.name || '—'}</p>
               
               <h3 className="text-sm font-medium text-gray-700 mb-2">Installation Date</h3>
               <p className="text-sm text-gray-900 mb-4">
-                {new Date(installation.installationDate).toLocaleDateString('en-US', {
+                {installation?.installationDate ? new Date(installation.installationDate).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric'
-                })}
+                }) : '—'}
               </p>
               
               <h3 className="text-sm font-medium text-gray-700 mb-2">Duration</h3>
               <p className="text-sm text-gray-900">
-                {installation.startTime && installation.endTime ? (
+                {installation?.startTime && installation?.endTime ? (
                   `${new Date(installation.startTime).toLocaleTimeString()} - ${new Date(installation.endTime).toLocaleTimeString()}`
                 ) : 'N/A'}
               </p>
@@ -215,10 +219,10 @@ const CustomerSignoff = () => {
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-2">Products Installed</h3>
               <div className="space-y-1 mb-4">
-                {installation.products?.map((product, index) => (
+                {Array.isArray(installation?.products) && installation.products.map((product, index) => (
                   <div key={index} className="text-sm text-gray-900">
-                    <span className="font-medium">{product.quantity}x</span> {product.name}
-                    {product.modelNumber && (
+                    <span className="font-medium">{product?.quantity || 1}x</span> {product?.name || 'Product'}
+                    {product?.modelNumber && (
                       <span className="text-gray-500"> ({product.modelNumber})</span>
                     )}
                   </div>
@@ -228,17 +232,17 @@ const CustomerSignoff = () => {
           </div>
 
           {/* Completion Photos */}
-          {installation.completionPhotos && installation.completionPhotos.length > 0 && (
+          {Array.isArray(installation?.completionPhotos) && installation.completionPhotos.length > 0 && (
             <div className="mt-6">
               <h3 className="text-sm font-medium text-gray-700 mb-3">Installation Photos</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {installation.completionPhotos.map((photo, index) => (
                   <div key={index} className="relative group">
                     <img
-                      src={photo.url || photo}
+                      src={(photo && photo.url) ? photo.url : photo}
                       alt={`Installation photo ${index + 1}`}
                       className="w-full h-32 object-cover rounded-lg border cursor-pointer hover:opacity-75 transition-opacity"
-                      onClick={() => window.open(photo.url || photo, '_blank')}
+                      onClick={() => window.open(((photo && photo.url) ? photo.url : photo), '_blank')}
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all"></div>
                   </div>
@@ -248,11 +252,11 @@ const CustomerSignoff = () => {
           )}
 
           {/* Service Notes */}
-          {installation.serviceNotes && (
+          {installation?.serviceNotes && (
             <div className="mt-6">
               <h3 className="text-sm font-medium text-gray-700 mb-2">Service Notes</h3>
               <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-sm text-gray-700">{installation.serviceNotes}</p>
+                <p className="text-sm text-gray-700">{installation?.serviceNotes}</p>
               </div>
             </div>
           )}

@@ -25,8 +25,8 @@ router.post('/:purchaseId/complete',
 router.post('/:purchaseId/report-issue', protect, authorize('service_engineer'), reportIssue);
 
 // Customer Routes
-router.get('/:purchaseId/signoff', protect, authorize('customer'), getInstallationForSignoff);
-router.post('/:purchaseId/signoff', protect, authorize('customer'), customerSignoff);
+router.get('/:purchaseId/signoff', protect, authorize('service_engineer'), getInstallationForSignoff);
+router.post('/:purchaseId/signoff', protect, authorize('service_engineer'), customerSignoff);
 
 module.exports = router;
 

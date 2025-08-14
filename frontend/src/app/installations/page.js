@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getMyAssignments, acceptAssignment, updateInstallationStatus, getInstallationStatusLabel, getInstallationStatusColor } from '../../services/installationService';
+import { getMyAssignments, acceptAssignment, updateInstallationStatus } from '../../services/installationService';
 import { toast } from 'react-toastify';
 
 const InstallationDashboard = () => {
@@ -20,6 +20,21 @@ const InstallationDashboard = () => {
     notes: ''
   });
 
+  // Engineer-facing badge mapping: treat pending_signoff and completed as Closed
+  const getEngineerBadge = (status) => {
+    const mapping = {
+      assigned: { label: 'Assigned', color: 'bg-blue-100 text-blue-800' },
+      accepted: { label: 'Accepted', color: 'bg-emerald-100 text-emerald-800' },
+      on_route: { label: 'On the way', color: 'bg-yellow-100 text-yellow-800' },
+      on_site: { label: 'On site', color: 'bg-orange-100 text-orange-800' },
+      in_progress: { label: 'Work in progress', color: 'bg-purple-100 text-purple-800' },
+      pending_signoff: { label: 'Closed', color: 'bg-green-100 text-green-800' },
+      completed: { label: 'Closed', color: 'bg-green-100 text-green-800' },
+      issues: { label: 'Issues reported', color: 'bg-red-100 text-red-800' }
+    };
+    return mapping[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
+  };
+
   useEffect(() => {
     if (user?.role === 'service_engineer') {
       fetchAssignments();
@@ -30,7 +45,14 @@ const InstallationDashboard = () => {
     try {
       setLoading(true);
       const response = await getMyAssignments();
-      setAssignments(response.data || []);
+      const list = Array.isArray(response.data) ? response.data : [];
+      // Sort latest to oldest using relevant timestamps; fallback to createdAt/updatedAt if present
+      const sorted = list.sort((a, b) => {
+        const aTime = new Date(a.updatedAt || a.installationDate || a.createdAt || 0).getTime();
+        const bTime = new Date(b.updatedAt || b.installationDate || b.createdAt || 0).getTime();
+        return bTime - aTime;
+      });
+      setAssignments(sorted);
     } catch (error) {
       toast.error('Failed to fetch assignments');
       console.error('Error fetching assignments:', error);
@@ -53,7 +75,7 @@ const InstallationDashboard = () => {
       await acceptAssignment(selectedAssignment._id, acceptData);
       toast.success('Assignment accepted successfully!');
       setShowAcceptModal(false);
-      fetchAssignments();
+      await fetchAssignments();
     } catch (error) {
       toast.error('Failed to accept assignment');
       console.error('Error accepting assignment:', error);
@@ -75,7 +97,7 @@ const InstallationDashboard = () => {
       await updateInstallationStatus(selectedAssignment._id, statusData);
       toast.success('Status updated successfully!');
       setShowStatusModal(false);
-      fetchAssignments();
+      await fetchAssignments();
     } catch (error) {
       toast.error('Failed to update status');
       console.error('Error updating status:', error);
@@ -120,12 +142,7 @@ const InstallationDashboard = () => {
                 <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
                   {assignments.length} Active Assignment{assignments.length !== 1 ? 's' : ''}
                 </div>
-                <button
-                  onClick={fetchAssignments}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Refresh
-                </button>
+                {/* Auto-refresh is triggered after updates; manual refresh removed per requirement */}
               </div>
             </div>
           </div>
@@ -159,9 +176,11 @@ const InstallationDashboard = () => {
                     <h3 className="text-lg font-semibold text-gray-900">
                       Order #{assignment.purchaseID}
                     </h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getInstallationStatusColor(assignment.installationStatus)}`}>
-                      {getInstallationStatusLabel(assignment.installationStatus)}
-                    </span>
+                    {(() => { const b = getEngineerBadge(assignment.installationStatus); return (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${b.color}`}>
+                        {b.label}
+                      </span>
+                    ); })()}
                   </div>
 
                   {/* Customer Info */}

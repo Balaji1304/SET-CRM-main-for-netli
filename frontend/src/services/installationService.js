@@ -97,12 +97,12 @@ export const getInstallationStatusLabel = (status) => {
   const labels = {
     'assigned': 'Assigned',
     'accepted': 'Accepted',
-    'on_route': 'En Route',
-    'on_site': 'On Site',
-    'in_progress': 'In Progress',
-    'pending_signoff': 'Awaiting Approval',
+    'on_route': 'On the way',
+    'on_site': 'On site',
+    'in_progress': 'Work in progress',
+    'pending_signoff': 'Awaiting sign-off',
     'completed': 'Completed',
-    'issues': 'Issues Reported'
+    'issues': 'Issues reported'
   };
   return labels[status] || status;
 };

@@ -391,8 +391,8 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         // Still refetch to show actual state if backend partially updated quotation.
         fetchQuotationsCallback(); 
       } else if (response.success) {
-        // This is a full success.
-        showToast('Offline payment confirmed successfully! Quotation approved.');
+        // Full success; message will indicate next step (usually pending approval or already approved)
+        showToast(response.message || 'Offline payment confirmed successfully.');
         handleClosePaymentModal();
         fetchQuotationsCallback(); 
       } else {

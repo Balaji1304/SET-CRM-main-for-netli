@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/AuthContext';
 import { completeInstallation, reportIssue } from '../../../../services/installationService';
@@ -10,113 +10,104 @@ const InstallationComplete = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [completionPhotos, setCompletionPhotos] = useState([]);
-  const [previewUrls, setPreviewUrls] = useState([]);
+  const [previews, setPreviews] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [notes, setNotes] = useState('');
   const [issuesEncountered, setIssuesEncountered] = useState('');
   const [showIssueForm, setShowIssueForm] = useState(false);
+  const fileInputRef = useRef(null);
 
-  const handlePhotoUpload = (e) => {
-    console.log('Photo upload triggered', e.target.files);
-    
-    if (!e.target.files || e.target.files.length === 0) {
-      console.log('No files selected');
+  const MAX_FILES = 5;
+  const MAX_SIZE = 5 * 1024 * 1024;
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const buildPreviews = async (files) => {
+    const toDataUrl = (file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ url: reader.result, name: file.name, size: file.size });
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    return Promise.all(files.map(toDataUrl));
+  };
+
+  const addFiles = async (inputFiles) => {
+    const files = Array.from(inputFiles || []);
+    if (!files.length) return;
+
+    const alreadyCount = completionPhotos.length;
+    const remainingSlots = Math.max(0, MAX_FILES - alreadyCount);
+    if (remainingSlots === 0) {
+      toast.error(`Maximum ${MAX_FILES} photos allowed`);
       return;
     }
 
-    const files = Array.from(e.target.files || []);
-    const maxFiles = 5;
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const filtered = files
+      .filter((f) => {
+        if (!f.type.startsWith('image/')) {
+          toast.error(`${f.name} is not an image`);
+          return false;
+        }
+        if (f.size > MAX_SIZE) {
+          toast.error(`${f.name} is too large (max 5MB)`);
+          return false;
+        }
+        return true;
+      })
+      .slice(0, remainingSlots);
 
-    console.log('Files selected:', files.length);
-
-    if (files.length > maxFiles) {
-      toast.error(`Maximum ${maxFiles} photos allowed`);
-      return;
-    }
-
-    const validFiles = [];
-    
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      console.log('Checking file:', file.name, file.type, file.size);
-      
-      if (!file.type.startsWith('image/')) {
-        toast.error(`${file.name} is not a valid image file`);
-        continue;
-      }
-      
-      if (file.size > maxSize) {
-        toast.error(`${file.name} is too large. Maximum 5MB allowed`);
-        continue;
-      }
-      
-      validFiles.push(file);
-    }
-
-    console.log('Valid files:', validFiles.length, validFiles);
-    
-    if (validFiles.length > 0) {
-      console.log('Setting photos to state...');
-      const toDataUrl = (file) => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve({ url: reader.result, name: file.name, size: file.size });
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      Promise.all(validFiles.map(toDataUrl)).then((newPreviews) => {
-        setPreviewUrls((prev) => {
-          const merged = [...prev, ...newPreviews].slice(0, 5);
-          return merged;
-        });
-        setCompletionPhotos((prev) => {
-          const merged = [...prev, ...validFiles].slice(0, 5);
-          return merged;
-        });
-        try { if (e.target) e.target.value = ''; } catch (_) {}
-        toast.success(`${validFiles.length} photo(s) selected`);
-      }).catch(() => {
-        toast.error('Failed to process selected files');
-      });
-    } else {
+    if (!filtered.length) {
       toast.error('No valid files selected');
+      return;
     }
+
+    const newPreviews = await buildPreviews(filtered);
+    setCompletionPhotos((prev) => [...prev, ...filtered]);
+    setPreviews((prev) => [...prev, ...newPreviews]);
+    toast.success(`${filtered.length} photo(s) added`);
+  };
+
+  const onInputChange = async (e) => {
+    await addFiles(e.target.files);
+    try { if (e.target) e.target.value = ''; } catch (_) {}
+  };
+
+  const onDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    await addFiles(e.dataTransfer.files);
+  };
+
+  const onDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const onDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
   };
 
   const removePhoto = (index) => {
-    // Clean up object URL to prevent memory leaks
-    const photoToRemove = completionPhotos[index];
-    if (photoToRemove) {
-      URL.revokeObjectURL(URL.createObjectURL(photoToRemove));
-    }
     const newPhotos = completionPhotos.filter((_, i) => i !== index);
+    const newPreviews = previews.filter((_, i) => i !== index);
     setCompletionPhotos(newPhotos);
+    setPreviews(newPreviews);
   };
 
-  // Track state changes
   useEffect(() => {
-    console.log('completionPhotos state changed:', completionPhotos.length, completionPhotos);
-  }, [completionPhotos]);
-
-  // Keep previewUrls consistent if all files removed elsewhere
-  useEffect(() => {
-    if (completionPhotos.length === 0 && previewUrls.length > 0) {
-      setPreviewUrls([]);
+    if (completionPhotos.length === 0 && previews.length > 0) {
+      setPreviews([]);
     }
-  }, [completionPhotos, previewUrls.length]);
-
-  // Cleanup object URLs when component unmounts
-  useEffect(() => {
-    return () => {
-      completionPhotos.forEach(photo => {
-        try {
-          URL.revokeObjectURL(URL.createObjectURL(photo));
-        } catch (error) {
-          // Ignore cleanup errors
-        }
-      });
-    };
-  }, [completionPhotos]);
+  }, [completionPhotos, previews.length]);
 
   const handleCompleteInstallation = async () => {
     if (completionPhotos.length === 0) {
@@ -127,11 +118,8 @@ const InstallationComplete = () => {
     try {
       setLoading(true);
       const formData = new FormData();
-      
-      completionPhotos.forEach((photo, index) => {
-        formData.append('completionPhotos', photo);
-      });
-      
+      completionPhotos.forEach((photo) => formData.append('completionPhotos', photo));
+
       if (notes.trim()) {
         formData.append('notes', notes.trim());
       }
@@ -140,9 +128,10 @@ const InstallationComplete = () => {
         formData.append('issuesEncountered', issuesEncountered.trim());
       }
 
-      await completeInstallation(id, formData);
+      const res = await completeInstallation(id, formData);
       toast.success('Installation completed successfully! Customer will be notified for sign-off.');
-      navigate('/installations');
+      const data = res?.data || {};
+      navigate(`/dashboard/installations/${id}/completed`, { state: data });
     } catch (error) {
       toast.error('Failed to complete installation');
       console.error('Error completing installation:', error);
@@ -184,7 +173,6 @@ const InstallationComplete = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-center justify-between">
             <div>
@@ -205,7 +193,6 @@ const InstallationComplete = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
-          {/* Photo Upload Section */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Completion Photos <span className="text-red-500">*</span>
@@ -214,14 +201,23 @@ const InstallationComplete = () => {
               Please upload photos showing the completed installation. These will be shared with the customer for approval.
             </p>
             
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
+            <div
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
+              }`}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+            >
               <input
                 type="file"
                 multiple
                 accept="image/*"
-                onChange={handlePhotoUpload}
+                onChange={onInputChange}
                 className="hidden"
                 id="photo-upload"
+                capture="environment"
+                ref={fileInputRef}
               />
               <label
                 htmlFor="photo-upload"
@@ -232,69 +228,57 @@ const InstallationComplete = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-gray-900 mb-1">Click to upload photos</p>
+                <p className="text-sm font-medium text-gray-900 mb-1">Click or drag images here</p>
                 <p className="text-xs text-gray-500">PNG, JPG up to 5MB each (max 5 photos)</p>
                 {completionPhotos.length > 0 && (
-                  <p className="text-xs text-blue-600 mt-2">{completionPhotos.length} file(s) selected</p>
+                  <p className="text-xs text-blue-600 mt-2">{completionPhotos.length} selected</p>
                 )}
               </label>
-              
-              {/* Alternative upload button for debugging */}
               <div className="mt-2">
                 <button
                   type="button"
-                  onClick={() => document.getElementById('photo-upload').click()}
+                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
                   className="text-sm text-blue-600 hover:text-blue-800 underline"
                 >
-                  Alternative: Click here to select photos
+                  Browse files
                 </button>
+                {completionPhotos.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { setCompletionPhotos([]); setPreviews([]); }}
+                    className="ml-3 text-sm text-gray-600 hover:text-gray-800 underline"
+                  >
+                    Remove all
+                  </button>
+                )}
               </div>
             </div>
-            
-            {/* Debug info */}
-            <div className="mt-2 text-xs text-gray-500">
-              Debug: {completionPhotos.length} photos selected
-              {completionPhotos.length > 0 && (
-                <div>
-                  Photos: {completionPhotos.map((p, i) => `${i+1}. ${p.name} (${p.size} bytes)`).join(', ')}
-                </div>
-              )}
-            </div>
 
-            {/* Photo Preview */}
             <div className="mt-4">
               <h3 className="text-sm font-medium text-gray-900 mb-2">
-                Photo Preview ({previewUrls.length} selected)
+                Photo Preview ({previews.length} selected)
               </h3>
-              {previewUrls.length > 0 ? (
+              {previews.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {previewUrls.map((p, index) => {
-                    console.log('Rendering photo:', index, p.name);
-                    
-                    return (
-                      <div key={`photo-${index}-${p.name}`} className="relative">
-                        <img
-                          src={p.url}
-                          alt={`Photo ${index + 1}: ${p.name}`}
-                          className="w-full h-24 object-cover rounded-lg border"
-                          onLoad={() => console.log('Image loaded successfully:', p.name)}
-                          onError={(e) => {
-                            console.error('Image load error for:', p.name, e);
-                          }}
-                        />
-                        <button
-                          onClick={() => removePhoto(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-                          title="Remove photo"
-                        >
-                          ×
-                        </button>
-                        <p className="text-xs text-gray-500 mt-1 truncate" title={p.name}>
-                          {p.name}
-                        </p>
-                      </div>
-                    );
-                  })}
+                  {previews.map((p, index) => (
+                    <div key={`photo-${index}-${p.name}`} className="relative">
+                      <img
+                        src={p.url}
+                        alt={`Photo ${index + 1}: ${p.name}`}
+                        className="w-full h-24 object-cover rounded-lg border"
+                      />
+                      <button
+                        onClick={() => removePhoto(index)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                        title="Remove photo"
+                      >
+                        ×
+                      </button>
+                      <p className="text-xs text-gray-500 mt-1 truncate" title={p.name}>
+                        {p.name} • {formatFileSize(p.size)}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="text-sm text-gray-500 p-4 bg-gray-50 rounded-lg">
@@ -304,7 +288,6 @@ const InstallationComplete = () => {
             </div>
           </div>
 
-          {/* Completion Notes */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Completion Notes</h2>
             <textarea
@@ -316,7 +299,6 @@ const InstallationComplete = () => {
             />
           </div>
 
-          {/* Issues Section */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Issues Encountered</h2>
@@ -360,7 +342,6 @@ const InstallationComplete = () => {
             )}
           </div>
 
-          {/* Action Buttons */}
           <div className="flex justify-end space-x-4">
             <button
               onClick={() => navigate('/installations')}
@@ -384,7 +365,6 @@ const InstallationComplete = () => {
             </button>
           </div>
 
-          {/* Help Text */}
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <div className="flex">
               <div className="flex-shrink-0">
