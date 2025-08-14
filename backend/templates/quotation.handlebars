@@ -736,6 +736,31 @@
             {{/if}}
             <div class="specs-section" style="margin-top: 15px;">
                 <div class="specs-content" style="margin: 15px 0; font-size: 16px; line-height: 1.8; color: #000; max-width: 100%; overflow-wrap: break-word; word-wrap: break-word;">{{product.description}}</div>
+                
+                {{#if product.bundleComponents}}
+                <div class="bill-of-materials" style="margin: 20px 0;">
+                    <h4 class="bom-heading" style="font-size: 16px; font-weight: bold; color: #FF7300; margin-bottom: 8px; border-bottom: 2px solid #FF7300; padding-bottom: 4px;">Typical Bill of Materials</h4>
+                    <table class="bom-table" style="width: 100%; border-collapse: collapse; font-size: 16px; margin-top: 8px; border: 1px solid #e5e7eb;">
+                        <thead>
+                            <tr style="background-color: #f9fafb;">
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: left; border: 1px solid #e5e7eb; width: 45%;">Name</th>
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: center; border: 1px solid #e5e7eb; width: 15%;">Quantity</th>
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: left; border: 1px solid #e5e7eb; width: 40%;">Make</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each product.bundleComponents as |component|}}
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 8px 16px; color: #000000; border: 1px solid #e5e7eb; font-size: 16px;">{{component.name}}</td>
+                                <td style="padding: 8px 16px; color: #000000; text-align: center; border: 1px solid #e5e7eb; font-size: 16px;">{{component.quantity}}</td>
+                                <td style="padding: 8px 16px; color: #000000; border: 1px solid #e5e7eb; font-size: 16px;">{{component.make}}</td>
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+                {{/if}}
+                
                 <div class="specifications-table" style="margin-top: 20px; margin-bottom: 30px; width: 100%;">
                     <h4 class="specs-heading" style="font-size: 16px; font-weight: bold; color: #FF7300; margin-bottom: 8px; border-bottom: 2px solid #FF7300; padding-bottom: 4px;">Specifications</h4>
                     <table class="specs-details" style="width: 100%; border-collapse: collapse; font-size: 16px; margin-top: 8px; border: 1px solid #e5e7eb;">

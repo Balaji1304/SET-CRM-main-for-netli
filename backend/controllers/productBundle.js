@@ -401,9 +401,7 @@ exports.getPowerPlantConfigurations = async (req, res) => {
     const { brand } = req.query;
     
     let query = {
-      category: 'power_plants_system',
-      isActive: true,
-      subcategory: { $in: ['2kva', '4kva', '5kva', '10kva'] }
+      category: 'power_plants_system'
     };
 
     if (brand) {
@@ -482,6 +480,48 @@ exports.getAllBundleTerms = async (req, res) => {
     res.json({
       success: true,
       data: allTerms
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Get bundle details with full component information for quotation creation
+// @route   GET /api/bundles/:id/components
+// @access  Private
+exports.getBundleWithComponents = async (req, res) => {
+  try {
+    const bundle = await ProductBundle.findById(req.params.id)
+      .populate({
+        path: 'items.solarItem',
+        select: 'name componentType make warranty sortOrder'
+      })
+      .populate('createdBy', 'name');
+
+    if (!bundle) {
+      throw new AppError('Bundle not found', 404);
+    }
+
+    // Transform the data to include component details with default make
+    const bundleWithComponents = {
+      ...bundle.toObject(),
+      componentsData: bundle.items
+        .filter(item => item.quantity > 0) // Only include components with quantity > 0
+        .map(item => ({
+          solarItemId: item.solarItem._id,
+          name: item.solarItem.name,
+          componentType: item.solarItem.componentType,
+          quantity: item.quantity,
+          make: item.solarItem.make, // Default make from SolarBundleItem
+          warranty: item.solarItem.warranty,
+          sortOrder: item.solarItem.sortOrder || 0
+        }))
+        .sort((a, b) => a.sortOrder - b.sortOrder) // Sort by sortOrder
+    };
+
+    res.json({
+      success: true,
+      data: bundleWithComponents
     });
   } catch (error) {
     errorHandler(res, error);

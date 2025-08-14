@@ -117,4 +117,13 @@ export const getDefaultBundleTerms = async () => {
  */
 export const getAllBundleTerms = async () => {
   return await apiRequest('bundles/terms/all');
+};
+
+/**
+ * Get bundle with detailed component information for quotation creation
+ * @param {string} id - Bundle ID
+ * @returns {Promise<Object>} - Response with bundle and component details
+ */
+export const getBundleWithComponents = async (id) => {
+  return await apiRequest(`bundles/${id}/components`);
 }; 

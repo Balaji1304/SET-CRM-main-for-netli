@@ -6,7 +6,7 @@ import { createQuotation } from '../../../services/quotationService';
 import { getLeads } from '../../../services/leadService';
 import { getProducts } from '../../../services/productService';
 import { getAllCustomizedProducts, updateCustomizedProduct } from '../../../services/customizedProductService';
-import { getBundles } from '../../../services/bundleService';
+import { getBundles, getBundleWithComponents } from '../../../services/bundleService';
 
 export default function CreateQuotationPage() {
   const navigate = useNavigate();
@@ -33,6 +33,8 @@ export default function CreateQuotationPage() {
   
   // State for customized product details
   const [customizedProductDetails, setCustomizedProductDetails] = useState({});
+  // State for bundle component details
+  const [bundleComponentDetails, setBundleComponentDetails] = useState({});
   const [newSpecField, setNewSpecField] = useState({ name: '', value: '' });
   const [isDragging, setIsDragging] = useState(false);
   
@@ -231,6 +233,29 @@ export default function CreateQuotationPage() {
     }
   };
 
+  const fetchBundleComponents = async (bundleId, itemIndex) => {
+    try {
+      const response = await getBundleWithComponents(bundleId);
+      if (response.success && response.data.componentsData) {
+        const componentDetails = response.data.componentsData.map(component => ({
+          solarItemId: component.solarItemId,
+          name: component.name,
+          componentType: component.componentType,
+          quantity: component.quantity,
+          make: component.make, // Default make from database
+          warranty: component.warranty,
+          sortOrder: component.sortOrder || 0
+        }));
+        setBundleComponentDetails(prevDetails => ({
+          ...prevDetails,
+          [bundleId]: componentDetails
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching bundle components:', error);
+    }
+  };
+
   const handleAddItem = () => {
     setFormData(prev => ({
       ...prev,
@@ -292,6 +317,9 @@ export default function CreateQuotationPage() {
                 }
               } else if (leadProduct.isBundleItem) {
                 updatedItem.bundleId = value;
+                
+                // Fetch bundle component details for any bundle
+                fetchBundleComponents(value, index);
               } else {
                 updatedItem.productId = value;
               }
@@ -333,6 +361,9 @@ export default function CreateQuotationPage() {
                 updatedItem.bundleId = value;
                 updatedItem.unitPrice = bundle.price || 0;
                 updatedItem.quantity = item.quantity === '' ? 1 : item.quantity;
+                
+                // Fetch bundle component details for any bundle
+                fetchBundleComponents(value, index);
               }
             }
           } else if (field === 'quantity') {
@@ -435,7 +466,7 @@ export default function CreateQuotationPage() {
         leadId,
         terms: automaticTerms, // Set terms and conditions automatically
         items: supportedProducts.length > 0 
-          ? supportedProducts.map(product => {
+          ? supportedProducts.map((product, index) => {
               const item = {
                 productId: (!product.isCustomizedProduct && !product.isBundleItem) ? product.id : '',
                 customizedProductId: product.isCustomizedProduct ? product.id : '',
@@ -444,6 +475,12 @@ export default function CreateQuotationPage() {
                 unitPrice: parseFloat(product.unitPrice || product.price) || 0,
                 discount: 0
               };
+              
+              // Fetch bundle components if this is a bundle item
+              if (product.isBundleItem && product.id) {
+                fetchBundleComponents(product.id, index);
+              }
+              
               return item;
             })
           : [{ productId: '', customizedProductId: '', bundleId: '', quantity: '', unitPrice: '', discount: '' }]
@@ -508,14 +545,23 @@ export default function CreateQuotationPage() {
       // Create the quotation
       const formattedData = {
         leadId: formData.leadId,
-        quotationItems: formData.items.map(item => ({
-          productId: item.productId || null,
-          customizedProductId: item.customizedProductId || null,
-          bundleId: item.bundleId || null,
-          quantity: parseInt(item.quantity),
-          unitPrice: parseFloat(item.unitPrice),
-          discount: item.discount === '' ? 0 : parseInt(item.discount)
-        })),
+        quotationItems: formData.items.map(item => {
+          const quotationItem = {
+            productId: item.productId || null,
+            customizedProductId: item.customizedProductId || null,
+            bundleId: item.bundleId || null,
+            quantity: parseInt(item.quantity),
+            unitPrice: parseFloat(item.unitPrice),
+            discount: item.discount === '' ? 0 : parseInt(item.discount)
+          };
+
+          // Add bundle components if this is a bundle item
+          if (item.bundleId && bundleComponentDetails[item.bundleId]) {
+            quotationItem.bundleComponents = bundleComponentDetails[item.bundleId];
+          }
+
+          return quotationItem;
+        }),
         terms: formData.terms || '',
         notes: formData.notes || '',
         advancePaymentPercentage: parseInt(formData.advancePaymentPercentage) || 50
@@ -670,6 +716,55 @@ export default function CreateQuotationPage() {
     setIsDragging(false);
     const files = e.dataTransfer.files;
     handleImageUpload(productId, files);
+  };
+
+  // Handlers for bundle component details
+  const handleBundleComponentChange = (bundleId, componentIndex, field, value) => {
+    setBundleComponentDetails(prev => ({
+      ...prev,
+      [bundleId]: prev[bundleId]?.map((component, index) => 
+        index === componentIndex ? { ...component, [field]: value } : component
+      ) || []
+    }));
+  };
+
+  // Get dropdown options for specific components
+  const getMakeOptions = (componentName) => {
+    const name = componentName?.toLowerCase();
+    
+    if (name?.includes('spv modules') || name?.includes('540wp')) {
+      return [
+        'Panasonic/ Vikram/ Rayzan/ Novas Solar',
+        'Panasonic',
+        'Vikram', 
+        'Rayzan',
+        'Novas Solar'
+      ];
+    } else if (name?.includes('junction boxes') || name?.includes('ac & dc junction boxes')) {
+      return [
+        'Hansel/ CEC/ ESK/ VNT/ other make compliant to bid requirements',
+        'Hansel',
+        'CEC',
+        'ESK',
+        'VNT'
+      ];
+    } else if (name?.includes('power conditioning unit') || name?.includes('3 phase') || name?.includes('415 vac')) {
+      return [
+        'Havells/ Growatt/ Deye',
+        'Havells',
+        'Growatt',
+        'Deye'
+      ];
+    } else if (name?.includes('cable ac') || (name?.includes('cable') && name?.includes('ac'))) {
+      return [
+        'Orbit/ Polycab/ Havells',
+        'Orbit',
+        'Polycab',
+        'Havells'
+      ];
+    }
+    
+    return null; // Return null for components that should use text input
   };
 
   if (loading) {
@@ -1204,6 +1299,112 @@ export default function CreateQuotationPage() {
                               </div>
                             )}
                           </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </section>
+          )}
+
+          {/* Solar Power Plant Bundle Components Section */}
+          {formData.items.some(item => item.bundleId && bundleComponentDetails[item.bundleId]) && (
+            <section>
+              <h2 className="text-xl font-semibold text-secondary border-b border-fourth pb-2 mb-4">
+                Typical Bill of Materials
+              </h2>
+              <div className="space-y-6">
+                {formData.items
+                  .filter(item => item.bundleId && bundleComponentDetails[item.bundleId])
+                  .map((item, itemIndex) => {
+                    const bundleId = item.bundleId;
+                    const components = bundleComponentDetails[bundleId] || [];
+                    
+                    // Find the bundle name from selectedLead products
+                    let bundleName = `Solar Power Plant System - Item ${itemIndex + 1}`;
+                    const leadProduct = selectedLead?.products.find(p => p.id === bundleId && p.isBundleItem);
+                    if (leadProduct) {
+                      bundleName = `${leadProduct.name} - Components`;
+                    }
+                    
+                    return (
+                      <div key={`bundle-${bundleId}`} className="bg-white rounded-lg border border-fourth shadow-sm p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <div className="w-3 h-3 bg-primary rounded-full"></div>
+                          {bundleName}
+                        </h3>
+                        
+                        {/* Components Table */}
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full border border-gray-300 rounded-lg">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 border-r border-gray-300">
+                                  Name
+                                </th>
+                                <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-300">
+                                  Quantity
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                                  Make
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {components
+                                .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+                                .map((component, componentIndex) => (
+                                  <tr key={`${bundleId}-component-${componentIndex}`} className="border-t border-gray-300">
+                                    <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-300">
+                                      {component.name}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-300">
+                                      {component.quantity}
+                                    </td>
+                                    <td className="px-4 py-3 border-gray-300">
+                                      {(() => {
+                                        const makeOptions = getMakeOptions(component.name);
+                                        
+                                        if (makeOptions) {
+                                          // Render dropdown for specific components
+                                          return (
+                                            <div className="relative">
+                                              <select
+                                                value={component.make || makeOptions[0]}
+                                                onChange={(e) => handleBundleComponentChange(bundleId, componentIndex, 'make', e.target.value)}
+                                                className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary bg-white appearance-none"
+                                              >
+                                                {makeOptions.map((option, optionIndex) => (
+                                                  <option key={optionIndex} value={option}>
+                                                    {option}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                                            </div>
+                                          );
+                                        } else {
+                                          // Render text input for other components
+                                          return (
+                                            <input
+                                              type="text"
+                                              value={component.make || ''}
+                                              onChange={(e) => handleBundleComponentChange(bundleId, componentIndex, 'make', e.target.value)}
+                                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                              placeholder="Enter make/brand..."
+                                            />
+                                          );
+                                        }
+                                      })()}
+                                    </td>
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        
+                        <div className="mt-4 text-sm text-gray-600">
+                          <p><strong>Note:</strong> The make/brand information above is specific to this quotation and can be customized based on availability or customer preference.</p>
                         </div>
                       </div>
                     );

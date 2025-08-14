@@ -55,6 +55,19 @@ const quotationItemSchema = new mongoose.Schema({
     specifications: Object,
     itemsIncluded: Number
   },
+  // For solar power plant bundles, store detailed component information with quotation-specific make data
+  bundleComponents: [{
+    solarItemId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SolarBundleItem'
+    },
+    name: String,
+    componentType: String,
+    quantity: Number,
+    make: String, // Quotation-specific make data
+    warranty: String,
+    sortOrder: Number
+  }],
   createdAt: {
     type: Date,
     default: Date.now

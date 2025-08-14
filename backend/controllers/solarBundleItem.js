@@ -46,7 +46,7 @@ exports.getSolarBundleItem = async (req, res) => {
 // @access  Private (product_head, admin)
 exports.createSolarBundleItem = async (req, res) => {
   try {
-    const { name, componentType, warranty } = req.body;
+    const { name, componentType, make, warranty, sortOrder } = req.body;
 
     // Check if name already exists
     const existingName = await SolarBundleItem.findOne({ name: name.trim() });
@@ -57,7 +57,9 @@ exports.createSolarBundleItem = async (req, res) => {
     const item = await SolarBundleItem.create({
       name,
       componentType,
-      warranty
+      make,
+      warranty,
+      sortOrder: sortOrder || 0
     });
 
     res.status(201).json({
@@ -84,7 +86,7 @@ exports.updateSolarBundleItem = async (req, res) => {
       throw new AppError('Solar bundle item not found', 404);
     }
 
-    const { name, componentType, warranty } = req.body;
+    const { name, componentType, make, warranty, sortOrder } = req.body;
 
     // Check if name is being changed and if it conflicts
     if (name && name.trim() !== item.name) {
@@ -99,7 +101,7 @@ exports.updateSolarBundleItem = async (req, res) => {
 
     const updatedItem = await SolarBundleItem.findByIdAndUpdate(
       req.params.id,
-      { name, componentType, warranty },
+      { name, componentType, make, warranty, sortOrder },
       { new: true, runValidators: true }
     );
 

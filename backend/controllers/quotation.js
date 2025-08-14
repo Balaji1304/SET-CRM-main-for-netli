@@ -262,6 +262,24 @@ exports.createQuotation = async (req, res) => {
         quotationItemData.productId = referenceId;
       } else if (itemType === 'bundle') {
         quotationItemData.bundleId = referenceId;
+        
+        // For bundles, store component details if provided
+        if (item.bundleComponents && Array.isArray(item.bundleComponents)) {
+          quotationItemData.bundleComponents = item.bundleComponents.map(comp => ({
+            solarItemId: comp.solarItemId,
+            name: comp.name,
+            componentType: comp.componentType,
+            quantity: comp.quantity,
+            make: comp.make, // Quotation-specific make
+            warranty: comp.warranty,
+            sortOrder: comp.sortOrder || 0
+          }));
+        }
+        
+        // Store bundle configuration if provided
+        if (item.bundleConfiguration) {
+          quotationItemData.bundleConfiguration = item.bundleConfiguration;
+        }
       } else if (itemType === 'customized') {
         quotationItemData.customizedProductId = referenceId;
       }
@@ -347,9 +365,9 @@ exports.updateQuotation = async (req, res) => {
     // Create new quotation items
     const createdQuotationItems = [];
     for (const item of quotationItems) {
-      // Validate that either productId or customizedProductId is provided
-      if (!item.productId && !item.customizedProductId) {
-        throw new AppError('Either Product ID or Customized Product ID is required for each item', 400);
+      // Validate that at least one of productId, customizedProductId, or bundleId is provided
+      if (!item.productId && !item.customizedProductId && !item.bundleId) {
+        throw new AppError('Either Product ID, Customized Product ID, or Bundle ID is required for each item', 400);
       }
       
       const quantity = Number(item.quantity);
@@ -365,6 +383,8 @@ exports.updateQuotation = async (req, res) => {
         itemType = 'product';
       } else if (item.customizedProductId) {
         itemType = 'customized';
+      } else if (item.bundleId) {
+        itemType = 'bundle';
       }
 
       const quotationItemData = {
@@ -376,11 +396,18 @@ exports.updateQuotation = async (req, res) => {
         total: itemTotal // Store correctly calculated item total
       };
 
-      // Add either productId or customizedProductId
+      // Add productId, customizedProductId, or bundleId
       if (item.productId) {
         quotationItemData.productId = item.productId;
-      } else {
+      } else if (item.customizedProductId) {
         quotationItemData.customizedProductId = item.customizedProductId;
+      } else if (item.bundleId) {
+        quotationItemData.bundleId = item.bundleId;
+        
+        // Add bundle components if provided
+        if (item.bundleComponents && Array.isArray(item.bundleComponents)) {
+          quotationItemData.bundleComponents = item.bundleComponents;
+        }
       }
 
       const quotationItem = await QuotationItem.create(quotationItemData);
