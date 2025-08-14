@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Edit2, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Phone, Mail, Building2, Calendar, FileText, AlertCircle } from 'lucide-react';
+import { Edit2, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Phone, Mail, Building2, Calendar, FileText, AlertCircle, Info, ShoppingCart, Tag, Users, MapPin, IndianRupee, Clock, User } from 'lucide-react';
 import { getLeads, deleteLead } from '../../services/leadService';
 
 const formatEnumValue = (value) => {
@@ -23,6 +23,8 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showLeadModal, setShowLeadModal] = useState(false);
+  const [selectedLeadForView, setSelectedLeadForView] = useState(null);
 
   const itemsPerPage = 10;
 
@@ -146,6 +148,309 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
     }
   }, [selectedLead, isDeleting, fetchLeads]);
 
+  // Function to handle viewing lead details
+  const handleViewLead = (lead) => {
+    setSelectedLeadForView(lead);
+    setShowLeadModal(true);
+  };
+
+  // Function to close lead modal
+  const closeLeadModal = () => {
+    setShowLeadModal(false);
+    setSelectedLeadForView(null);
+  };
+
+  // Lead Details Modal Component
+  const LeadDetailsModal = ({ lead, onClose }) => {
+    const getStatusColor = (status) => {
+      const colors = {
+        'pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        'active': 'bg-blue-100 text-blue-800 border-blue-200',
+        'closed_won': 'bg-green-100 text-green-800 border-green-200',
+        'closed_lost': 'bg-red-100 text-red-800 border-red-200',
+        'on_hold': 'bg-orange-100 text-orange-800 border-orange-200'
+      };
+      return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
+    };
+
+    const totalBudget = lead.products?.reduce((total, product) => 
+      total + ((parseFloat(product.quantity) || 0) * (parseFloat(product.unitPrice) || parseFloat(product.price) || 0)), 
+    0) || 0;
+
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-out">
+          {/* Modal Header */}
+          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="bg-white/20 p-2 rounded-lg">
+                <User className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">Lead Details</h2>
+                <p className="text-orange-100 text-sm">Complete lead information and status</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-150 touch-target"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="max-h-[calc(90vh-120px)] overflow-y-auto">
+            <div className="p-6 space-y-6">
+              {/* Lead Name and Status */}
+              <div className="border-b border-gray-100 pb-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-2xl font-bold text-gray-900">
+                        {`${lead.firstName} ${lead.lastName}`}
+                      </h3>
+                      {lead.createdFromEnquiry && (
+                        <span className="text-xs text-blue-700 font-medium bg-blue-100 px-2 py-1 rounded-md">
+                          From Enquiry Form
+                        </span>
+                      )}
+                      {lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' && (
+                        <AlertTriangle 
+                          className="w-5 h-5 text-orange-500" 
+                          title="Lead information incomplete - requires completion by salesperson"
+                        />
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-4 text-gray-600">
+                      <div className="flex items-center space-x-2">
+                        <Tag className="w-4 h-4" />
+                        <span className="text-sm font-medium">Lead Type: {formatEnumValue(lead.leadType)}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Building2 className="w-4 h-4" />
+                        <span className="text-sm">{formatEnumValue(lead.customerType)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border ${getStatusColor(lead.status)}`}>
+                      {formatEnumValue(lead.status)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Information Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Total Budget */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="bg-blue-500 p-2 rounded-lg">
+                      <IndianRupee className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Total Budget</h4>
+                      <p className="text-sm text-gray-600">Estimated value</p>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    ₹{totalBudget.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </div>
+                </div>
+
+                {/* Products Count */}
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="bg-green-500 p-2 rounded-lg">
+                      <ShoppingCart className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Products</h4>
+                      <p className="text-sm text-gray-600">Interested items</p>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {lead.products?.length || 0}
+                  </div>
+                </div>
+
+                {/* Date Created */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="bg-purple-500 p-2 rounded-lg">
+                      <Clock className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Date Created</h4>
+                      <p className="text-sm text-gray-600">Lead collected</p>
+                    </div>
+                  </div>
+                  <div className="text-lg font-bold text-gray-900">
+                    {new Date(lead.dateCollected).toLocaleDateString('en-GB')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Phone className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">Contact Information</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Phone</span>
+                      <span className="text-sm text-gray-900">{lead.phone}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Email</span>
+                      <span className="text-sm text-gray-900">
+                        {lead.email || (lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' 
+                          ? <span className="text-gray-400 italic">To be provided by salesperson</span>
+                          : 'N/A'
+                        )}
+                      </span>
+                    </div>
+                    {lead.businessName && (
+                      <div className="flex justify-between items-center py-2">
+                        <span className="text-sm font-medium text-gray-600">Business Name</span>
+                        <span className="text-sm text-gray-900">{lead.businessName}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lead Information */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Info className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">Lead Information</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Lead Type</span>
+                      <span className="text-sm text-gray-900">{formatEnumValue(lead.leadType)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Customer Type</span>
+                      <span className="text-sm text-gray-900">{formatEnumValue(lead.customerType)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Status</span>
+                      <span className={`text-sm font-medium px-2 py-1 rounded-full ${getStatusColor(lead.status)}`}>
+                        {formatEnumValue(lead.status)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-sm font-medium text-gray-600">Date Collected</span>
+                      <span className="text-sm text-gray-900">
+                        {new Date(lead.dateCollected).toLocaleDateString('en-IN', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Products List */}
+              {lead.products && lead.products.length > 0 && (
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <ShoppingCart className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">Products of Interest</h4>
+                  </div>
+                  <div className="space-y-3">
+                    {lead.products.map((product, index) => (
+                      <div key={index} className="bg-white p-4 rounded-lg border flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">
+                            {product.name || 'Product Name'}
+                          </div>
+                          {product.category && (
+                            <div className="text-sm text-gray-500">{product.category}</div>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-gray-500">Quantity</div>
+                            <div className="text-lg font-semibold text-gray-900">{product.quantity || 1}</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-gray-500">Unit Price</div>
+                            <div className="text-lg font-semibold text-[#FF7300]">
+                              ₹{((parseFloat(product.unitPrice) || parseFloat(product.price) || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }))}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-gray-500">Total</div>
+                            <div className="text-lg font-semibold text-gray-900">
+                              ₹{((parseFloat(product.quantity) || 0) * (parseFloat(product.unitPrice) || parseFloat(product.price) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Additional Information */}
+              {(lead.address || lead.description || lead.notes) && (
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <FileText className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">Additional Information</h4>
+                  </div>
+                  <div className="space-y-3">
+                    {lead.address && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600 block mb-1">Address</span>
+                        <p className="text-sm text-gray-900">{lead.address}</p>
+                      </div>
+                    )}
+                    {lead.description && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600 block mb-1">Description</span>
+                        <p className="text-sm text-gray-900">{lead.description}</p>
+                      </div>
+                    )}
+                    {lead.notes && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600 block mb-1">Notes</span>
+                        <p className="text-sm text-gray-900">{lead.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <div className="flex flex-col sm:flex-row gap-3 justify-end">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      handleEdit(lead);
+                    }}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF7300] text-white rounded-lg font-medium hover:bg-[#FF8800] transition-colors duration-150 touch-target"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Edit Lead
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Mobile Card Component
   const LeadCard = ({ lead }) => (
     <div className={`rounded-lg border p-4 space-y-4 shadow-sm hover:shadow-md transition-all duration-200 ${
@@ -157,7 +462,9 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className={`text-lg font-semibold ${lead.createdFromEnquiry ? 'text-blue-800' : 'text-gray-900'}`}>
+            <h3 className={`text-lg font-semibold cursor-pointer hover:text-[#FF7300] transition-colors duration-150 ${lead.createdFromEnquiry ? 'text-blue-800' : 'text-gray-900'}`}
+                onClick={() => handleViewLead(lead)}
+                title="Click to view details">
               {`${lead.firstName} ${lead.lastName}`}
             </h3>
             {lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' && (
@@ -182,6 +489,13 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
           </div>
         </div>
         <div className="flex items-center space-x-2 ml-3">
+          <button
+            onClick={() => handleViewLead(lead)}
+            className="p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150 touch-target"
+            title="View Details"
+          >
+            <Info className="w-4 h-4" />
+          </button>
           <button
             onClick={() => handleEdit(lead)}
             className="p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
@@ -313,7 +627,7 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                     { key: 'status', label: 'Status', width: 'w-20 lg:w-24' },
                     { key: 'budget', label: 'Budget', width: 'w-24 lg:w-32' },
                     { key: 'date', label: 'Date', width: 'w-28', hideOn2Xl: true },
-                    { key: 'actions', label: 'Actions', width: 'w-20 lg:w-24' }
+                    { key: 'actions', label: 'Actions', width: 'w-24 lg:w-32' }
                   ].map((header) => (
                     <th
                       key={header.key}
@@ -347,7 +661,11 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                     >
                       <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium w-32 lg:w-40">
                         <div className="flex items-center gap-2">
-                          <div className={`truncate ${lead.createdFromEnquiry ? 'text-blue-800' : 'text-gray-900'}`}>
+                          <div 
+                            className={`truncate cursor-pointer hover:text-[#FF7300] transition-colors duration-150 ${lead.createdFromEnquiry ? 'text-blue-800' : 'text-gray-900'}`}
+                            onClick={() => handleViewLead(lead)}
+                            title="Click to view details"
+                          >
                             {`${lead.firstName} ${lead.lastName}`}
                           </div>
                           {lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' && (
@@ -402,8 +720,15 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                           {new Date(lead.dateCollected).toLocaleDateString('en-GB')}
                         </div>
                       </td>
-                      <td className="px-2 lg:px-4 xl:px-6 py-4 w-20 lg:w-24">
+                      <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-32">
                         <div className="flex items-center justify-center space-x-1 lg:space-x-2">
+                          <button
+                            onClick={() => handleViewLead(lead)}
+                            className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
+                            title="View Details"
+                          >
+                            <Info className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                          </button>
                           <button
                             onClick={() => handleEdit(lead)}
                             className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-blue-200"
@@ -477,6 +802,14 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
         <div className="fixed bottom-5 right-5 bg-primary text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ease-in-out z-50">
           {successMessage}
         </div>
+      )}
+
+      {/* Lead Details Modal */}
+      {showLeadModal && selectedLeadForView && (
+        <LeadDetailsModal 
+          lead={selectedLeadForView} 
+          onClose={closeLeadModal} 
+        />
       )}
 
       {/* Delete Modal */}

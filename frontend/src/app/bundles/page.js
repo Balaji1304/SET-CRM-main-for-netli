@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Package, Plus, Edit2, Trash2, Eye, Filter, Search, Loader2, AlertTriangle, ArrowLeft, Save, Upload, X } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, Eye, Filter, Search, Loader2, AlertTriangle, ArrowLeft, Save, Upload, X, Info, ShoppingCart, Tag, Layers, TrendingUp, Calendar, Users, Building2, Zap, Settings, FileText } from 'lucide-react';
 import { getBundles, deleteBundle, createBundle, getBundle, updateBundle, getCompatibleProducts, getDefaultBundleTerms } from '../../services/bundleService';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
@@ -107,6 +107,8 @@ export default function BundlesPage() {
   // UI states
   const [bundleToDelete, setBundleToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showBundleModal, setShowBundleModal] = useState(false);
+  const [selectedBundle, setSelectedBundle] = useState(null);
   
   // Custom KVA state
   const [customKvaValue, setCustomKvaValue] = useState('');
@@ -505,6 +507,18 @@ export default function BundlesPage() {
     setShowConfirmDialog(true);
   };
 
+  // Function to handle viewing bundle details
+  const handleViewBundle = (bundle) => {
+    setSelectedBundle(bundle);
+    setShowBundleModal(true);
+  };
+
+  // Function to close bundle modal
+  const closeBundleModal = () => {
+    setShowBundleModal(false);
+    setSelectedBundle(null);
+  };
+
   const confirmDelete = async () => {
     if (!bundleToDelete) return;
 
@@ -651,6 +665,304 @@ export default function BundlesPage() {
       'custom': 'bg-gray-700/90 text-white border-gray-600'
     };
     return classes[subcategory] || 'bg-gray-700/90 text-white border-gray-600';
+  };
+
+  // Bundle Details Modal Component
+  const BundleDetailsModal = ({ bundle, onClose }) => {
+    const getKvaDisplayName = (subcategory) => {
+      const displayNames = {
+        '2kva': '2 KVA',
+        '4kva': '4 KVA',
+        '5kva': '5 KVA',
+        '10kva': '10 KVA',
+        'custom': 'Custom KVA'
+      };
+      return displayNames[subcategory] || subcategory;
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-out">
+          {/* Modal Header */}
+          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="bg-white/20 p-2 rounded-lg">
+                <Package className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">Solar Power Plant System Details</h2>
+                <p className="text-orange-100 text-sm">Complete system configuration and components</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-150 touch-target"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="max-h-[calc(90vh-120px)] overflow-y-auto">
+            <div className="p-6 space-y-6">
+              {/* System Name and Details */}
+              <div className="border-b border-gray-100 pb-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{bundle.name}</h3>
+                    <div className="flex items-center space-x-4 text-gray-600">
+                      <div className="flex items-center space-x-2">
+                        <Tag className="w-4 h-4" />
+                        <span className="text-sm font-medium">Code: {bundle.bundleCode}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Zap className="w-4 h-4" />
+                        <span className="text-sm">{getKvaDisplayName(bundle.subcategory)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border-2 backdrop-blur-sm ${getSubcategoryBadgeClass(bundle.subcategory)}`}>
+                      {getKvaDisplayName(bundle.subcategory)}
+                    </span>
+                  </div>
+                </div>
+                
+                {bundle.description && (
+                  <p className="text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-lg">
+                    {bundle.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Key Information Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Price Information */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="bg-blue-500 p-2 rounded-lg">
+                      <ShoppingCart className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">System Price</h4>
+                      <p className="text-sm text-gray-600">Complete system cost</p>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {formatCurrency(bundle.price)}
+                  </div>
+                </div>
+
+                {/* Components Count */}
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="bg-green-500 p-2 rounded-lg">
+                      <Package className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Components</h4>
+                      <p className="text-sm text-gray-600">System parts</p>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {bundle.items?.filter(item => item.quantity > 0).length || 0}
+                  </div>
+                </div>
+
+                {/* Total Items */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="bg-purple-500 p-2 rounded-lg">
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Total Items</h4>
+                      <p className="text-sm text-gray-600">All quantities</p>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {bundle.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* System Configuration */}
+              {bundle.systemConfiguration && (
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Settings className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">System Configuration</h4>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {bundle.systemConfiguration.installedCapacityKWP && (
+                      <div className="bg-white p-4 rounded-lg border">
+                        <span className="text-sm font-medium text-gray-500 block mb-1">Installed Capacity</span>
+                        <span className="text-lg font-semibold text-gray-900">{bundle.systemConfiguration.installedCapacityKWP} KWP</span>
+                      </div>
+                    )}
+                    {bundle.systemConfiguration.areaRequired && (
+                      <div className="bg-white p-4 rounded-lg border">
+                        <span className="text-sm font-medium text-gray-500 block mb-1">Area Required</span>
+                        <span className="text-lg font-semibold text-gray-900">{bundle.systemConfiguration.areaRequired}</span>
+                      </div>
+                    )}
+                    {bundle.systemConfiguration.moduleSpecification && (
+                      <div className="bg-white p-4 rounded-lg border col-span-full">
+                        <span className="text-sm font-medium text-gray-500 block mb-1">Module Specification</span>
+                        <span className="text-gray-900">{bundle.systemConfiguration.moduleSpecification}</span>
+                      </div>
+                    )}
+                    {bundle.systemConfiguration.inverterSpecification && (
+                      <div className="bg-white p-4 rounded-lg border col-span-full">
+                        <span className="text-sm font-medium text-gray-500 block mb-1">Inverter Specification</span>
+                        <span className="text-gray-900">{bundle.systemConfiguration.inverterSpecification}</span>
+                      </div>
+                    )}
+                    {bundle.systemConfiguration.systemDescription && (
+                      <div className="bg-white p-4 rounded-lg border col-span-full">
+                        <span className="text-sm font-medium text-gray-500 block mb-1">System Description</span>
+                        <p className="text-gray-900">{bundle.systemConfiguration.systemDescription}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Components List */}
+              {bundle.items && bundle.items.length > 0 && (
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Building2 className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">System Components</h4>
+                  </div>
+                  <div className="space-y-3">
+                    {bundle.items.filter(item => item.quantity > 0).map((item, index) => (
+                      <div key={index} className="bg-white p-4 rounded-lg border flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">
+                            {item.solarItem?.name || item.name || 'Component'}
+                          </div>
+                          {item.solarItem?.warranty && (
+                            <div className="text-sm text-gray-500">Warranty: {item.solarItem.warranty}</div>
+                          )}
+                          {item.solarItem?.componentType && (
+                            <div className="text-xs text-gray-400 capitalize mt-1">
+                              Type: {item.solarItem.componentType}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-gray-500">Quantity</div>
+                            <div className="text-lg font-semibold text-gray-900">{item.quantity}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* System Images */}
+              {bundle.imageUrls && bundle.imageUrls.length > 0 && (
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Eye className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">System Images</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {bundle.imageUrls.map((imageUrl, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={imageUrl}
+                          alt={`${bundle.name} - Image ${index + 1}`}
+                          className="w-full h-48 object-cover rounded-lg border border-gray-200 group-hover:opacity-90 transition-opacity duration-200"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-all duration-200" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Terms and Conditions */}
+              {bundle.termsAndConditions && (
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <FileText className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">Terms and Conditions</h4>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border">
+                    <p className="text-gray-700 whitespace-pre-line">{bundle.termsAndConditions}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Status and Dates */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Info className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">System Status</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Status</span>
+                      <div className="flex items-center space-x-2">
+                        <div className={`w-2 h-2 rounded-full ${bundle.isActive !== false ? 'bg-green-400' : 'bg-red-400'}`} />
+                        <span className="text-sm font-medium text-gray-900">
+                          {bundle.isActive !== false ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+                    {bundle.createdAt && (
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                        <span className="text-sm font-medium text-gray-600">Created</span>
+                        <span className="text-sm text-gray-900">
+                          {new Date(bundle.createdAt).toLocaleDateString('en-IN', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </span>
+                      </div>
+                    )}
+                    {bundle.updatedAt && (
+                      <div className="flex justify-between items-center py-2">
+                        <span className="text-sm font-medium text-gray-600">Last Updated</span>
+                        <span className="text-sm text-gray-900">
+                          {new Date(bundle.updatedAt).toLocaleDateString('en-IN', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <div className="flex flex-col sm:flex-row gap-3 justify-end">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      navigate(`/dashboard/bundles/${bundle._id}/edit`);
+                    }}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF7300] text-white rounded-lg font-medium hover:bg-[#FF8800] transition-colors duration-150 touch-target"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Edit System
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -1308,7 +1620,9 @@ export default function BundlesPage() {
                     <div className="mb-4">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold text-gray-900 truncate group-hover:text-[#FF7300] transition-colors">
+                          <h3 className="text-lg font-bold text-gray-900 truncate group-hover:text-[#FF7300] transition-colors cursor-pointer"
+                              onClick={() => handleViewBundle(bundle)}
+                              title="Click to view details">
                             {bundle.name}
                           </h3>
                           <p className="text-sm text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded inline-block mt-1">
@@ -1403,7 +1717,7 @@ export default function BundlesPage() {
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                       <div className="flex items-center space-x-1">
                         <button
-                          onClick={() => navigate(`/dashboard/bundles/${bundle._id}`)}
+                          onClick={() => handleViewBundle(bundle)}
                           className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 hover:text-[#FF7300] hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target"
                           title="View System Details"
                         >
@@ -1435,6 +1749,14 @@ export default function BundlesPage() {
             </div>
           )}
         </div>
+
+      {/* Bundle Details Modal */}
+      {showBundleModal && selectedBundle && (
+        <BundleDetailsModal 
+          bundle={selectedBundle} 
+          onClose={closeBundleModal} 
+        />
+      )}
 
       {/* Confirm Delete Dialog */}
       <ConfirmDialog
