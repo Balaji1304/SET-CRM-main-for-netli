@@ -21,6 +21,7 @@ export default function CreateQuotationPage() {
     items: [{
       productId: '',
       customizedProductId: '',
+      bundleId: '',
       quantity: '',
       unitPrice: '',
       discount: ''
@@ -44,8 +45,8 @@ export default function CreateQuotationPage() {
 
   // Helper function to get terms and conditions based on selected products
   const getTermsAndConditionsForProducts = (leadProducts) => {
-    // Check if lead has only one product (individual or bundle)
-    const supportedProducts = leadProducts.filter(product => !product.isCustomizedProduct && !product.isBundleItem);
+    // Check if lead has only one product (individual, bundle, or customized)
+    const supportedProducts = leadProducts.filter(product => !product.isCustomizedProduct);
     
     if (supportedProducts.length === 1) {
       // Scenario 1 - Case 1: Single product
@@ -64,7 +65,12 @@ export default function CreateQuotationPage() {
       
       // Check if it's a bundle product
       if (singleProduct.isBundleItem) {
-        const foundBundle = allBundles.find(b => b.bundleCode === singleProduct.bundleCode);
+        // For bundle products, look up by bundleCode or use product name to find the bundle
+        const foundBundle = allBundles.find(b => 
+          b.bundleCode === singleProduct.bundleCode || 
+          b.name === singleProduct.name ||
+          b._id === singleProduct.id
+        );
         if (foundBundle && foundBundle.termsAndConditions) {
           productTerms = foundBundle.termsAndConditions;
         }
@@ -166,6 +172,23 @@ export default function CreateQuotationPage() {
               };
             }
           }
+          // For bundle items (has isBundleItem = true)
+          else if (product.isBundleItem) {
+            return {
+              id: product.bundleId || product._id, // Use bundleId from backend if available
+              name: product.name,
+              price: product.unitPrice,
+              unitPrice: product.unitPrice,
+              quantity: product.quantity,
+              category: 'Bundle',
+              isCustomizedProduct: false,
+              originalProduct: product,
+              isBundleItem: true,
+              bundleCode: product.bundleCode,
+              bundleItems: product.bundleItems || [],
+              bundleDetails: product.bundleDetails || {}
+            };
+          }
           // Fallback for any other cases (shouldn't happen with proper data)
           else {
             console.warn('Product with unexpected structure:', product);
@@ -214,6 +237,7 @@ export default function CreateQuotationPage() {
       items: [...prev.items, { 
         productId: '', 
         customizedProductId: '',
+        bundleId: '',
         quantity: '', 
         unitPrice: '', 
         discount: '' 
@@ -234,10 +258,11 @@ export default function CreateQuotationPage() {
       items: prev.items.map((item, i) => {
         if (i === index) {
           let updatedItem = { ...item };
-          if (field === 'productId' || field === 'customizedProductId') {
-            // Clear both fields first
+          if (field === 'productId' || field === 'customizedProductId' || field === 'bundleId') {
+            // Clear all product reference fields first
             updatedItem.productId = '';
             updatedItem.customizedProductId = '';
+            updatedItem.bundleId = '';
             
             const selectedLead = leads.find(lead => lead._id === prev.leadId);
             const leadProduct = selectedLead?.products.find(p => p.id === value);
@@ -265,15 +290,18 @@ export default function CreateQuotationPage() {
                     }
                   }));
                 }
+              } else if (leadProduct.isBundleItem) {
+                updatedItem.bundleId = value;
               } else {
                 updatedItem.productId = value;
               }
               updatedItem.unitPrice = parseFloat(leadProduct.unitPrice || leadProduct.price) || 0;
               updatedItem.quantity = parseInt(leadProduct.quantity) || 1;
             } else {
-              // Check if it's from all products or all customized products
+              // Check if it's from all products, all customized products, or all bundles
               const regularProduct = allProducts.find(p => p._id === value);
               const customizedProduct = allCustomizedProducts.find(p => p._id === value);
+              const bundle = allBundles.find(p => p._id === value);
               
               if (regularProduct) {
                 updatedItem.productId = value;
@@ -301,6 +329,10 @@ export default function CreateQuotationPage() {
                     }
                   }));
                 }
+              } else if (bundle) {
+                updatedItem.bundleId = value;
+                updatedItem.unitPrice = bundle.price || 0;
+                updatedItem.quantity = item.quantity === '' ? 1 : item.quantity;
               }
             }
           } else if (field === 'quantity') {
@@ -334,8 +366,8 @@ export default function CreateQuotationPage() {
     const selectedLead = leads.find(lead => lead._id === leadId);
     
     if (selectedLead) {
-      // Filter only individual and customized products for quotation (bundle products not supported yet)
-      const supportedProducts = selectedLead.products.filter(product => !product.isBundleItem);
+      // Now support all types of products: individual, customized, and bundle
+      const supportedProducts = selectedLead.products; // No filtering - support all product types
       
       // Initialize customized product details, fetching existing data if available
       const customizedProductDetailsInit = {};
@@ -405,22 +437,23 @@ export default function CreateQuotationPage() {
         items: supportedProducts.length > 0 
           ? supportedProducts.map(product => {
               const item = {
-                productId: product.isCustomizedProduct ? '' : product.id,
+                productId: (!product.isCustomizedProduct && !product.isBundleItem) ? product.id : '',
                 customizedProductId: product.isCustomizedProduct ? product.id : '',
+                bundleId: product.isBundleItem ? product.id : '', // Add bundleId support
                 quantity: parseInt(product.quantity) || 1,
                 unitPrice: parseFloat(product.unitPrice || product.price) || 0,
                 discount: 0
               };
               return item;
             })
-          : [{ productId: '', customizedProductId: '', quantity: '', unitPrice: '', discount: '' }]
+          : [{ productId: '', customizedProductId: '', bundleId: '', quantity: '', unitPrice: '', discount: '' }]
       }));
     } else {
       setFormData(prev => ({
         ...prev,
         leadId: '',
         terms: '', // Clear terms when no lead is selected
-        items: [{ productId: '', customizedProductId: '', quantity: '', unitPrice: '', discount: '' }]
+        items: [{ productId: '', customizedProductId: '', bundleId: '', quantity: '', unitPrice: '', discount: '' }]
       }));
       setCustomizedProductDetails({});
     }
@@ -436,7 +469,7 @@ export default function CreateQuotationPage() {
       setIsSubmitting(false);
       return;
     }
-    if (formData.items.some(item => (!item.productId && !item.customizedProductId) || item.quantity === '' || item.unitPrice === '')) {
+    if (formData.items.some(item => (!item.productId && !item.customizedProductId && !item.bundleId) || item.quantity === '' || item.unitPrice === '')) {
       setError("Please ensure all item fields (Product, Quantity) are filled for each item.");
       setIsSubmitting(false);
       return;
@@ -478,6 +511,7 @@ export default function CreateQuotationPage() {
         quotationItems: formData.items.map(item => ({
           productId: item.productId || null,
           customizedProductId: item.customizedProductId || null,
+          bundleId: item.bundleId || null,
           quantity: parseInt(item.quantity),
           unitPrice: parseFloat(item.unitPrice),
           discount: item.discount === '' ? 0 : parseInt(item.discount)
@@ -738,7 +772,7 @@ export default function CreateQuotationPage() {
                     <div className="relative mt-1">
                       <select
                         id={`product_id_${index}`}
-                        value={item.productId || item.customizedProductId || ''}
+                        value={item.productId || item.customizedProductId || item.bundleId || ''}
                         onChange={(e) => {
                           const value = e.target.value;
                           const selectedLead = leads.find(lead => lead._id === formData.leadId);
@@ -749,18 +783,23 @@ export default function CreateQuotationPage() {
                           if (leadProduct) {
                             if (leadProduct.isCustomizedProduct) {
                               handleItemChange(index, 'customizedProductId', value);
+                            } else if (leadProduct.isBundleItem) {
+                              handleItemChange(index, 'bundleId', value);
                             } else {
                               handleItemChange(index, 'productId', value);
                             }
                           } else {
-                            // Check if it's from all products or all customized products
+                            // Check if it's from all products, customized products, or bundles
                             const regularProduct = allProducts.find(p => p._id === value);
                             const customizedProduct = allCustomizedProducts.find(p => p._id === value);
+                            const bundle = allBundles.find(b => b._id === value);
                             
                             if (regularProduct) {
                               handleItemChange(index, 'productId', value);
                             } else if (customizedProduct) {
                               handleItemChange(index, 'customizedProductId', value);
+                            } else if (bundle) {
+                              handleItemChange(index, 'bundleId', value);
                             }
                           }
                         }}
@@ -772,19 +811,23 @@ export default function CreateQuotationPage() {
                         {selectedLead?.products.length > 0 && (
                           <optgroup key="lead-products" label="Lead's Interested Products">
                             {selectedLead.products.map((product, productIndex) => {
-                              const uniqueKey = product.isCustomizedProduct 
-                                ? `lead-custom-${product.id || productIndex}`
-                                : `lead-regular-${product.id || productIndex}`;
+                              let uniqueKey;
+                              if (product.isCustomizedProduct) {
+                                uniqueKey = `lead-custom-${product.id || productIndex}`;
+                              } else if (product.isBundleItem) {
+                                uniqueKey = `lead-bundle-${product.id || productIndex}`;
+                              } else {
+                                uniqueKey = `lead-regular-${product.id || productIndex}`;
+                              }
                               
                               return (
                                 <option 
                                   key={uniqueKey}
-                                  value={product.isBundleItem ? '' : product.id}
-                                  disabled={product.isBundleItem}
-                                  className={product.isBundleItem ? 'text-gray-400 italic' : ''}
+                                  value={product.id}
+                                  className={product.isBundleItem ? 'text-blue-600' : ''}
                                 >
                                   {product.name}
-                                  {product.isBundleItem ? ` (Bundle: ${product.bundleCode} - Not yet supported)` : ''}
+                                  {product.isBundleItem ? ' (Bundle)' : ''}
                                   {product.isCustomizedProduct ? ' (Customized)' : ''}
                                 </option>
                               );
@@ -820,6 +863,18 @@ export default function CreateQuotationPage() {
                                   ))}
                               </optgroup>
                             )}
+                            {/* If lead has bundle products, show other bundles */}
+                            {selectedLead.products.some(p => p.isBundleItem) && (
+                              <optgroup key="other-bundle-products" label="Other Bundle Products">
+                                {allBundles
+                                  .filter(b => !selectedLead.products.some(sp => sp.id === b._id || sp.name === b.name))
+                                  .map(bundle => (
+                                    <option key={`bundle-${bundle._id}`} value={bundle._id}>
+                                      {bundle.name} (Bundle - ₹{bundle.price})
+                                    </option>
+                                  ))}
+                              </optgroup>
+                            )}
                           </>
                         )}
                         
@@ -837,6 +892,13 @@ export default function CreateQuotationPage() {
                               {allCustomizedProducts.map(product => (
                                 <option key={`all-customized-${product._id}`} value={product._id}>
                                   {product.name} (Customized - {product.leadId?.firstName || 'Unknown'} {product.leadId?.lastName || ''})
+                                </option>
+                              ))}
+                            </optgroup>
+                            <optgroup key="all-bundle-products" label="Bundle Products">
+                              {allBundles.map(bundle => (
+                                <option key={`all-bundle-${bundle._id}`} value={bundle._id}>
+                                  {bundle.name} (Bundle - ₹{bundle.price})
                                 </option>
                               ))}
                             </optgroup>

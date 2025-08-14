@@ -6,6 +6,9 @@ const { errorHandler, AppError } = require('../utils/errorHandler');
 // @access  Private
 exports.getSolarBundleItems = async (req, res) => {
   try {
+    // Ensure default items exist before fetching
+    await SolarBundleItem.ensureDefaultItems();
+    
     const items = await SolarBundleItem.getAllActiveItems();
 
     res.json({
@@ -43,7 +46,7 @@ exports.getSolarBundleItem = async (req, res) => {
 // @access  Private (product_head, admin)
 exports.createSolarBundleItem = async (req, res) => {
   try {
-    const { name, warranty } = req.body;
+    const { name, componentType, warranty } = req.body;
 
     // Check if name already exists
     const existingName = await SolarBundleItem.findOne({ name: name.trim() });
@@ -53,6 +56,7 @@ exports.createSolarBundleItem = async (req, res) => {
 
     const item = await SolarBundleItem.create({
       name,
+      componentType,
       warranty
     });
 
@@ -80,7 +84,7 @@ exports.updateSolarBundleItem = async (req, res) => {
       throw new AppError('Solar bundle item not found', 404);
     }
 
-    const { name, warranty } = req.body;
+    const { name, componentType, warranty } = req.body;
 
     // Check if name is being changed and if it conflicts
     if (name && name.trim() !== item.name) {
@@ -95,7 +99,7 @@ exports.updateSolarBundleItem = async (req, res) => {
 
     const updatedItem = await SolarBundleItem.findByIdAndUpdate(
       req.params.id,
-      { name, warranty },
+      { name, componentType, warranty },
       { new: true, runValidators: true }
     );
 
@@ -124,6 +128,26 @@ exports.deleteSolarBundleItem = async (req, res) => {
     res.json({
       success: true,
       message: 'Solar bundle item deleted successfully'
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Initialize default solar bundle items
+// @route   POST /api/solar-bundle-items/init-defaults
+// @access  Private (admin only)
+exports.initializeDefaultItems = async (req, res) => {
+  try {
+    await SolarBundleItem.ensureDefaultItems();
+    
+    const items = await SolarBundleItem.getAllActiveItems();
+    
+    res.json({
+      success: true,
+      message: 'Default solar bundle items initialized successfully',
+      count: items.length,
+      data: items
     });
   } catch (error) {
     errorHandler(res, error);

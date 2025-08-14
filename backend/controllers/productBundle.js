@@ -3,6 +3,13 @@ const Product = require('../models/Product');
 const SolarBundleItem = require('../models/SolarBundleItem');
 const { errorHandler, AppError } = require('../utils/errorHandler');
 const { getBundleTerms, getAllBundleTerms } = require('../utils/termsAndConditions');
+const cloudinary = require('../config/cloudinary');
+const { optimizeImage } = require('../utils/imageOptimizer');
+const { promisify } = require('util');
+
+// Promisify cloudinary API methods
+const deleteFolder = promisify(cloudinary.api.delete_folder.bind(cloudinary.api));
+const deleteResources = promisify(cloudinary.api.delete_resources_by_prefix.bind(cloudinary.api));
 
 // @desc    Get all product bundles
 // @route   GET /api/bundles
@@ -81,9 +88,10 @@ exports.createBundle = async (req, res) => {
       description,
       items,
       price,
+      systemConfiguration,
       specifications,
       supportedBrands,
-      imageUrls,
+      images,
       tags,
       termsAndConditions
     } = req.body;
@@ -92,6 +100,72 @@ exports.createBundle = async (req, res) => {
     const existingBundle = await ProductBundle.findOne({ bundleCode: bundleCode.toUpperCase() });
     if (existingBundle) {
       throw new AppError('Bundle code already exists. Please use a unique bundle code.', 400);
+    }
+
+    // Auto-fill terms and conditions if not provided
+    const finalTermsAndConditions = termsAndConditions || getBundleTerms();
+
+    // Create bundle first to get the ID for folder structure
+    const bundle = await ProductBundle.create({
+      name,
+      bundleCode: bundleCode.toUpperCase(),
+      category: category || 'power_plants_system',
+      subcategory,
+      description,
+      items: [],
+      price: price || 0,
+      systemConfiguration: systemConfiguration || {},
+      specifications,
+      supportedBrands: supportedBrands || [],
+      imageUrls: [],
+      tags: tags || [],
+      termsAndConditions: finalTermsAndConditions,
+      createdBy: req.user.id
+    });
+
+    // Process and upload images if provided
+    let uploadedImages = [];
+    if (images && images.length > 0) {
+      // Create folder path based on category and bundle ID
+      const folderPath = `bundles/${bundle.category.toLowerCase().replace(/\s+/g, '_')}/${bundle._id}/images`;
+      
+      // Upload and optimize images
+      uploadedImages = await Promise.all(
+        images.map(async (imageData) => {
+          // Remove data:image/[type];base64, prefix
+          const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Data, 'base64');
+          
+          // Optimize image
+          const optimizedBuffer = await optimizeImage(buffer);
+          
+          // Upload to Cloudinary
+          const result = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+              {
+                folder: folderPath,
+                use_filename: true,
+                unique_filename: true,
+                resource_type: 'image',
+                type: 'upload',
+                overwrite: true,
+                create_folder: true
+              },
+              (error, result) => {
+                if (error) reject(error);
+                else resolve(result);
+              }
+            );
+            
+            uploadStream.end(optimizedBuffer);
+          });
+          
+          return result.secure_url;
+        })
+      );
+
+      // Update bundle with image URLs
+      bundle.imageUrls = uploadedImages;
     }
 
     // Validate that all solar items exist (only if items are provided)
@@ -107,21 +181,9 @@ exports.createBundle = async (req, res) => {
       processedItems = items;
     }
 
-    const bundle = await ProductBundle.create({
-      name,
-      bundleCode,
-      category: category || 'power_plants_system',
-      subcategory,
-      description,
-      items: processedItems || [],
-      price: price || 0,
-      specifications,
-      supportedBrands: supportedBrands || [],
-      imageUrls: imageUrls || [],
-      tags: tags || [],
-      termsAndConditions: termsAndConditions || getBundleTerms(),
-      createdBy: req.user.id
-    });
+    // Update bundle with processed items
+    bundle.items = processedItems;
+    await bundle.save();
 
     const populatedBundle = await ProductBundle.findById(bundle._id)
       .populate({
@@ -165,13 +227,81 @@ exports.updateBundle = async (req, res) => {
       description,
       items,
       price,
+      systemConfiguration,
       specifications,
       supportedBrands,
-      imageUrls,
+      images,
       tags,
       isActive,
       termsAndConditions
     } = req.body;
+
+    // Handle image updates if there are images
+    let uploadedImages = bundle.imageUrls; // Keep existing images by default
+    if (images && images.length > 0) {
+      // Create folder path
+      const folderPath = `bundles/${bundle.category.toLowerCase().replace(/\s+/g, '_')}/${bundle._id}/images`;
+      
+      // Process each image - could be existing URLs or new base64 images
+      const processedImages = await Promise.all(
+        images.map(async (imageData) => {
+          // If it's already a URL (existing image), keep it
+          if (typeof imageData === 'string' && imageData.startsWith('http')) {
+            return imageData;
+          }
+          
+          // If it's a base64 image, upload it
+          if (typeof imageData === 'string' && imageData.startsWith('data:image')) {
+            // Remove data:image/[type];base64, prefix
+            const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+            const buffer = Buffer.from(base64Data, 'base64');
+            
+            // Optimize image
+            const optimizedBuffer = await optimizeImage(buffer);
+            
+            // Upload to Cloudinary
+            const result = await new Promise((resolve, reject) => {
+              const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                  folder: folderPath,
+                  use_filename: true,
+                  unique_filename: true,
+                  resource_type: 'image',
+                  type: 'upload',
+                  overwrite: true,
+                  create_folder: true
+                },
+                (error, result) => {
+                  if (error) reject(error);
+                  else resolve(result);
+                }
+              );
+              
+              uploadStream.end(optimizedBuffer);
+            });
+            
+            return result.secure_url;
+          }
+          
+          return imageData; // Return as-is for other cases
+        })
+      );
+
+      // If we're removing images, delete them from Cloudinary
+      const removedImages = bundle.imageUrls.filter(url => !processedImages.includes(url));
+      if (removedImages.length > 0) {
+        for (const imageUrl of removedImages) {
+          try {
+            const publicId = imageUrl.split('/').slice(-3).join('/').split('.')[0];
+            await cloudinary.uploader.destroy(publicId);
+          } catch (deleteError) {
+            console.warn('Failed to delete image from Cloudinary:', deleteError);
+          }
+        }
+      }
+
+      uploadedImages = processedImages;
+    }
 
     // Validate solar items if items are being updated
     let processedItems = items;
@@ -195,9 +325,10 @@ exports.updateBundle = async (req, res) => {
         description,
         items: processedItems,
         price,
+        systemConfiguration,
         specifications,
         supportedBrands,
-        imageUrls,
+        imageUrls: uploadedImages,
         tags,
         isActive,
         termsAndConditions
@@ -233,13 +364,31 @@ exports.deleteBundle = async (req, res) => {
       throw new AppError('Not authorized to delete this bundle', 403);
     }
 
+    // Delete associated images from Cloudinary if they exist
+    if (bundle.imageUrls && bundle.imageUrls.length > 0) {
+      try {
+        // Delete entire bundle folder from Cloudinary
+        const folderPath = `bundles/${bundle.category.toLowerCase().replace(/\s+/g, '_')}/${bundle._id}`;
+        
+        // Delete all resources in the folder first
+        await deleteResources(folderPath);
+        
+        // Then delete the folder
+        await deleteFolder(folderPath);
+      } catch (cloudinaryError) {
+        console.warn('Failed to delete bundle images from Cloudinary:', cloudinaryError);
+        // Continue with bundle deletion even if image deletion fails
+      }
+    }
+
     await ProductBundle.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,
-      message: 'Bundle deleted successfully'
+      message: 'Bundle and associated images deleted successfully'
     });
   } catch (error) {
+    console.error('Delete bundle error:', error);
     errorHandler(res, error);
   }
 };
@@ -291,8 +440,10 @@ exports.getPowerPlantConfigurations = async (req, res) => {
 // @access  Private
 exports.getCompatibleProducts = async (req, res) => {
   try {
-    const solarItems = await SolarBundleItem.getAllActiveItems()
-      .select('name warranty');
+    // Ensure default solar bundle items exist before fetching
+    await SolarBundleItem.ensureDefaultItems();
+    
+    const solarItems = await SolarBundleItem.getAllActiveItems();
 
     res.json({
       success: true,

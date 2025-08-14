@@ -208,14 +208,16 @@ export default function QuotationDetailsPage() {
 
   // Mobile Item Card Component
   const ItemCard = ({ item, index }) => {
-    // Handle both regular products and customized products
-    const productObj = item.productId || item.customizedProductId;
+    // Handle regular products, customized products, and bundle products
+    const productObj = item.productId || item.customizedProductId || item.bundleId;
     let productName = 'Product Name Not Available';
     
     if (item.productId && item.productId.name) {
       productName = item.productId.name;
     } else if (item.customizedProductId && item.customizedProductId.name) {
       productName = `${item.customizedProductId.name} (Customized)`;
+    } else if (item.bundleId && item.bundleId.name) {
+      productName = `${item.bundleId.name} (Bundle)`;
     } else if (productObj?.name) {
       productName = productObj.name;
     }
@@ -458,14 +460,16 @@ export default function QuotationDetailsPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {quotation.quotationItems?.map((item, index) => {
-                      // Handle both regular products and customized products
-                      const productObj = item.productId || item.customizedProductId;
+                      // Handle regular products, customized products, and bundle products
+                      const productObj = item.productId || item.customizedProductId || item.bundleId;
                       let productName = 'Product Name Not Available';
                       
                       if (item.productId && item.productId.name) {
                         productName = item.productId.name;
                       } else if (item.customizedProductId && item.customizedProductId.name) {
                         productName = `${item.customizedProductId.name} (Customized)`;
+                      } else if (item.bundleId && item.bundleId.name) {
+                        productName = `${item.bundleId.name} (Bundle)`;
                       } else if (productObj?.name) {
                         productName = productObj.name;
                       }

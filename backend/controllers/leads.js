@@ -1,5 +1,6 @@
 const Lead = require('../models/Lead');
 const CustomizedProduct = require('../models/CustomizedProduct');
+const ProductBundle = require('../models/ProductBundle');
 
 // @desc    Create new lead
 // @route   POST /api/leads
@@ -39,13 +40,53 @@ exports.getLeads = async (req, res) => {
         select: 'name unitPrice modelNumber description specifications imageUrls _id'
       });
 
+    // Post-process leads to add bundle information for bundle products
+    const processedLeads = await Promise.all(
+      leads.map(async (lead) => {
+        const leadObj = lead.toObject();
+        
+        // Process each product to add bundle information if it's a bundle item
+        const processedProducts = await Promise.all(
+          leadObj.products.map(async (product) => {
+            if (product.isBundleItem && product.bundleCode) {
+              // Find the bundle by bundleCode or name
+              const bundle = await ProductBundle.findOne({
+                $or: [
+                  { bundleCode: product.bundleCode },
+                  { name: product.name }
+                ]
+              }).select('_id name bundleCode price termsAndConditions');
+              
+              if (bundle) {
+                return {
+                  ...product,
+                  bundleId: bundle._id, // Add bundleId for quotation creation
+                  bundleDetails: {
+                    _id: bundle._id,
+                    name: bundle.name,
+                    bundleCode: bundle.bundleCode,
+                    price: bundle.price,
+                    termsAndConditions: bundle.termsAndConditions
+                  }
+                };
+              }
+            }
+            return product;
+          })
+        );
+        
+        return {
+          ...leadObj,
+          products: processedProducts,
+          id: leadObj._id.toString(),
+          _id: leadObj._id.toString()
+        };
+      })
+    );
+
     res.json({
       success: true,
-      data: leads.map(lead => ({
-        ...lead.toObject(),
-        id: lead._id.toString(),
-        _id: lead._id.toString()
-      }))
+      data: processedLeads
     });
   } catch (error) {
     res.status(500).json({
@@ -78,11 +119,44 @@ exports.getLead = async (req, res) => {
       });
     }
 
+    const leadObj = lead.toObject();
+    
+    // Process products to add bundle information if it's a bundle item
+    const processedProducts = await Promise.all(
+      leadObj.products.map(async (product) => {
+        if (product.isBundleItem && product.bundleCode) {
+          // Find the bundle by bundleCode or name
+          const bundle = await ProductBundle.findOne({
+            $or: [
+              { bundleCode: product.bundleCode },
+              { name: product.name }
+            ]
+          }).select('_id name bundleCode price termsAndConditions');
+          
+          if (bundle) {
+            return {
+              ...product,
+              bundleId: bundle._id, // Add bundleId for quotation creation
+              bundleDetails: {
+                _id: bundle._id,
+                name: bundle.name,
+                bundleCode: bundle.bundleCode,
+                price: bundle.price,
+                termsAndConditions: bundle.termsAndConditions
+              }
+            };
+          }
+        }
+        return product;
+      })
+    );
+
     res.json({
       success: true,
       data: {
-        ...lead.toObject(),
-        id: lead._id
+        ...leadObj,
+        products: processedProducts,
+        id: leadObj._id
       }
     });
   } catch (error) {

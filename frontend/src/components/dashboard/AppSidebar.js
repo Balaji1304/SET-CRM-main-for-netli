@@ -103,7 +103,7 @@ const getNavigation = (userRole) => {
     ],
     product_head: [
       { name: 'Products', href: '/dashboard/products', icon: Box },
-      { name: 'Product Bundles', href: '/dashboard/bundles', icon: Package },
+      { name: 'Solar Power Plant Systems', href: '/dashboard/bundles', icon: Package },
       { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
       { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
       { name: 'Tickets Queue', href: '/dashboard/ticket-queue', icon: Ticket },

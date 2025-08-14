@@ -556,12 +556,32 @@ exports.sendQuotation = async (req, res) => {
             images: (customizedProduct.imageUrls || []).map(url => ({ url }))
           };
         }
-        // Handle bundle products (if needed)
+        // Handle bundle products
         else if (item.bundleId) {
+          const bundleProduct = item.bundleId;
+          
+          // Build specifications from the bundle product
+          const specifications = [];
+          if (bundleProduct.specifications) {
+            Object.entries(bundleProduct.specifications).forEach(([key, value]) => {
+              if (value && value.toString().trim()) {
+                specifications.push({ 
+                  name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'), 
+                  value: value.toString() 
+                });
+              }
+            });
+          }
+          
           product = {
-            ...item.bundleId.toObject(),
-            specifications: [],
-            images: []
+            _id: bundleProduct._id,
+            name: bundleProduct.name || 'Bundle Product',
+            category: bundleProduct.category || 'Bundle',
+            description: bundleProduct.description || '',
+            specifications: specifications,
+            images: (bundleProduct.imageUrls || []).map(url => ({ url })),
+            bundleCode: bundleProduct.bundleCode,
+            subcategory: bundleProduct.subcategory
           };
         }
         

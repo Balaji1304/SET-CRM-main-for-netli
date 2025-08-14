@@ -1379,7 +1379,7 @@ export default function LeadForm() {
             {/* Bundle Selection Interface */}
             {selectedProductType === 'bundle' && (
               <>
-                {/* Selected Bundles Table - Desktop & Tablet */}
+                {/* Selected Systems Table - Desktop & Tablet */}
                 <div className="hidden md:block bg-white rounded-lg border border-fourth shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="min-w-full">
