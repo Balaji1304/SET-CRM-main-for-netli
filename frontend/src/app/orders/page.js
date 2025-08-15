@@ -404,7 +404,7 @@ export default function OrdersPage() {
                   onViewDetails={handleViewDetails}
                 />
               ))}
-            </div>
+      </div>
           </div>
         )}
       </div>

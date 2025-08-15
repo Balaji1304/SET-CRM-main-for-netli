@@ -18,6 +18,7 @@ const Customer = require('../models/Customer');
 const CustomerPurchase = require('../models/CustomerPurchase');
 const mongoose = require('mongoose');
 const Payment = require('../models/Payment');
+const NotificationService = require('../utils/notificationService');
 
 // Register handlebars helpers
 registerHelpers();
@@ -276,6 +277,14 @@ exports.createQuotation = async (req, res) => {
     // Return the data in the new format
     const quotationWithItems = populatedQuotation.toObject();
     quotationWithItems.quotationItems = createdQuotationItems;
+
+    // Create notification for new quotation
+    try {
+      await NotificationService.createQuotationWorkflowNotification('quotation_created', quotation, req.user);
+    } catch (notificationError) {
+      console.error('Failed to create quotation notification:', notificationError);
+      // Don't fail the main operation if notification fails
+    }
 
     res.status(201).json({
       success: true,
@@ -1003,6 +1012,14 @@ const approveQuotation = async (quotationInstance) => {
     quotationInstance.status = 'approved';
     await quotationInstance.save();
     console.log(`Quotation ${quotationInstance._id} status updated to 'approved'. Approval process complete.`);
+
+    // Create notification for quotation approval
+    try {
+      await NotificationService.createQuotationNotification('quotation_approved', quotationInstance);
+    } catch (notificationError) {
+      console.error('Failed to create quotation approval notification:', notificationError);
+      // Don't fail the main operation if notification fails
+    }
 
     return quotationInstance; 
   } catch (error) {

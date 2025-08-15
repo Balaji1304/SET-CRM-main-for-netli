@@ -3,6 +3,7 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import NotificationBadge from '../NotificationBadge';
 import {
   Box,
   Users,
@@ -87,19 +88,23 @@ const getNavigation = (userRole) => {
     sales_person: [
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
+      { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     front_office_executive: [
       { name: 'New Enquiry', href: '/dashboard/enquiry', icon: UserPlus },
       { name: 'Lead Assignment', href: '/dashboard/lead-assignment', icon: Users },
+      { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     sales_head: [
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
       { name: 'Packages', href: '/dashboard/packages', icon: Plus },
+      { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     accounts_department: [
       { name: 'Pending Approvals', href: '/dashboard/quotations/pending-approvals', icon: FileText },
       { name: 'Approved Payments', href: '/dashboard/quotations/approved-payments', icon: CreditCard },
+      { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     product_head: [
       { name: 'Products', href: '/dashboard/products', icon: Box },
@@ -111,6 +116,7 @@ const getNavigation = (userRole) => {
     ],
     marketing_coordinator: [
       { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
+      { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     service_engineer: [
       { name: 'Installations', href: '/dashboard/installations', icon: Settings },
@@ -118,6 +124,7 @@ const getNavigation = (userRole) => {
       { name: 'Cases', href: '/dashboard/cases', icon: Ticket },
       { name: 'Service', href: '/dashboard/service', icon: Wrench },
       { name: 'Performance', href: '/dashboard/performance', icon: BarChart },
+      { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     // NOTE: accounts_department is defined above to include both pages
   };
@@ -242,12 +249,13 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
                     >
                       <div className="flex items-center space-x-3">
                         <div className={`
-                          p-2 rounded-lg transition-all duration-200
+                          p-2 rounded-lg transition-all duration-200 relative
                           ${isActive 
                             ? 'bg-white/20 text-white' 
                             : 'bg-gray-100 text-gray-600 group-hover:bg-orange-100 group-hover:text-orange-600'}
                         `}>
                           <item.icon className="h-5 w-5" />
+                          {item.name === 'Notifications' && <NotificationBadge />}
                         </div>
                         <span className="text-sm font-medium">{item.name}</span>
                       </div>
@@ -358,7 +366,10 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
                     `}
                     title={item.name}
                   >
-                    <item.icon className={`h-5 w-5 shrink-0`} />
+                    <div className="relative">
+                      <item.icon className={`h-5 w-5 shrink-0`} />
+                      {item.name === 'Notifications' && <NotificationBadge />}
+                    </div>
                     <span className={`
                       leading-tight whitespace-nowrap overflow-hidden text-ellipsis
                       transition-all duration-300 ease-in-out

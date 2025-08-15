@@ -1,6 +1,7 @@
 const Enquiry = require('../models/Enquiry');
 const Lead = require('../models/Lead');
 const User = require('../models/User');
+const NotificationService = require('../utils/notificationService');
 
 // @desc    Create new enquiry
 // @route   POST /api/enquiries
@@ -11,6 +12,14 @@ exports.createEnquiry = async (req, res) => {
     req.body.createdBy = req.user.id;
 
     const enquiry = await Enquiry.create(req.body);
+
+    // Create notification for new enquiry
+    try {
+      await NotificationService.createEnquiryNotification('enquiry_created', enquiry, req.user);
+    } catch (notificationError) {
+      console.error('Failed to create enquiry notification:', notificationError);
+      // Don't fail the main operation if notification fails
+    }
 
     res.status(201).json({
       success: true,
@@ -278,6 +287,29 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
 
     // Populate the updated enquiry for response
     await enquiry.populate('assignedTo', 'name email');
+
+    // Create notifications for enquiry assignment and lead creation
+    try {
+      const assignedUser = await User.findById(salespersonId);
+      
+      // Notify the assigned salesperson
+      await NotificationService.createEnquiryNotification('enquiry_assigned', enquiry, req.user);
+      
+      // Notify front office about successful conversion
+      await NotificationService.createEnquiryNotification('enquiry_converted', enquiry, req.user, {
+        assigneeName: assignedUser?.name || 'Sales Team',
+        leadId: lead._id
+      });
+
+      // Notify about new lead creation
+      await NotificationService.createLeadWorkflowNotification('lead_created', lead, req.user, {
+        createdFromEnquiry: true,
+        enquiryId: enquiry._id
+      });
+    } catch (notificationError) {
+      console.error('Failed to create assignment notifications:', notificationError);
+      // Don't fail the main operation if notification fails
+    }
 
     res.status(200).json({
       success: true,

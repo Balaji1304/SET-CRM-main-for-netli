@@ -205,42 +205,74 @@ const NotificationsPage = () => {
         { value: 'ticket_assigned', label: 'Ticket Updates' },
         { value: 'ticket_status_changed', label: 'Status Changes' },
         { value: 'quotation_approved', label: 'Quotations' },
-        { value: 'payment_received', label: 'Payments' }
+        { value: 'payment_received', label: 'Payments' },
+        { value: 'installation_scheduled', label: 'Installation' },
+        { value: 'order_update', label: 'Order Updates' }
       ],
-      product_head: [
-        { value: 'ticket_created', label: 'New Tickets' },
-        { value: 'ticket_assigned', label: 'Assignments' },
-        { value: 'purchase_order_created', label: 'Purchase Orders' },
-        { value: 'system_announcement', label: 'System Updates' }
-      ],
-      service_engineer: [
-        { value: 'ticket_assigned', label: 'My Assignments' },
-        { value: 'ticket_status_changed', label: 'Status Updates' },
-        { value: 'ticket_commented', label: 'Comments' }
+      front_office_executive: [
+        { value: 'enquiry_created', label: 'New Enquiries' },
+        { value: 'enquiry_assigned', label: 'Enquiry Assignments' },
+        { value: 'enquiry_converted', label: 'Conversions' },
+        { value: 'lead_created', label: 'New Leads' },
+        { value: 'ticket_created', label: 'Customer Tickets' },
+        { value: 'task_reminder', label: 'Task Reminders' }
       ],
       sales_person: [
         { value: 'lead_assigned', label: 'Lead Assignments' },
-        { value: 'quotation_approved', label: 'Quotations' },
-        { value: 'quotation_rejected', label: 'Quote Updates' }
+        { value: 'enquiry_assigned', label: 'New Enquiries' },
+        { value: 'quotation_created', label: 'New Quotations' },
+        { value: 'quotation_approved', label: 'Approved Quotations' },
+        { value: 'quotation_rejected', label: 'Quote Updates' },
+        { value: 'quotation_expired', label: 'Expired Quotes' },
+        { value: 'lead_follow_up', label: 'Follow-up Reminders' },
+        { value: 'payment_received', label: 'Payment Updates' }
       ],
       sales_head: [
-        { value: 'lead_assigned', label: 'Team Leads' },
-        { value: 'quotation_approved', label: 'Quotations' },
+        { value: 'lead_created', label: 'New Leads' },
+        { value: 'lead_updated', label: 'Lead Updates' },
+        { value: 'enquiry_created', label: 'New Enquiries' },
+        { value: 'quotation_created', label: 'New Quotations' },
+        { value: 'quotation_updated', label: 'Quote Updates' },
+        { value: 'quotation_approved', label: 'Approved Quotations' },
         { value: 'purchase_order_created', label: 'Purchase Orders' },
-        { value: 'payment_received', label: 'Payments' }
+        { value: 'payment_received', label: 'Payments' },
+        { value: 'performance_alert', label: 'Performance Alerts' }
+      ],
+      product_head: [
+        { value: 'ticket_created', label: 'New Tickets' },
+        { value: 'ticket_assigned', label: 'Ticket Assignments' },
+        { value: 'purchase_order_created', label: 'Purchase Orders' },
+        { value: 'engineer_assigned', label: 'Engineer Assignments' },
+        { value: 'installation_completed', label: 'Installations' },
+        { value: 'issue_reported', label: 'Installation Issues' },
+        { value: 'sla_breach', label: 'SLA Breaches' },
+        { value: 'system_announcement', label: 'System Updates' }
+      ],
+      service_engineer: [
+        { value: 'ticket_assigned', label: 'Ticket Assignments' },
+        { value: 'ticket_status_changed', label: 'Ticket Updates' },
+        { value: 'ticket_commented', label: 'Comments' },
+        { value: 'engineer_assigned', label: 'Installation Assignments' },
+        { value: 'installation_scheduled', label: 'Installation Schedule' },
+        { value: 'customer_approved', label: 'Customer Feedback' },
+        { value: 'customer_rejected', label: 'Installation Issues' }
       ],
       accounts_department: [
-        { value: 'payment_received', label: 'Payments' },
-        { value: 'purchase_order_created', label: 'Purchase Orders' },
-        { value: 'quotation_approved', label: 'Approved Quotes' }
+        { value: 'payment_received', label: 'Payments Received' },
+        { value: 'payment_failed', label: 'Payment Failures' },
+        { value: 'payment_pending', label: 'Pending Payments' },
+        { value: 'quotation_created', label: 'New Quotations' },
+        { value: 'quotation_approved', label: 'Approved Quotes' },
+        { value: 'purchase_order_created', label: 'Purchase Orders' }
       ],
       inventory_manager: [
-        { value: 'purchase_order_created', label: 'Purchase Orders' },
+        { value: 'purchase_order_created', label: 'New Purchase Orders' },
         { value: 'purchase_order_updated', label: 'Order Updates' }
       ],
-      front_office_executive: [
-        { value: 'lead_assigned', label: 'Lead Updates' },
-        { value: 'ticket_created', label: 'Customer Tickets' }
+      marketing_coordinator: [
+        { value: 'installation_scheduled', label: 'Installation Scheduling' },
+        { value: 'installation_rescheduled', label: 'Schedule Changes' },
+        { value: 'purchase_order_created', label: 'New Orders' }
       ]
     };
     return typesByRole[userRole] || [];
@@ -304,7 +336,7 @@ const NotificationsPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-6">
             <div className="flex items-center space-x-4">
-              <div>
+        <div>
                 <h1 className="text-2xl font-bold text-gray-900 flex items-center space-x-2">
                   <Bell className="h-6 w-6 text-orange-500" />
                   <span>Notifications</span>
@@ -377,22 +409,22 @@ const NotificationsPage = () => {
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
+              <input
+                type="text"
                   placeholder="Search notifications by title, message, or sender..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2.5 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
+              />
               </div>
             </div>
-
+              
             {/* Filter Controls */}
             <div className="flex flex-wrap items-center gap-3">
               {/* Type Filter - Role Specific */}
               <div className="flex items-center space-x-2">
                 <Filter className="h-4 w-4 text-gray-500" />
-                <select
+              <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
@@ -401,8 +433,8 @@ const NotificationsPage = () => {
                   {getRoleSpecificTypes(user?.role).map(type => (
                     <option key={type.value} value={type.value}>{type.label}</option>
                   ))}
-                </select>
-              </div>
+              </select>
+            </div>
 
               {/* Priority Filter */}
               <select
@@ -578,7 +610,7 @@ const NotificationsPage = () => {
                     <span className="text-gray-400"> of {notifications.length}</span>
                   )}
                 </p>
-              </div>
+          </div>
 
               {/* Notifications Display */}
               <div className={viewMode === 'cards' ? 'space-y-3' : 'space-y-0'}>
@@ -666,34 +698,34 @@ const NotificationsPage = () => {
                           }`}>
                             {notification.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </span>
-                        </div>
-                        
+                  </div>
+
                         <div className="flex items-center space-x-1">
                           {!notification.read && (
-                            <button
+                      <button
                               onClick={() => handleMarkAsRead([notification._id])}
                               className="p-1.5 text-orange-500 hover:text-orange-700 hover:bg-orange-100 rounded transition-colors"
                               title="Mark as read"
-                            >
+                      >
                               <Check className="h-3 w-3" />
-                            </button>
-                          )}
-                          <button
+                      </button>
+                    )}
+                    <button
                             onClick={() => handleDelete(notification._id)}
                             className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded transition-colors"
                             title="Delete notification"
-                          >
+                    >
                             <Trash2 className="h-3 w-3" />
-                          </button>
+                    </button>
                         </div>
                       </div>
-                    </div>
                   </div>
                 </div>
-              ))}
+              </div>
+            ))}
               </div>
             </>
-          )}
+            )}
         </div>
       </div>
     </div>

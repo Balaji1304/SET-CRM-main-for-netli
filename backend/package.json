@@ -28,9 +28,11 @@
     "razorpay": "^2.9.6",
     "sharp": "^0.33.5",
     "shortid": "^2.2.17",
+    "socket.io": "^4.8.1",
     "ws": "^8.16.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "nodemon": "^2.0.22",
+    "socket.io-client": "^4.8.1"
   }
 }

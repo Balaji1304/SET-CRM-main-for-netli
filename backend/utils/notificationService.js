@@ -357,6 +357,283 @@ class NotificationService {
     }
   }
 
+  // Create enquiry notification (Front Office Executive workflows)
+  static async createEnquiryNotification(type, enquiry, sender = null, additionalData = {}) {
+    try {
+      let recipients = [];
+      let title = '';
+      let message = '';
+      let priority = 'medium';
+
+      switch (type) {
+        case 'enquiry_created':
+          // Notify sales heads and managers about new enquiries
+          const salesManagement = await User.find({ 
+            role: { $in: ['sales_head', 'front_office_executive'] }
+          });
+          recipients = salesManagement
+            .filter(user => user._id.toString() !== sender?._id?.toString())
+            .map(user => user._id);
+          title = 'New Enquiry Created';
+          message = `New enquiry from ${enquiry.firstName} ${enquiry.lastName || ''} (${enquiry.phone}) created by ${sender?.name || 'Front Office'}`;
+          priority = 'medium';
+          break;
+
+        case 'enquiry_assigned':
+          // Notify the assigned salesperson
+          if (enquiry.assignedTo) {
+            recipients = [enquiry.assignedTo];
+            title = 'New Lead Assigned to You';
+            message = `You have been assigned a new lead: ${enquiry.firstName} ${enquiry.lastName || ''} from enquiry. Please complete the lead information.`;
+            priority = 'high';
+          }
+          break;
+
+        case 'enquiry_converted':
+          // Notify front office executives about successful conversions
+          const frontOfficeTeam = await User.find({ role: 'front_office_executive' });
+          recipients = frontOfficeTeam.map(user => user._id);
+          title = 'Enquiry Successfully Converted';
+          message = `Enquiry for ${enquiry.firstName} ${enquiry.lastName || ''} has been converted to a lead and assigned to ${additionalData.assigneeName || 'sales team'}`;
+          priority = 'low';
+          break;
+      }
+
+      // Remove duplicates and sender from recipients
+      recipients = [...new Set(recipients.map(id => id.toString()))];
+      if (sender) {
+        recipients = recipients.filter(id => id !== sender._id.toString());
+      }
+
+      const notifications = await Promise.all(
+        recipients.map(recipientId => 
+          Notification.createNotification({
+            recipient: recipientId,
+            sender: sender?._id || null,
+            type,
+            title,
+            message,
+            priority,
+            data: {
+              enquiryId: enquiry._id,
+              firstName: enquiry.firstName,
+              lastName: enquiry.lastName,
+              phone: enquiry.phone,
+              leadType: enquiry.leadType,
+              assignmentStatus: enquiry.assignmentStatus,
+              ...additionalData
+            }
+          })
+        )
+      );
+
+      return notifications;
+    } catch (error) {
+      console.error('Error creating enquiry notification:', error);
+      throw error;
+    }
+  }
+
+  // Create lead notification (Sales workflows)
+  static async createLeadWorkflowNotification(type, lead, sender = null, additionalData = {}) {
+    try {
+      let recipients = [];
+      let title = '';
+      let message = '';
+      let priority = 'medium';
+
+      switch (type) {
+        case 'lead_created':
+          // Notify sales heads about new leads
+          const salesHeads = await User.find({ role: 'sales_head' });
+          recipients = salesHeads.map(user => user._id);
+          title = 'New Lead Created';
+          message = `New lead "${lead.firstName} ${lead.lastName || ''}" created by ${sender?.name || 'System'}`;
+          priority = 'medium';
+          break;
+
+        case 'lead_updated':
+          // Notify sales heads about lead updates
+          const salesManagement = await User.find({ role: 'sales_head' });
+          recipients = salesManagement
+            .filter(user => user._id.toString() !== sender?._id?.toString())
+            .map(user => user._id);
+          title = 'Lead Updated';
+          message = `Lead "${lead.firstName} ${lead.lastName || ''}" has been updated by ${sender?.name || 'Sales Person'}`;
+          priority = 'low';
+          break;
+
+        case 'lead_follow_up':
+          // Notify assigned salesperson about follow-up reminders
+          if (lead.createdBy) {
+            recipients = [lead.createdBy];
+            title = 'Lead Follow-up Reminder';
+            message = `Follow-up required for lead: ${lead.firstName} ${lead.lastName || ''} (${lead.phone})`;
+            priority = 'high';
+          }
+          break;
+      }
+
+      // Remove duplicates and sender from recipients
+      recipients = [...new Set(recipients.map(id => id.toString()))];
+      if (sender) {
+        recipients = recipients.filter(id => id !== sender._id.toString());
+      }
+
+      const notifications = await Promise.all(
+        recipients.map(recipientId => 
+          Notification.createNotification({
+            recipient: recipientId,
+            sender: sender?._id || null,
+            type,
+            title,
+            message,
+            priority,
+            data: {
+              leadId: lead._id,
+              firstName: lead.firstName,
+              lastName: lead.lastName,
+              phone: lead.phone,
+              email: lead.email,
+              status: lead.status,
+              leadType: lead.leadType,
+              ...additionalData
+            }
+          })
+        )
+      );
+
+      return notifications;
+    } catch (error) {
+      console.error('Error creating lead workflow notification:', error);
+      throw error;
+    }
+  }
+
+  // Enhanced quotation notifications for sales workflows
+  static async createQuotationWorkflowNotification(type, quotation, sender = null, additionalData = {}) {
+    try {
+      let recipients = [];
+      let title = '';
+      let message = '';
+      let priority = 'medium';
+
+      switch (type) {
+        case 'quotation_created':
+          // Notify sales heads and accounts department
+          const relevantUsers = await User.find({ 
+            role: { $in: ['sales_head', 'accounts_department'] }
+          });
+          recipients = relevantUsers.map(user => user._id);
+          title = 'New Quotation Created';
+          message = `Quotation #${quotation.quotationNumber} created by ${sender?.name || 'Sales Team'}`;
+          priority = 'medium';
+          break;
+
+        case 'quotation_updated':
+          // Notify sales heads about quotation updates
+          const salesHeads = await User.find({ role: 'sales_head' });
+          recipients = salesHeads
+            .filter(user => user._id.toString() !== sender?._id?.toString())
+            .map(user => user._id);
+          title = 'Quotation Updated';
+          message = `Quotation #${quotation.quotationNumber} has been updated`;
+          priority = 'low';
+          break;
+
+        case 'quotation_expired':
+          // Notify salesperson and sales heads about expired quotations
+          recipients = [quotation.createdBy];
+          const salesManagement = await User.find({ role: 'sales_head' });
+          recipients.push(...salesManagement.map(user => user._id));
+          title = 'Quotation Expired';
+          message = `Quotation #${quotation.quotationNumber} has expired. Follow-up required.`;
+          priority = 'high';
+          break;
+      }
+
+      // Remove duplicates and sender from recipients
+      recipients = [...new Set(recipients.map(id => id.toString()))];
+      if (sender) {
+        recipients = recipients.filter(id => id !== sender._id.toString());
+      }
+
+      const notifications = await Promise.all(
+        recipients.map(recipientId => 
+          Notification.createNotification({
+            recipient: recipientId,
+            sender: sender?._id || null,
+            type,
+            title,
+            message,
+            priority,
+            data: {
+              quotationId: quotation._id,
+              quotationNumber: quotation.quotationNumber,
+              status: quotation.status,
+              totalAmount: quotation.total || quotation.totalAmount,
+              validUntil: quotation.validUntil,
+              ...additionalData
+            }
+          })
+        )
+      );
+
+      return notifications;
+    } catch (error) {
+      console.error('Error creating quotation workflow notification:', error);
+      throw error;
+    }
+  }
+
+  // Create task reminders and performance alerts
+  static async createTaskNotification(type, data, recipients, sender = null) {
+    try {
+      let title = '';
+      let message = '';
+      let priority = 'medium';
+
+      switch (type) {
+        case 'task_reminder':
+          title = data.title || 'Task Reminder';
+          message = data.message || 'You have pending tasks that require attention';
+          priority = data.priority || 'medium';
+          break;
+
+        case 'performance_alert':
+          title = 'Performance Alert';
+          message = data.message || 'Performance metrics require your attention';
+          priority = 'high';
+          break;
+
+        case 'sla_breach':
+          title = 'SLA Breach Alert';
+          message = data.message || 'Service Level Agreement breach detected';
+          priority = 'urgent';
+          break;
+      }
+
+      const notifications = await Promise.all(
+        recipients.map(recipientId => 
+          Notification.createNotification({
+            recipient: recipientId,
+            sender: sender?._id || null,
+            type,
+            title,
+            message,
+            priority,
+            data: data.additionalData || {}
+          })
+        )
+      );
+
+      return notifications;
+    } catch (error) {
+      console.error('Error creating task notification:', error);
+      throw error;
+    }
+  }
+
   // Get notification statistics for dashboard
   static async getNotificationStats(userId) {
     try {
@@ -365,6 +642,8 @@ class NotificationService {
         ticketNotifications,
         purchaseOrderNotifications,
         quotationNotifications,
+        leadNotifications,
+        enquiryNotifications,
         recentNotifications
       ] = await Promise.all([
         Notification.countDocuments({ recipient: userId, read: false }),
@@ -383,6 +662,16 @@ class NotificationService {
           type: { $regex: '^quotation_' }, 
           read: false 
         }),
+        Notification.countDocuments({ 
+          recipient: userId, 
+          type: { $regex: '^lead_' }, 
+          read: false 
+        }),
+        Notification.countDocuments({ 
+          recipient: userId, 
+          type: { $regex: '^enquiry_' }, 
+          read: false 
+        }),
         Notification.find({ recipient: userId })
           .sort({ createdAt: -1 })
           .limit(5)
@@ -394,7 +683,9 @@ class NotificationService {
         byType: {
           tickets: ticketNotifications,
           purchaseOrders: purchaseOrderNotifications,
-          quotations: quotationNotifications
+          quotations: quotationNotifications,
+          leads: leadNotifications,
+          enquiries: enquiryNotifications
         },
         recent: recentNotifications
       };

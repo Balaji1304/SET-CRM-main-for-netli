@@ -43,13 +43,17 @@ exports.getNotificationCounts = async (req, res) => {
       unreadCount,
       ticketCount,
       purchaseOrderCount,
-      quotationCount
+      quotationCount,
+      leadCount,
+      enquiryCount
     ] = await Promise.all([
       Notification.countDocuments({ recipient: userId }),
       Notification.countDocuments({ recipient: userId, read: false }),
       Notification.countDocuments({ recipient: userId, type: { $regex: '^ticket_' }, read: false }),
       Notification.countDocuments({ recipient: userId, type: { $regex: '^purchase_order_' }, read: false }),
-      Notification.countDocuments({ recipient: userId, type: { $regex: '^quotation_' }, read: false })
+      Notification.countDocuments({ recipient: userId, type: { $regex: '^quotation_' }, read: false }),
+      Notification.countDocuments({ recipient: userId, type: { $regex: '^lead_' }, read: false }),
+      Notification.countDocuments({ recipient: userId, type: { $regex: '^enquiry_' }, read: false })
     ]);
     
     res.json({
@@ -60,7 +64,9 @@ exports.getNotificationCounts = async (req, res) => {
         byType: {
           tickets: ticketCount,
           purchaseOrders: purchaseOrderCount,
-          quotations: quotationCount
+          quotations: quotationCount,
+          leads: leadCount,
+          enquiries: enquiryCount
         }
       }
     });
