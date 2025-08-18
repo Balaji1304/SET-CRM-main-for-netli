@@ -189,42 +189,70 @@ exports.updateLead = async (req, res) => {
 
     console.log(`Found lead - createdFromEnquiry: ${lead.createdFromEnquiry}, leadCompletionStatus: ${lead.leadCompletionStatus}`);
 
-    // Handle customized products to prevent duplication
+    // Handle customized products with global uniqueness
     if (req.body.products && Array.isArray(req.body.products)) {
       const processedProducts = [];
       
       for (const product of req.body.products) {
         if (product.isCustomizedProduct) {
-          // Check if this customized product already exists in the database
-          const existingCustomizedProduct = await CustomizedProduct.findOne({
-            leadId: req.params.id,
-            name: product.name,
-            unitPrice: parseFloat(product.unitPrice)
-          });
-          
-          if (existingCustomizedProduct) {
-            console.log(`Found existing customized product: ${product.name} - Using existing ID: ${existingCustomizedProduct._id}`);
-            // Use the existing customized product
-            processedProducts.push({
-              ...product,
-              customizedProductId: existingCustomizedProduct._id,
-              id: existingCustomizedProduct._id.toString()
-            });
+          // If the product already has a customizedProductId, it's an existing product
+          if (product.customizedProductId) {
+            console.log(`Using existing customized product: ${product.name} - ID: ${product.customizedProductId}`);
+            
+            // Verify the customized product exists
+            const existingCustomizedProduct = await CustomizedProduct.findById(product.customizedProductId);
+            if (existingCustomizedProduct) {
+              processedProducts.push({
+                ...product,
+                customizedProductId: existingCustomizedProduct._id,
+                id: existingCustomizedProduct._id.toString()
+              });
+            } else {
+              console.warn(`Customized product with ID ${product.customizedProductId} not found, creating new one`);
+              // Fallback: create new if not found
+              const newCustomizedProduct = await CustomizedProduct.create({
+                name: product.name,
+                unitPrice: parseFloat(product.unitPrice),
+                leadId: req.params.id,
+                createdBy: req.user.id
+              });
+              
+              processedProducts.push({
+                ...product,
+                customizedProductId: newCustomizedProduct._id,
+                id: newCustomizedProduct._id.toString()
+              });
+            }
           } else {
-            console.log(`Creating new customized product: ${product.name}`);
-            // Create new customized product
-            const newCustomizedProduct = await CustomizedProduct.create({
-              name: product.name,
-              unitPrice: parseFloat(product.unitPrice),
-              leadId: req.params.id,
-              createdBy: req.user.id
+            // This is a new customized product, check if one with the same name already exists globally
+            const existingCustomizedProduct = await CustomizedProduct.findOne({
+              name: product.name
             });
             
-            processedProducts.push({
-              ...product,
-              customizedProductId: newCustomizedProduct._id,
-              id: newCustomizedProduct._id.toString()
-            });
+            if (existingCustomizedProduct) {
+              console.log(`Found existing global customized product: ${product.name} - Using existing ID: ${existingCustomizedProduct._id}`);
+              // Use the existing global customized product
+              processedProducts.push({
+                ...product,
+                customizedProductId: existingCustomizedProduct._id,
+                id: existingCustomizedProduct._id.toString()
+              });
+            } else {
+              console.log(`Creating new customized product: ${product.name}`);
+              // Create new customized product
+              const newCustomizedProduct = await CustomizedProduct.create({
+                name: product.name,
+                unitPrice: parseFloat(product.unitPrice),
+                leadId: req.params.id,
+                createdBy: req.user.id
+              });
+              
+              processedProducts.push({
+                ...product,
+                customizedProductId: newCustomizedProduct._id,
+                id: newCustomizedProduct._id.toString()
+              });
+            }
           }
         } else {
           // Regular product, no changes needed

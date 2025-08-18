@@ -13,46 +13,56 @@ exports.createCustomizedProduct = async (req, res) => {
     const { name, unitPrice, leadId } = req.body;
 
     // Validate required fields
-    if (!name || !unitPrice || !leadId) {
-      throw new AppError('Name, unit price, and lead ID are required', 400);
+    if (!name || !unitPrice) {
+      throw new AppError('Name and unit price are required', 400);
     }
 
-    // Check if lead exists
-    const lead = await Lead.findById(leadId);
-    if (!lead) {
-      throw new AppError('Lead not found', 404);
-    }
-
-    // Check if this customized product already exists to prevent duplication
+    // Check if customized product with this name already exists
     const existingCustomizedProduct = await CustomizedProduct.findOne({
-      leadId: leadId,
-      name: name,
-      unitPrice: parseFloat(unitPrice)
+      name: name.trim()
     });
 
     if (existingCustomizedProduct) {
-      console.log(`Duplicate prevention: Found existing customized product: ${name} - Returning existing ID: ${existingCustomizedProduct._id}`);
-      return res.status(200).json({
-        success: true,
+      console.log(`Customized product with name "${name}" already exists - Returning existing product: ${existingCustomizedProduct._id}`);
+      return res.status(409).json({
+        success: false,
+        message: `A customized product with the name "${name}" already exists. Please choose a different name or select the existing product from the dropdown.`,
         data: existingCustomizedProduct,
-        message: 'Existing customized product returned'
+        isExisting: true
       });
     }
 
-    console.log(`Creating new customized product: ${name} for lead: ${leadId}`);
+    // Check if lead exists (optional now)
+    if (leadId) {
+      const lead = await Lead.findById(leadId);
+      if (!lead) {
+        throw new AppError('Lead not found', 404);
+      }
+    }
+
+    console.log(`Creating new customized product: ${name} for lead: ${leadId || 'shared'}`);
     // Create customized product
     const customizedProduct = await CustomizedProduct.create({
-      name,
+      name: name.trim(),
       unitPrice: parseFloat(unitPrice),
-      leadId,
+      leadId: leadId || null, // Allow null for shared products
       createdBy: req.user.id
     });
 
     res.status(201).json({
       success: true,
-      data: customizedProduct
+      data: customizedProduct,
+      message: 'Customized product created successfully'
     });
   } catch (error) {
+    // Handle MongoDB duplicate key error
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.name) {
+      return res.status(409).json({
+        success: false,
+        message: `A customized product with the name "${req.body.name}" already exists. Please choose a different name or select the existing product from the dropdown.`,
+        isExisting: true
+      });
+    }
     errorHandler(res, error);
   }
 };
@@ -92,6 +102,35 @@ exports.getCustomizedProductsByLead = async (req, res) => {
     res.json({
       success: true,
       data: customizedProducts
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Get customized product by name
+// @route   GET /api/customized-products/name/:name
+// @access  Private
+exports.getCustomizedProductByName = async (req, res) => {
+  try {
+    const { name } = req.params;
+
+    const customizedProduct = await CustomizedProduct.findOne({ 
+      name: decodeURIComponent(name).trim() 
+    })
+      .populate('createdBy', 'name')
+      .populate('leadId', 'firstName lastName businessName');
+
+    if (!customizedProduct) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customized product not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: customizedProduct
     });
   } catch (error) {
     errorHandler(res, error);
@@ -328,6 +367,7 @@ module.exports = {
   createCustomizedProduct: exports.createCustomizedProduct,
   getAllCustomizedProducts: exports.getAllCustomizedProducts,
   getCustomizedProductsByLead: exports.getCustomizedProductsByLead,
+  getCustomizedProductByName: exports.getCustomizedProductByName,
   getCustomizedProduct: exports.getCustomizedProduct,
   updateCustomizedProduct: exports.updateCustomizedProduct,
   uploadCustomizedProductImages: exports.uploadCustomizedProductImages,

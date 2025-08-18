@@ -29,6 +29,7 @@ export default function QuotationDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmActionType, setConfirmActionType] = useState(null); // Add this to track action type
   const [emailSentTime, setEmailSentTime] = useState(null);
   const [invoiceEmailStatus, setInvoiceEmailStatus] = useState({ sending: false, sent: false, error: null });
   const [ws, setWs] = useState(null);
@@ -335,6 +336,7 @@ export default function QuotationDetailsPage() {
                 <button
                   onClick={() => {
                     setConfirmAction(() => handleSendQuotation);
+                    setConfirmActionType('send');
                     setShowConfirmDialog(true);
                   }}
                   className={`px-4 py-2.5 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[150px] gap-2 touch-target ${
@@ -360,6 +362,7 @@ export default function QuotationDetailsPage() {
               <button
                 onClick={() => {
                   setConfirmAction(() => handleApproveQuotation);
+                  setConfirmActionType('approve');
                   setShowConfirmDialog(true);
                 }}
                 className="px-4 py-2.5 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center gap-2 touch-target"
@@ -572,23 +575,25 @@ export default function QuotationDetailsPage() {
         onClose={() => {
           setShowConfirmDialog(false);
           setConfirmAction(null);
+          setConfirmActionType(null);
         }}
         onConfirm={() => {
           confirmAction?.();
           setShowConfirmDialog(false);
           setConfirmAction(null);
+          setConfirmActionType(null);
         }}
         title={
-          confirmAction === handleSendQuotation
+          confirmActionType === 'send'
             ? "Send Quotation"
             : "Approve Quotation"
         }
         message={
-          confirmAction === handleSendQuotation
+          confirmActionType === 'send'
             ? "Are you sure you want to send this quotation to the lead? This action cannot be undone."
             : "Are you sure you want to approve this quotation? This may create related records and change its status."
         }
-        confirmText= {confirmAction === handleSendQuotation ? "Yes, Send" : "Yes, Approve"}
+        confirmText={confirmActionType === 'send' ? "Yes, Send" : "Yes, Approve"}
       />
 
       {showToast && (

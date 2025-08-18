@@ -409,9 +409,16 @@ export default function CreateQuotationPage() {
         for (const product of customizedProducts) {
           try {
             // Find the customized product in allCustomizedProducts array
-            const existingProduct = allCustomizedProducts.find(cp => cp._id === product.id);
+            // Now that customized products are globally unique, we can find by ID or name
+            let existingProduct = allCustomizedProducts.find(cp => cp._id === product.id);
+            
+            // If not found by ID, try to find by name (for backward compatibility)
+            if (!existingProduct && product.name) {
+              existingProduct = allCustomizedProducts.find(cp => cp.name === product.name);
+            }
             
             if (existingProduct) {
+              console.log(`Found existing customized product data for: ${product.name}`, existingProduct);
               // Use existing data from database
               customizedProductDetailsInit[product.id] = {
                 modelNumber: existingProduct.modelNumber || '',
@@ -425,6 +432,7 @@ export default function CreateQuotationPage() {
                 images: existingProduct.imageUrls || []
               };
             } else {
+              console.warn(`No existing data found for customized product: ${product.name} (ID: ${product.id})`);
               // Fallback to empty details if not found
               customizedProductDetailsInit[product.id] = {
                 modelNumber: '',
