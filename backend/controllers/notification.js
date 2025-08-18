@@ -5,7 +5,7 @@ const { AppError, errorHandler } = require('../utils/errorHandler');
 // @desc    Get user notifications
 // @route   GET /api/notifications
 // @access  Private
-exports.getNotifications = async (req, res) => {
+const getNotifications = async (req, res) => {
   try {
     const { page = 1, limit = 20, unreadOnly, type } = req.query;
     
@@ -34,7 +34,7 @@ exports.getNotifications = async (req, res) => {
 // @desc    Get notification counts
 // @route   GET /api/notifications/counts
 // @access  Private
-exports.getNotificationCounts = async (req, res) => {
+const getNotificationCounts = async (req, res) => {
   try {
     const userId = req.user.id;
     
@@ -78,7 +78,7 @@ exports.getNotificationCounts = async (req, res) => {
 // @desc    Mark notifications as read
 // @route   PUT /api/notifications/mark-read
 // @access  Private
-exports.markAsRead = async (req, res) => {
+const markAsRead = async (req, res) => {
   try {
     const { notificationIds } = req.body;
     
@@ -100,7 +100,7 @@ exports.markAsRead = async (req, res) => {
 // @desc    Mark all notifications as read
 // @route   PUT /api/notifications/mark-all-read
 // @access  Private
-exports.markAllAsRead = async (req, res) => {
+const markAllAsRead = async (req, res) => {
   try {
     await Notification.updateMany(
       { recipient: req.user.id, read: false },
@@ -119,7 +119,7 @@ exports.markAllAsRead = async (req, res) => {
 // @desc    Delete notification
 // @route   DELETE /api/notifications/:id
 // @access  Private
-exports.deleteNotification = async (req, res) => {
+const deleteNotification = async (req, res) => {
   try {
     const notification = await Notification.findOneAndDelete({
       _id: req.params.id,
@@ -142,7 +142,7 @@ exports.deleteNotification = async (req, res) => {
 // @desc    Create system notification (Admin only)
 // @route   POST /api/notifications/system
 // @access  Private (Admin)
-exports.createSystemNotification = async (req, res) => {
+const createSystemNotification = async (req, res) => {
   try {
     const { recipients, title, message, priority = 'medium', data = {} } = req.body;
     
@@ -179,11 +179,12 @@ exports.createSystemNotification = async (req, res) => {
   }
 };
 
+// Export functions directly without circular reference
 module.exports = {
-  getNotifications: exports.getNotifications,
-  getNotificationCounts: exports.getNotificationCounts,
-  markAsRead: exports.markAsRead,
-  markAllAsRead: exports.markAllAsRead,
-  deleteNotification: exports.deleteNotification,
-  createSystemNotification: exports.createSystemNotification
+  getNotifications,
+  getNotificationCounts,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+  createSystemNotification
 };

@@ -25,7 +25,7 @@ const NotificationWidget = ({ userRole = 'customer' }) => {
   const fetchNotificationStats = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest('/api/notifications/counts');
+      const response = await apiRequest('/notifications/counts');
       if (response.success) {
         setNotificationStats(response.data);
       }

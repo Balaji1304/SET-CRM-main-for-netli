@@ -19,7 +19,7 @@ const NotificationBadge = ({ className = '' }) => {
 
   const fetchUnreadCount = async () => {
     try {
-      const response = await apiRequest('/api/notifications/counts');
+      const response = await apiRequest('/notifications/counts');
       if (response.success) {
         setUnreadCount(response.data.unread || 0);
       }

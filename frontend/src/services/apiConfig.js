@@ -61,7 +61,9 @@ const createCacheKey = (url, method, body) => {
  * @returns {Promise<Object>} - Parsed JSON response
  */
 export const apiRequest = async (endpoint, options = {}, useCache = options.method === undefined || options.method === 'GET', isFormData = options.body instanceof FormData) => {
-  const url = `${API_URL}/${endpoint}`;
+  // Clean up endpoint to avoid double slashes
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+  const url = `${API_URL}/${cleanEndpoint}`;
   const method = options.method || 'GET';
   const cacheKey = useCache ? createCacheKey(url, method, options.body) : null;
   
