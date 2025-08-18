@@ -11,9 +11,15 @@ const generatePDF = async (template, data) => {
       'utf8'
     );
 
-    // Compile template
-    const compiledTemplate = handlebars.compile(templateHtml);
-    const html = compiledTemplate(data);
+    // Compile template with runtime options to allow property access
+    const compiledTemplate = handlebars.compile(templateHtml, {
+      allowProtoPropertiesByDefault: true,
+      allowProtoMethodsByDefault: true
+    });
+    const html = compiledTemplate(data, {
+      allowProtoPropertiesByDefault: true,
+      allowProtoMethodsByDefault: true
+    });
 
     // PDF generation options
     const options = {

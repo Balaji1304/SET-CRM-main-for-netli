@@ -587,9 +587,9 @@ exports.sendQuotation = async (req, res) => {
         else if (item.bundleId) {
           const bundleProduct = item.bundleId;
           
-          // Build specifications from the bundle product
+          // Build specifications from the bundle product (only for non-solar bundles)
           const specifications = [];
-          if (bundleProduct.specifications) {
+          if (bundleProduct.specifications && bundleProduct.category !== 'power_plants_system') {
             Object.entries(bundleProduct.specifications).forEach(([key, value]) => {
               if (value && value.toString().trim()) {
                 specifications.push({ 
@@ -606,9 +606,22 @@ exports.sendQuotation = async (req, res) => {
             category: bundleProduct.category || 'Bundle',
             description: bundleProduct.description || '',
             specifications: specifications,
-            images: (bundleProduct.imageUrls || []).map(url => ({ url })),
+            images: (bundleProduct.imageUrls || []).map(url => ({ url: url.toString() })),
             bundleCode: bundleProduct.bundleCode,
-            subcategory: bundleProduct.subcategory
+            subcategory: bundleProduct.subcategory,
+            
+            // Add system configuration for solar power plant bundles
+            systemConfiguration: bundleProduct.systemConfiguration ? JSON.parse(JSON.stringify(bundleProduct.systemConfiguration)) : {},
+            
+            // Add bundle components from the quotation item - properly serialize MongoDB documents
+            bundleComponents: (item.bundleComponents || []).map(component => ({
+              name: component.name || '',
+              quantity: component.quantity || 0,
+              make: component.make || '',
+              componentType: component.componentType || '',
+              warranty: component.warranty || '',
+              sortOrder: component.sortOrder || 0
+            }))
           };
         }
         
@@ -668,8 +681,12 @@ exports.sendQuotation = async (req, res) => {
     }
 
     try {
-      // Generate PDF
-      pdfBuffer = await generatePDF('quotation', emailData);
+      // Generate PDF with updated email data including payment link
+      const pdfEmailData = {
+        ...emailData,
+        paymentLink: paymentLink.short_url
+      };
+      pdfBuffer = await generatePDF('quotation', pdfEmailData);
     } catch (error) {
       console.error('Error generating PDF:', error);
       notifyClient(req.user.id, quotation._id, 'draft');
