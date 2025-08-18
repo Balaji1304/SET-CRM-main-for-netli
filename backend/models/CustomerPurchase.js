@@ -91,7 +91,103 @@ const customerPurchaseSchema = new mongoose.Schema({
     type: String,
     enum: ['none', 'pending_verification', 'verified', 'rejected'],
     default: 'none'
-  }
+  },
+  // Installation workflow fields
+  installationStatus: {
+    type: String,
+    enum: ['assigned', 'accepted', 'on_route', 'on_site', 'in_progress', 'pending_signoff', 'completed', 'issues'],
+    default: 'assigned'
+  },
+  engineerAcceptedAt: {
+    type: Date,
+    default: null
+  },
+  estimatedArrival: {
+    type: Date,
+    default: null
+  },
+  actualArrival: {
+    type: Date,
+    default: null
+  },
+  installationStartTime: {
+    type: Date,
+    default: null
+  },
+  installationEndTime: {
+    type: Date,
+    default: null
+  },
+  completionPhotos: [{
+    type: String, // Cloudinary URLs
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    },
+    description: String
+  }],
+  customerSignoffData: {
+    approved: {
+      type: Boolean,
+      default: false
+    },
+    signedAt: {
+      type: Date,
+      default: null
+    },
+    customerFeedback: {
+      type: String,
+      default: ''
+    },
+    overallRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null
+    },
+    serviceQualityRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null
+    },
+    timelinessRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null
+    },
+    professionalismRating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null
+    }
+  },
+  issuesReported: [{
+    description: {
+      type: String,
+      required: true
+    },
+    reportedAt: {
+      type: Date,
+      default: Date.now
+    },
+    reportedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    resolved: {
+      type: Boolean,
+      default: false
+    },
+    resolvedAt: {
+      type: Date,
+      default: null
+    },
+    resolution: String
+  }]
 });
 
 // Update the 'updatedAt' field before saving

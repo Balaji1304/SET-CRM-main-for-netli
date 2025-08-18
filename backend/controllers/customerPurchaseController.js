@@ -795,8 +795,33 @@ exports.assignTaskToEngineer = async (req, res) => {
     purchase.serviceDueDate = purchase.installationDate;
     purchase.serviceAssignmentNotes = serviceAssignmentNotes || purchase.serviceAssignmentNotes;
     purchase.serviceTaskStatus = 'assigned';
+    purchase.installationStatus = 'assigned'; // Initialize installation status
     
     await purchase.save();
+
+    // Update tracking
+    try {
+      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
+      if (tracking) {
+        await tracking.addEvent({
+          status: 'engineer_assigned',
+          title: 'Service Engineer Assigned',
+          description: `Service engineer ${engineer.name} has been assigned for installation on ${new Date(purchase.installationDate).toLocaleDateString()}.`,
+          estimatedDate: new Date(purchase.installationDate),
+          isVisible: true
+        }, req.user._id);
+      }
+    } catch (trackingError) {
+      console.error('Error updating tracking:', trackingError);
+    }
+
+    // Notify the assigned engineer
+    try {
+      const NotificationService = require('../utils/notificationService');
+      await NotificationService.createInstallationNotification('engineer_assigned', purchase, req.user);
+    } catch (notificationError) {
+      console.error('Failed to create assignment notification:', notificationError);
+    }
 
     res.status(200).json({
       success: true,

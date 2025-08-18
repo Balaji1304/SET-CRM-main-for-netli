@@ -1,6 +1,7 @@
 const Lead = require('../models/Lead');
 const CustomizedProduct = require('../models/CustomizedProduct');
 const ProductBundle = require('../models/ProductBundle');
+const NotificationService = require('../utils/notificationService');
 
 // @desc    Create new lead
 // @route   POST /api/leads
@@ -11,6 +12,16 @@ exports.createLead = async (req, res) => {
     req.body.createdBy = req.user.id;
 
     const lead = await Lead.create(req.body);
+
+    // Create notification for new lead (only if not created from enquiry)
+    if (!req.body.createdFromEnquiry) {
+      try {
+        await NotificationService.createLeadWorkflowNotification('lead_created', lead, req.user);
+      } catch (notificationError) {
+        console.error('Failed to create lead notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -273,6 +284,16 @@ exports.updateLead = async (req, res) => {
     const updatedLead = await lead.save();
     
     console.log(`Lead saved - new leadCompletionStatus: ${updatedLead.leadCompletionStatus}`);
+
+    // Create notification for lead update (only for significant updates, not from enquiry conversions)
+    if (!updatedLead.createdFromEnquiry) {
+      try {
+        await NotificationService.createLeadWorkflowNotification('lead_updated', updatedLead, req.user);
+      } catch (notificationError) {
+        console.error('Failed to create lead update notification:', notificationError);
+        // Don't fail the main operation if notification fails
+      }
+    }
 
     res.json({
       success: true,

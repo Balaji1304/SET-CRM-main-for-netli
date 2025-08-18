@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  Clock, CheckCircle2, Ticket, Users, DollarSign, Package, Briefcase, BarChart2, Settings, AlertTriangle, ShoppingCart, ListChecks, UserCheck, FileText, Users2, PackageSearch, UserCog, TrendingUp
+  Clock, CheckCircle2, Ticket, Users, DollarSign, Package, Briefcase, BarChart2, Settings, AlertTriangle, ShoppingCart, ListChecks, UserCheck, FileText, Users2, PackageSearch, UserCog, TrendingUp, UserPlus
 } from 'lucide-react';
 import axios from 'axios';
 import TicketStatsWidget from './TicketStatsWidget';
 import TrackingWidget from './TrackingWidget';
+import NotificationWidget from './NotificationWidget';
 import { formatNumber } from '../utils/formatNumber';
 
 const Dashboard = () => {
@@ -215,7 +216,7 @@ const Dashboard = () => {
         {renderCommonCard('My Quotations (Approved)', formatNumber(summaryData.myQuotationStats?.approved || 0), <FileText />)}
         {renderCommonCard('Revenue (My Approved Quotes)', `₹${formatNumber(summaryData.revenueFromApprovedQuotations || 0)}`, <DollarSign />)}
       </div>
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
         {renderSection("My Recent Activity", <Clock />, 
           <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
             {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent activity.</p>}
@@ -227,6 +228,7 @@ const Dashboard = () => {
             {summaryData.salesPerformance && renderPerformanceItem('Lead to Deal Conversion Rate', summaryData.salesPerformance.conversionRate)}
               </div>
         )}
+        <NotificationWidget userRole="sales_person" />
               </div>
     </>
   );
@@ -261,6 +263,30 @@ const Dashboard = () => {
         {renderCommonCard('Total Quotations Value', `₹${formatNumber(summaryData.totalQuotationsValue)}`, <DollarSign />)}
         {renderCommonCard('Approved Deals', formatNumber(summaryData.approvedDeals), <CheckCircle2 />)}
       </div>
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
+        {renderSection("Team Performance", <TrendingUp />, 
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-2 border-b border-fourth">
+              <span className="text-sm text-secondary">Team Quotations This Month</span>
+              <span className="text-sm font-semibold text-primary">{summaryData.teamQuotationsThisMonth || 0}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-fourth">
+              <span className="text-sm text-secondary">Team Conversion Rate</span>
+              <span className="text-sm font-semibold text-green-600">{summaryData.teamConversionRate || '0%'}</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-secondary">Active Team Members</span>
+              <span className="text-sm font-semibold text-blue-600">{summaryData.activeTeamMembers || 0}</span>
+            </div>
+          </div>
+        )}
+        {renderSection("Recent Team Activity", <Clock />, 
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
+            {summaryData.teamActivity?.length > 0 ? summaryData.teamActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent team activity.</p>}
+          </div>
+        )}
+        <NotificationWidget userRole="sales_head" />
+      </div>
     </>
   );
 
@@ -271,7 +297,7 @@ const Dashboard = () => {
         {renderCommonCard('Pending Assignments', formatNumber(summaryData.pendingAssignments || 0), <Users />)}
         {renderCommonCard('Leads Assigned Today', formatNumber(summaryData.leadsAssignedToday || 0), <CheckCircle2 />)}
       </div>
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
         {renderSection("Quick Actions", <Package />, 
           <div className="space-y-3">
             <button
@@ -306,6 +332,7 @@ const Dashboard = () => {
             </div>
           </div>
         )}
+        <NotificationWidget userRole="front_office_executive" />
       </div>
     </>
   );

@@ -252,4 +252,4 @@ exports.uploadAttachment = async (req, res) => {
   } catch (error) {
     errorHandler(res, error);
   }
-};
+}; 
