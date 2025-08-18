@@ -40,14 +40,20 @@ const sendEmail = async (options) => {
       const templatePath = path.join(__dirname, `../templates/${options.template}.handlebars`);
       const source = fs.readFileSync(templatePath, 'utf-8');
       
-      // Compile template
-      compiledTemplate = handlebars.compile(source);
+      // Compile template with runtime options to allow property access
+      compiledTemplate = handlebars.compile(source, {
+        allowProtoPropertiesByDefault: true,
+        allowProtoMethodsByDefault: true
+      });
       if (!isDevelopment) {
         emailTemplateCache.set(cacheKey, compiledTemplate);
       }
     }
 
-    const html = compiledTemplate(options.data);
+    const html = compiledTemplate(options.data, {
+      allowProtoPropertiesByDefault: true,
+      allowProtoMethodsByDefault: true
+    });
 
     // Send email
     const message = {

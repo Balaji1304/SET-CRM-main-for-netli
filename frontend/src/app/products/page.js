@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronDown, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Package, Layers, TrendingUp, Calendar } from 'lucide-react';
+import { Search, ChevronDown, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Package, Layers, TrendingUp, Calendar, Info, ShoppingCart, Tag, Zap, Users, Building2, FileText } from 'lucide-react';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { getProducts, deleteProduct } from '../../services/productService';
 
@@ -31,6 +31,8 @@ export default function ProductListPage() {
   const [productToDelete, setProductToDelete] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const navigate = useNavigate();
 
   const itemsPerPage = 10;
@@ -94,6 +96,18 @@ export default function ProductListPage() {
     navigate(`/dashboard/products/${productId}/edit`);
   };
 
+  // Function to handle viewing product details
+  const handleViewProduct = (product) => {
+    setSelectedProduct(product);
+    setShowProductModal(true);
+  };
+
+  // Function to close product modal
+  const closeProductModal = () => {
+    setShowProductModal(false);
+    setSelectedProduct(null);
+  };
+
   const getStockStatus = (product) => {
     if (product.quantity <= 0) return 'Out of Stock';
     if (product.quantity <= product.reorderLevel) return 'Low Stock';
@@ -145,6 +159,229 @@ export default function ProductListPage() {
   const endIndex = startIndex + itemsPerPage;
   const currentProducts = sortedProducts.slice(startIndex, endIndex);
 
+  // Product Details Modal Component
+  const ProductDetailsModal = ({ product, onClose }) => {
+    const stockStatus = getStockStatus(product);
+    
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-out">
+          {/* Modal Header */}
+          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="bg-white/20 p-2 rounded-lg">
+                <Package className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">Product Details</h2>
+                <p className="text-orange-100 text-sm">Complete product information</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-150 touch-target"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="max-h-[calc(90vh-120px)] overflow-y-auto">
+            <div className="p-6 space-y-6">
+              {/* Product Name and Model */}
+              <div className="border-b border-gray-100 pb-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{product.name}</h3>
+                    <div className="flex items-center space-x-4 text-gray-600">
+                      <div className="flex items-center space-x-2">
+                        <Tag className="w-4 h-4" />
+                        <span className="text-sm font-medium">Model: {product.modelNumber}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Layers className="w-4 h-4" />
+                        <span className="text-sm">{product.category}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium
+                      ${stockStatus === 'In Stock' ? 'bg-green-100 text-green-800 border border-green-200'
+                      : stockStatus === 'Low Stock' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                      : 'bg-red-100 text-red-800 border border-red-200'
+                      }`}>
+                      {stockStatus}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Information Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Price Information */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="bg-blue-500 p-2 rounded-lg">
+                      <ShoppingCart className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Price</h4>
+                      <p className="text-sm text-gray-600">Current selling price</p>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline space-x-1">
+                    <span className="text-2xl font-bold text-gray-900">₹</span>
+                    <span className="text-2xl font-bold text-gray-900">
+                      {product.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stock Information */}
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="bg-green-500 p-2 rounded-lg">
+                      <Package className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Stock Quantity</h4>
+                      <p className="text-sm text-gray-600">Available units</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl font-bold text-gray-900">{product.quantity}</span>
+                    <span className="text-sm text-gray-600">units</span>
+                  </div>
+                </div>
+
+                {/* MOQ Information */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="bg-purple-500 p-2 rounded-lg">
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">MOQ</h4>
+                      <p className="text-sm text-gray-600">Minimum order quantity</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-2xl font-bold text-gray-900">{product.reorderLevel}</span>
+                    <span className="text-sm text-gray-600">units</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Additional Information */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Product Specifications */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Info className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">Specifications</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Category</span>
+                      <span className="text-sm text-gray-900">{product.category}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Model Number</span>
+                      <span className="text-sm text-gray-900 font-mono">{product.modelNumber}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Reorder Level</span>
+                      <span className="text-sm text-gray-900">{product.reorderLevel} units</span>
+                    </div>
+                    {product.description && (
+                      <div className="py-2">
+                        <span className="text-sm font-medium text-gray-600 block mb-1">Description</span>
+                        <p className="text-sm text-gray-900">{product.description}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Availability & Status */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <TrendingUp className="w-5 h-5 text-gray-600" />
+                    <h4 className="text-lg font-semibold text-gray-900">Availability & Status</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Availability</span>
+                      <span className="text-sm text-gray-900">{product.availability}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Stock Status</span>
+                      <span className={`text-sm font-medium px-2 py-1 rounded-full
+                        ${stockStatus === 'In Stock' ? 'bg-green-100 text-green-800'
+                        : stockStatus === 'Low Stock' ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}>
+                        {stockStatus}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-sm font-medium text-gray-600">Current Stock</span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-900">{product.quantity} units</span>
+                        <div className="w-16 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              stockStatus === 'In Stock' ? 'bg-green-500' 
+                              : stockStatus === 'Low Stock' ? 'bg-yellow-500' 
+                              : 'bg-red-500'
+                            }`}
+                            style={{ width: `${Math.min((product.quantity / (product.reorderLevel * 2)) * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                    {product.updatedAt && (
+                      <div className="flex justify-between items-center py-2">
+                        <span className="text-sm font-medium text-gray-600">Last Updated</span>
+                        <span className="text-sm text-gray-900">
+                          {new Date(product.updatedAt).toLocaleDateString('en-IN')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <div className="flex flex-col sm:flex-row gap-3 justify-end">
+                  {product.brochureUrl && (
+                    <button
+                      onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors duration-150 touch-target"
+                    >
+                      <FileText className="w-4 h-4" />
+                      View Brochure
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      onClose();
+                      handleEditProduct(product._id);
+                    }}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF7300] text-white rounded-lg font-medium hover:bg-[#FF8800] transition-colors duration-150 touch-target"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Edit Product
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Mobile Card Component
   const ProductCard = ({ product }) => {
     const stockStatus = getStockStatus(product);
@@ -154,7 +391,8 @@ export default function ProductListPage() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1 cursor-pointer hover:text-[#FF7300] transition-colors duration-150"
+                onClick={() => handleViewProduct(product)}>
               {product.name}
             </h3>
             <div className="flex items-center space-x-4 text-sm text-gray-600">
@@ -165,6 +403,13 @@ export default function ProductListPage() {
             </div>
           </div>
           <div className="flex items-center space-x-2 ml-3">
+            <button
+              onClick={() => handleViewProduct(product)}
+              className="p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150 touch-target"
+              title="View Details"
+            >
+              <Info className="w-4 h-4" />
+            </button>
             {product.brochureUrl && (
               <button
                 onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
@@ -370,7 +615,7 @@ export default function ProductListPage() {
                         { key: 'moq', label: 'MOQ', width: 'w-16 lg:w-20', hideOnLg: true },
                         { key: 'price', label: 'Price', width: 'w-24 lg:w-32' },
                         { key: 'availability', label: 'Availability', width: 'w-28', hideOnXl: true },
-                        { key: 'actions', label: 'Actions', width: 'w-24 lg:w-32' }
+                        { key: 'actions', label: 'Actions', width: 'w-28 lg:w-36' }
                       ].map((header) => (
                         <th
                           key={header.key}
@@ -400,7 +645,13 @@ export default function ProductListPage() {
                             className="hover:bg-orange-50/50 transition-colors duration-150 ease-in-out"
                           >
                             <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium text-gray-900 w-32 lg:w-40">
-                              <div className="truncate">{product.name}</div>
+                              <div 
+                                className="truncate cursor-pointer hover:text-[#FF7300] transition-colors duration-150"
+                                onClick={() => handleViewProduct(product)}
+                                title="Click to view details"
+                              >
+                                {product.name}
+                              </div>
                             </td>
                             <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
                               <div className="truncate">{product.modelNumber}</div>
@@ -426,8 +677,15 @@ export default function ProductListPage() {
                             <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28">
                               <div className="truncate">{product.availability}</div>
                             </td>
-                            <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-32">
+                            <td className="px-2 lg:px-4 xl:px-6 py-4 w-28 lg:w-36">
                               <div className="flex items-center justify-center space-x-1 lg:space-x-2">
+                                <button
+                                  onClick={() => handleViewProduct(product)}
+                                  className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
+                                  title="View Details"
+                                >
+                                  <Info className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                </button>
                                 {product.brochureUrl && (
                                   <button
                                     onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
@@ -506,6 +764,14 @@ export default function ProductListPage() {
             </div>
           )}
         </div>
+
+        {/* Product Details Modal */}
+        {showProductModal && selectedProduct && (
+          <ProductDetailsModal 
+            product={selectedProduct} 
+            onClose={closeProductModal} 
+          />
+        )}
 
         {/* Delete Modal */}
         {showDeleteDialog && (

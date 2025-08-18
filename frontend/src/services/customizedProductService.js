@@ -34,6 +34,15 @@ export const getCustomizedProductsByLead = async (leadId) => {
 };
 
 /**
+ * Get customized product by name
+ * @param {string} name - Product name
+ * @returns {Promise<Object>} - Response with customized product data
+ */
+export const getCustomizedProductByName = async (name) => {
+  return await apiRequest(`customized-products/name/${encodeURIComponent(name)}`);
+};
+
+/**
  * Get a specific customized product by ID
  * @param {string} id - Customized Product ID
  * @returns {Promise<Object>} - Response with customized product data

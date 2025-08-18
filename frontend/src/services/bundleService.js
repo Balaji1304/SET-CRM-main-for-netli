@@ -1,9 +1,9 @@
 import { apiRequest, invalidateCache } from './apiConfig';
 
 /**
- * Get all product bundles
+ * Get all solar power plant systems
  * @param {Object} filters - Filter options (category, subcategory, brand, isActive)
- * @returns {Promise<Object>} - Response with bundles list
+ * @returns {Promise<Object>} - Response with systems list
  */
 export const getBundles = async (filters = {}) => {
   const queryParams = new URLSearchParams();
@@ -18,24 +18,25 @@ export const getBundles = async (filters = {}) => {
 };
 
 /**
- * Get a specific bundle by ID
- * @param {string} id - Bundle ID
- * @returns {Promise<Object>} - Response with bundle data
+ * Get a specific system by ID
+ * @param {string} id - System ID
+ * @returns {Promise<Object>} - Response with system data
  */
 export const getBundle = async (id) => {
   return await apiRequest(`bundles/${id}`);
 };
 
 /**
- * Create a new product bundle
- * @param {Object} bundleData - Bundle data
- * @returns {Promise<Object>} - Response with created bundle
+ * Create a new solar power plant system
+ * @param {Object} bundleData - System data
+ * @returns {Promise<Object>} - Response with created system
  */
 export const createBundle = async (bundleData) => {
+  const isFormData = bundleData instanceof FormData;
   const response = await apiRequest('bundles', {
     method: 'POST',
-    body: JSON.stringify(bundleData)
-  });
+    body: bundleData
+  }, false, isFormData);
   
   // Invalidate cache after creating
   invalidateCache('bundles');
@@ -43,16 +44,17 @@ export const createBundle = async (bundleData) => {
 };
 
 /**
- * Update an existing bundle
- * @param {string} id - Bundle ID
- * @param {Object} bundleData - Updated bundle data
- * @returns {Promise<Object>} - Response with updated bundle
+ * Update an existing system
+ * @param {string} id - System ID
+ * @param {Object} bundleData - Updated system data
+ * @returns {Promise<Object>} - Response with updated system
  */
 export const updateBundle = async (id, bundleData) => {
+  const isFormData = bundleData instanceof FormData;
   const response = await apiRequest(`bundles/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(bundleData)
-  });
+    body: bundleData
+  }, false, isFormData);
   
   // Invalidate cache after updating
   invalidateCache('bundles');
@@ -60,8 +62,8 @@ export const updateBundle = async (id, bundleData) => {
 };
 
 /**
- * Delete a bundle
- * @param {string} id - Bundle ID
+ * Delete a system
+ * @param {string} id - System ID
  * @returns {Promise<Object>} - Response confirmation
  */
 export const deleteBundle = async (id) => {
@@ -85,7 +87,7 @@ export const getPowerPlantConfigurations = async (brand = '') => {
 };
 
 /**
- * Get compatible products for bundle creation
+ * Get compatible products for system creation
  * @param {Object} filters - Filter options (category, brand)
  * @returns {Promise<Object>} - Response with compatible products
  */
@@ -102,7 +104,7 @@ export const getCompatibleProducts = async (filters = {}) => {
 };
 
 /**
- * Get default terms and conditions for bundles
+ * Get default terms and conditions for systems
  * @returns {Promise<Object>} - Response with terms and conditions
  */
 export const getDefaultBundleTerms = async () => {
@@ -110,9 +112,18 @@ export const getDefaultBundleTerms = async () => {
 };
 
 /**
- * Get all available bundle terms and conditions
+ * Get all available system terms and conditions
  * @returns {Promise<Object>} - Response with all terms
  */
 export const getAllBundleTerms = async () => {
   return await apiRequest('bundles/terms/all');
+};
+
+/**
+ * Get bundle with detailed component information for quotation creation
+ * @param {string} id - Bundle ID
+ * @returns {Promise<Object>} - Response with bundle and component details
+ */
+export const getBundleWithComponents = async (id) => {
+  return await apiRequest(`bundles/${id}/components`);
 }; 

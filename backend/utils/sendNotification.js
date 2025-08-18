@@ -256,13 +256,54 @@ const sendQuotationNotification = async (quotation, quotationItems, pdfBuffer = 
           images: (customizedProduct.imageUrls || []).map(url => ({ url }))
         };
       }
-      // Handle bundle products (if needed)
+      // Handle bundle products with enhanced data
       else if (item.bundleId) {
+        const bundleProduct = item.bundleId;
+        
+        // Build specifications from the bundle product (only for non-solar bundles)
+        const specifications = [];
+        if (bundleProduct.specifications && bundleProduct.category !== 'power_plants_system') {
+          Object.entries(bundleProduct.specifications).forEach(([key, value]) => {
+            if (value && value.toString().trim()) {
+              specifications.push({ 
+                name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'), 
+                value: value.toString() 
+              });
+            }
+          });
+        }
+        
         product = {
-          ...item.bundleId.toObject(),
-          specifications: [],
-          images: []
+          _id: bundleProduct._id,
+          name: bundleProduct.name || 'Bundle Product',
+          category: bundleProduct.category || 'Bundle',
+          description: bundleProduct.description || '',
+          specifications: specifications,
+          images: (bundleProduct.imageUrls || []).map(url => ({ url: url.toString() })),
+          bundleCode: bundleProduct.bundleCode,
+          subcategory: bundleProduct.subcategory,
+          
+          // Add system configuration for solar power plant bundles
+          systemConfiguration: bundleProduct.systemConfiguration ? JSON.parse(JSON.stringify(bundleProduct.systemConfiguration)) : {},
+          
+          // Add bundle components from the quotation item - properly serialize MongoDB documents
+          bundleComponents: (item.bundleComponents || []).map(component => ({
+            name: component.name || '',
+            quantity: component.quantity || 0,
+            make: component.make || '',
+            componentType: component.componentType || '',
+            warranty: component.warranty || '',
+            sortOrder: component.sortOrder || 0
+          }))
         };
+        
+        // Debug log for email data
+        console.log('Email Bundle Product Debug Info:');
+        console.log('Bundle Name:', product.name);
+        console.log('Bundle Category:', product.category);
+        console.log('Images Count:', product.images.length);
+        console.log('Bundle Components Count:', product.bundleComponents.length);
+        console.log('Has System Config:', !!product.systemConfiguration && Object.keys(product.systemConfiguration).length > 0);
       }
       
       return {

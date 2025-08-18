@@ -263,6 +263,24 @@ exports.createQuotation = async (req, res) => {
         quotationItemData.productId = referenceId;
       } else if (itemType === 'bundle') {
         quotationItemData.bundleId = referenceId;
+        
+        // For bundles, store component details if provided
+        if (item.bundleComponents && Array.isArray(item.bundleComponents)) {
+          quotationItemData.bundleComponents = item.bundleComponents.map(comp => ({
+            solarItemId: comp.solarItemId,
+            name: comp.name,
+            componentType: comp.componentType,
+            quantity: comp.quantity,
+            make: comp.make, // Quotation-specific make
+            warranty: comp.warranty,
+            sortOrder: comp.sortOrder || 0
+          }));
+        }
+        
+        // Store bundle configuration if provided
+        if (item.bundleConfiguration) {
+          quotationItemData.bundleConfiguration = item.bundleConfiguration;
+        }
       } else if (itemType === 'customized') {
         quotationItemData.customizedProductId = referenceId;
       }
@@ -356,9 +374,9 @@ exports.updateQuotation = async (req, res) => {
     // Create new quotation items
     const createdQuotationItems = [];
     for (const item of quotationItems) {
-      // Validate that either productId or customizedProductId is provided
-      if (!item.productId && !item.customizedProductId) {
-        throw new AppError('Either Product ID or Customized Product ID is required for each item', 400);
+      // Validate that at least one of productId, customizedProductId, or bundleId is provided
+      if (!item.productId && !item.customizedProductId && !item.bundleId) {
+        throw new AppError('Either Product ID, Customized Product ID, or Bundle ID is required for each item', 400);
       }
       
       const quantity = Number(item.quantity);
@@ -374,6 +392,8 @@ exports.updateQuotation = async (req, res) => {
         itemType = 'product';
       } else if (item.customizedProductId) {
         itemType = 'customized';
+      } else if (item.bundleId) {
+        itemType = 'bundle';
       }
 
       const quotationItemData = {
@@ -385,11 +405,18 @@ exports.updateQuotation = async (req, res) => {
         total: itemTotal // Store correctly calculated item total
       };
 
-      // Add either productId or customizedProductId
+      // Add productId, customizedProductId, or bundleId
       if (item.productId) {
         quotationItemData.productId = item.productId;
-      } else {
+      } else if (item.customizedProductId) {
         quotationItemData.customizedProductId = item.customizedProductId;
+      } else if (item.bundleId) {
+        quotationItemData.bundleId = item.bundleId;
+        
+        // Add bundle components if provided
+        if (item.bundleComponents && Array.isArray(item.bundleComponents)) {
+          quotationItemData.bundleComponents = item.bundleComponents;
+        }
       }
 
       const quotationItem = await QuotationItem.create(quotationItemData);
@@ -565,12 +592,45 @@ exports.sendQuotation = async (req, res) => {
             images: (customizedProduct.imageUrls || []).map(url => ({ url }))
           };
         }
-        // Handle bundle products (if needed)
+        // Handle bundle products
         else if (item.bundleId) {
+          const bundleProduct = item.bundleId;
+          
+          // Build specifications from the bundle product (only for non-solar bundles)
+          const specifications = [];
+          if (bundleProduct.specifications && bundleProduct.category !== 'power_plants_system') {
+            Object.entries(bundleProduct.specifications).forEach(([key, value]) => {
+              if (value && value.toString().trim()) {
+                specifications.push({ 
+                  name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'), 
+                  value: value.toString() 
+                });
+              }
+            });
+          }
+          
           product = {
-            ...item.bundleId.toObject(),
-            specifications: [],
-            images: []
+            _id: bundleProduct._id,
+            name: bundleProduct.name || 'Bundle Product',
+            category: bundleProduct.category || 'Bundle',
+            description: bundleProduct.description || '',
+            specifications: specifications,
+            images: (bundleProduct.imageUrls || []).map(url => ({ url: url.toString() })),
+            bundleCode: bundleProduct.bundleCode,
+            subcategory: bundleProduct.subcategory,
+            
+            // Add system configuration for solar power plant bundles
+            systemConfiguration: bundleProduct.systemConfiguration ? JSON.parse(JSON.stringify(bundleProduct.systemConfiguration)) : {},
+            
+            // Add bundle components from the quotation item - properly serialize MongoDB documents
+            bundleComponents: (item.bundleComponents || []).map(component => ({
+              name: component.name || '',
+              quantity: component.quantity || 0,
+              make: component.make || '',
+              componentType: component.componentType || '',
+              warranty: component.warranty || '',
+              sortOrder: component.sortOrder || 0
+            }))
           };
         }
         
@@ -630,8 +690,12 @@ exports.sendQuotation = async (req, res) => {
     }
 
     try {
-      // Generate PDF
-      pdfBuffer = await generatePDF('quotation', emailData);
+      // Generate PDF with updated email data including payment link
+      const pdfEmailData = {
+        ...emailData,
+        paymentLink: paymentLink.short_url
+      };
+      pdfBuffer = await generatePDF('quotation', pdfEmailData);
     } catch (error) {
       console.error('Error generating PDF:', error);
       notifyClient(req.user.id, quotation._id, 'draft');

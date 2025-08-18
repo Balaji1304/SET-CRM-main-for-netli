@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Loader2, ChevronDown, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Loader2, ChevronDown, AlertTriangle, Upload, X } from 'lucide-react';
 import ConfirmDialog from '../../../../components/ConfirmDialog';
 import { getQuotation, updateQuotation } from '../../../../services/quotationService';
 import { getProducts } from '../../../../services/productService';
 import { getAllCustomizedProducts, updateCustomizedProduct } from '../../../../services/customizedProductService';
+import { getBundles, getBundleWithComponents } from '../../../../services/bundleService';
 
 export default function EditQuotationPage() {
   const { id } = useParams();
@@ -15,10 +16,11 @@ export default function EditQuotationPage() {
   const [quotationNumber, setQuotationNumber] = useState('');
   const [originalProducts, setOriginalProducts] = useState([]);
   const [allCustomizedProducts, setAllCustomizedProducts] = useState([]);
+  const [allBundles, setAllBundles] = useState([]);
   const [leadProductType, setLeadProductType] = useState(null); // Track the lead's product type
   const [formData, setFormData] = useState({
     leadId: '',
-    items: [{ productId: '', customizedProductId: '', quantity: 1, unitPrice: 0, discount: '' }],
+    items: [{ productId: '', customizedProductId: '', bundleId: '', quantity: 1, unitPrice: 0, discount: '' }],
     terms: '',
     notes: '',
     advancePaymentPercentage: 20
@@ -26,7 +28,10 @@ export default function EditQuotationPage() {
   
   // State for customized product details
   const [customizedProductDetails, setCustomizedProductDetails] = useState({});
+  // State for bundle component details
+  const [bundleComponentDetails, setBundleComponentDetails] = useState({});
   const [newSpecField, setNewSpecField] = useState({ name: '', value: '' });
+  const [isDragging, setIsDragging] = useState(false);
   
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,10 +44,11 @@ export default function EditQuotationPage() {
     try {
       setLoading(true);
       setError(null);
-      const [quotationData, productsData, customizedProductsData] = await Promise.all([
+      const [quotationData, productsData, customizedProductsData, bundlesData] = await Promise.all([
         getQuotation(id),
         getProducts(),
-        getAllCustomizedProducts()
+        getAllCustomizedProducts(),
+        getBundles()
       ]).catch(error => {
         console.error('Error fetching initial data for edit quotation:', error);
         throw new Error(`Failed to fetch initial data: ${error.message}`);
@@ -62,10 +68,11 @@ export default function EditQuotationPage() {
       if (quotationItems.length > 0) {
         if (quotationItems.some(item => item.customizedProductId)) {
           productType = 'customized';
+        } else if (quotationItems.some(item => item.bundleId)) {
+          productType = 'bundle';
         } else if (quotationItems.some(item => item.productId)) {
           productType = 'individual';
         }
-        // Note: Bundle support can be added here when implemented
       }
       setLeadProductType(productType);
       
@@ -100,7 +107,6 @@ export default function EditQuotationPage() {
                   dimensions: fullCustomizedProduct.specifications?.dimensions || '',
                   ...fullCustomizedProduct.specifications // Include any additional specs
                 },
-                termsAndConditions: fullCustomizedProduct.termsAndConditions || '',
                 images: fullCustomizedProduct.imageUrls || []
               };
             } else {
@@ -114,7 +120,6 @@ export default function EditQuotationPage() {
                   warranty: '',
                   dimensions: ''
                 },
-                termsAndConditions: '',
                 images: []
               };
             }
@@ -126,17 +131,46 @@ export default function EditQuotationPage() {
         console.warn(customizedProductsData.message || 'Failed to fetch customized products for editing.');
         setAllCustomizedProducts([]);
       }
+
+      if (bundlesData.success) {
+        setAllBundles(bundlesData.data || []);
+        
+        // Populate bundle component details for editing
+        const bundleDetails = {};
+        for (const item of quotationItems) {
+          if (item.bundleId && item.bundleComponents && item.bundleComponents.length > 0) {
+            const bundleObj = item.bundleId;
+            const bundleId = typeof bundleObj === 'string' ? bundleObj : bundleObj._id;
+            
+            // Use the bundleComponents from the quotation item (which has the customized make data)
+            bundleDetails[bundleId] = item.bundleComponents.map(component => ({
+              solarItemId: component.solarItemId,
+              name: component.name,
+              componentType: component.componentType || '',
+              quantity: component.quantity,
+              make: component.make || '', // This is the quotation-specific make
+              warranty: component.warranty || '',
+              sortOrder: component.sortOrder || 0
+            }));
+          }
+        }
+        setBundleComponentDetails(bundleDetails);
+      } else {
+        console.warn(bundlesData.message || 'Failed to fetch bundles for editing.');
+        setAllBundles([]);
+      }
       
       setFormData({
         leadId: lead._id,
         items: quotationItems.map(item => {
-          // Handle both regular products and customized products
+          // Handle regular products, customized products, and bundles
           if (item.productId) {
             // Regular product
             const productObj = item.productId;
             return {
               productId: typeof productObj === 'string' ? productObj : productObj._id,
               customizedProductId: '',
+              bundleId: '',
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               discount: item.discount === 0 ? '0' : (item.discount || ''),
@@ -148,6 +182,19 @@ export default function EditQuotationPage() {
             return {
               productId: '',
               customizedProductId: typeof customizedProductObj === 'string' ? customizedProductObj : customizedProductObj._id,
+              bundleId: '',
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: item.discount === 0 ? '0' : (item.discount || ''),
+              _key: item._id || `item-${Math.random().toString(36).substr(2, 9)}` 
+            };
+          } else if (item.bundleId) {
+            // Bundle product
+            const bundleObj = item.bundleId;
+            return {
+              productId: '',
+              customizedProductId: '',
+              bundleId: typeof bundleObj === 'string' ? bundleObj : bundleObj._id,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               discount: item.discount === 0 ? '0' : (item.discount || ''),
@@ -158,6 +205,7 @@ export default function EditQuotationPage() {
             return {
               productId: '',
               customizedProductId: '',
+              bundleId: '',
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               discount: item.discount === 0 ? '0' : (item.discount || ''),
@@ -177,12 +225,75 @@ export default function EditQuotationPage() {
     }
   };
 
+  const fetchBundleComponents = async (bundleId, itemIndex) => {
+    try {
+      const response = await getBundleWithComponents(bundleId);
+      if (response.success && response.data.componentsData) {
+        const componentDetails = response.data.componentsData.map(component => ({
+          solarItemId: component.solarItemId,
+          name: component.name,
+          componentType: component.componentType,
+          quantity: component.quantity,
+          make: component.make, // Default make from database
+          warranty: component.warranty,
+          sortOrder: component.sortOrder || 0
+        }));
+        setBundleComponentDetails(prevDetails => ({
+          ...prevDetails,
+          [bundleId]: componentDetails
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching bundle components:', error);
+    }
+  };
+
+  // Get dropdown options for specific components
+  const getMakeOptions = (componentName) => {
+    const name = componentName?.toLowerCase();
+    
+    if (name?.includes('spv modules') || name?.includes('540wp')) {
+      return [
+        'Panasonic/ Vikram/ Rayzan/ Novas Solar',
+        'Panasonic',
+        'Vikram', 
+        'Rayzan',
+        'Novas Solar'
+      ];
+    } else if (name?.includes('junction boxes') || name?.includes('ac & dc junction boxes')) {
+      return [
+        'Hansel/ CEC/ ESK/ VNT/ other make compliant to bid requirements',
+        'Hansel',
+        'CEC',
+        'ESK',
+        'VNT'
+      ];
+    } else if (name?.includes('power conditioning unit') || name?.includes('3 phase') || name?.includes('415 vac')) {
+      return [
+        'Havells/ Growatt/ Deye',
+        'Havells',
+        'Growatt',
+        'Deye'
+      ];
+    } else if (name?.includes('cable ac') || (name?.includes('cable') && name?.includes('ac'))) {
+      return [
+        'Orbit/ Polycab/ Havells',
+        'Orbit',
+        'Polycab',
+        'Havells'
+      ];
+    }
+    
+    return null; // Return null for components that should use text input
+  };
+
   const handleAddItem = () => {
     setFormData(prev => ({
       ...prev,
       items: [...prev.items, { 
         productId: '', 
         customizedProductId: '',
+        bundleId: '',
         quantity: 1,
         unitPrice: 0,
         discount: '',
@@ -208,11 +319,13 @@ export default function EditQuotationPage() {
             const product = originalProducts.find(p => p._id === value);
             updatedItem.productId = value;
             updatedItem.customizedProductId = ''; // Clear customized product selection
+            updatedItem.bundleId = ''; // Clear bundle selection
             updatedItem.unitPrice = product?.price ?? 0;
           } else if (field === 'customizedProductId') {
             const customizedProduct = allCustomizedProducts.find(cp => cp._id === value);
             updatedItem.customizedProductId = value;
             updatedItem.productId = ''; // Clear regular product selection
+            updatedItem.bundleId = ''; // Clear bundle selection
             updatedItem.unitPrice = customizedProduct?.unitPrice ?? 0;
             
             // Add customized product details to state if not already present
@@ -229,10 +342,20 @@ export default function EditQuotationPage() {
                     dimensions: customizedProduct.specifications?.dimensions || '',
                     ...customizedProduct.specifications // Include any additional specs
                   },
-                  termsAndConditions: customizedProduct.termsAndConditions || '',
                   images: customizedProduct.imageUrls || []
                 }
               }));
+            }
+          } else if (field === 'bundleId') {
+            const bundle = allBundles.find(b => b._id === value);
+            updatedItem.bundleId = value;
+            updatedItem.productId = ''; // Clear regular product selection
+            updatedItem.customizedProductId = ''; // Clear customized product selection
+            updatedItem.unitPrice = bundle?.price ?? 0;
+            
+            // Fetch bundle components for this bundle
+            if (value) {
+              fetchBundleComponents(value, index);
             }
           } else if (field === 'quantity') {
             updatedItem.quantity = value ? parseInt(value) : '';
@@ -332,12 +455,88 @@ export default function EditQuotationPage() {
     });
   };
 
+  const handleImageUpload = (productId, files) => {
+    const newImages = Array.from(files).filter(file => {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        console.warn(`File ${file.name} is not an image and will be skipped.`);
+        return false;
+      }
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        console.warn(`File ${file.name} exceeds 5MB limit and will be skipped.`);
+        return false;
+      }
+      return true;
+    });
+
+    // Convert files to base64
+    Promise.all(
+      newImages.map(file => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      })
+    ).then(base64Images => {
+      setCustomizedProductDetails(prev => ({
+        ...prev,
+        [productId]: {
+          ...prev[productId],
+          images: [...(prev[productId]?.images || []), ...base64Images].slice(0, 5) // Limit to 5 images
+        }
+      }));
+    }).catch(error => {
+      console.error('Error converting images to base64:', error);
+      setError('Failed to process images');
+    });
+  };
+
+  const handleRemoveImage = (productId, imageIndex) => {
+    setCustomizedProductDetails(prev => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        images: (prev[productId]?.images || []).filter((_, index) => index !== imageIndex)
+      }
+    }));
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e, productId) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    handleImageUpload(productId, files);
+  };
+
+  // Handlers for bundle component details
+  const handleBundleComponentChange = (bundleId, componentIndex, field, value) => {
+    setBundleComponentDetails(prev => ({
+      ...prev,
+      [bundleId]: prev[bundleId]?.map((component, index) => 
+        index === componentIndex ? { ...component, [field]: value } : component
+      ) || []
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
 
-    if (formData.items.some(item => (!item.productId && !item.customizedProductId) || item.quantity === '' || item.unitPrice === '')) {
+    if (formData.items.some(item => (!item.productId && !item.customizedProductId && !item.bundleId) || item.quantity === '' || item.unitPrice === '')) {
         setError("Please ensure all item fields (Product, Quantity) are filled for each item.");
         setIsSubmitting(false);
         return;
@@ -366,7 +565,6 @@ export default function EditQuotationPage() {
             modelNumber: details.modelNumber || '',
             description: details.description || '',
             specifications: details.specifications || {},
-            termsAndConditions: details.termsAndConditions || '',
             // Don't include images here as they are already uploaded to Cloudinary
             isCompleted: true
           };
@@ -386,13 +584,28 @@ export default function EditQuotationPage() {
       }
 
       const formattedData = {
-        quotationItems: formData.items.map(item => ({
-          productId: item.productId || null,
-          customizedProductId: item.customizedProductId || null,
-          quantity: parseInt(item.quantity),
-          unitPrice: parseFloat(item.unitPrice),
-          discount: item.discount === '' ? 0 : parseInt(item.discount)
-        })),
+        quotationItems: formData.items.map(item => {
+          const quotationItem = {
+            productId: item.productId || null,
+            customizedProductId: item.customizedProductId || null,
+            bundleId: item.bundleId || null,
+            quantity: parseInt(item.quantity),
+            unitPrice: parseFloat(item.unitPrice),
+            discount: item.discount === '' ? 0 : parseInt(item.discount)
+          };
+
+          // Add bundle components if this is a bundle item
+          if (item.bundleId && bundleComponentDetails[item.bundleId]) {
+            quotationItem.bundleComponents = bundleComponentDetails[item.bundleId].map(component => ({
+              solarItemId: component.solarItemId,
+              name: component.name,
+              quantity: component.quantity,
+              make: component.make
+            }));
+          }
+
+          return quotationItem;
+        }),
         terms: formData.terms || '',
         notes: formData.notes || '',
         advancePaymentPercentage: parseInt(formData.advancePaymentPercentage) || 20
@@ -501,13 +714,16 @@ export default function EditQuotationPage() {
                     <div className="relative mt-1">
                       <select
                         id={`product_id_${index}`}
-                        value={item.productId || (item.customizedProductId ? `custom_${item.customizedProductId}` : '') || ''}
+                        value={item.productId || (item.customizedProductId ? `custom_${item.customizedProductId}` : '') || (item.bundleId ? `bundle_${item.bundleId}` : '') || ''}
                         onChange={(e) => {
                           const value = e.target.value;
                           // Check if it's a customized product (starts with 'custom_')
                           if (value.startsWith('custom_')) {
                             const customizedProductId = value.replace('custom_', '');
                             handleItemChange(index, 'customizedProductId', customizedProductId);
+                          } else if (value.startsWith('bundle_')) {
+                            const bundleId = value.replace('bundle_', '');
+                            handleItemChange(index, 'bundleId', bundleId);
                           } else {
                             handleItemChange(index, 'productId', value);
                           }
@@ -537,8 +753,11 @@ export default function EditQuotationPage() {
                         )}
                         {leadProductType === 'bundle' && (
                           <optgroup label="Bundle Products">
-                            {/* Bundle products would be shown here when supported */}
-                            <option disabled>Bundle products not yet supported in quotations</option>
+                            {allBundles.map(bundle => (
+                              <option key={`bundle_${bundle._id}`} value={`bundle_${bundle._id}`}>
+                                {bundle.name} (Bundle) - ₹{bundle.price}
+                              </option>
+                            ))}
                           </optgroup>
                         )}
                         {!leadProductType && (
@@ -669,7 +888,6 @@ export default function EditQuotationPage() {
                         warranty: '',
                         dimensions: ''
                       },
-                      termsAndConditions: '',
                       images: []
                     };
                     const specifications = productDetails.specifications || { power: '', efficiency: '', warranty: '', dimensions: '' };
@@ -818,23 +1036,111 @@ export default function EditQuotationPage() {
                             )}
                           </div>
                         </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </section>
+          )}
 
-                        {/* Terms and Conditions */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Terms and Conditions
-                          </label>
-                          <textarea
-                            value={productDetails.termsAndConditions || ''}
-                            onChange={(e) => handleCustomizedProductChange(productId, 'termsAndConditions', e.target.value)}
-                            placeholder="Enter product-specific terms and conditions..."
-                            rows="3"
-                            maxLength="5000"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm resize-vertical"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">
-                            {(productDetails.termsAndConditions || '').length}/5000 characters
-                          </p>
+          {/* Solar Power Plant Bundle Components Section */}
+          {formData.items.some(item => item.bundleId && bundleComponentDetails[item.bundleId]) && (
+            <section>
+              <h2 className="text-xl font-semibold text-secondary border-b border-fourth pb-2 mb-4">
+                Typical Bill of Materials
+              </h2>
+              <div className="space-y-6">
+                {formData.items
+                  .filter(item => item.bundleId && bundleComponentDetails[item.bundleId])
+                  .map((item, itemIndex) => {
+                    const bundleId = item.bundleId;
+                    const components = bundleComponentDetails[bundleId] || [];
+                    
+                    // Find the bundle name
+                    let bundleName = `Solar Power Plant System - Item ${itemIndex + 1}`;
+                    const bundle = allBundles.find(b => b._id === bundleId);
+                    if (bundle) {
+                      bundleName = `${bundle.name} - Components`;
+                    }
+                    
+                    return (
+                      <div key={`bundle-${bundleId}`} className="bg-white rounded-lg border border-fourth shadow-sm p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <div className="w-3 h-3 bg-primary rounded-full"></div>
+                          {bundleName}
+                        </h3>
+                        
+                        {/* Components Table */}
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full border border-gray-300 rounded-lg">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 border-r border-gray-300">
+                                  Name
+                                </th>
+                                <th className="px-4 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-300">
+                                  Quantity
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                                  Make
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {components
+                                .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+                                .map((component, componentIndex) => (
+                                  <tr key={`${bundleId}-component-${componentIndex}`} className="border-t border-gray-300">
+                                    <td className="px-4 py-3 text-sm text-gray-900 border-r border-gray-300">
+                                      {component.name}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-900 text-center border-r border-gray-300">
+                                      {component.quantity}
+                                    </td>
+                                    <td className="px-4 py-3 border-gray-300">
+                                      {(() => {
+                                        const makeOptions = getMakeOptions(component.name);
+                                        
+                                        if (makeOptions) {
+                                          // Render dropdown for specific components
+                                          return (
+                                            <div className="relative">
+                                              <select
+                                                value={component.make || makeOptions[0]}
+                                                onChange={(e) => handleBundleComponentChange(bundleId, componentIndex, 'make', e.target.value)}
+                                                className="w-full px-3 py-2 pr-8 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary bg-white appearance-none"
+                                              >
+                                                {makeOptions.map((option, optionIndex) => (
+                                                  <option key={optionIndex} value={option}>
+                                                    {option}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                              <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                                            </div>
+                                          );
+                                        } else {
+                                          // Render text input for other components
+                                          return (
+                                            <input
+                                              type="text"
+                                              value={component.make || ''}
+                                              onChange={(e) => handleBundleComponentChange(bundleId, componentIndex, 'make', e.target.value)}
+                                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                              placeholder="Enter make/brand..."
+                                            />
+                                          );
+                                        }
+                                      })()}
+                                    </td>
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        
+                        <div className="mt-4 text-sm text-gray-600">
+                          <p><strong>Note:</strong> The make/brand information above is specific to this quotation and can be customized based on availability or customer preference.</p>
                         </div>
                       </div>
                     );

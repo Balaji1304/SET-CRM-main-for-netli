@@ -555,6 +555,7 @@ export default function LeadForm() {
           {
             id: `existing_${existingProduct._id}`,
             customizedProductId: existingProduct._id,
+            existingProductId: existingProduct._id, // Mark as existing
             name: existingProduct.name,
             quantity: 1,
             unitPrice: existingProduct.unitPrice,
@@ -858,9 +859,10 @@ export default function LeadForm() {
             totalPrice: parseFloat(product.quantity * product.unitPrice),
             isCustomizedProduct: true,
             // If this is an existing product, include its ID for reference
+            ...(product.customizedProductId && { customizedProductId: product.customizedProductId }),
             ...(product.existingProductId && { customizedProductId: product.existingProductId }),
             // Mark whether this is a new product that needs to be created
-            isNewCustomizedProduct: !product.existingProductId
+            isNewCustomizedProduct: !product.customizedProductId && !product.existingProductId
           }));
       }
 
@@ -886,28 +888,49 @@ export default function LeadForm() {
             
             // Only create records for new customized products (not existing ones)
             const newCustomizedProducts = customizedProducts.filter(p => 
-              p.name && p.quantity > 0 && p.unitPrice > 0 && !p.existingProductId
+              p.name && p.quantity > 0 && p.unitPrice > 0 && 
+              !p.existingProductId && !p.customizedProductId
             );
             
             if (newCustomizedProducts.length > 0) {
               const customizedProductPromises = newCustomizedProducts
                 .map(async (product, index) => {
-                  const customizedProductData = {
-                    name: product.name,
-                    unitPrice: product.unitPrice,
-                    leadId: createdLeadId,
-                    // Include additional details if provided
-                    modelNumber: product.modelNumber || '',
-                    description: product.description || '',
-                    specifications: product.specifications || {},
-                    imageUrls: product.imageUrls || [],
-                    terms: product.terms || ''
-                  };
-                  const result = await createCustomizedProduct(customizedProductData);
-                  return { ...result, productId: product.id, productName: product.name };
+                  try {
+                    const customizedProductData = {
+                      name: product.name,
+                      unitPrice: product.unitPrice,
+                      leadId: createdLeadId,
+                      // Include additional details if provided
+                      modelNumber: product.modelNumber || '',
+                      description: product.description || '',
+                      specifications: product.specifications || {},
+                      imageUrls: product.imageUrls || []
+                    };
+                    const result = await createCustomizedProduct(customizedProductData);
+                    return { ...result, productId: product.id, productName: product.name };
+                  } catch (error) {
+                    // Handle duplicate name error
+                    if (error.message && error.message.includes('already exists')) {
+                      return { 
+                        success: false, 
+                        error: error.message, 
+                        productId: product.id, 
+                        productName: product.name,
+                        isDuplicate: true 
+                      };
+                    }
+                    throw error;
+                  }
                 });
 
               const createdCustomizedProducts = await Promise.all(customizedProductPromises);
+              
+              // Check for any duplicate name errors
+              const duplicateErrors = createdCustomizedProducts.filter(cp => cp.isDuplicate);
+              if (duplicateErrors.length > 0) {
+                const duplicateNames = duplicateErrors.map(cp => cp.productName).join(', ');
+                throw new Error(`Customized product(s) with name(s) "${duplicateNames}" already exist. Please choose different names or select the existing products from the dropdown.`);
+              }
               
               // Update the lead products with the new customized product IDs
               const updatedProducts = productsToSubmit.map((product) => {
@@ -961,19 +984,22 @@ export default function LeadForm() {
           try {
             // Separate existing products from new products
             const existingProducts = customizedProducts.filter(p => 
-              p.name && p.quantity > 0 && p.unitPrice > 0 && p.existingProductId
+              p.name && p.quantity > 0 && p.unitPrice > 0 && 
+              (p.existingProductId || p.customizedProductId)
             );
             const newProducts = customizedProducts.filter(p => 
-              p.name && p.quantity > 0 && p.unitPrice > 0 && !p.existingProductId
+              p.name && p.quantity > 0 && p.unitPrice > 0 && 
+              !p.existingProductId && !p.customizedProductId
             );
             
             let processedProducts = [];
             
             // Handle existing products - these don't need database updates, just references
             existingProducts.forEach((product) => {
+              const productId = product.existingProductId || product.customizedProductId;
               processedProducts.push({
                 success: true,
-                data: { _id: product.existingProductId },
+                data: { _id: productId },
                 productId: product.id, // Use the unique product ID for matching
                 isExisting: true
               });
@@ -982,27 +1008,49 @@ export default function LeadForm() {
             // Handle new products - create them
             if (newProducts.length > 0) {
               const customizedProductPromises = newProducts.map(async (product) => {
-                const customizedProductData = {
-                  name: product.name,
-                  unitPrice: product.unitPrice,
-                  leadId: leadId,
-                  // Include additional details if provided
-                  modelNumber: product.modelNumber || '',
-                  description: product.description || '',
-                  specifications: product.specifications || {},
-                  imageUrls: product.imageUrls || [],
-                  terms: product.terms || ''
-                };
-                
-                const result = await createCustomizedProduct(customizedProductData);
-                return { 
-                  ...result, 
-                  productId: product.id, // Use the unique product ID for matching
-                  isExisting: false 
-                };
+                try {
+                  const customizedProductData = {
+                    name: product.name,
+                    unitPrice: product.unitPrice,
+                    leadId: leadId,
+                    // Include additional details if provided
+                    modelNumber: product.modelNumber || '',
+                    description: product.description || '',
+                    specifications: product.specifications || {},
+                    imageUrls: product.imageUrls || []
+                  };
+                  
+                  const result = await createCustomizedProduct(customizedProductData);
+                  return { 
+                    ...result, 
+                    productId: product.id, // Use the unique product ID for matching
+                    isExisting: false 
+                  };
+                } catch (error) {
+                  // Handle duplicate name error
+                  if (error.message && error.message.includes('already exists')) {
+                    return { 
+                      success: false, 
+                      error: error.message, 
+                      productId: product.id, 
+                      productName: product.name,
+                      isDuplicate: true,
+                      isExisting: false 
+                    };
+                  }
+                  throw error;
+                }
               });
 
               const createdProducts = await Promise.all(customizedProductPromises);
+              
+              // Check for any duplicate name errors
+              const duplicateErrors = createdProducts.filter(cp => cp.isDuplicate);
+              if (duplicateErrors.length > 0) {
+                const duplicateNames = duplicateErrors.map(cp => cp.productName).join(', ');
+                throw new Error(`Customized product(s) with name(s) "${duplicateNames}" already exist. Please choose different names or select the existing products from the dropdown.`);
+              }
+              
               processedProducts = [...processedProducts, ...createdProducts];
             }
             
@@ -1381,7 +1429,7 @@ export default function LeadForm() {
             {/* Bundle Selection Interface */}
             {selectedProductType === 'bundle' && (
               <>
-                {/* Selected Bundles Table - Desktop & Tablet */}
+                {/* Selected Systems Table - Desktop & Tablet */}
                 <div className="hidden md:block bg-white rounded-lg border border-fourth shadow-sm overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="min-w-full">
@@ -1768,14 +1816,13 @@ export default function LeadForm() {
                             .filter(product => !customizedProducts.some(cp => cp.customizedProductId === product._id))
                             .map(product => (
                               <option key={product._id} value={product._id}>
-                                {product.name} - ₹{product.unitPrice} 
-                                ({product.leadId?.firstName} {product.leadId?.lastName})
+                                {product.name} - ₹{product.unitPrice}
                               </option>
                             ))}
                         </select>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        Products created for other leads that can be reused
+                        Select from globally available customized products
                       </p>
                     </div>
 
