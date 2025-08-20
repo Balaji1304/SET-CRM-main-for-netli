@@ -42,7 +42,9 @@ function StandalonePaymentModal({
       onSetPaymentError('No quotation selected');
       return;
     }
-    if (!paymentDetails.amount || !paymentDetails.transactionNo || !paymentDetails.paymentDate) {
+    // Check required fields - transactionNo is optional for cash payments
+    const isTransactionRequired = paymentDetails.paymentMethod !== 'cash';
+    if (!paymentDetails.amount || !paymentDetails.paymentDate || (isTransactionRequired && !paymentDetails.transactionNo)) {
       onSetPaymentError('Please fill in all required fields');
       return;
     }
@@ -169,16 +171,16 @@ function StandalonePaymentModal({
               {/* Transaction Reference */}
               <div>
                 <label htmlFor="transactionNo" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Transaction Reference <span className="text-red-500">*</span>
+                  Transaction Reference {paymentDetails.paymentMethod !== 'cash' && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   id="transactionNo"
                   type="text"
                   value={paymentDetails.transactionNo}
                   onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, transactionNo: e.target.value }))}
-                  className={`w-full px-4 py-3 sm:py-3.5 border rounded-xl focus:ring-2 focus:border-primary transition-all duration-200 text-sm sm:text-base font-medium placeholder-gray-400 ${paymentError && !paymentDetails.transactionNo ? 'border-red-400 ring-2 ring-red-100 bg-red-50/50' : 'border-gray-300 focus:ring-primary/20 bg-gray-50/50'}`}
-                  placeholder="Enter transaction number or reference"
-                  required
+                  className={`w-full px-4 py-3 sm:py-3.5 border rounded-xl focus:ring-2 focus:border-primary transition-all duration-200 text-sm sm:text-base font-medium placeholder-gray-400 ${paymentError && !paymentDetails.transactionNo && paymentDetails.paymentMethod !== 'cash' ? 'border-red-400 ring-2 ring-red-100 bg-red-50/50' : 'border-gray-300 focus:ring-primary/20 bg-gray-50/50'}`}
+                  placeholder={paymentDetails.paymentMethod === 'cash' ? 'Optional for cash payments' : 'Enter transaction number or reference'}
+                  required={paymentDetails.paymentMethod !== 'cash'}
                 />
               </div>
               

@@ -748,8 +748,8 @@ exports.handleApproveQuotation = async (req, res) => {
         throw new AppError('Payment method is required for offline payments.', 400);
       }
 
-      // At least some reference or date must exist for audit
-      if (!quotation.offlineTransactionNo && !quotation.razorpayPaymentId) {
+      // At least some reference or date must exist for audit (except for cash payments)
+      if (!quotation.offlineTransactionNo && !quotation.razorpayPaymentId && quotation.paymentMethod !== 'cash') {
         throw new AppError('Reference number is required for offline payment verification.', 400);
       }
 
@@ -1083,7 +1083,8 @@ exports.confirmOfflinePayment = async (req, res) => {
     quotation.advancePaymentStatus = 'CONFIRMED';
     quotation.advancePaymentAmount = paymentAmount; 
     quotation.advancePaymentConfirmedAt = paymentDate ? new Date(paymentDate) : new Date();
-    quotation.offlineTransactionNo = transactionNo;
+    // For cash payments, generate a default reference if none provided
+    quotation.offlineTransactionNo = transactionNo || (paymentMethod === 'cash' ? `CASH-${Date.now()}-${quotation.quotationNumber}` : transactionNo);
     
     if (paymentMethod) quotation.paymentMethod = paymentMethod; 
     if (notes) quotation.paymentNotes = notes;
