@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2, X, AlertTriangle, Loader2, Package } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { createLead, getLead, updateLead } from '../../services/leadService';
+import { createLead, getLead, updateLead, checkEmailExists } from '../../services/leadService';
 import { getProducts } from '../../services/productService';
 import { getPowerPlantConfigurations } from '../../services/bundleService';
 import { createCustomizedProduct, updateCustomizedProduct, getAllCustomizedProducts } from '../../services/customizedProductService';
@@ -175,6 +175,25 @@ export default function LeadForm() {
   const [geoStatus, setGeoStatus] = useState('idle'); // idle | loading | success | error
   const [geoError, setGeoError] = useState('');
 
+  // Email validation state
+  const [emailValidation, setEmailValidation] = useState({
+    isChecking: false,
+    exists: false,
+    existingLead: null,
+    error: null,
+    lastCheckedEmail: ''
+  });
+  const emailCheckTimeout = useRef(null);
+
+  // Cleanup email check timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (emailCheckTimeout.current) {
+        clearTimeout(emailCheckTimeout.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const fetchProductsAndBundles = async () => {
       setIsLoadingProducts(true);
@@ -268,6 +287,18 @@ export default function LeadForm() {
     setSelectedProductType('individual');
     setSelectedBundles([]);
     setCustomizedProducts([]);
+    // Reset email validation
+    setEmailValidation({
+      isChecking: false,
+      exists: false,
+      existingLead: null,
+      error: null,
+      lastCheckedEmail: ''
+    });
+    // Clear any pending email check
+    if (emailCheckTimeout.current) {
+      clearTimeout(emailCheckTimeout.current);
+    }
   }, []);
 
   useEffect(() => {
@@ -476,7 +507,73 @@ export default function LeadForm() {
       ...prev, 
       [name]: type === 'checkbox' ? checked : (value ?? '') 
     }));
+
+    // Trigger email validation if email field changes
+    if (name === 'email' && value.trim() !== emailValidation.lastCheckedEmail) {
+      handleEmailValidation(value.trim());
+    }
   };
+
+  // Email validation with debounce
+  const handleEmailValidation = useCallback(async (email) => {
+    // Clear any existing timeout
+    if (emailCheckTimeout.current) {
+      clearTimeout(emailCheckTimeout.current);
+    }
+
+    // Reset validation state if email is empty or invalid format
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      setEmailValidation({
+        isChecking: false,
+        exists: false,
+        existingLead: null,
+        error: null,
+        lastCheckedEmail: email
+      });
+      return;
+    }
+
+    // Set checking state
+    setEmailValidation(prev => ({
+      ...prev,
+      isChecking: true,
+      error: null,
+      lastCheckedEmail: email
+    }));
+
+    // Debounce the API call
+    emailCheckTimeout.current = setTimeout(async () => {
+      try {
+        const response = await checkEmailExists(email, isEditMode ? leadId : null);
+        if (response.success) {
+          setEmailValidation({
+            isChecking: false,
+            exists: response.exists,
+            existingLead: response.lead,
+            error: null,
+            lastCheckedEmail: email
+          });
+        } else {
+          setEmailValidation({
+            isChecking: false,
+            exists: false,
+            existingLead: null,
+            error: 'Unable to check email availability',
+            lastCheckedEmail: email
+          });
+        }
+      } catch (error) {
+        console.error('Error checking email:', error);
+        setEmailValidation({
+          isChecking: false,
+          exists: false,
+          existingLead: null,
+          error: 'Unable to check email availability',
+          lastCheckedEmail: email
+        });
+      }
+    }, 800); // 800ms debounce
+  }, [isEditMode, leadId]);
 
   const handleProductPropertyChange = (index, field, value) => {
     const updatedProducts = [...formData.products];
@@ -720,6 +817,7 @@ export default function LeadForm() {
     if (!formData.firstName) errors.personalInfo = { ...errors.personalInfo, firstName: 'First Name is required.' };
     if (!formData.email) errors.personalInfo = { ...errors.personalInfo, email: 'Email is required.' };
     else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.personalInfo = { ...errors.personalInfo, email: 'Email is invalid.' };
+    else if (emailValidation.exists) errors.personalInfo = { ...errors.personalInfo, email: 'This email address is already associated with another lead.' };
     if (!formData.phone) errors.personalInfo = { ...errors.personalInfo, phone: 'Phone number is required.' };
     if (!formData.whatsapp) errors.personalInfo = { ...errors.personalInfo, whatsapp: 'WhatsApp number is required.' };
     if (!formData.billingAddress) errors.personalInfo = { ...errors.personalInfo, billingAddress: 'Billing address is required.' };
@@ -1102,7 +1200,27 @@ export default function LeadForm() {
       }
     } catch (err) {
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} lead:`, err);
-      setSubmissionError(err.message || 'An unexpected error occurred. Please try again.');
+      
+      // Handle specific error types from the backend
+      if (err.errorType === 'DUPLICATE_EMAIL') {
+        setSubmissionError(`The email address "${err.duplicateValue}" is already associated with another lead. Please use a different email address or update the existing lead.`);
+        // Scroll to email field
+        if (sectionRefs.personalInfo?.current) {
+          sectionRefs.personalInfo.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        // Set field-specific error
+        setSectionErrors(prev => ({
+          ...prev,
+          personalInfo: {
+            ...prev.personalInfo,
+            email: `Email "${err.duplicateValue}" already exists in another lead.`
+          }
+        }));
+      } else if (err.errorType === 'VALIDATION_ERROR') {
+        setSubmissionError(`Please correct the following errors: ${err.validationErrors?.join(', ') || err.message}`);
+      } else {
+        setSubmissionError(err.message || 'An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -1136,6 +1254,90 @@ export default function LeadForm() {
         className={`mt-1 block w-full px-3 py-2.5 sm:py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-sm text-secondary placeholder-gray-400 touch-target ${sectionErrors[section]?.[name] ? 'border-red-500' : ''}`}
       />
             </div>
+  );
+
+  // Special email input field with validation feedback
+  const renderEmailField = (name, label, placeholder = '', required = false, section, halfWidth = false) => (
+    <div className={halfWidth ? 'w-full' : 'w-full'}>
+      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1 sm:mb-1">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="relative">
+        <input
+          type="email"
+          id={name}
+          name={name}
+          value={formData[name] ?? ''}
+          onChange={handleInputChange}
+          placeholder={placeholder}
+          required={required}
+          className={`mt-1 block w-full px-3 py-2.5 sm:py-2 bg-white border rounded-lg shadow-sm focus:outline-none focus:ring-1 text-sm sm:text-sm text-secondary placeholder-gray-400 touch-target pr-10 ${
+            sectionErrors[section]?.[name] 
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+              : emailValidation.exists
+              ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+              : emailValidation.lastCheckedEmail && !emailValidation.exists && formData[name]?.trim() && /\S+@\S+\.\S+/.test(formData[name])
+              ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+              : 'border-fourth focus:ring-primary focus:border-primary'
+          }`}
+        />
+        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+          {emailValidation.isChecking && formData[name]?.trim() && (
+            <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+          )}
+          {!emailValidation.isChecking && emailValidation.exists && (
+            <X className="h-4 w-4 text-red-500" />
+          )}
+          {!emailValidation.isChecking && !emailValidation.exists && emailValidation.lastCheckedEmail && formData[name]?.trim() && /\S+@\S+\.\S+/.test(formData[name]) && (
+            <Check className="h-4 w-4 text-green-500" />
+          )}
+        </div>
+      </div>
+      
+      {/* Email validation feedback */}
+      {formData[name]?.trim() && (
+        <>
+          {emailValidation.isChecking && (
+            <p className="text-sm text-gray-500 mt-1 flex items-center">
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              Checking email availability...
+            </p>
+          )}
+          
+          {!emailValidation.isChecking && emailValidation.exists && emailValidation.existingLead && (
+            <div className="mt-1 p-2 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600 font-medium flex items-center">
+                <X className="h-3 w-3 mr-1" />
+                Email already exists
+              </p>
+              <p className="text-xs text-red-500 mt-1">
+                This email is already associated with {emailValidation.existingLead.firstName} {emailValidation.existingLead.lastName} 
+                (Status: {emailValidation.existingLead.status}). Please use a different email address.
+              </p>
+            </div>
+          )}
+          
+          {!emailValidation.isChecking && !emailValidation.exists && emailValidation.lastCheckedEmail && /\S+@\S+\.\S+/.test(formData[name]) && (
+            <p className="text-sm text-green-600 mt-1 flex items-center">
+              <Check className="h-3 w-3 mr-1" />
+              Email is available
+            </p>
+          )}
+          
+          {emailValidation.error && (
+            <p className="text-sm text-orange-600 mt-1 flex items-center">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              {emailValidation.error}
+            </p>
+          )}
+        </>
+      )}
+      
+      {/* Show validation error from section errors */}
+      {sectionErrors[section]?.[name] && (
+        <p className="text-sm text-red-500 mt-1">{sectionErrors[section][name]}</p>
+      )}
+    </div>
   );
 
   const renderSelectField = (name, label, options, required = false, section, halfWidth = false) => (
@@ -1231,7 +1433,7 @@ export default function LeadForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {renderInputField('firstName', 'First Name', 'text', 'Enter first name', true, 'personalInfo')}
               {renderInputField('lastName', 'Last Name', 'text', 'Enter last name', false, 'personalInfo')}
-              {renderInputField('email', 'Email Address', 'email', 'name@example.com', true, 'personalInfo')}
+              {renderEmailField('email', 'Email Address', 'name@example.com', true, 'personalInfo')}
               <div className="w-full">
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
                 <div className="relative mt-1 flex rounded-lg shadow-sm">

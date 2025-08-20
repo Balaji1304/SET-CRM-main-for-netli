@@ -3,6 +3,50 @@ const CustomizedProduct = require('../models/CustomizedProduct');
 const ProductBundle = require('../models/ProductBundle');
 const NotificationService = require('../utils/notificationService');
 
+// @desc    Check if email already exists
+// @route   POST /api/leads/check-email
+// @access  Private
+exports.checkEmailExists = async (req, res) => {
+  try {
+    const { email, excludeId } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    
+    const query = { email: email.toLowerCase().trim() };
+    
+    // If updating an existing lead, exclude it from the check
+    if (excludeId) {
+      query._id = { $ne: excludeId };
+    }
+    
+    const existingLead = await Lead.findOne(query);
+    
+    res.json({
+      success: true,
+      exists: !!existingLead,
+      lead: existingLead ? {
+        id: existingLead._id,
+        firstName: existingLead.firstName,
+        lastName: existingLead.lastName,
+        email: existingLead.email,
+        phone: existingLead.phone,
+        status: existingLead.status
+      } : null
+    });
+  } catch (error) {
+    console.error('Error checking email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check email'
+    });
+  }
+};
+
 // @desc    Create new lead
 // @route   POST /api/leads
 // @access  Private
@@ -29,9 +73,35 @@ exports.createLead = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating lead:', error);
+    
+    // Handle duplicate email error specifically
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.email) {
+      const duplicateEmail = error.keyValue.email;
+      return res.status(400).json({
+        success: false,
+        message: `A lead with the email address "${duplicateEmail}" already exists. Please use a different email address or update the existing lead.`,
+        errorType: 'DUPLICATE_EMAIL',
+        duplicateField: 'email',
+        duplicateValue: duplicateEmail
+      });
+    }
+    
+    // Handle other validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: `Validation error: ${validationErrors.join(', ')}`,
+        errorType: 'VALIDATION_ERROR',
+        validationErrors: validationErrors
+      });
+    }
+    
+    // Generic error response
     res.status(400).json({
       success: false,
-      message: `Failed to create lead: ${error.message}`
+      message: `Failed to create lead: ${error.message}`,
+      errorType: 'GENERAL_ERROR'
     });
   }
 };
@@ -301,9 +371,35 @@ exports.updateLead = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating lead:', error);
+    
+    // Handle duplicate email error specifically
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.email) {
+      const duplicateEmail = error.keyValue.email;
+      return res.status(400).json({
+        success: false,
+        message: `A lead with the email address "${duplicateEmail}" already exists. Please use a different email address or update the existing lead.`,
+        errorType: 'DUPLICATE_EMAIL',
+        duplicateField: 'email',
+        duplicateValue: duplicateEmail
+      });
+    }
+    
+    // Handle other validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: `Validation error: ${validationErrors.join(', ')}`,
+        errorType: 'VALIDATION_ERROR',
+        validationErrors: validationErrors
+      });
+    }
+    
+    // Generic error response
     res.status(400).json({
       success: false,
-      message: `Failed to update lead: ${error.message}`
+      message: `Failed to update lead: ${error.message}`,
+      errorType: 'GENERAL_ERROR'
     });
   }
 };
