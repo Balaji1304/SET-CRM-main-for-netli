@@ -38,4 +38,11 @@ export const deleteLead = async (id) => {
   // Invalidate leads cache after deletion
   invalidateCache('leads');
   return response;
+};
+
+export const checkEmailExists = async (email, excludeId = null) => {
+  return await apiRequest('leads/check-email', {
+    method: 'POST',
+    body: { email, excludeId }
+  }, false); // Don't cache email checks
 }; 

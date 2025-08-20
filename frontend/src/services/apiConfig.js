@@ -111,7 +111,16 @@ export const apiRequest = async (endpoint, options = {}, useCache = options.meth
           method: method
         });
         console.error('Full error details:', errorData);
-        throw new Error(errorData.message || `Error: ${response.status}`);
+        
+        // Create error object with additional properties for better error handling
+        const error = new Error(errorData.message || `Error: ${response.status}`);
+        error.errorType = errorData.errorType;
+        error.duplicateField = errorData.duplicateField;
+        error.duplicateValue = errorData.duplicateValue;
+        error.validationErrors = errorData.validationErrors;
+        error.status = response.status;
+        
+        throw error;
       }
       
       const data = await response.json();
