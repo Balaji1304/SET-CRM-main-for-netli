@@ -337,29 +337,44 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     }
   };
 
-  const handleSendQuotation = (id) => handleAction(
-    sendQuotation,
-    id,
-    'Quotation sent successfully!',
-    (prev, data) => prev.map(q => q._id === id ? data : q),
-    'send'
-  );
+  const handleSendQuotation = (id) => {
+    openConfirmDialog(
+      'Are you sure you want to send this quotation to the lead? This action cannot be undone.',
+      () => handleAction(
+        sendQuotation,
+        id,
+        'Quotation sent successfully!',
+        (prev, data) => prev.map(q => q._id === id ? data : q),
+        'send'
+      )
+    );
+  };
 
-  const handleApproveQuotation = (id) => handleAction(
-    approveQuotation,
-    id,
-    'Quotation approved successfully!',
-    (prev, data) => prev.map(q => q._id === id ? { ...q, status: 'approved', ...(data || {}) } : q),
-    'approve'
-  );
+  const handleApproveQuotation = (id) => {
+    openConfirmDialog(
+      'Confirm approval? This will lock the quotation and confirm payment.',
+      () => handleAction(
+        approveQuotation,
+        id,
+        'Quotation approved successfully!',
+        (prev, data) => prev.map(q => q._id === id ? { ...q, status: 'approved', ...(data || {}) } : q),
+        'approve'
+      )
+    );
+  };
 
-  const handleCloseQuotation = (id) => handleAction(
-    closeQuotation, // This is likely a reject/close action
-    id,
-    'Quotation closed successfully!',
-    (prev, data) => prev.map(q => q._id === id ? { ...q, status: 'closed', ...(data || {}) } : q),
-    'close'
-  );
+  const handleCloseQuotation = (id) => {
+    openConfirmDialog(
+      'Are you sure you want to close this quotation? This usually means the lead did not accept it.',
+      () => handleAction(
+        closeQuotation,
+        id,
+        'Quotation closed successfully!',
+        (prev, data) => prev.map(q => q._id === id ? { ...q, status: 'closed', ...(data || {}) } : q),
+        'close'
+      )
+    );
+  };
 
   const openConfirmDialog = (message, onConfirm) => {
     setConfirmDialogProps({ message, onConfirm });
@@ -508,7 +523,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               )}
               {user?.role === 'accounts_department' && quotation.status === 'pending_approval' && (
                 <button
-                  onClick={() => openConfirmDialog('Confirm approval? This will lock the quotation and confirm payment.', () => handleApproveQuotation(quotation._id))}
+                  onClick={() => handleApproveQuotation(quotation._id)}
                   className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
                   title="Approve Quotation"
                   disabled={loadingAction[quotation._id]}
@@ -517,7 +532,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                 </button>
               )}
               <button
-                onClick={() => openConfirmDialog('Are you sure you want to close this quotation? This usually means the lead did not accept it.', () => handleCloseQuotation(quotation._id))}
+                onClick={() => handleCloseQuotation(quotation._id)}
                 className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
                 title="Close Quotation"
                 disabled={loadingAction[quotation._id]}
@@ -749,7 +764,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                               )}
                               {user?.role === 'accounts_department' && quotation.status === 'pending_approval' && (
                                 <button
-                                  onClick={() => openConfirmDialog('Confirm approval? This will lock the quotation and confirm payment.', () => handleApproveQuotation(quotation._id))}
+                                  onClick={() => handleApproveQuotation(quotation._id)}
                                   className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-green-200"
                                   title="Approve Quotation"
                                   disabled={loadingAction[quotation._id] || quotation.advancePaymentStatus !== 'CONFIRMED'}
@@ -758,7 +773,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                                 </button>
                               )}
                               <button
-                                onClick={() => openConfirmDialog('Are you sure you want to close this quotation? This usually means the lead did not accept it.', () => handleCloseQuotation(quotation._id))}
+                                onClick={() => handleCloseQuotation(quotation._id)}
                                 className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-red-200"
                                 title="Close Quotation"
                                 disabled={loadingAction[quotation._id]}

@@ -176,6 +176,9 @@
             font-size: 12px;
             font-weight: bold;
         }
+        .terms-and-conditions div {
+            white-space: pre-line;
+        }
         .footer {
             margin-top: 25px;
             text-align: right;
@@ -596,6 +599,7 @@
             .terms-and-conditions div {
                 font-size: 14px !important;
                 line-height: 1.8 !important;
+                white-space: pre-line !important;
             }
             .footer {
                 font-size: 14px !important;
@@ -732,19 +736,105 @@
             {{/if}}
             <div class="specs-section" style="margin-top: 15px;">
                 <div class="specs-content" style="margin: 15px 0; font-size: 16px; line-height: 1.8; color: #000; max-width: 100%; overflow-wrap: break-word; word-wrap: break-word;">{{product.description}}</div>
-                <div class="specifications-table" style="margin-top: 20px; margin-bottom: 30px; width: 100%;">
-                    <h4 class="specs-heading" style="font-size: 16px; font-weight: bold; color: #FF7300; margin-bottom: 8px; border-bottom: 2px solid #FF7300; padding-bottom: 4px;">Specifications</h4>
-                    <table class="specs-details" style="width: 100%; border-collapse: collapse; font-size: 16px; margin-top: 8px; border: 1px solid #e5e7eb;">
+                
+                {{#if (eq product.category 'power_plants_system')}}
+                <!-- System Configuration Section for Solar Power Plant Bundles -->
+                {{#if product.systemConfiguration}}
+                <div class="system-configuration" style="margin: 20px 0;">
+                    <h4 class="config-heading" style="font-size: 16px; font-weight: bold; color: #FF7300; margin-bottom: 8px; border-bottom: 2px solid #FF7300; padding-bottom: 4px;">System Configuration Proposed</h4>
+                    <table class="config-table" style="width: 100%; border-collapse: collapse; font-size: 16px; margin-top: 8px; border: 1px solid #e5e7eb;">
+                        <thead>
+                            <tr style="background-color: #f9fafb;">
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: left; border: 1px solid #e5e7eb; width: 20%;">System Description</th>
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: center; border: 1px solid #e5e7eb; width: 20%;">Installed Capacity (KWP)</th>
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: left; border: 1px solid #e5e7eb; width: 20%;">Module Specification</th>
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: left; border: 1px solid #e5e7eb; width: 20%;">Inverter Specification</th>
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: left; border: 1px solid #e5e7eb; width: 20%;">Area Required (Approx.)</th>
+                            </tr>
+                        </thead>
                         <tbody>
-                            {{#each product.specifications as |spec|}}
                             <tr style="border-bottom: 1px solid #e5e7eb;">
-                                <td class="spec-name" style="padding: 8px 16px; font-weight: 600; color: #000000; width: 40%; text-transform: capitalize; background-color: #f9fafb; font-size: 16px;">{{spec.name}}</td>
-                                <td class="spec-value" style="padding: 8px 16px; color: #000000; font-size: 16px;">{{spec.value}}</td>
+                                <td style="padding: 8px 16px; color: #000000; border: 1px solid #e5e7eb; font-size: 16px;">{{product.systemConfiguration.systemDescription}}</td>
+                                <td style="padding: 8px 16px; color: #000000; text-align: center; border: 1px solid #e5e7eb; font-size: 16px;">{{product.systemConfiguration.installedCapacityKWP}}</td>
+                                <td style="padding: 8px 16px; color: #000000; border: 1px solid #e5e7eb; font-size: 16px;">{{product.systemConfiguration.moduleSpecification}}</td>
+                                <td style="padding: 8px 16px; color: #000000; border: 1px solid #e5e7eb; font-size: 16px;">{{product.systemConfiguration.inverterSpecification}}</td>
+                                <td style="padding: 8px 16px; color: #000000; border: 1px solid #e5e7eb; font-size: 16px;">{{product.systemConfiguration.areaRequired}}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                {{/if}}
+                
+                <!-- Typical Bill of Materials Section for Solar Power Plant Bundles -->
+                {{#if product.bundleComponents}}
+                <div class="bill-of-materials" style="margin: 20px 0;">
+                    <h4 class="bom-heading" style="font-size: 16px; font-weight: bold; color: #FF7300; margin-bottom: 8px; border-bottom: 2px solid #FF7300; padding-bottom: 4px;">Typical Bill of Materials</h4>
+                    <table class="bom-table" style="width: 100%; border-collapse: collapse; font-size: 16px; margin-top: 8px; border: 1px solid #e5e7eb;">
+                        <thead>
+                            <tr style="background-color: #f9fafb;">
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: left; border: 1px solid #e5e7eb; width: 45%;">Name</th>
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: center; border: 1px solid #e5e7eb; width: 15%;">Quantity</th>
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: left; border: 1px solid #e5e7eb; width: 40%;">Make</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each product.bundleComponents}}
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 8px 16px; color: #000000; border: 1px solid #e5e7eb; font-size: 16px;">{{this.name}}</td>
+                                <td style="padding: 8px 16px; color: #000000; text-align: center; border: 1px solid #e5e7eb; font-size: 16px;">{{this.quantity}}</td>
+                                <td style="padding: 8px 16px; color: #000000; border: 1px solid #e5e7eb; font-size: 16px;">{{this.make}}</td>
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 10px; font-size: 14px; color: #666; font-style: italic;">
+                        <strong>Note:</strong> The make/brand information above is specific to this quotation and can be customized based on availability or customer preference.
+                    </div>
+                </div>
+                {{/if}}
+                {{else}}
+                <!-- For non-solar bundle products, show existing bill of materials if available -->
+                {{#if product.bundleComponents}}
+                <div class="bill-of-materials" style="margin: 20px 0;">
+                    <h4 class="bom-heading" style="font-size: 16px; font-weight: bold; color: #FF7300; margin-bottom: 8px; border-bottom: 2px solid #FF7300; padding-bottom: 4px;">Typical Bill of Materials</h4>
+                    <table class="bom-table" style="width: 100%; border-collapse: collapse; font-size: 16px; margin-top: 8px; border: 1px solid #e5e7eb;">
+                        <thead>
+                            <tr style="background-color: #f9fafb;">
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: left; border: 1px solid #e5e7eb; width: 45%;">Name</th>
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: center; border: 1px solid #e5e7eb; width: 15%;">Quantity</th>
+                                <th style="padding: 8px 16px; font-weight: 600; color: #000000; text-align: left; border: 1px solid #e5e7eb; width: 40%;">Make</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#each product.bundleComponents}}
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 8px 16px; color: #000000; border: 1px solid #e5e7eb; font-size: 16px;">{{this.name}}</td>
+                                <td style="padding: 8px 16px; color: #000000; text-align: center; border: 1px solid #e5e7eb; font-size: 16px;">{{this.quantity}}</td>
+                                <td style="padding: 8px 16px; color: #000000; border: 1px solid #e5e7eb; font-size: 16px;">{{this.make}}</td>
                             </tr>
                             {{/each}}
                         </tbody>
                     </table>
                 </div>
+                {{/if}}
+                
+                <!-- Specifications Section for Individual and Customized Products, and Non-Solar Bundles -->
+                {{#if product.specifications}}
+                <div class="specifications-table" style="margin-top: 20px; margin-bottom: 30px; width: 100%;">
+                    <h4 class="specs-heading" style="font-size: 16px; font-weight: bold; color: #FF7300; margin-bottom: 8px; border-bottom: 2px solid #FF7300; padding-bottom: 4px;">Specifications</h4>
+                    <table class="specs-details" style="width: 100%; border-collapse: collapse; font-size: 16px; margin-top: 8px; border: 1px solid #e5e7eb;">
+                        <tbody>
+                            {{#each product.specifications}}
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td class="spec-name" style="padding: 8px 16px; font-weight: 600; color: #000000; width: 40%; text-transform: capitalize; background-color: #f9fafb; font-size: 16px;">{{this.name}}</td>
+                                <td class="spec-value" style="padding: 8px 16px; color: #000000; font-size: 16px;">{{this.value}}</td>
+                            </tr>
+                            {{/each}}
+                        </tbody>
+                    </table>
+                </div>
+                {{/if}}
+                {{/if}}
             </div>
         </div>
         {{/each}}
@@ -787,7 +877,7 @@
         
         <div class="terms-and-conditions" style="margin: 25px 0; page-break-inside: avoid;">
             <h3 style="margin-bottom: 10px; font-size: 16px; font-weight: bold;">Terms and Conditions:</h3>
-            <div style="font-size: 16px; line-height: 1.8;">{{terms}}</div>
+            <div style="font-size: 16px; line-height: 1.8; white-space: pre-line;">{{terms}}</div>
         </div>
 
         <div class="footer" style="margin-top: 25px; text-align: right; page-break-inside: avoid; font-size: 16px; line-height: 1.8;">

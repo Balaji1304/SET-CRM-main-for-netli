@@ -6,6 +6,7 @@ const {
   createCustomizedProduct,
   getAllCustomizedProducts,
   getCustomizedProductsByLead,
+  getCustomizedProductByName,
   getCustomizedProduct,
   updateCustomizedProduct,
   uploadCustomizedProductImages,
@@ -48,6 +49,9 @@ router.route('/')
 
 router.route('/lead/:leadId')
   .get(getCustomizedProductsByLead);
+
+router.route('/name/:name')
+  .get(getCustomizedProductByName);
 
 router.route('/:id')
   .get(getCustomizedProduct)

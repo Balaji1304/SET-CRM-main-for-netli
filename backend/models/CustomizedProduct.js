@@ -5,7 +5,8 @@ const customizedProductSchema = new mongoose.Schema({
   name: {
     type: String,
     required: [true, 'Product name is required'],
-    trim: true
+    trim: true,
+    unique: true // Make product names globally unique
   },
   unitPrice: {
     type: Number,
@@ -13,11 +14,11 @@ const customizedProductSchema = new mongoose.Schema({
     min: [0, 'Unit price cannot be negative']
   },
   
-  // Reference to the lead this customized product belongs to
+  // Reference to the lead this customized product belongs to (optional for shared products)
   leadId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Lead',
-    required: true
+    required: false // Make this optional since products can be shared across leads
   },
   
   // Additional fields entered during quotation creation (matching Product model)
@@ -42,11 +43,6 @@ const customizedProductSchema = new mongoose.Schema({
   imageUrls: [{
     type: String
   }],
-  termsAndConditions: {
-    type: String,
-    trim: true,
-    maxLength: [5000, 'Terms and conditions cannot be more than 5000 characters']
-  },
   
   // Status tracking
   isCompleted: {
@@ -77,6 +73,7 @@ customizedProductSchema.pre('save', function(next) {
 });
 
 // Index for efficient queries
+customizedProductSchema.index({ name: 1 }); // Index on name for uniqueness
 customizedProductSchema.index({ leadId: 1 });
 customizedProductSchema.index({ createdBy: 1 });
 

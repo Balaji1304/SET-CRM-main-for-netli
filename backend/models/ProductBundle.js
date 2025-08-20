@@ -35,7 +35,7 @@ const productBundleSchema = new mongoose.Schema({
   subcategory: {
     type: String,
     required: [true, 'Subcategory is required'],
-    enum: ['2kva', '4kva', '5kva', '10kva', 'custom']
+    trim: true
   },
   description: {
     type: String,
@@ -51,28 +51,39 @@ const productBundleSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  specifications: {
-    totalCapacity: String,
-    totalPanels: Number,
-    inverterCapacity: String,
-    batteryCapacity: String,
-    estimatedOutput: String,
-    installationArea: String,
-    warranty: String,
-    gridConnection: {
+  // System Configuration fields
+  systemConfiguration: {
+    systemDescription: {
       type: String,
-      enum: ['on-grid', 'off-grid', 'hybrid'],
-      default: 'hybrid'
+      trim: true,
+      maxLength: [100, 'System description cannot exceed 100 characters']
+    },
+    installedCapacityKWP: {
+      type: Number,
+      min: 0,
+      validate: {
+        validator: function(v) {
+          return v === null || v === undefined || v >= 0;
+        },
+        message: 'Installed capacity must be a positive number'
+      }
+    },
+    moduleSpecification: {
+      type: String,
+      trim: true,
+      maxLength: [50, 'Module specification cannot exceed 50 characters']
+    },
+    inverterSpecification: {
+      type: String,
+      trim: true,
+      maxLength: [30, 'Inverter specification cannot exceed 30 characters']
+    },
+    areaRequired: {
+      type: String,
+      trim: true,
+      maxLength: [30, 'Area required cannot exceed 30 characters']
     }
   },
-  supportedBrands: [{
-    type: String,
-    enum: ['panasonic', 'growatt', 'vikram', 'tata', 'luminous', 'exide', 'other']
-  }],
   imageUrls: [{
     type: String
   }],

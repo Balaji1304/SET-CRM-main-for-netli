@@ -6,12 +6,16 @@ const {
   getSolarBundleItem,
   createSolarBundleItem,
   updateSolarBundleItem,
-  deleteSolarBundleItem
+  deleteSolarBundleItem,
+  initializeDefaultItems
 } = require('../controllers/solarBundleItem');
 
 // Public routes for viewing items (protected but accessible to all authenticated users)
 router.get('/', protect, getSolarBundleItems);
 router.get('/:id', protect, getSolarBundleItem);
+
+// Admin only route for initialization
+router.post('/init-defaults', protect, authorize('admin'), initializeDefaultItems);
 
 // Admin/Product Head only routes
 router.post('/', protect, authorize('product_head', 'admin'), createSolarBundleItem);

@@ -10,7 +10,8 @@ const {
   getPowerPlantConfigurations,
   getCompatibleProducts,
   getDefaultBundleTerms,
-  getAllBundleTerms
+  getAllBundleTerms,
+  getBundleWithComponents
 } = require('../controllers/productBundle');
 
 // Public routes (for displaying bundles to customers)
@@ -22,6 +23,7 @@ router.get('/compatible-products', protect, getCompatibleProducts);
 router.get('/terms/default', protect, getDefaultBundleTerms);
 router.get('/terms/all', protect, getAllBundleTerms);
 router.get('/:id', protect, getBundle);
+router.get('/:id/components', protect, getBundleWithComponents); // New route for component details
 
 // Admin/Product Head/Inventory Manager only routes
 router.post('/', protect, authorize('admin', 'product_head'), createBundle);
