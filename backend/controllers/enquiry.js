@@ -11,6 +11,16 @@ exports.createEnquiry = async (req, res) => {
     // Add the user ID to the enquiry data
     req.body.createdBy = req.user.id;
 
+    // Handle empty leadType - convert empty string to undefined to allow Mongoose to handle it properly
+    if (req.body.leadType === '') {
+      delete req.body.leadType; // Remove the field entirely so Mongoose doesn't validate empty string
+    }
+    
+    // Handle empty customLeadType
+    if (req.body.customLeadType === '') {
+      delete req.body.customLeadType;
+    }
+
     const enquiry = await Enquiry.create(req.body);
 
     // Create notification for new enquiry
@@ -108,6 +118,16 @@ exports.getEnquiry = async (req, res) => {
 // @access  Private
 exports.updateEnquiry = async (req, res) => {
   try {
+    // Handle empty leadType - convert empty string to undefined to allow Mongoose to handle it properly
+    if (req.body.leadType === '') {
+      delete req.body.leadType; // Remove the field entirely so Mongoose doesn't validate empty string
+    }
+    
+    // Handle empty customLeadType
+    if (req.body.customLeadType === '') {
+      delete req.body.customLeadType;
+    }
+
     const enquiry = await Enquiry.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -260,7 +280,9 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
       dateCollected: new Date(),
       followUpRequired: false,
       followUpDateTime: '',
-      notes: 'Lead created from enquiry form. Please complete the missing information.',
+      notes: enquiry.notes 
+        ? `${enquiry.notes}\n\n--- Lead created from enquiry form. Please complete the missing information. ---`
+        : 'Lead created from enquiry form. Please complete the missing information.',
       
       // Enquiry tracking fields
       createdFromEnquiry: true,
