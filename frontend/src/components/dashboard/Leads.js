@@ -1,12 +1,45 @@
 import { useState } from 'react';
-import { Search, ChevronDown, Plus } from 'lucide-react';
+import { Search, ChevronDown, Plus, Calendar, Filter, RotateCcw } from 'lucide-react';
 import LeadsTable from './LeadsTable';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Leads() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [completionFilter, setCompletionFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
+  const [creatorFilter, setCreatorFilter] = useState('');
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Check if user is sales head
+  const isSalesHead = user?.role === 'sales_head';
+
+  // Function to reset all filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+    setSortOrder('newest');
+    setCompletionFilter('');
+    setSourceFilter('');
+    if (isSalesHead) {
+      setCreatorFilter('');
+    }
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm || statusFilter || sortOrder !== 'newest' || 
+    completionFilter || sourceFilter || (isSalesHead && creatorFilter);
+
+  // Count active filters (excluding sort order and search term for display)
+  const activeFilterCount = [
+    statusFilter, 
+    completionFilter, 
+    sourceFilter, 
+    ...(isSalesHead ? [creatorFilter] : [])
+  ].filter(Boolean).length;
 
   return (
     <div className="flex flex-col h-full">
@@ -24,46 +57,133 @@ export default function Leads() {
       <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
         {/* Filter and Action Bar */}
         <div className="p-4 md:p-6 border-b border-fourth sticky top-0 bg-tertiary z-20">
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            {/* Search Input - takes remaining space on left */}
-            <div className="relative flex-grow md:flex-grow-0 w-full md:w-auto md:max-w-xs">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          {/* Filter Status Indicator */}
+          {activeFilterCount > 0 && (
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">
+                  {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
+                </span>
+              </div>
+              <button
+                onClick={resetFilters}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-150"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
+
+          {/* Main Controls Row */}
+          <div className="flex flex-col xl:flex-row gap-3 xl:gap-4 xl:items-center">
+            {/* Left Side - Search */}
+            <div className="relative xl:w-80">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Search leads..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400"
+                className="pl-9 pr-4 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400"
               />
             </div>
             
-            {/* Filters and Add Button - grouped on right */}
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-stretch sm:items-center">
-              <div className="relative flex-1 sm:flex-initial">
+            {/* Center - Filters Group */}
+            <div className="flex flex-wrap xl:flex-nowrap gap-2 xl:gap-3 xl:flex-1">
+              {/* Sort Order */}
+              <div className="relative min-w-[130px] flex-1 xl:flex-initial xl:w-32">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="pl-8 pr-7 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-xs xl:text-sm text-secondary bg-tertiary"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
+              </div>
+
+              {/* Status Filter */}
+              <div className="relative min-w-[120px] flex-1 xl:flex-initial xl:w-28">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="pl-4 pr-10 py-2 w-full border border-fourth rounded-lg focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-sm text-secondary bg-tertiary"
+                  className="pl-3 pr-7 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-xs xl:text-sm text-secondary bg-tertiary"
                 >
-                  <option value="">All Statuses</option>
-                  {[
-                    { value: 'pending', label: 'Pending' },
-                    { value: 'active', label: 'Active' },
-                    { value: 'on_hold', label: 'On Hold' },
-                    { value: 'closed_won', label: 'Closed Won' },
-                    { value: 'closed_lost', label: 'Closed Lost' }
-                  ].map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
+                  <option value="">Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="active">Active</option>
+                  <option value="on_hold">On Hold</option>
+                  <option value="closed_won">Won</option>
+                  <option value="closed_lost">Lost</option>
                 </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
               </div>
 
+              {/* Completion Status Filter */}
+              <div className="relative min-w-[120px] flex-1 xl:flex-initial xl:w-32">
+                <select
+                  value={completionFilter}
+                  onChange={(e) => setCompletionFilter(e.target.value)}
+                  className="pl-3 pr-7 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-xs xl:text-sm text-secondary bg-tertiary"
+                >
+                  <option value="">Complete</option>
+                  <option value="complete">Complete</option>
+                  <option value="incomplete">Incomplete</option>
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
+              </div>
+
+              {/* Source Filter */}
+              <div className="relative min-w-[110px] flex-1 xl:flex-initial xl:w-28">
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                  className="pl-3 pr-7 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-xs xl:text-sm text-secondary bg-tertiary"
+                >
+                  <option value="">Source</option>
+                  <option value="enquiry">Enquiry</option>
+                  <option value="direct">Direct</option>
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
+              </div>
+
+              {/* Creator Filter - Only for Sales Head */}
+              {isSalesHead && (
+                <div className="relative min-w-[110px] flex-1 xl:flex-initial xl:w-28">
+                  <select
+                    value={creatorFilter}
+                    onChange={(e) => setCreatorFilter(e.target.value)}
+                    className="pl-3 pr-7 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-xs xl:text-sm text-secondary bg-tertiary"
+                  >
+                    <option value="">Creator</option>
+                    <option value="self">My Leads</option>
+                    <option value="others">Others</option>
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
+                </div>
+              )}
+
+              {/* Reset Button - Compact */}
+              {hasActiveFilters && (
+                <button
+                  onClick={resetFilters}
+                  className="inline-flex items-center justify-center py-2.5 px-3 border border-gray-300 shadow-sm text-xs xl:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-primary transition-colors duration-150 ease-in-out whitespace-nowrap min-w-[70px]"
+                  title="Reset all filters"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 xl:mr-1" />
+                  <span className="hidden xl:inline">Reset</span>
+                </button>
+              )}
+            </div>
+
+            {/* Right Side - Add Button */}
+            <div className="xl:ml-auto">
               <button
                 onClick={() => navigate('/dashboard/add-lead')}
-                className="inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-lg text-tertiary bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap"
+                className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-tertiary bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap w-full xl:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Lead
@@ -74,6 +194,10 @@ export default function Leads() {
         <LeadsTable 
           searchTerm={searchTerm}
           statusFilter={statusFilter}
+          sortOrder={sortOrder}
+          completionFilter={completionFilter}
+          sourceFilter={sourceFilter}
+          creatorFilter={isSalesHead ? creatorFilter : ''}
         />
       </div>
     </div>

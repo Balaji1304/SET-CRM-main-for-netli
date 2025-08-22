@@ -112,7 +112,22 @@ exports.createLead = async (req, res) => {
 exports.getLeads = async (req, res) => {
   try {
     // Sales head can see all leads, others can only see their own leads
-    const query = req.user.role === 'sales_head' ? {} : { createdBy: req.user.id };
+    let query = req.user.role === 'sales_head' ? {} : { createdBy: req.user.id };
+    
+    // If forQuotation=true, only return leads that are complete
+    if (req.query.forQuotation === 'true') {
+      query = {
+        ...query,
+        $or: [
+          { leadCompletionStatus: 'complete' },
+          { 
+            // Regular leads (not from enquiries) are considered complete by default
+            createdFromEnquiry: { $ne: true },
+            leadCompletionStatus: { $ne: 'incomplete' }
+          }
+        ]
+      };
+    }
     
     const leads = await Lead.find(query)
       .populate({
@@ -126,7 +141,8 @@ exports.getLeads = async (req, res) => {
       .populate({
         path: 'createdBy',
         select: 'name email role _id'
-      });
+      })
+      .sort({ createdAt: -1, _id: -1 }); // Sort by createdAt first, then by _id as tiebreaker
 
     // Post-process leads to add bundle information for bundle products
     const processedLeads = await Promise.all(

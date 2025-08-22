@@ -570,10 +570,6 @@ const EnquiryCard = ({ enquiry, onAssign, onView }) => (
 
     {/* Contact Info */}
     <div className="space-y-2">
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Phone className="w-4 h-4" />
-        <span className="truncate">{enquiry.phone}</span>
-      </div>
       {(enquiry.billingAddress || enquiry.shippingAddress) && (
         <div className="space-y-1">
           {enquiry.billingAddress && (
@@ -624,7 +620,7 @@ const EnquiryCard = ({ enquiry, onAssign, onView }) => (
       </div>
       <div>
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Lead Type</p>
-        <p className="text-sm text-gray-900">{formatEnumValue(enquiry.leadType)}</p>
+        <p className="text-sm text-gray-900">{enquiry.leadType ? formatEnumValue(enquiry.leadType) : 'N/A'}</p>
       </div>
     </div>
 
@@ -1009,7 +1005,7 @@ export default function LeadAssignmentPage() {
                                 </td>
                                 <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
                                   <div className="truncate">
-                                    {formatEnumValue(enquiry.leadType)}
+                                    {enquiry.leadType ? formatEnumValue(enquiry.leadType) : 'N/A'}
                                     {enquiry.customLeadType && (
                                       <div className="text-xs text-gray-500">({enquiry.customLeadType})</div>
                                     )}

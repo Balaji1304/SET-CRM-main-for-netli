@@ -106,7 +106,7 @@ export default function CreateQuotationPage() {
       setLoading(true);
       setError(null);
       const [leadsData, productsData, customizedProductsData, bundlesData] = await Promise.all([
-        getLeads(),
+        getLeads(true), // Pass true to get only complete leads for quotations
         getProducts(),
         getAllCustomizedProducts(),
         getBundles()

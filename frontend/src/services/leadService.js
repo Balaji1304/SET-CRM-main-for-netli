@@ -11,8 +11,9 @@ export const createLead = async (leadData) => {
   return response;
 };
 
-export const getLeads = async () => {
-  return await apiRequest('leads');
+export const getLeads = async (forQuotation = false) => {
+  const endpoint = forQuotation ? 'leads?forQuotation=true' : 'leads';
+  return await apiRequest(endpoint);
 };
 
 export const getLead = async (id) => {
