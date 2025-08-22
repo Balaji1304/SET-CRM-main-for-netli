@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Phone, User, MapPin, MessageSquare, ArrowLeft, AlertTriangle, Loader2, CheckCircle, ChevronDown } from 'lucide-react';
-import { createEnquiry } from '../../services/enquiryService';
+import { getEnquiry, updateEnquiry } from '../../../../services/enquiryService';
 
 // Form options matching the backend enum values
 const LEAD_SOURCE_OPTIONS = [
@@ -45,13 +45,57 @@ const defaultFormState = {
   notes: ''
 };
 
-export default function EnquiryPage() {
+export default function EditEnquiryPage() {
+  const { id } = useParams();
   const navigate = useNavigate();
   const [formData, setFormData] = useState(defaultFormState);
+  const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState(null);
   const [validationErrors, setValidationErrors] = useState({});
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [enquiry, setEnquiry] = useState(null);
+
+  useEffect(() => {
+    fetchEnquiry();
+  }, [id]);
+
+  const fetchEnquiry = async () => {
+    try {
+      setLoading(true);
+      const response = await getEnquiry(id);
+      if (response.success) {
+        const enquiryData = response.data;
+        setEnquiry(enquiryData);
+        
+        // Populate form with existing data
+        setFormData({
+          leadSource: enquiryData.leadSource || '',
+          customLeadSource: enquiryData.customLeadSource || '',
+          leadType: enquiryData.leadType || '',
+          customLeadType: enquiryData.customLeadType || '',
+          firstName: enquiryData.firstName || '',
+          lastName: enquiryData.lastName || '',
+          email: enquiryData.email || '',
+          phone: enquiryData.phone || '',
+          countryCode: enquiryData.countryCode || '+91',
+          whatsapp: enquiryData.whatsapp || '',
+          billingAddress: enquiryData.billingAddress || '',
+          shippingAddress: enquiryData.shippingAddress || '',
+          referredBy: enquiryData.referredBy || '',
+          productRequirements: enquiryData.productRequirements || '',
+          notes: enquiryData.notes || ''
+        });
+      } else {
+        setSubmissionError(response.message || 'Failed to fetch enquiry details');
+      }
+    } catch (error) {
+      console.error('Error fetching enquiry:', error);
+      setSubmissionError('An error occurred while fetching enquiry details');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -102,7 +146,6 @@ export default function EnquiryPage() {
     e.preventDefault();
     
     if (!validateForm()) {
-      setSubmissionError('Please correct the errors in the form.');
       return;
     }
     
@@ -110,40 +153,93 @@ export default function EnquiryPage() {
     setSubmissionError(null);
     
     try {
-      const response = await createEnquiry(formData);
+      const submissionData = { ...formData };
+      
+      // Remove custom fields if not "other"
+      if (submissionData.leadSource !== 'other') {
+        delete submissionData.customLeadSource;
+      }
+      if (submissionData.leadType !== 'other') {
+        delete submissionData.customLeadType;
+      }
+      
+      const response = await updateEnquiry(id, submissionData);
       
       if (response.success) {
         setShowSuccessMessage(true);
-        // Reset form
-        setFormData(defaultFormState);
-        setValidationErrors({});
-        
-        // Redirect to enquiries page after a short delay
         setTimeout(() => {
           navigate('/dashboard/enquiries', {
-            state: { 
-              successMessage: 'Enquiry created successfully!',
-              newEnquiryId: response.data?._id || response.data?.id
-            }
+            state: { successMessage: 'Enquiry updated successfully!' }
           });
         }, 1500);
       } else {
-        throw new Error(response.message || 'Failed to create enquiry.');
+        setSubmissionError(response.message || 'Failed to update enquiry');
       }
-    } catch (err) {
-      console.error('Error creating enquiry:', err);
-      setSubmissionError(err.message || 'An unexpected error occurred. Please try again.');
+    } catch (error) {
+      console.error('Error updating enquiry:', error);
+      setSubmissionError('An error occurred while updating the enquiry');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleReset = () => {
-    setFormData(defaultFormState);
-    setValidationErrors({});
-    setSubmissionError(null);
+  const handleBack = () => {
+    navigate('/dashboard/enquiries');
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+          <p className="text-gray-600">Loading enquiry details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (submissionError && !enquiry) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-6 text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Enquiry</h2>
+          <p className="text-gray-600 mb-4">{submissionError}</p>
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Enquiries
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if enquiry is already assigned (should not be editable)
+  if (enquiry && enquiry.assignmentStatus !== 'pending_assignment') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-sm p-6 text-center">
+          <AlertTriangle className="w-12 h-12 text-orange-500 mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">Cannot Edit Enquiry</h2>
+          <p className="text-gray-600 mb-4">
+            This enquiry has already been assigned to a salesperson and cannot be edited.
+          </p>
+          <button
+            onClick={handleBack}
+            className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Enquiries
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Helper functions for consistent UI
   const renderInputField = (name, label, type = 'text', placeholder = '', required = false, icon = null) => (
     <div className="w-full">
       <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
@@ -231,14 +327,14 @@ export default function EnquiryPage() {
         <div className="flex items-center gap-3">
           <button 
             type="button" 
-            onClick={() => navigate('/dashboard/enquiries')}
+            onClick={handleBack}
             className="p-2 rounded-md hover:bg-gray-100 text-gray-600 transition-colors"
             aria-label="Back to enquiries"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            New Enquiry Form
+            Edit Enquiry Form
           </h1>
         </div>
       </div>
@@ -247,8 +343,8 @@ export default function EnquiryPage() {
       {showSuccessMessage && (
         <div className="mb-6 p-4 bg-green-100 border border-green-300 text-green-700 rounded-lg flex items-center gap-2">
           <CheckCircle className="w-5 h-5 text-green-600" />
-          <span className="font-medium">Enquiry created successfully!</span>
-          <span className="text-sm">The enquiry is now available for assignment to sales personnel.</span>
+          <span className="font-medium">Enquiry updated successfully!</span>
+          <span className="text-sm">Redirecting to enquiries list...</span>
         </div>
       )}
 
@@ -367,10 +463,10 @@ export default function EnquiryPage() {
             <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200">
               <button
                 type="button"
-                onClick={handleReset}
+                onClick={handleBack}
                 className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
               >
-                Reset Form
+                Cancel
               </button>
               <button
                 type="submit"
@@ -380,10 +476,10 @@ export default function EnquiryPage() {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Creating...
+                    Updating...
                   </>
                 ) : (
-                  'Create Enquiry'
+                  'Update Enquiry'
                 )}
               </button>
             </div>
@@ -392,4 +488,4 @@ export default function EnquiryPage() {
       </div>
     </div>
   );
-} 
+}

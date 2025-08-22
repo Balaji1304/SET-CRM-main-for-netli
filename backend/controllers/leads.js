@@ -111,7 +111,10 @@ exports.createLead = async (req, res) => {
 // @access  Private
 exports.getLeads = async (req, res) => {
   try {
-    const leads = await Lead.find({ createdBy: req.user.id })
+    // Sales head can see all leads, others can only see their own leads
+    const query = req.user.role === 'sales_head' ? {} : { createdBy: req.user.id };
+    
+    const leads = await Lead.find(query)
       .populate({
         path: 'products.productId',
         select: 'name category price specifications _id'
@@ -119,6 +122,10 @@ exports.getLeads = async (req, res) => {
       .populate({
         path: 'products.customizedProductId',
         select: 'name unitPrice modelNumber description specifications imageUrls _id'
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'name email role _id'
       });
 
     // Post-process leads to add bundle information for bundle products
@@ -182,16 +189,24 @@ exports.getLeads = async (req, res) => {
 // @access  Private
 exports.getLead = async (req, res) => {
   try {
-    const lead = await Lead.findOne({
-      _id: req.params.id,
-      createdBy: req.user.id
-    }).populate({
-      path: 'products.productId',
-      select: 'name category price specifications'
-    }).populate({
-      path: 'products.customizedProductId',
-      select: 'name unitPrice modelNumber description specifications imageUrls'
-    });
+    // Sales head can view any lead, others can only view their own leads
+    const query = req.user.role === 'sales_head' 
+      ? { _id: req.params.id }
+      : { _id: req.params.id, createdBy: req.user.id };
+    
+    const lead = await Lead.findOne(query)
+      .populate({
+        path: 'products.productId',
+        select: 'name category price specifications'
+      })
+      .populate({
+        path: 'products.customizedProductId',
+        select: 'name unitPrice modelNumber description specifications imageUrls'
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'name email role _id'
+      });
 
     if (!lead) {
       return res.status(404).json({
@@ -255,11 +270,13 @@ exports.updateLead = async (req, res) => {
   try {
     console.log(`Updating lead ${req.params.id} with data:`, req.body);
     
+    // Sales head can update any lead, others can only update their own leads
+    const query = req.user.role === 'sales_head' 
+      ? { _id: req.params.id }
+      : { _id: req.params.id, createdBy: req.user.id };
+    
     // Find the lead first
-    const lead = await Lead.findOne({
-      _id: req.params.id,
-      createdBy: req.user.id
-    });
+    const lead = await Lead.findOne(query);
 
     if (!lead) {
       return res.status(404).json({
@@ -409,10 +426,12 @@ exports.updateLead = async (req, res) => {
 // @access  Private
 exports.deleteLead = async (req, res) => {
   try {
-    const lead = await Lead.findOneAndDelete({
-      _id: req.params.id,
-      createdBy: req.user.id
-    });
+    // Sales head can delete any lead, others can only delete their own leads
+    const query = req.user.role === 'sales_head' 
+      ? { _id: req.params.id }
+      : { _id: req.params.id, createdBy: req.user.id };
+      
+    const lead = await Lead.findOneAndDelete(query);
 
     if (!lead) {
       return res.status(404).json({

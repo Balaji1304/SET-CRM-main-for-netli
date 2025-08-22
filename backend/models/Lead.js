@@ -56,16 +56,16 @@ const productSchema = new mongoose.Schema({
 });
 
 const leadSchema = new mongoose.Schema({
-  // Lead Type Information  
-  leadType: {
+  // Lead Source Information (previously leadType)
+  leadSource: {
     type: String,
-    required: [true, 'Lead type is required'],
+    required: [true, 'Lead source is required'],
     enum: {
       values: ['referral', 'indiamart', 'exhibition', 'facebook', 'instagram', 'google_ads', 'website', 'cold_call', 'walk_in', 'paper_ad', 'existing_customer', 'other'],
-      message: 'Lead type must be one of: referral, indiamart, exhibition, facebook, instagram, google_ads, website, cold_call, walk_in, paper_ad, existing_customer, other'
+      message: 'Lead source must be one of: referral, indiamart, exhibition, facebook, instagram, google_ads, website, cold_call, walk_in, paper_ad, existing_customer, other'
     }
   },
-  customLeadType: {
+  customLeadSource: {
     type: String,
     required: false,
     trim: true
@@ -130,15 +130,15 @@ const leadSchema = new mongoose.Schema({
     required: false,
     trim: true
   },
-  customerType: {
+  leadType: {
     type: String,
-    required: [true, 'Customer type is required'],
+    required: [true, 'Lead type is required'],
     enum: {
       values: ['end_user', 'plumber', 'dealer', 'builder', 'other'],
-      message: 'Customer type must be one of: end_user, plumber, dealer, builder, other'
+      message: 'Lead type must be one of: end_user, plumber, dealer, builder, other'
     }
   },
-  customCustomerType: {
+  customLeadType: {
     type: String,
     required: false,
     trim: true

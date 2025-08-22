@@ -419,7 +419,7 @@ class NotificationService {
               firstName: enquiry.firstName,
               lastName: enquiry.lastName,
               phone: enquiry.phone,
-              leadType: enquiry.leadType,
+              leadSource: enquiry.leadSource,
               assignmentStatus: enquiry.assignmentStatus,
               ...additionalData
             }
@@ -496,7 +496,8 @@ class NotificationService {
               phone: lead.phone,
               email: lead.email,
               status: lead.status,
-              leadType: lead.leadType,
+              leadSource: lead.leadSource, // Lead source (how they found us)
+              leadType: lead.leadType, // Lead type (customer type)
               ...additionalData
             }
           })

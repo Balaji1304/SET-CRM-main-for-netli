@@ -37,6 +37,7 @@ import InvoicePage from './app/invoice/[id]/page';
 import PackagesPage from './app/packages/page';
 import BundlesPage from './app/bundles/page';
 import EnquiryPage from './app/enquiry/page';
+import EditEnquiryPage from './app/enquiry/[id]/edit/page';
 import LeadAssignmentPage from './app/lead-assignment/page';
 import PurchaseOrdersPage from './app/purchase-orders/page';
 import PurchaseOrderDetailPage from './app/purchase-orders/[id]/page';
@@ -119,14 +120,19 @@ function App() {
             } />
 
             {/* Front Office Executive routes */}
-            <Route path="enquiry" element={
+            <Route path="enquiries" element={
+              <ProtectedRoute allowedRoles={['front_office_executive']}>
+                <LeadAssignmentPage />
+              </ProtectedRoute>
+            } />
+            <Route path="enquiries/create" element={
               <ProtectedRoute allowedRoles={['front_office_executive']}>
                 <EnquiryPage />
               </ProtectedRoute>
             } />
-            <Route path="lead-assignment" element={
+            <Route path="enquiry/:id/edit" element={
               <ProtectedRoute allowedRoles={['front_office_executive']}>
-                <LeadAssignmentPage />
+                <EditEnquiryPage />
               </ProtectedRoute>
             } />
 

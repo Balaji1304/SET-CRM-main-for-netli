@@ -91,8 +91,7 @@ const getNavigation = (userRole) => {
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     front_office_executive: [
-      { name: 'New Enquiry', href: '/dashboard/enquiry', icon: UserPlus },
-      { name: 'Lead Assignment', href: '/dashboard/lead-assignment', icon: Users },
+      { name: 'Enquiries', href: '/dashboard/enquiries', icon: Users },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     sales_head: [

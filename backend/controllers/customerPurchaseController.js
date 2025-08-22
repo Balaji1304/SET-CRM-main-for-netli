@@ -67,7 +67,7 @@ exports.convertLeadToCustomer = async (req, res) => {
         phone: lead.phone,
         businessName: lead.businessName,
         address: lead.address,
-        customerType: lead.customerType || 'end_user'
+        customerType: lead.leadType || 'end_user'
       });
     }
 

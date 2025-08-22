@@ -190,7 +190,7 @@ exports.getSalespersons = async (req, res) => {
 exports.assignEnquiryToSalesperson = async (req, res) => {
   try {
     const { id } = req.params;
-    const { salespersonId, notes } = req.body;
+    const { salespersonId } = req.body;
 
     if (!salespersonId) {
       return res.status(400).json({
@@ -230,8 +230,8 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
     // Create lead from enquiry data
     const leadData = {
       // Required fields with defaults or from enquiry
-      leadType: enquiry.leadType,
-      customLeadType: enquiry.customLeadType,
+      leadSource: enquiry.leadSource,
+      customLeadSource: enquiry.customLeadSource,
       status: 'pending',
       firstName: enquiry.firstName,
       lastName: enquiry.lastName || '',
@@ -239,11 +239,11 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
       phone: enquiry.phone,
       countryCode: enquiry.countryCode || '+91',
       whatsapp: enquiry.whatsapp || enquiry.phone,
-      billingAddress: enquiry.address || 'Address to be updated by salesperson',
-      shippingAddress: '',
+      billingAddress: enquiry.billingAddress || 'Address to be updated by salesperson',
+      shippingAddress: enquiry.shippingAddress || '',
       businessName: '',
-      customerType: 'end_user', // Default value
-      customCustomerType: '',
+      leadType: enquiry.leadType || 'end_user', // Use from enquiry or default
+      customLeadType: enquiry.customLeadType || '',
       gstinUin: '',
       
       // Products - placeholder for incomplete leads
@@ -260,7 +260,7 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
       dateCollected: new Date(),
       followUpRequired: false,
       followUpDateTime: '',
-      notes: notes || 'Lead created from enquiry form. Please complete the missing information.',
+      notes: 'Lead created from enquiry form. Please complete the missing information.',
       
       // Enquiry tracking fields
       createdFromEnquiry: true,
@@ -280,9 +280,6 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
     enquiry.assignmentStatus = 'converted_to_lead';
     enquiry.leadId = lead._id;
     enquiry.convertedAt = new Date();
-    if (notes) {
-      enquiry.notes = notes;
-    }
     await enquiry.save();
 
     // Populate the updated enquiry for response

@@ -63,21 +63,21 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText
 };
 
 const FORM_OPTIONS = {
-  leadTypes: [
+  leadSources: [
     { value: 'referral', label: 'Referral' },
     { value: 'indiamart', label: 'IndiaMART' },
     { value: 'exhibition', label: 'Exhibition' },
     { value: 'facebook', label: 'Facebook' },
     { value: 'instagram', label: 'Instagram' },
     { value: 'google_ads', label: 'Google Ads' },
-    { value: 'website', label: 'Website Inquiry' },
+    { value: 'website', label: 'Website' },
     { value: 'cold_call', label: 'Cold Call' },
     { value: 'walk_in', label: 'Walk-in' },
     { value: 'paper_ad', label: 'Paper Ad' },
     { value: 'existing_customer', label: 'Existing Customer' },
     { value: 'other', label: 'Other' }
   ],
-  customerTypes: [
+  leadTypes: [
     { value: 'end_user', label: 'End User' },
     { value: 'plumber', label: 'Plumber' },
     { value: 'dealer', label: 'Dealer' },
@@ -96,6 +96,8 @@ const FORM_OPTIONS = {
 
 
   const defaultFormState = {
+    leadSource: '',
+    customLeadSource: '',
     leadType: '',
     customLeadType: '',
     status: 'pending',
@@ -108,8 +110,6 @@ const FORM_OPTIONS = {
     billingAddress: '',
     shippingAddress: '',
     businessName: '',
-    customerType: '',
-    customCustomerType: '',
     gstinUin: '',
     products: [
     { id: `${Date.now()}_0`, category: '', name: '', quantity: '1', unitPrice: '0', totalPrice: '0', productId: '' }
@@ -809,6 +809,8 @@ export default function LeadForm() {
 
   const validateForm = () => {
     const errors = {};
+    if (!formData.leadSource) errors.leadInfo = { ...errors.leadInfo, leadSource: 'Lead Source is required.' };
+    if (formData.leadSource === 'other' && !formData.customLeadSource) errors.leadInfo = { ...errors.leadInfo, customLeadSource: 'Please specify the lead source.' };
     if (!formData.leadType) errors.leadInfo = { ...errors.leadInfo, leadType: 'Lead Type is required.' };
     if (formData.leadType === 'other' && !formData.customLeadType) errors.leadInfo = { ...errors.leadInfo, customLeadType: 'Please specify the lead type.' };
     if (!formData.status) errors.leadInfo = { ...errors.leadInfo, status: 'Status is required.' };
@@ -822,8 +824,7 @@ export default function LeadForm() {
     if (!formData.whatsapp) errors.personalInfo = { ...errors.personalInfo, whatsapp: 'WhatsApp number is required.' };
     if (!formData.billingAddress) errors.personalInfo = { ...errors.personalInfo, billingAddress: 'Billing address is required.' };
 
-    if (!formData.customerType) errors.businessInfo = { ...errors.businessInfo, customerType: 'Customer Type is required.' };
-    if (formData.customerType === 'other' && !formData.customCustomerType) errors.businessInfo = { ...errors.businessInfo, customCustomerType: 'Please specify the customer type.' };
+    // Business info validation (removed lead source and lead type as they're in leadInfo section)
     
     // Product validation based on type
     if (selectedProductType === 'individual') {
@@ -1405,6 +1406,24 @@ export default function LeadForm() {
           <section>
             {renderSectionHeader('Lead Information', 'leadInfo')}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {renderSelectField('leadSource', 'Lead Source', FORM_OPTIONS.leadSources, true, 'leadInfo')}
+              {formData.leadSource === 'other' && (
+                <div className="w-full">
+                  <label htmlFor="customLeadSource" className="block text-sm font-medium text-gray-700 mb-1 sm:mb-1">
+                    Specify Lead Source <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="customLeadSource"
+                    name="customLeadSource"
+                    value={formData.customLeadSource ?? ''}
+                    onChange={handleInputChange}
+                    placeholder="Enter lead source"
+                    required
+                    className={`mt-1 block w-full px-3 py-2.5 sm:py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-sm text-secondary placeholder-gray-400 touch-target ${sectionErrors.leadInfo?.customLeadSource ? 'border-red-500' : ''}`}
+                  />
+                </div>
+              )}
               {renderSelectField('leadType', 'Lead Type', FORM_OPTIONS.leadTypes, true, 'leadInfo')}
               {formData.leadType === 'other' && (
                 <div className="w-full">
@@ -1498,27 +1517,7 @@ export default function LeadForm() {
             {renderSectionHeader('Business Information', 'businessInfo')}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {renderInputField('businessName', 'Business Name', 'text', 'Enter business name', false, 'businessInfo')}
-              {renderSelectField('customerType', 'Customer Type', FORM_OPTIONS.customerTypes, true, 'businessInfo')}
-              {formData.customerType === 'other' && (
-                <div className="w-full sm:col-span-2">
-                  <label htmlFor="customCustomerType" className="block text-sm font-medium text-gray-700 mb-1 sm:mb-1">
-                    Specify Customer Type <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="customCustomerType"
-                    name="customCustomerType"
-                    value={formData.customCustomerType ?? ''}
-                    onChange={handleInputChange}
-                    placeholder="Enter customer type"
-                    required
-                    className={`mt-1 block w-full px-3 py-2.5 sm:py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-sm text-secondary placeholder-gray-400 touch-target ${sectionErrors.businessInfo?.customCustomerType ? 'border-red-500' : ''}`}
-                  />
-                </div>
-              )}
-              </div>
-              <div className="mt-4 sm:mt-6">
-                {renderInputField('gstinUin', 'GSTIN/UIN', 'text', 'Enter GSTIN or UIN number', false, 'businessInfo')}
+              {renderInputField('gstinUin', 'GSTIN/UIN', 'text', 'Enter GSTIN or UIN number', false, 'businessInfo')}
               </div>
           </section>
 

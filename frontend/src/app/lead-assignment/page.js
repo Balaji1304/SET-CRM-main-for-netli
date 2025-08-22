@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getEnquiries, getSalespersons, assignEnquiryToSalesperson } from '../../services/enquiryService';
-import { Loader2, AlertTriangle, Search, Filter, Eye, UserPlus, ChevronLeft, ChevronRight, Phone, Mail, MapPin, User, X, Calendar, FileText, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertTriangle, Search, Filter, Eye, UserPlus, ChevronLeft, ChevronRight, ChevronDown, Phone, Mail, MapPin, User, X, Calendar, FileText, ArrowLeft, Plus, Info, Edit2, Trash2, Building2, Clock, Users } from 'lucide-react';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -20,17 +20,12 @@ const customStyles = `
   }
 `;
 
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A';
-  try {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-    });
-  } catch (e) {
-    return dateString;
-  }
+const formatEnumValue = (value) => {
+  if (!value) return '';
+  return value
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 };
 
 const formatAssignmentStatus = (status) => {
@@ -42,20 +37,21 @@ const formatAssignmentStatus = (status) => {
 };
 
 const getStatusBadgeClass = (status) => {
-    const classes = {
-      pending_assignment: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-      assigned: 'bg-blue-100 text-blue-700 border-blue-300',
-      converted_to_lead: 'bg-green-100 text-green-700 border-green-300',
-    };
-    return classes[status] || 'bg-gray-100 text-gray-700 border-gray-300';
+  const classes = {
+    pending_assignment: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+    assigned: 'bg-blue-100 text-blue-700 border-blue-300',
+    converted_to_lead: 'bg-green-100 text-green-700 border-green-300',
+  };
+  return classes[status] || 'bg-gray-100 text-gray-700 border-gray-300';
 };
 
-const formatEnumValue = (value) => {
-  if (!value) return '';
-  return value
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  try {
+    return new Date(dateString).toLocaleDateString('en-GB');
+  } catch (e) {
+    return dateString;
+  }
 };
 
 // Assignment Modal Component
@@ -68,15 +64,13 @@ const AssignEnquiryModal = ({
   isAssigning 
 }) => {
   const [selectedSalesperson, setSelectedSalesperson] = useState('');
-  const [notes, setNotes] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!selectedSalesperson) return;
     
     onAssign({
-      salespersonId: selectedSalesperson,
-      notes: notes.trim()
+      salespersonId: selectedSalesperson
     });
   };
 
@@ -116,9 +110,33 @@ const AssignEnquiryModal = ({
                   <span className="ml-2 text-gray-900 break-all">{enquiry.email || 'Not provided'}</span>
                 </div>
                 <div>
-                  <span className="font-medium text-gray-700">Lead Type:</span>
-                  <span className="ml-2 text-gray-900">{formatEnumValue(enquiry.leadType)}</span>
+                  <span className="font-medium text-gray-700">Lead Source:</span>
+                  <span className="ml-2 text-gray-900">{formatEnumValue(enquiry.leadSource)}</span>
+                  {enquiry.customLeadSource && (
+                    <span className="ml-1 text-gray-500">({enquiry.customLeadSource})</span>
+                  )}
                 </div>
+                {enquiry.leadType && (
+                  <div>
+                    <span className="font-medium text-gray-700">Lead Type:</span>
+                    <span className="ml-2 text-gray-900">{formatEnumValue(enquiry.leadType)}</span>
+                    {enquiry.customLeadType && (
+                      <span className="ml-1 text-gray-500">({enquiry.customLeadType})</span>
+                    )}
+                  </div>
+                )}
+                {enquiry.billingAddress && (
+                  <div className="sm:col-span-2">
+                    <span className="font-medium text-gray-700">Billing Address:</span>
+                    <span className="ml-2 text-gray-900">{enquiry.billingAddress}</span>
+                  </div>
+                )}
+                {enquiry.shippingAddress && (
+                  <div className="sm:col-span-2">
+                    <span className="font-medium text-gray-700">Shipping Address:</span>
+                    <span className="ml-2 text-gray-900">{enquiry.shippingAddress}</span>
+                  </div>
+                )}
                 {enquiry.productRequirements && (
                   <div className="sm:col-span-2">
                     <span className="font-medium text-gray-700">Requirements:</span>
@@ -148,20 +166,6 @@ const AssignEnquiryModal = ({
                     </option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-                  Assignment Notes
-                </label>
-                <textarea
-                  id="notes"
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any additional information for the salesperson..."
-                  className="block w-full px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-sm sm:text-base touch-target resize-none"
-                />
               </div>
 
               {error && (
@@ -204,96 +208,134 @@ const AssignEnquiryModal = ({
 
 // Mobile Card Component for Enquiries
 const EnquiryCard = ({ enquiry, onAssign }) => (
-  <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4 shadow-sm">
-    {/* Header with Name and Status */}
+  <div className="rounded-lg border p-4 space-y-4 shadow-sm hover:shadow-md transition-all duration-200 bg-white border-gray-200">
+    {/* Header */}
     <div className="flex items-start justify-between">
       <div className="flex-1">
-        <h3 className="text-base font-semibold text-gray-900 mb-1">
-          {enquiry.firstName} {enquiry.lastName}
-        </h3>
-        <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusBadgeClass(enquiry.assignmentStatus)}`}>
-            {formatAssignmentStatus(enquiry.assignmentStatus)}
-          </span>
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="text-lg font-semibold cursor-pointer hover:text-[#FF7300] transition-colors duration-150 text-gray-900"
+              title="Click to view details">
+            {`${enquiry.firstName} ${enquiry.lastName}`}
+          </h3>
+        </div>
+        
+        <div className="flex items-center space-x-4 text-sm text-gray-600">
+          <div className="flex items-center space-x-1">
+            <Phone className="w-4 h-4" />
+            <span>{enquiry.phone}</span>
+          </div>
         </div>
       </div>
-      {enquiry.assignmentStatus === 'pending_assignment' && (
+      <div className="flex items-center space-x-2 ml-3">
         <button
-          onClick={() => onAssign(enquiry)}
-          className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-colors touch-target"
-          title="Assign to Salesperson"
+          className="p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150 touch-target"
+          title="View Details"
         >
-          <UserPlus className="w-5 h-5" />
+          <Info className="w-4 h-4" />
         </button>
-      )}
-    </div>
-
-    {/* Contact Information */}
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 text-sm text-gray-600">
-        <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
-        <span className="break-all">{enquiry.phone}</span>
-      </div>
-      {enquiry.email && (
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <span className="break-all">{enquiry.email}</span>
-        </div>
-      )}
-      {enquiry.address && (
-        <div className="flex items-start gap-2 text-sm text-gray-600">
-          <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-          <span className="break-words">{enquiry.address}</span>
-        </div>
-      )}
-    </div>
-
-    {/* Lead Type and Requirements */}
-    <div className="space-y-2">
-      <div className="text-sm">
-        <span className="font-medium text-gray-700">Lead Type:</span>
-        <span className="ml-2 text-gray-900">{formatEnumValue(enquiry.leadType)}</span>
-        {enquiry.customLeadType && (
-          <span className="ml-1 text-gray-500">({enquiry.customLeadType})</span>
+        {enquiry.assignmentStatus === 'pending_assignment' && (
+          <button
+            onClick={() => window.location.href = `/dashboard/enquiry/${enquiry._id}/edit`}
+            className="p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+            title="Edit Enquiry"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+        )}
+        {enquiry.assignmentStatus === 'pending_assignment' && (
+          <button
+            onClick={() => onAssign(enquiry)}
+            className="p-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 transition-colors duration-150 touch-target"
+            title="Assign to Salesperson"
+          >
+            <UserPlus className="w-4 h-4" />
+          </button>
         )}
       </div>
+    </div>
+
+    {/* Contact Info */}
+    <div className="space-y-2">
+      <div className="flex items-center space-x-2 text-sm text-gray-600">
+        <Mail className="w-4 h-4" />
+        <span className="truncate">{enquiry.email || 'N/A'}</span>
+      </div>
+      {(enquiry.billingAddress || enquiry.shippingAddress) && (
+        <div className="space-y-1">
+          {enquiry.billingAddress && (
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Building2 className="w-4 h-4" />
+              <span className="truncate">{enquiry.billingAddress}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+
+    {/* Status and Details */}
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</p>
+        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(enquiry.assignmentStatus)}`}>
+          {formatAssignmentStatus(enquiry.assignmentStatus)}
+        </span>
+      </div>
+      <div>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Lead Type</p>
+        <p className="text-sm text-gray-900">{formatEnumValue(enquiry.leadType)}</p>
+      </div>
+    </div>
+
+    {/* Lead Source and Requirements */}
+    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
+      <div>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Lead Source</p>
+        <p className="text-sm text-gray-900">
+          {formatEnumValue(enquiry.leadSource)}
+          {enquiry.customLeadSource && (
+            <span className="text-xs text-gray-500 block">({enquiry.customLeadSource})</span>
+          )}
+        </p>
+      </div>
       {enquiry.productRequirements && (
-        <div className="text-sm">
-          <span className="font-medium text-gray-700">Requirements:</span>
-          <p className="mt-1 text-gray-900 text-xs bg-gray-50 p-2 rounded break-words">
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Requirements</p>
+          <p className="text-sm text-gray-900 truncate" title={enquiry.productRequirements}>
             {enquiry.productRequirements}
           </p>
         </div>
       )}
     </div>
 
-    {/* Meta Information */}
-    <div className="pt-3 border-t border-gray-100 grid grid-cols-1 gap-3 text-xs text-gray-500">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <Calendar className="w-3 h-3" />
-          <span>Created: {formatDate(enquiry.createdAt)}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <User className="w-3 h-3" />
-          <span>{enquiry.createdBy?.name || 'N/A'}</span>
+    {/* Assigned To Section */}
+    {enquiry.assignedTo && (
+      <div className="grid grid-cols-1 gap-3 pt-3 border-t border-gray-100">
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Assigned To</p>
+          <p className="text-sm text-gray-900 truncate" title={enquiry.assignedTo.name}>
+            {enquiry.assignedTo.name}
+          </p>
+          <p className="text-xs text-gray-500 truncate" title={enquiry.assignedTo.email}>
+            {enquiry.assignedTo.email}
+          </p>
         </div>
       </div>
-      {enquiry.assignedTo && (
-        <div className="text-sm">
-          <span className="font-medium text-gray-700">Assigned to:</span>
-          <div className="mt-1">
-            <div className="font-medium text-gray-900">{enquiry.assignedTo.name}</div>
-            <div className="text-xs text-gray-500">{enquiry.assignedTo.email}</div>
-          </div>
-        </div>
-      )}
+    )}
+
+    {/* Date */}
+    <div className="pt-2 border-t border-gray-100">
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Created</p>
+      <div className="flex items-center space-x-1 text-sm text-gray-600">
+        <Calendar className="w-4 h-4" />
+        <span>{formatDate(enquiry.createdAt)}</span>
+      </div>
     </div>
   </div>
 );
 
 export default function LeadAssignmentPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [enquiries, setEnquiries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -310,6 +352,10 @@ export default function LeadAssignmentPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // Success message state
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const fetchEnquiries = useCallback(async () => {
     try {
@@ -350,6 +396,18 @@ export default function LeadAssignmentPage() {
     fetchSalespersons();
   }, [fetchEnquiries, fetchSalespersons]);
 
+  // Handle location state changes (e.g., returning from create enquiry with success message)
+  useEffect(() => {
+    if (location.state?.successMessage) {
+      setSuccessMessage(location.state.successMessage);
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
+      
+      // Clear the location state to prevent re-showing message on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   const handleOpenAssignModal = (enquiry) => {
     setSelectedEnquiryForAssignment(enquiry);
     setAssignError('');
@@ -375,6 +433,9 @@ export default function LeadAssignmentPage() {
         setShowAssignModal(false);
         setSelectedEnquiryForAssignment(null);
         await fetchEnquiries(); // Refresh the list
+        setSuccessMessage('Enquiry assigned successfully and lead created!');
+        setShowSuccessToast(true);
+        setTimeout(() => setShowSuccessToast(false), 3000);
       } else {
         setAssignError(response.message || 'Failed to assign enquiry.');
       }
@@ -393,7 +454,7 @@ export default function LeadAssignmentPage() {
         enquiry.lastName,
         enquiry.email,
         enquiry.phone,
-        formatEnumValue(enquiry.leadType),
+        formatEnumValue(enquiry.leadSource),
         enquiry.createdBy?.name
       ].join(' ').toLowerCase();
       
@@ -439,269 +500,287 @@ export default function LeadAssignmentPage() {
   }
 
   return (
-    <>
+    <div className="flex flex-col h-full">
       <style>{customStyles}</style>
-      <div className="flex flex-col flex-1 bg-gray-50 font-sans">
-        {/* Header Section */}
-        <div className="border-b border-gray-200 pb-4 sm:pb-5 mb-6 sm:mb-8 bg-white px-4 sm:px-6 pt-4 sm:pt-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="p-2 rounded-md hover:bg-gray-100 text-gray-600 sm:hidden touch-target"
-                aria-label="Back to dashboard"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
-                  Lead Assignment
-                </h1>
-                <p className="mt-1 sm:mt-2 text-sm text-gray-600">
-                  Assign enquiries to sales personnel and create leads
-                </p>
-              </div>
-            </div>
+      {/* Header Section - Page Title */}
+      <div className="border-b border-gray-200 pb-5 mb-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="p-2 rounded-md hover:bg-gray-100 text-gray-600 sm:hidden touch-target"
+              aria-label="Back to dashboard"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Enquiries</h1>
           </div>
         </div>
-        
-        <div className="flex-1 overflow-hidden bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6 mx-4 sm:mx-6 mb-4 sm:mb-6 flex flex-col">
-          {/* Toolbar with Search and Filters */}
-          <div className="flex flex-col space-y-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1 sm:max-w-md">
-                <input
-                  type="text"
-                  placeholder="Search enquiries..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2.5 sm:py-2 w-full border border-gray-300 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-primary focus:border-primary transition-colors bg-white touch-target"
-                />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              </div>
+      </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+      {/* Main Content Area - Contains filters and table */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
+        {/* Filter and Action Bar */}
+        <div className="p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
+          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+            {/* Search Input - takes remaining space on left */}
+            <div className="relative flex-grow md:flex-grow-0 w-full md:w-auto md:max-w-xs">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Search enquiries..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 w-full border border-gray-200 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
+              />
+            </div>
+            
+            {/* Filters and Add Button - grouped on right */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-stretch sm:items-center">
+              <div className="relative flex-1 sm:flex-initial">
                 <select
-                  id="status-filter"
-                  name="status-filter"
-                  className="px-3 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary text-sm text-gray-700 bg-white touch-target appearance-none min-w-0 sm:min-w-[180px]"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
+                  className="pl-4 pr-10 py-2 w-full border border-gray-200 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-sm text-gray-900 bg-white"
                 >
                   <option value="">All Statuses</option>
                   {assignmentStatuses.map(status => (
                     <option key={status.value} value={status.value}>{status.label}</option>
                   ))}
                 </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
               </div>
-            </div>
 
-            {/* Results Summary */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-gray-600">
-              <div>
-                {filteredEnquiries.length > 0 ? (
-                  <>
-                    Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
-                    <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredEnquiries.length)}</span> of{' '}
-                    <span className="font-medium">{filteredEnquiries.length}</span> enquiries
-                  </>
-                ) : (
-                  'No enquiries found'
-                )}
-              </div>
-              {(searchTerm || statusFilter) && (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setStatusFilter('');
-                    setCurrentPage(1);
-                  }}
-                  className="text-primary hover:text-primary/80 font-medium text-sm"
-                >
-                  Clear filters
-                </button>
-              )}
+              <button
+                onClick={() => navigate('/dashboard/enquiries/create')}
+                className="inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Enquiry
+              </button>
             </div>
           </div>
-
-          {error && enquiries.length > 0 && (
-              <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg relative mb-6 flex items-start gap-2" role="alert">
+        </div>
+        
+        {/* Error Display */}
+        {error && enquiries.length > 0 && (
+          <div className="p-4 md:p-6 bg-red-50 border border-red-200">
+            <div className="flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5"/>
-              <div>
-                  <strong className="font-bold">An error occurred: </strong>
-                  <span className="block sm:inline">{error}</span>
+              <div className="text-red-700">
+                <strong className="font-bold">An error occurred: </strong>
+                <span className="block sm:inline">{error}</span>
               </div>
-              </div>
-          )}
-          
-          {/* Content Area - Desktop Table / Mobile Cards */}
-          <div className="flex-1 overflow-hidden">
-            {currentEnquiries.length === 0 ? (
-              <div className="text-center py-12 sm:py-16">
-                <Filter className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-xl font-medium text-gray-900 mb-2">No Enquiries Found</p>
-                <p className="text-sm text-gray-500">
-                  {searchTerm || statusFilter
-                    ? "No enquiries match your current filters."
-                    : "There are no enquiries to display."}
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Desktop Table View */}
-                <div className="hidden lg:block overflow-y-auto -mx-6 -mb-6">
+            </div>
+          </div>
+        )}
+        
+        {/* Content Area */}
+        {currentEnquiries.length === 0 ? (
+          <div className="flex flex-col flex-1 items-center justify-center min-h-[300px] p-6 text-center">
+            <Filter className="h-12 w-12 text-gray-400 mb-4" />
+            <p className="text-xl font-medium text-gray-900 mb-2">No Enquiries Found</p>
+            <p className="text-sm text-gray-500">
+              {searchTerm || statusFilter
+                ? "No enquiries match your current filters."
+                : "There are no enquiries to display."}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Desktop/Tablet Table View */}
+            <div className="hidden md:flex md:flex-col md:flex-1 md:overflow-hidden">
+              <div className="overflow-x-auto flex-1 relative">
+                <div className="inline-block min-w-full align-middle">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50 sticky top-0 z-10">
                       <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enquiry Details</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Info</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead Type</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {currentEnquiries.map((enquiry) => (
-                        <tr key={enquiry._id} className="hover:bg-gray-50 transition-colors duration-150 ease-in-out">
-                          <td className="px-6 py-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {enquiry.firstName} {enquiry.lastName}
-                            </div>
-                            {enquiry.productRequirements && (
-                              <div className="text-xs text-gray-500 mt-1 max-w-xs truncate">
-                                {enquiry.productRequirements}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-gray-900 flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-gray-400" />
-                              {enquiry.phone}
-                            </div>
-                            {enquiry.email && (
-                              <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                                <Mail className="w-3 h-3 text-gray-400" />
-                                <span className="truncate max-w-xs">{enquiry.email}</span>
-                              </div>
-                            )}
-                            {enquiry.address && (
-                              <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                                <MapPin className="w-3 h-3 text-gray-400" />
-                                <span className="truncate max-w-xs">{enquiry.address}</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatEnumValue(enquiry.leadType)}
-                            {enquiry.customLeadType && (
-                              <div className="text-xs text-gray-500">({enquiry.customLeadType})</div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatDate(enquiry.createdAt)}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {enquiry.createdBy ? enquiry.createdBy.name : 'N/A'}
-                            {enquiry.createdBy?.email && (
-                              <div className="text-xs text-gray-500 truncate max-w-xs">{enquiry.createdBy.email}</div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(enquiry.assignmentStatus)}`}>
-                              {formatAssignmentStatus(enquiry.assignmentStatus)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {enquiry.assignedTo ? (
-                              <div>
-                                <div className="font-medium">{enquiry.assignedTo.name}</div>
-                                <div className="text-xs text-gray-500 truncate max-w-xs">{enquiry.assignedTo.email}</div>
-                              </div>
-                            ) : (
-                              'Not Assigned'
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex items-center space-x-2">
-                              {enquiry.assignmentStatus === 'pending_assignment' && (
-                                <button 
-                                  onClick={() => handleOpenAssignModal(enquiry)} 
-                                  className="p-2 rounded-md text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors" 
-                                  title="Assign to Salesperson"
-                                >
-                                  <UserPlus className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        {[
+                          { key: 'name', label: 'Full Name', width: 'w-32 lg:w-40' },
+                          { key: 'phone', label: 'Phone', width: 'w-24 lg:w-32' },
+                          { key: 'email', label: 'Email', width: 'w-48', hideOn2Xl: true },
+                          { key: 'address', label: 'Address', width: 'w-36', hideOnXl: true },
+                          { key: 'leadSource', label: 'Lead Source', width: 'w-24 lg:w-32', hideOnXl: true },
+                          { key: 'status', label: 'Status', width: 'w-20 lg:w-24' },
+                          { key: 'leadType', label: 'Lead Type', width: 'w-24 lg:w-32' },
+                          { key: 'date', label: 'Date', width: 'w-28', hideOn2Xl: true },
+                              { key: 'actions', label: 'Actions', width: 'w-24 lg:w-32' }
+                            ].map((header) => (
+                              <th
+                                key={header.key}
+                                scope="col"
+                                className={`px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${header.width} 
+                                  ${header.hideOnLg ? 'hidden lg:table-cell' : ''} 
+                                  ${header.hideOnXl ? 'hidden xl:table-cell' : ''} 
+                                  ${header.hideOn2Xl ? 'hidden 2xl:table-cell' : ''}`}
+                              >
+                                {header.label}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {currentEnquiries.length === 0 && !loading ? (
+                            <tr>
+                              <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
+                                No enquiries found matching your criteria.
+                              </td>
+                            </tr>
+                          ) : (
+                            currentEnquiries.map((enquiry) => (
+                              <tr
+                                key={enquiry._id}
+                                className="transition-colors duration-150 ease-in-out hover:bg-gray-50"
+                              >
+                                <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium w-32 lg:w-40">
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="truncate cursor-pointer hover:text-[#FF7300] transition-colors duration-150 text-gray-900"
+                                      title="Click to view details"
+                                    >
+                                      {`${enquiry.firstName} ${enquiry.lastName}`}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
+                                  <div className="truncate">{enquiry.phone}</div>
+                                </td>
+                                <td className="hidden 2xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-48">
+                                  <div className="truncate">{enquiry.email || 'N/A'}</div>
+                                </td>
+                                <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-36">
+                                  <div className="truncate">{enquiry.billingAddress || enquiry.shippingAddress || 'N/A'}</div>
+                                </td>
+                                <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
+                                  <div className="truncate">
+                                    {formatEnumValue(enquiry.leadSource)}
+                                    {enquiry.customLeadSource && (
+                                      <div className="text-xs text-gray-500">({enquiry.customLeadSource})</div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-2 lg:px-4 xl:px-6 py-4 w-20 lg:w-24">
+                                  <span className={`inline-flex items-center px-1.5 lg:px-2 py-1 rounded-full text-xs font-medium truncate ${getStatusBadgeClass(enquiry.assignmentStatus)}`}>
+                                    {formatAssignmentStatus(enquiry.assignmentStatus)}
+                                  </span>
+                                </td>
+                                <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
+                                  <div className="truncate">
+                                    {formatEnumValue(enquiry.leadType)}
+                                    {enquiry.customLeadType && (
+                                      <div className="text-xs text-gray-500">({enquiry.customLeadType})</div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="hidden 2xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28">
+                                  <div className="truncate">
+                                    {formatDate(enquiry.createdAt)}
+                                  </div>
+                                </td>
+                                <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-32">
+                                  <div className="flex items-center justify-center space-x-1 lg:space-x-2">
+                                    <button
+                                      className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
+                                      title="View Details"
+                                    >
+                                      <Info className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                    </button>
+                                    {enquiry.assignmentStatus === 'pending_assignment' && (
+                                      <button
+                                        onClick={() => navigate(`/dashboard/enquiry/${enquiry._id}/edit`)}
+                                        className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-blue-200"
+                                        title="Edit Enquiry"
+                                      >
+                                        <Edit2 className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                      </button>
+                                    )}
+                                    {enquiry.assignmentStatus === 'pending_assignment' && (
+                                      <button
+                                        onClick={() => handleOpenAssignModal(enquiry)}
+                                        className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-green-200"
+                                        title="Assign to Salesperson"
+                                      >
+                                        <UserPlus className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Mobile/Tablet Card View */}
-                <div className="lg:hidden space-y-4 overflow-y-auto -mx-4 -mb-4 px-4 pb-4">
-                  {currentEnquiries.map((enquiry) => (
-                    <EnquiryCard
-                      key={enquiry._id}
-                      enquiry={enquiry}
-                      onAssign={handleOpenAssignModal}
-                    />
-                  ))}
+                {/* Mobile Card View */}
+                <div className="md:hidden flex-1 overflow-y-auto">
+                  <div className="p-4 space-y-4">
+                    {currentEnquiries.length === 0 && !loading ? (
+                      <div className="text-center py-12">
+                        <p className="text-gray-500">No enquiries found matching your criteria.</p>
+                      </div>
+                    ) : (
+                      currentEnquiries.map((enquiry) => (
+                        <EnquiryCard
+                          key={enquiry._id}
+                          enquiry={enquiry}
+                          onAssign={handleOpenAssignModal}
+                        />
+                      ))
+                    )}
+                  </div>
                 </div>
               </>
             )}
-          </div>
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-              <div className="px-4 sm:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-0 sticky bottom-0 left-0 right-0 mt-6 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6">
-                  <div className="text-sm text-gray-600 text-center sm:text-left">
-                    <span className="hidden sm:inline">
-                      Showing {filteredEnquiries.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredEnquiries.length)} of {filteredEnquiries.length} results
-                    </span>
-                    <span className="sm:hidden">
-                      {filteredEnquiries.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} - {Math.min(currentPage * itemsPerPage, filteredEnquiries.length)} of {filteredEnquiries.length}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} 
-                        disabled={currentPage === 1} 
-                        className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors touch-target"
-                        aria-label="Previous page"
-                      >
-                          <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <span className="text-sm text-gray-600 px-2"> 
-                        <span className="hidden sm:inline">Page </span>{currentPage} of {totalPages}
-                      </span>
-                      <button 
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} 
-                        disabled={currentPage === totalPages} 
-                        className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors touch-target"
-                        aria-label="Next page"
-                      >
-                          <ChevronRight className="w-4 h-4" />
-                      </button>
-                  </div>
+          {/* Pagination */}
+          {totalPages > 0 && (
+            <div className="px-2 lg:px-4 xl:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-3 sm:space-y-0">
+              <div className="text-sm text-gray-600 order-2 sm:order-1">
+                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredEnquiries.length)} to {Math.min(currentPage * itemsPerPage, filteredEnquiries.length)} of {filteredEnquiries.length} results
               </div>
+              <div className="flex items-center space-x-2 order-1 sm:order-2">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-sm text-gray-600 px-2"> 
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           )}
-        </div>
-
-        {showAssignModal && selectedEnquiryForAssignment && (
-          <AssignEnquiryModal
-            enquiry={selectedEnquiryForAssignment}
-            salespersons={salespersons}
-            onClose={handleCloseAssignModal}
-            onAssign={handleAssignEnquiry}
-            error={assignError}
-            isAssigning={isAssigning}
-          />
-        )}
       </div>
-    </>
+
+      {showAssignModal && selectedEnquiryForAssignment && (
+        <AssignEnquiryModal
+          enquiry={selectedEnquiryForAssignment}
+          salespersons={salespersons}
+          onClose={handleCloseAssignModal}
+          onAssign={handleAssignEnquiry}
+          error={assignError}
+          isAssigning={isAssigning}
+        />
+      )}
+
+      {/* Success Toast */}
+      {showSuccessToast && (
+        <div className="fixed bottom-5 right-5 bg-primary text-white px-6 py-3 rounded-lg shadow-lg transition-opacity duration-300 ease-in-out z-50">
+          {successMessage}
+        </div>
+      )}
+    </div>
   );
 } 
