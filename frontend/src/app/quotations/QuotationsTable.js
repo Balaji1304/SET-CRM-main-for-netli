@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Edit2, FileText, Send, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Loader2, Phone, Mail, Building2, Calendar, User, IndianRupee } from 'lucide-react';
 import { 
@@ -8,6 +8,7 @@ import {
   closeQuotation, 
   confirmOfflinePayment 
 } from '../../services/quotationService';
+import { getSalespersons } from '../../services/enquiryService';
 import { useAuth } from '../../context/AuthContext';
 
 // Helper to format enum values or status strings
@@ -241,7 +242,16 @@ function StandalonePaymentModal({
   );
 }
 
-export default function QuotationsTable({ searchTerm, statusFilter }) {
+export default function QuotationsTable({ 
+  searchTerm, 
+  statusFilter, 
+  sortOrder = 'newest',
+  paymentStatusFilter = '',
+  amountFilter = '',
+  creatorFilter = '',
+  expiryFilter = '',
+  paymentMethodFilter = ''
+}) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [quotations, setQuotations] = useState([]);
@@ -265,6 +275,9 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
   const [actionInProgress, setActionInProgress] = useState(false); // For modal confirm button
   const [paymentError, setPaymentError] = useState(''); // Specifically for payment modal
   const [successToast, setSuccessToast] = useState({ show: false, message: '' });
+  const [salesPersons, setSalesPersons] = useState([]); // For creator filter options
+
+  const isSalesHead = user?.role === 'sales_head';
 
 
   const fetchQuotationsCallback = useCallback(async () => {
@@ -284,6 +297,17 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
     }
   }, []);
 
+  const fetchSalesPersonsCallback = useCallback(async () => {
+    try {
+      const response = await getSalespersons();
+      if (response.success) {
+        setSalesPersons(response.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch sales persons:', err);
+    }
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -291,7 +315,40 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       return;
     }
     fetchQuotationsCallback();
-  }, [navigate, fetchQuotationsCallback]);
+    if (isSalesHead) {
+      fetchSalesPersonsCallback();
+    }
+  }, [navigate, fetchQuotationsCallback, fetchSalesPersonsCallback, isSalesHead]);
+
+  // Sort quotations based on sortOrder prop
+  const sortedQuotations = useMemo(() => {
+    if (!quotations || quotations.length === 0) return [];
+    
+    const sorted = [...quotations].sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      const validUntilA = new Date(a.validUntil);
+      const validUntilB = new Date(b.validUntil);
+      
+      switch (sortOrder) {
+        case 'oldest':
+          return dateA - dateB;
+        case 'amount_high':
+          return (b.total || 0) - (a.total || 0);
+        case 'amount_low':
+          return (a.total || 0) - (b.total || 0);
+        case 'expiry_soon':
+          return validUntilA - validUntilB;
+        case 'expiry_later':
+          return validUntilB - validUntilA;
+        case 'newest':
+        default:
+          return dateB - dateA;
+      }
+    });
+    
+    return sorted;
+  }, [quotations, sortOrder]);
 
   const getStatusBadgeClass = (status) => {
     const classes = {
@@ -465,7 +522,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0 overflow-hidden">
           <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
-            {quotation.quotationNumber}
+            {quotation.quotationNumber || 'N/A'}
           </h3>
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <div className="flex items-center space-x-1 min-w-0 overflow-hidden">
@@ -549,7 +606,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-500">Total Amount</span>
           <span className="text-lg font-bold text-gray-900 truncate ml-2">
-            ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₹{(quotation.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
       </div>
@@ -559,42 +616,115 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</p>
           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium truncate ${getStatusBadgeClass(quotation.status)}`}>
-            {formatDisplayValue(quotation.status)}
+            {formatDisplayValue(quotation.status) || 'N/A'}
           </span>
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Payment Status</p>
-          <p className="text-sm text-gray-900 truncate">{formatDisplayValue(quotation.advancePaymentStatus) || 'Not Applicable'}</p>
+          <p className="text-sm text-gray-900 truncate">{formatDisplayValue(quotation.advancePaymentStatus) || 'N/A'}</p>
         </div>
       </div>
 
       {/* Valid Until and Items */}
-      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Valid Until</p>
-          <div className="flex items-center space-x-1 text-sm text-gray-600">
-            <Calendar className="w-4 h-4 flex-shrink-0" />
-            <span className="truncate">{new Date(quotation.validUntil).toLocaleDateString('en-GB')}</span>
+      <div className={`grid ${isSalesHead ? 'grid-cols-1' : 'grid-cols-2'} gap-3 pt-3 border-t border-gray-100`}>
+        {!isSalesHead && (
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Valid Until</p>
+            <div className="flex items-center space-x-1 text-sm text-gray-600">
+              <Calendar className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">{quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString('en-GB') : 'N/A'}</span>
+            </div>
           </div>
-        </div>
+        )}
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Items</p>
           <p className="text-sm text-gray-900 truncate">
-            {quotation.quotationItems ? `${quotation.quotationItems.length} item${quotation.quotationItems.length !== 1 ? 's' : ''}` : '0 items'}
+            {quotation.quotationItems ? `${quotation.quotationItems.length} item${quotation.quotationItems.length !== 1 ? 's' : ''}` : 'N/A'}
           </p>
         </div>
       </div>
+
+      {/* Sales Head Additional Info */}
+      {isSalesHead && (
+        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Valid Until</p>
+            <div className="flex items-center space-x-1 text-sm text-gray-600">
+              <Calendar className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">{quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString('en-GB') : 'N/A'}</span>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Created By</p>
+            <p className="text-sm text-gray-900 truncate" title={quotation.createdBy?.name || 'Unknown'}>
+              {quotation.createdBy?.name || 'N/A'}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 
-  const filteredQuotations = quotations.filter(quotation => {
+  const filteredQuotations = sortedQuotations.filter(quotation => {
     const searchTermLower = searchTerm.toLowerCase();
     const matchesSearch = searchTerm === '' || 
       (quotation.quotationNumber && quotation.quotationNumber.toLowerCase().includes(searchTermLower)) ||
       (quotation.lead?.firstName && quotation.lead.firstName.toLowerCase().includes(searchTermLower)) ||
       (quotation.lead?.lastName && quotation.lead.lastName.toLowerCase().includes(searchTermLower));
+    
     const matchesStatus = statusFilter === '' || quotation.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    // Payment status filter
+    const matchesPaymentStatus = paymentStatusFilter === '' || quotation.advancePaymentStatus === paymentStatusFilter;
+    
+    // Amount range filter
+    let matchesAmount = true;
+    if (amountFilter && amountFilter !== '') {
+      const amount = quotation.total || 0;
+      if (amountFilter === '0-10000') {
+        matchesAmount = amount >= 0 && amount <= 10000;
+      } else if (amountFilter === '10000-50000') {
+        matchesAmount = amount > 10000 && amount <= 50000;
+      } else if (amountFilter === '50000-100000') {
+        matchesAmount = amount > 50000 && amount <= 100000;
+      } else if (amountFilter === '100000-500000') {
+        matchesAmount = amount > 100000 && amount <= 500000;
+      } else if (amountFilter === '500000+') {
+        matchesAmount = amount > 500000;
+      }
+    }
+    
+    // Creator filter (only for sales head)
+    let matchesCreator = true;
+    if (isSalesHead && creatorFilter && creatorFilter !== '') {
+      if (creatorFilter === 'others') {
+        matchesCreator = quotation.createdBy?._id !== user?.id && quotation.createdBy !== user?.id;
+      } else {
+        // Check if it's a specific sales person ID
+        matchesCreator = quotation.createdBy?._id === creatorFilter || quotation.createdBy === creatorFilter;
+      }
+    }
+    
+    // Expiry status filter
+    let matchesExpiry = true;
+    if (expiryFilter && expiryFilter !== '') {
+      const now = new Date();
+      const validUntil = new Date(quotation.validUntil);
+      const daysUntilExpiry = Math.ceil((validUntil - now) / (1000 * 60 * 60 * 24));
+      
+      if (expiryFilter === 'active') {
+        matchesExpiry = validUntil > now;
+      } else if (expiryFilter === 'expired') {
+        matchesExpiry = validUntil <= now;
+      } else if (expiryFilter === 'expiring_soon') {
+        matchesExpiry = validUntil > now && daysUntilExpiry <= 7;
+      }
+    }
+    
+    // Payment method filter
+    const matchesPaymentMethod = paymentMethodFilter === '' || quotation.paymentMethod === paymentMethodFilter;
+    
+    return matchesSearch && matchesStatus && matchesPaymentStatus && matchesAmount && matchesCreator && matchesExpiry && matchesPaymentMethod;
   });
 
   const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage);
@@ -657,6 +787,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                     { key: 'paymentStatus', label: 'Payment Status', width: 'w-32 lg:w-36', hideOnLg: true },
                     { key: 'validUntil', label: 'Valid Until', width: 'w-28 lg:w-32', hideOnXl: true },
                     { key: 'items', label: 'Items', width: 'w-20 lg:w-24', hideOnXl: true },
+                    ...(isSalesHead ? [{ key: 'createdBy', label: 'Created By', width: 'w-28 lg:w-32', hideOnXl: true }] : []),
                     { key: 'actions', label: 'Actions', width: 'w-24 lg:w-32' }
                   ].map((header) => (
                     <th
@@ -674,7 +805,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
               <tbody className="bg-tertiary divide-y divide-fourth">
                 {currentQuotations.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-secondary">
+                    <td colSpan={isSalesHead ? 9 : 8} className="px-6 py-12 text-center text-secondary">
                       No quotations found matching your criteria.
                     </td>
                   </tr>
@@ -682,7 +813,7 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                   currentQuotations.map((quotation) => (
                     <tr key={quotation._id} className="hover:bg-gray-50 transition-colors duration-150 ease-in-out">
                       <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium text-secondary w-32 lg:w-40">
-                        <div className="truncate">{quotation.quotationNumber}</div>
+                        <div className="truncate">{quotation.quotationNumber || 'N/A'}</div>
                       </td>
                       <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-32 lg:w-40">
                         <div className="truncate">
@@ -691,29 +822,36 @@ export default function QuotationsTable({ searchTerm, statusFilter }) {
                       </td>
                       <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28 lg:w-32">
                         <div className="truncate">
-                          ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          ₹{(quotation.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </div>
                       </td>
                       <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-28">
                         <span className={`inline-flex items-center px-1.5 lg:px-2 py-1 rounded-full text-xs font-medium truncate ${getStatusBadgeClass(quotation.status)}`}>
-                          {formatDisplayValue(quotation.status)}
+                          {formatDisplayValue(quotation.status) || 'N/A'}
                         </span>
                       </td>
                       <td className="hidden lg:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-32 lg:w-36">
                         <div className="truncate">
-                          {formatDisplayValue(quotation.advancePaymentStatus) || 'Not Applicable'}
+                          {formatDisplayValue(quotation.advancePaymentStatus) || 'N/A'}
                         </div>
                       </td>
                       <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28 lg:w-32">
                         <div className="truncate">
-                          {new Date(quotation.validUntil).toLocaleDateString('en-GB')}
+                          {quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString('en-GB') : 'N/A'}
                         </div>
                       </td>
                       <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-20 lg:w-24">
                         <div className="truncate">
-                          {quotation.quotationItems ? `${quotation.quotationItems.length} item${quotation.quotationItems.length !== 1 ? 's' : ''}` : '0 items'}
+                          {quotation.quotationItems ? `${quotation.quotationItems.length} item${quotation.quotationItems.length !== 1 ? 's' : ''}` : 'N/A'}
                         </div>
                       </td>
+                      {isSalesHead && (
+                        <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28 lg:w-32">
+                          <div className="truncate" title={quotation.createdBy?.name || 'Unknown'}>
+                            {quotation.createdBy?.name || 'N/A'}
+                          </div>
+                        </td>
+                      )}
                       <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-32">
                         <div className="flex items-center justify-center space-x-1 lg:space-x-2">
                           <button

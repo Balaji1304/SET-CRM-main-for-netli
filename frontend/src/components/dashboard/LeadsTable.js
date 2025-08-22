@@ -138,10 +138,11 @@ export default function LeadsTable({
       (sourceFilter === 'enquiry' && lead.createdFromEnquiry === true) ||
       (sourceFilter === 'direct' && !lead.createdFromEnquiry);
     
-    // Creator filter (self vs others)
+    // Creator filter (others vs specific sales persons)
     const matchesCreator = creatorFilter === '' ||
-      (creatorFilter === 'self' && lead.createdBy && lead.createdBy._id === user?.id) ||
-      (creatorFilter === 'others' && (!lead.createdBy || lead.createdBy._id !== user?.id));
+      (creatorFilter === 'others' && (!lead.createdBy || lead.createdBy._id !== user?.id)) ||
+      // Check if it's a specific sales person ID
+      (lead.createdBy && lead.createdBy._id === creatorFilter);
 
     return matchesSearch && matchesStatus && matchesCompletion && matchesSource && matchesCreator;
   });

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, ChevronDown, Plus, Calendar, Filter, RotateCcw } from 'lucide-react';
 import LeadsTable from './LeadsTable';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getSalespersons } from '../../services/enquiryService';
 
 export default function Leads() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,11 +12,29 @@ export default function Leads() {
   const [completionFilter, setCompletionFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [creatorFilter, setCreatorFilter] = useState('');
+  const [salesPersons, setSalesPersons] = useState([]);
   const navigate = useNavigate();
   const { user } = useAuth();
 
   // Check if user is sales head
   const isSalesHead = user?.role === 'sales_head';
+
+  // Fetch sales persons for creator filter
+  useEffect(() => {
+    if (isSalesHead) {
+      const fetchSalesPersons = async () => {
+        try {
+          const response = await getSalespersons();
+          if (response.success) {
+            setSalesPersons(response.data);
+          }
+        } catch (error) {
+          console.error('Failed to fetch sales persons:', error);
+        }
+      };
+      fetchSalesPersons();
+    }
+  }, [isSalesHead]);
 
   // Function to reset all filters
   const resetFilters = () => {
@@ -159,8 +178,12 @@ export default function Leads() {
                     className="pl-3 pr-7 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-xs xl:text-sm text-secondary bg-tertiary"
                   >
                     <option value="">Creator</option>
-                    <option value="self">My Leads</option>
                     <option value="others">Others</option>
+                    {salesPersons.map((person) => (
+                      <option key={person._id} value={person._id}>
+                        {person.name}
+                      </option>
+                    ))}
                   </select>
                   <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
                 </div>
