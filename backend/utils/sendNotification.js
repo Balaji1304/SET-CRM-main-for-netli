@@ -406,7 +406,7 @@ const sendInvoiceNotification = async (invoice, pdfBuffer = null) => {
 };
 
 // Helper function for welcome notifications
-const sendWelcomeNotification = async (user, password) => {
+const sendWelcomeNotification = async (user, password, leadContactPreferences = null) => {
   const customer = {
     firstName: user.name.split(' ')[0] || 'Customer',
     lastName: user.name.split(' ').slice(1).join(' ') || '',
@@ -414,6 +414,19 @@ const sendWelcomeNotification = async (user, password) => {
     phone: user.phone,
     whatsapp: user.whatsapp || user.phone
   };
+
+  // If lead contact preferences are provided, use them. Otherwise fallback to email-only
+  if (leadContactPreferences) {
+    customer.preferredContactMethod = leadContactPreferences.preferredContactMethod;
+    customer.hasWhatsapp = leadContactPreferences.hasWhatsapp;
+    customer.whatsappSameAsPhone = leadContactPreferences.whatsappSameAsPhone;
+    customer.whatsapp = leadContactPreferences.whatsapp;
+    customer.countryCode = leadContactPreferences.countryCode;
+  } else {
+    // Fallback: assume email-only communication for legacy cases
+    customer.preferredContactMethod = 'email';
+    customer.hasWhatsapp = false;
+  }
 
   const welcomeData = {
     name: user.name,

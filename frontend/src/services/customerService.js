@@ -160,3 +160,17 @@ export const getApprovedSalesOrders = async (token) => {
     throw error;
   }
 }; 
+
+/**
+ * Get all customers for management
+ * @returns {Promise<Object>} - Response with customers list
+ */
+export const getAllCustomers = async () => {
+  try {
+    const response = await apiRequest('customer-purchases/customers');
+    return response;
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    throw error;
+  }
+};

@@ -904,7 +904,7 @@ exports.sendQuotation = async (req, res) => {
 // @route   PUT /api/quotations/:id/approve
 exports.handleApproveQuotation = async (req, res) => {
   try {
-    const quotation = await Quotation.findById(req.params.id).populate('lead');
+    const quotation = await Quotation.findById(req.params.id).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
     
     if (!quotation) {
       throw new AppError('Quotation not found', 404);
@@ -1050,7 +1050,7 @@ exports.handleRazorpayWebhook = async (req, res) => {
       
       const quotation = await Quotation.findOne({ 
         razorpayPaymentLinkId: payment_link.id 
-      }).populate('lead');
+      }).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
 
       if (!quotation) {
         console.error(`Quotation not found for payment link ID: ${payment_link.id}`);
@@ -1127,8 +1127,14 @@ const approveQuotation = async (quotationInstance) => {
       leadUserId = user._id;
       console.log(`New user created: ${leadUserId} for phone ${lead.phone}`);
       try {
-        // Send welcome notification via available channels
-        await sendWelcomeNotification(user, password);
+        // Send welcome notification via available channels with lead's contact preferences
+        await sendWelcomeNotification(user, password, {
+          preferredContactMethod: lead.preferredContactMethod,
+          hasWhatsapp: lead.hasWhatsapp,
+          whatsappSameAsPhone: lead.whatsappSameAsPhone,
+          whatsapp: lead.whatsapp,
+          countryCode: lead.countryCode
+        });
         console.log(`Welcome notification sent to ${user.phone}`);
       } catch (notificationError) {
         console.error(`Failed to send welcome notification to ${user.phone}:`, notificationError.message);
@@ -1252,7 +1258,7 @@ exports.confirmOfflinePayment = async (req, res) => {
   try {
     const { amount, transactionNo, paymentMethod, paymentDate, notes } = req.body;
     
-    let quotation = await Quotation.findById(req.params.id).populate('lead');
+    let quotation = await Quotation.findById(req.params.id).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
 
     if (!quotation) {
       throw new AppError('Quotation not found', 404);
@@ -1735,7 +1741,7 @@ exports.manualConfirmPayment = async (req, res) => {
     console.log(`Manual payment confirmation request for quotation: ${quotationId}, paymentId: ${paymentId}`);
     
     // Find the quotation
-    const quotation = await Quotation.findById(quotationId).populate('lead');
+    const quotation = await Quotation.findById(quotationId).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
     
     if (!quotation) {
       console.error(`Quotation not found: ${quotationId}`);

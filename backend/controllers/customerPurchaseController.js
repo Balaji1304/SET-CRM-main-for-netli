@@ -1067,6 +1067,72 @@ exports.allocateInstallationDate = async (req, res) => {
   }
 };
 
+// @desc    Get all customers for management
+// @route   GET /api/customers
+// @access  Private (sales_head, sales_person, marketing_coordinator)
+exports.getAllCustomers = async (req, res) => {
+  try {
+    const userRole = req.user.role;
+    let query = {};
+
+    // Role-based filtering: sales_person can only see their own customers
+    if (userRole === 'sales_person') {
+      // Find leads created by this sales person, then find customers created from those leads
+      const userLeads = await Lead.find({ createdBy: req.user.id });
+      const leadIds = userLeads.map(lead => lead._id);
+      query.leadId = { $in: leadIds };
+    }
+
+    const customers = await Customer.find(query)
+      .populate({
+        path: 'leadId',
+        select: 'leadNumber source createdBy',
+        populate: {
+          path: 'createdBy',
+          select: 'firstName lastName'
+        }
+      })
+      .populate({
+        path: 'user',
+        select: 'firstName lastName email'
+      })
+      .sort({ createdAt: -1 });
+
+    // Get purchase data for each customer
+    const customersWithPurchases = await Promise.all(
+      customers.map(async (customer) => {
+        const purchases = await CustomerPurchase.find({ customerId: customer._id })
+          .populate('quotationId', 'quotationNumber total')
+          .sort({ createdAt: -1 });
+
+        const totalPurchases = purchases.length;
+        const totalValue = purchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0);
+        const fullyPaidCount = purchases.filter(purchase => purchase.isFullyPaid).length;
+        const activeCount = purchases.filter(purchase => purchase.status === 'active').length;
+
+        return {
+          ...customer.toObject(),
+          purchaseStats: {
+            totalPurchases,
+            totalValue,
+            fullyPaidCount,
+            activeCount,
+            latestPurchase: purchases[0] || null
+          }
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      count: customersWithPurchases.length,
+      data: customersWithPurchases
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
 // Export new manual payment functions for routing
 exports.recordManualPayment = exports.recordManualPayment;
 exports.verifyManualPayment = exports.verifyManualPayment;

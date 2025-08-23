@@ -21,6 +21,7 @@ import PerformancePage from './app/performance/page';
 import MaintenancePage from './app/maintenance/page';
 import KnowledgeBasePage from './app/knowledge-base/page';
 import QuotationsPage from './app/quotations/page';
+import CustomersPage from './app/customers/page';
 import AccountsApprovalsPage from './app/quotations/pending-approvals';
 import ApprovedPaymentsPage from './app/quotations/approved-payments';
 import CreateQuotationPage from './app/quotations/create/page';
@@ -267,6 +268,11 @@ function App() {
             <Route path="quotations/:id/edit" element={
               <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <EditQuotationPage />
+              </ProtectedRoute>
+            } />
+            <Route path="customers" element={
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
+                <CustomersPage />
               </ProtectedRoute>
             } />
             <Route path="packages" element={
