@@ -30,6 +30,7 @@ exports.getQuotations = async (req, res) => {
     let query = {};
     
     // If user is a sales person, only show their quotations
+    // Sales head and marketing coordinator can see all quotations
     if (req.user.role === 'sales_person') {
       query.createdBy = req.user.id;
     }
@@ -107,7 +108,8 @@ exports.getQuotation = async (req, res) => {
       throw new AppError('Quotation not found', 404);
     }
 
-    // Check access permissions
+    // Check access permissions - sales person can only access their own quotations
+    // Sales head and marketing coordinator can access all quotations
     if (req.user.role === 'sales_person' && quotation.createdBy._id.toString() !== req.user.id) {
       throw new AppError('Not authorized to access this quotation', 403);
     }
@@ -188,7 +190,7 @@ exports.getQuotation = async (req, res) => {
 // @route   POST /api/quotations
 exports.createQuotation = async (req, res) => {
   try {
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
       throw new AppError('Only sales roles can create quotations', 403);
     }
     const { leadId, quotationItems, terms, notes, advancePaymentPercentage } = req.body;
@@ -323,7 +325,7 @@ exports.createQuotation = async (req, res) => {
 exports.updateQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
       throw new AppError('Only sales roles can update quotations', 403);
     }
 
@@ -446,7 +448,7 @@ exports.updateQuotation = async (req, res) => {
 exports.deleteQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
       return res.status(403).json({ success: false, message: 'Only sales roles can delete quotations' });
     }
 
@@ -484,7 +486,7 @@ exports.deleteQuotation = async (req, res) => {
 exports.sendQuotation = async (req, res) => {
   try {
     // Check if user has permission to send quotations
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to send quotations'
@@ -912,8 +914,8 @@ exports.handleApproveQuotation = async (req, res) => {
       throw new AppError('Can only approve quotations that are in pending_approval status', 400);
     }
 
-    if (!quotation.lead || !quotation.lead.email) {
-      throw new AppError('Lead data is incomplete. Email is required for approval.', 400);
+    if (!quotation.lead || (!quotation.lead.email && (!quotation.lead.whatsapp || !quotation.lead.hasWhatsapp))) {
+      throw new AppError('Lead data is incomplete. At least one contact method (email or WhatsApp) is required for approval.', 400);
     }
 
     // Role and segregation of duties: only accounts can approve and cannot approve their own
@@ -1292,8 +1294,8 @@ exports.confirmOfflinePayment = async (req, res) => {
       throw new AppError(`Advance payment (₹${paymentAmount}) must be at least ₹${minimumAdvance.toFixed(2)} (${advancePercentage}% of total amount)`, 400);
     }
 
-    if (!quotation.lead || !quotation.lead.email) {
-      throw new AppError('Lead data is incomplete. Email is required.', 400);
+    if (!quotation.lead || (!quotation.lead.email && (!quotation.lead.whatsapp || !quotation.lead.hasWhatsapp))) {
+      throw new AppError('Lead data is incomplete. At least one contact method (email or WhatsApp) is required.', 400);
     }
 
     quotation.advancePaymentStatus = 'CONFIRMED';

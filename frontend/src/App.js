@@ -140,17 +140,17 @@ function App() {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="knowledge-base" element={<KnowledgeBasePage />} />
             <Route path="add-lead" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <LeadForm />
               </ProtectedRoute>
             } />
             <Route path="leads" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'front_office_executive', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'front_office_executive', 'sales_head', 'marketing_coordinator']}>
                 <Leads />
               </ProtectedRoute>
             } />
             <Route path="edit-lead/:id" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <LeadForm />
               </ProtectedRoute>
             } />
@@ -240,7 +240,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="quotations" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <QuotationsPage />
               </ProtectedRoute>
             } />
@@ -255,17 +255,17 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="quotations/create" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <CreateQuotationPage />
               </ProtectedRoute>
             } />
             <Route path="quotations/:id" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <QuotationDetailsPage />
               </ProtectedRoute>
             } />
             <Route path="quotations/:id/edit" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <EditQuotationPage />
               </ProtectedRoute>
             } />

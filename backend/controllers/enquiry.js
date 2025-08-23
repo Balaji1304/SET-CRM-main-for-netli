@@ -188,7 +188,7 @@ exports.deleteEnquiry = async (req, res) => {
 exports.getSalespersons = async (req, res) => {
   try {
     const salespersons = await User.find({ 
-      role: { $in: ['sales_person', 'sales_representative', 'sales_head'] }
+      role: { $in: ['sales_person', 'sales_representative', 'sales_head', 'marketing_coordinator'] }
     }).select('_id name email role');
     
     res.status(200).json({

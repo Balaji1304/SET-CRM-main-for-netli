@@ -18,7 +18,7 @@ export default function QuotationsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const isSalesHead = user?.role === 'sales_head';
+  const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator';
 
   // Fetch sales persons for creator filter
   useEffect(() => {

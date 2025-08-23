@@ -114,6 +114,8 @@ const getNavigation = (userRole) => {
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     marketing_coordinator: [
+      { name: 'Leads', href: '/dashboard/leads', icon: Users },
+      { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
       { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],

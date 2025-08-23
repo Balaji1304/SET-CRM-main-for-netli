@@ -16,8 +16,8 @@ export default function Leads() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Check if user is sales head
-  const isSalesHead = user?.role === 'sales_head';
+  // Check if user is sales head or marketing coordinator
+  const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator';
 
   // Fetch sales persons for creator filter
   useEffect(() => {

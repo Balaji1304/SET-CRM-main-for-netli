@@ -152,7 +152,7 @@ class NotificationService {
         case 'quotation_approved':
           // Notify customer and sales team
           recipients = [quotation.customer];
-          const salesTeam = await User.find({ role: { $in: ['sales_person', 'sales_head'] } });
+          const salesTeam = await User.find({ role: { $in: ['sales_person', 'sales_head', 'marketing_coordinator'] } });
           recipients.push(...salesTeam.map(user => user._id));
           title = 'Quotation Approved';
           message = `Quotation #${quotation.quotationNumber} has been approved`;
@@ -523,7 +523,7 @@ class NotificationService {
         case 'quotation_created':
           // Notify sales heads and accounts department
           const relevantUsers = await User.find({ 
-            role: { $in: ['sales_head', 'accounts_department'] }
+            role: { $in: ['sales_head', 'marketing_coordinator', 'accounts_department'] }
           });
           recipients = relevantUsers.map(user => user._id);
           title = 'New Quotation Created';
@@ -532,9 +532,9 @@ class NotificationService {
           break;
 
         case 'quotation_updated':
-          // Notify sales heads about quotation updates
-          const salesHeads = await User.find({ role: 'sales_head' });
-          recipients = salesHeads
+          // Notify sales heads and marketing coordinators about quotation updates
+          const salesManagement = await User.find({ role: { $in: ['sales_head', 'marketing_coordinator'] } });
+          recipients = salesManagement
             .filter(user => user._id.toString() !== sender?._id?.toString())
             .map(user => user._id);
           title = 'Quotation Updated';
@@ -543,10 +543,10 @@ class NotificationService {
           break;
 
         case 'quotation_expired':
-          // Notify salesperson and sales heads about expired quotations
+          // Notify salesperson and sales management about expired quotations
           recipients = [quotation.createdBy];
-          const salesManagement = await User.find({ role: 'sales_head' });
-          recipients.push(...salesManagement.map(user => user._id));
+          const salesManagement2 = await User.find({ role: { $in: ['sales_head', 'marketing_coordinator'] } });
+          recipients.push(...salesManagement2.map(user => user._id));
           title = 'Quotation Expired';
           message = `Quotation #${quotation.quotationNumber} has expired. Follow-up required.`;
           priority = 'high';

@@ -36,7 +36,7 @@ export default function LeadsTable({
   const [selectedLeadForView, setSelectedLeadForView] = useState(null);
 
   const itemsPerPage = 10;
-  const isSalesHead = user?.role === 'sales_head';
+  const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator';
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
