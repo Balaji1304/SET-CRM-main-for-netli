@@ -493,7 +493,7 @@ exports.sendQuotation = async (req, res) => {
 
       // Fetch quotation with populated data first
       const quotation = await Quotation.findById(req.params.id)
-      .populate('lead');
+      .populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
 
       if (!quotation) {
       return res.status(404).json({
@@ -730,13 +730,121 @@ exports.sendQuotation = async (req, res) => {
 
       // Send notification via smart communication workflow
       try {
+        // Prepare complete email data structure (same as sendQuotationNotification)
         const quotationData = {
           quotationNumber: updatedQuotation.quotationNumber,
-          paymentLink: updatedQuotation.razorpayPaymentLink,
-          quotationUrl: updatedQuotation.razorpayPaymentLink,
+          createdDate: new Date(updatedQuotation.createdAt).toLocaleDateString(),
+          validUntil: new Date(updatedQuotation.validUntil).toLocaleDateString(),
+          status: updatedQuotation.status,
+          lead: {
+            firstName: updatedQuotation.lead.firstName,
+            lastName: updatedQuotation.lead.lastName,
+            businessName: updatedQuotation.lead.businessName,
+            billingAddress: updatedQuotation.lead.billingAddress,
+            shippingAddress: updatedQuotation.lead.shippingAddress,
+            address: updatedQuotation.lead.address, // Keep for backward compatibility
+            email: updatedQuotation.lead.email,
+            phone: updatedQuotation.lead.phone,
+            countryCode: updatedQuotation.lead.countryCode
+          },
+          items: quotationItems.map(item => {
+            let product = {};
+            
+            // Handle regular products
+            if (item.productId) {
+              product = {
+                ...item.productId.toObject(),
+                specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
+                  name: key,
+                  value: value
+                })),
+                images: (item.productId.imageUrls || []).map(url => ({ url }))
+              };
+            }
+            // Handle customized products
+            else if (item.customizedProductId) {
+              const customizedProduct = item.customizedProductId;
+              
+              // Build specifications from the customized product
+              const specifications = [];
+              if (customizedProduct.modelNumber) {
+                specifications.push({ name: 'Model Number', value: customizedProduct.modelNumber });
+              }
+              
+              // Add all specifications from the customized product
+              Object.entries(customizedProduct.specifications || {}).forEach(([key, value]) => {
+                if (value && value.trim()) {
+                  specifications.push({ 
+                    name: key.charAt(0).toUpperCase() + key.slice(1), 
+                    value: value 
+                  });
+                }
+              });
+              
+              product = {
+                _id: customizedProduct._id,
+                name: customizedProduct.name || 'Customized Product',
+                description: customizedProduct.description || '',
+                specifications: specifications,
+                images: (customizedProduct.imageUrls || []).map(url => ({ url }))
+              };
+            }
+            // Handle bundle products with enhanced data
+            else if (item.bundleId) {
+              const bundleProduct = item.bundleId;
+              
+              // Build specifications from the bundle product (only for non-solar bundles)
+              const specifications = [];
+              if (bundleProduct.specifications && bundleProduct.category !== 'power_plants_system') {
+                Object.entries(bundleProduct.specifications).forEach(([key, value]) => {
+                  if (value && value.toString().trim()) {
+                    specifications.push({ 
+                      name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'), 
+                      value: value.toString() 
+                    });
+                  }
+                });
+              }
+              
+              product = {
+                _id: bundleProduct._id,
+                name: bundleProduct.name || 'Bundle Product',
+                category: bundleProduct.category || 'Bundle',
+                description: bundleProduct.description || '',
+                specifications: specifications,
+                images: (bundleProduct.imageUrls || []).map(url => ({ url: url.toString() })),
+                bundleCode: bundleProduct.bundleCode,
+                subcategory: bundleProduct.subcategory,
+                
+                // Add system configuration for solar power plant bundles
+                systemConfiguration: bundleProduct.systemConfiguration ? JSON.parse(JSON.stringify(bundleProduct.systemConfiguration)) : {},
+                
+                // Add bundle components from the quotation item - properly serialize MongoDB documents
+                bundleComponents: (item.bundleComponents || []).map(component => ({
+                  name: component.name || '',
+                  quantity: component.quantity || 0,
+                  make: component.make || '',
+                  componentType: component.componentType || '',
+                  warranty: component.warranty || '',
+                  sortOrder: component.sortOrder || 0
+                }))
+              };
+            }
+            
+            return {
+              product: product,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: item.discount || 0,
+              total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
+            };
+          }),
           total: updatedQuotation.total,
+          terms: updatedQuotation.terms,
+          notes: updatedQuotation.notes,
           advanceAmount: advanceAmount,
-          advancePercentage: advancePercentage
+          advancePercentage: advancePercentage,
+          paymentLink: updatedQuotation.razorpayPaymentLink
         };
 
         const notificationResult = await sendSmartNotification(

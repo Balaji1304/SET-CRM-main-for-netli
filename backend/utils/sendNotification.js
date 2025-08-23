@@ -7,20 +7,20 @@ const {
   sendWhatsAppText
 } = require('./sendWhatsApp');
 
-// Determine available contact methods for a customer
+// Determine available contact methods for a customer using preferredContactMethod
 const getAvailableContactMethods = (customer) => {
-  const methods = [];
-  
-  if (customer.email) {
-    methods.push('email');
+  // Use the preferredContactMethod field that's already calculated in the Lead model
+  // The Lead model ensures this field is always set, so no fallback needed
+  switch (customer.preferredContactMethod) {
+    case 'both':
+      return ['email', 'whatsapp'];
+    case 'email':
+      return ['email'];
+    case 'whatsapp':
+      return ['whatsapp'];
+    default:
+      throw new Error(`Invalid preferredContactMethod: ${customer.preferredContactMethod} for customer ${customer.firstName} ${customer.lastName}`);
   }
-  
-  // Check for WhatsApp availability based on new fields
-  if (customer.hasWhatsapp !== false && (customer.whatsapp || (customer.whatsappSameAsPhone && customer.phone))) {
-    methods.push('whatsapp');
-  }
-  
-  return methods;
 };
 
 // Send notification via multiple channels
@@ -429,15 +429,9 @@ const sendWelcomeNotification = async (user, password) => {
   });
 };
 
-// Smart communication workflow - chooses the best available communication method(s)
+// Smart communication workflow - uses preferredContactMethod from Lead model
 const sendSmartNotification = async (customer, type, data, options = {}) => {
   const { attachments = [], documentUrl = null, forceMethod = null } = options;
-  
-  const hasEmail = !!customer.email;
-  const hasWhatsApp = customer.hasWhatsapp !== false && 
-    (customer.whatsapp || (customer.whatsappSameAsPhone && customer.phone));
-  
-  console.log(`Smart notification for ${customer.firstName}: Email=${hasEmail}, WhatsApp=${hasWhatsApp}`);
   
   let preferredMethods = [];
   
@@ -445,20 +439,12 @@ const sendSmartNotification = async (customer, type, data, options = {}) => {
   if (forceMethod) {
     // Use specific method if forced
     preferredMethods = [forceMethod];
-  } else if (hasEmail && hasWhatsApp) {
-    // Send via both if both are available
-    preferredMethods = ['email', 'whatsapp'];
-  } else if (hasEmail && !hasWhatsApp) {
-    // Send only via email
-    preferredMethods = ['email'];
-  } else if (!hasEmail && hasWhatsApp) {
-    // Send only via WhatsApp
-    preferredMethods = ['whatsapp'];
   } else {
-    throw new Error('No valid communication method available for this customer');
+    // Use the preferredContactMethod that's already calculated in the Lead model
+    preferredMethods = getAvailableContactMethods(customer);
   }
   
-  console.log(`Using communication methods: ${preferredMethods.join(', ')}`);
+  console.log(`Smart notification for ${customer.firstName}: Using preferredContactMethod='${customer.preferredContactMethod}', methods=[${preferredMethods.join(', ')}]`);
   
   return await sendNotification({
     customer,
