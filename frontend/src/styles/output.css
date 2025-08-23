@@ -1077,8 +1077,14 @@ video {
 .min-w-\[100px\] {
   min-width: 100px;
 }
+.min-w-\[110px\] {
+  min-width: 110px;
+}
 .min-w-\[120px\] {
   min-width: 120px;
+}
+.min-w-\[130px\] {
+  min-width: 130px;
 }
 .min-w-\[140px\] {
   min-width: 140px;
@@ -1097,6 +1103,9 @@ video {
 }
 .min-w-\[280px\] {
   min-width: 280px;
+}
+.min-w-\[70px\] {
+  min-width: 70px;
 }
 .min-w-\[80px\] {
   min-width: 80px;
@@ -2204,6 +2213,9 @@ video {
 .pl-8 {
   padding-left: 2rem;
 }
+.pl-9 {
+  padding-left: 2.25rem;
+}
 .pl-\[10px\] {
   padding-left: 10px;
 }
@@ -2227,6 +2239,9 @@ video {
 }
 .pr-6 {
   padding-right: 1.5rem;
+}
+.pr-7 {
+  padding-right: 1.75rem;
 }
 .pr-8 {
   padding-right: 2rem;
@@ -4004,10 +4019,6 @@ video {
     max-width: 36rem;
   }
 
-  .lg\:flex-initial {
-    flex: 0 1 auto;
-  }
-
   .lg\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4120,17 +4131,111 @@ video {
 
 @media (min-width: 1280px) {
 
+  .xl\:ml-auto {
+    margin-left: auto;
+  }
+
+  .xl\:mr-1 {
+    margin-right: 0.25rem;
+  }
+
+  .xl\:mr-2 {
+    margin-right: 0.5rem;
+  }
+
+  .xl\:inline {
+    display: inline;
+  }
+
   .xl\:table-cell {
     display: table-cell;
+  }
+
+  .xl\:h-3\.5 {
+    height: 0.875rem;
+  }
+
+  .xl\:h-4 {
+    height: 1rem;
+  }
+
+  .xl\:w-24 {
+    width: 6rem;
+  }
+
+  .xl\:w-28 {
+    width: 7rem;
+  }
+
+  .xl\:w-3\.5 {
+    width: 0.875rem;
+  }
+
+  .xl\:w-32 {
+    width: 8rem;
+  }
+
+  .xl\:w-4 {
+    width: 1rem;
+  }
+
+  .xl\:w-80 {
+    width: 20rem;
+  }
+
+  .xl\:w-auto {
+    width: auto;
+  }
+
+  .xl\:min-w-\[80px\] {
+    min-width: 80px;
+  }
+
+  .xl\:flex-1 {
+    flex: 1 1 0%;
+  }
+
+  .xl\:flex-initial {
+    flex: 0 1 auto;
   }
 
   .xl\:grid-cols-3 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .xl\:flex-row {
+    flex-direction: row;
+  }
+
+  .xl\:flex-nowrap {
+    flex-wrap: nowrap;
+  }
+
+  .xl\:items-center {
+    align-items: center;
+  }
+
+  .xl\:gap-3 {
+    gap: 0.75rem;
+  }
+
+  .xl\:gap-4 {
+    gap: 1rem;
+  }
+
+  .xl\:px-5 {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
   .xl\:px-6 {
     padding-left: 1.5rem;
     padding-right: 1.5rem;
+  }
+
+  .xl\:text-sm {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
   }
 }
 

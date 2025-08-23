@@ -47,6 +47,50 @@ exports.checkEmailExists = async (req, res) => {
   }
 };
 
+// @desc    Check if phone number already exists
+// @route   POST /api/leads/check-phone
+// @access  Private
+exports.checkPhoneExists = async (req, res) => {
+  try {
+    const { phone, excludeId } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+    
+    const query = { phone: phone.trim() };
+    
+    // If updating an existing lead, exclude it from the check
+    if (excludeId) {
+      query._id = { $ne: excludeId };
+    }
+    
+    const existingLead = await Lead.findOne(query);
+    
+    res.json({
+      success: true,
+      exists: !!existingLead,
+      lead: existingLead ? {
+        id: existingLead._id,
+        firstName: existingLead.firstName,
+        lastName: existingLead.lastName,
+        email: existingLead.email,
+        phone: existingLead.phone,
+        status: existingLead.status
+      } : null
+    });
+  } catch (error) {
+    console.error('Error checking phone:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check phone number'
+    });
+  }
+};
+
 // @desc    Create new lead
 // @route   POST /api/leads
 // @access  Private
@@ -54,6 +98,11 @@ exports.createLead = async (req, res) => {
   try {
     // Add the user ID to the lead data
     req.body.createdBy = req.user.id;
+    
+    // Convert empty email to undefined to work with partial index
+    if (req.body.email === '' || req.body.email === null) {
+      req.body.email = undefined;
+    }
 
     const lead = await Lead.create(req.body);
 
@@ -73,6 +122,18 @@ exports.createLead = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating lead:', error);
+    
+    // Handle duplicate phone number error specifically
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.phone) {
+      const duplicatePhone = error.keyValue.phone;
+      return res.status(400).json({
+        success: false,
+        message: `A lead with the phone number "${duplicatePhone}" already exists. Please use a different phone number or update the existing lead.`,
+        errorType: 'DUPLICATE_PHONE',
+        duplicateField: 'phone',
+        duplicateValue: duplicatePhone
+      });
+    }
     
     // Handle duplicate email error specifically
     if (error.code === 11000 && error.keyPattern && error.keyPattern.email) {
@@ -379,6 +440,11 @@ exports.updateLead = async (req, res) => {
     }
 
     // Update the lead fields
+    // Convert empty email to undefined to work with partial index
+    if (req.body.email === '' || req.body.email === null) {
+      req.body.email = undefined;
+    }
+    
     Object.keys(req.body).forEach(key => {
       lead[key] = req.body[key];
     });

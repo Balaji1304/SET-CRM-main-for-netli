@@ -46,4 +46,11 @@ export const checkEmailExists = async (email, excludeId = null) => {
     method: 'POST',
     body: { email, excludeId }
   }, false); // Don't cache email checks
+};
+
+export const checkPhoneExists = async (phone, excludeId = null) => {
+  return await apiRequest('leads/check-phone', {
+    method: 'POST',
+    body: { phone, excludeId }
+  }, false); // Don't cache phone checks
 }; 

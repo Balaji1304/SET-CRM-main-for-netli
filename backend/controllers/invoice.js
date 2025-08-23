@@ -2,7 +2,7 @@ const Invoice = require('../models/Invoice');
 const Quotation = require('../models/Quotation');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
-const { sendInvoiceNotification } = require('../utils/sendNotification');
+const { sendInvoiceNotification, sendSmartNotification } = require('../utils/sendNotification');
 const { generateInvoiceNumber } = require('../utils/generateNumbers');
 const generatePDF = require('../utils/generatePDF');
 const mongoose = require('mongoose');
@@ -92,10 +92,26 @@ exports.createInvoice = async (req, res) => {
 
     const pdfBuffer = await generatePDF('invoice', emailData);
 
-    // Send invoice notification via available channels
+    // Send invoice notification via smart communication workflow
     try {
-      await sendInvoiceNotification(populatedInvoice, pdfBuffer);
-      console.log(`Invoice notification sent for ${invoice.invoiceNumber}`);
+      const customer = await Customer.findById(quotation.customerId).populate('leadId');
+      const invoiceData = {
+        invoiceNumber: invoice.invoiceNumber,
+        total: invoice.total,
+        customer: customer,
+        invoiceUrl: null // Could add portal URL here if available
+      };
+
+      await sendSmartNotification(
+        customer.leadId, // Use the lead data for contact info
+        'invoice',
+        invoiceData,
+        {
+          attachments: [{ filename: `Invoice_${invoice.invoiceNumber}.pdf`, content: pdfBuffer }],
+          documentUrl: null
+        }
+      );
+      console.log(`Smart invoice notification sent for ${invoice.invoiceNumber}`);
     } catch (notificationError) {
       console.error(`Failed to send invoice notification for ${invoice.invoiceNumber}:`, notificationError.message);
       // Continue with success response even if notification fails

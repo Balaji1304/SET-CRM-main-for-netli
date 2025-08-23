@@ -15,7 +15,8 @@ const getAvailableContactMethods = (customer) => {
     methods.push('email');
   }
   
-  if (customer.whatsapp || customer.phone) {
+  // Check for WhatsApp availability based on new fields
+  if (customer.hasWhatsapp !== false && (customer.whatsapp || (customer.whatsappSameAsPhone && customer.phone))) {
     methods.push('whatsapp');
   }
   
@@ -118,14 +119,28 @@ const sendEmailNotification = async (type, customer, data, attachments = []) => 
 
 // Send WhatsApp notification based on type
 const sendWhatsAppNotification = async (type, customer, data, documentUrl = null) => {
-  const phone = customer.whatsapp || customer.phone;
+  // Determine the correct WhatsApp number to use
+  let whatsappNumber = null;
+  
+  if (customer.hasWhatsapp === false) {
+    throw new Error('Customer has no WhatsApp number');
+  }
+  
+  if (customer.whatsappSameAsPhone && customer.phone) {
+    whatsappNumber = customer.phone;
+  } else if (customer.whatsapp) {
+    whatsappNumber = customer.whatsapp;
+  } else {
+    throw new Error('No valid WhatsApp number found');
+  }
+
   const countryCode = customer.countryCode || '+91';
 
   switch (type) {
     case 'quotation':
       // Send template message for quotation
       const quotationResult = await sendQuotationWhatsApp({
-        to: phone,
+        to: whatsappNumber,
         customerName: `${customer.firstName} ${customer.lastName}`,
         quotationNumber: data.quotationNumber,
         quotationUrl: data.paymentLink || data.quotationUrl || 'Portal login required',
@@ -135,7 +150,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
       // If document URL is provided, send the PDF as well
       if (documentUrl) {
         await sendWhatsAppDocument({
-          to: phone,
+          to: whatsappNumber,
           documentUrl,
           filename: `Quotation_${data.quotationNumber}.pdf`,
           caption: `Your quotation ${data.quotationNumber} is attached.`,
@@ -148,7 +163,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'invoice':
       // Send template message for invoice
       const invoiceResult = await sendInvoiceWhatsApp({
-        to: phone,
+        to: whatsappNumber,
         customerName: `${customer.firstName} ${customer.lastName}`,
         invoiceNumber: data.invoiceNumber,
         amount: `₹${data.total}`,
@@ -159,7 +174,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
       // If document URL is provided, send the PDF as well
       if (documentUrl) {
         await sendWhatsAppDocument({
-          to: phone,
+          to: whatsappNumber,
           documentUrl,
           filename: `Invoice_${data.invoiceNumber}.pdf`,
           caption: `Your invoice ${data.invoiceNumber} is attached.`,
@@ -172,7 +187,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'welcome':
       // Send welcome credentials via WhatsApp
       return await sendWelcomeWhatsApp({
-        to: phone,
+        to: whatsappNumber,
         customerName: `${customer.firstName} ${customer.lastName}`,
         email: data.email,
         password: data.password,
@@ -183,7 +198,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'custom':
       // Send custom text message
       return await sendWhatsAppText({
-        to: phone,
+        to: whatsappNumber,
         text: data.message,
         countryCode
       });
@@ -414,10 +429,52 @@ const sendWelcomeNotification = async (user, password) => {
   });
 };
 
+// Smart communication workflow - chooses the best available communication method(s)
+const sendSmartNotification = async (customer, type, data, options = {}) => {
+  const { attachments = [], documentUrl = null, forceMethod = null } = options;
+  
+  const hasEmail = !!customer.email;
+  const hasWhatsApp = customer.hasWhatsapp !== false && 
+    (customer.whatsapp || (customer.whatsappSameAsPhone && customer.phone));
+  
+  console.log(`Smart notification for ${customer.firstName}: Email=${hasEmail}, WhatsApp=${hasWhatsApp}`);
+  
+  let preferredMethods = [];
+  
+  // Determine communication strategy based on requirements
+  if (forceMethod) {
+    // Use specific method if forced
+    preferredMethods = [forceMethod];
+  } else if (hasEmail && hasWhatsApp) {
+    // Send via both if both are available
+    preferredMethods = ['email', 'whatsapp'];
+  } else if (hasEmail && !hasWhatsApp) {
+    // Send only via email
+    preferredMethods = ['email'];
+  } else if (!hasEmail && hasWhatsApp) {
+    // Send only via WhatsApp
+    preferredMethods = ['whatsapp'];
+  } else {
+    throw new Error('No valid communication method available for this customer');
+  }
+  
+  console.log(`Using communication methods: ${preferredMethods.join(', ')}`);
+  
+  return await sendNotification({
+    customer,
+    type,
+    data,
+    preferences: preferredMethods,
+    attachments,
+    documentUrl
+  });
+};
+
 module.exports = {
   sendNotification,
   sendQuotationNotification,
   sendInvoiceNotification,
   sendWelcomeNotification,
+  sendSmartNotification,
   getAvailableContactMethods
 }; 

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createLead, getLeads, getLead, updateLead, deleteLead, checkEmailExists } = require('../controllers/leads');
+const { createLead, getLeads, getLead, updateLead, deleteLead, checkEmailExists, checkPhoneExists } = require('../controllers/leads');
 const { protect } = require('../middleware/auth');
 const { checkRolePermission } = require('../middleware/roleAuth');
 
@@ -10,6 +10,9 @@ router.route('/')
 
 router.route('/check-email')
   .post(protect, checkRolePermission, checkEmailExists);
+
+router.route('/check-phone')
+  .post(protect, checkRolePermission, checkPhoneExists);
 
 router.route('/:id')
   .get(protect, checkRolePermission, getLead)

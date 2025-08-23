@@ -4,7 +4,7 @@ const User = require('../models/User');
 const Lead = require('../models/Lead');
 const CustomizedProduct = require('../models/CustomizedProduct');
 const sendEmail = require('../utils/sendEmail');
-const { sendQuotationNotification, sendWelcomeNotification } = require('../utils/sendNotification');
+const { sendQuotationNotification, sendWelcomeNotification, sendSmartNotification } = require('../utils/sendNotification');
 const { generateQuotationNumber } = require('../utils/generateNumbers');
 const generatePDF = require('../utils/generatePDF');
 const { registerHelpers } = require('../utils/handlebarsHelpers');
@@ -36,8 +36,13 @@ exports.getQuotations = async (req, res) => {
     
     // If user is a customer, only show quotations related to their leads
     if (req.user.role === 'customer') {
-      // Find leads associated with this customer's email
-      const leads = await Lead.find({ email: req.user.email });
+      // Find leads associated with this customer's phone number or email
+      const leads = await Lead.find({ 
+        $or: [
+          { phone: req.user.phone },
+          { email: req.user.email }
+        ]
+      });
       const leadIds = leads.map(lead => lead._id);
       query.lead = { $in: leadIds };
     }
@@ -534,11 +539,12 @@ exports.sendQuotation = async (req, res) => {
         description: `Advance Payment (${advancePercentage}%) for Quotation #${quotation.quotationNumber}`,
         customer: {
           name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
-          email: quotation.lead.email
+          email: quotation.lead.email || undefined, // Only include email if available
+          contact: quotation.lead.phone ? `${quotation.lead.countryCode || '+91'}${quotation.lead.phone}` : undefined
         },
         notify: {
-          sms: true,
-          email: true
+          sms: !!quotation.lead.phone,
+          email: !!quotation.lead.email
         },
         reminder_enable: true,
         notes: {
@@ -722,10 +728,27 @@ exports.sendQuotation = async (req, res) => {
         { new: true }
       ).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod billingAddress shippingAddress address businessName').populate('createdBy', 'name');
 
-      // Send notification via available channels (email and/or WhatsApp)
+      // Send notification via smart communication workflow
       try {
-        const notificationResult = await sendQuotationNotification(updatedQuotation, quotationItems, pdfBuffer);
-        console.log('Notification results:', notificationResult);
+        const quotationData = {
+          quotationNumber: updatedQuotation.quotationNumber,
+          paymentLink: updatedQuotation.razorpayPaymentLink,
+          quotationUrl: updatedQuotation.razorpayPaymentLink,
+          total: updatedQuotation.total,
+          advanceAmount: advanceAmount,
+          advancePercentage: advancePercentage
+        };
+
+        const notificationResult = await sendSmartNotification(
+          updatedQuotation.lead,
+          'quotation',
+          quotationData,
+          {
+            attachments: [{ filename: `Quotation_${updatedQuotation.quotationNumber}.pdf`, content: pdfBuffer }],
+            documentUrl: null // PDF will be sent as attachment for email
+          }
+        );
+        console.log('Smart notification results:', notificationResult);
       } catch (notificationError) {
         console.error('Notification failed but quotation marked as sent:', notificationError.message);
         // Continue with success response even if notification fails
@@ -961,56 +984,77 @@ const approveQuotation = async (quotationInstance) => {
     console.log(`Starting approval process for quotation ID: ${quotationInstance._id}.`);
     
     const lead = quotationInstance.lead;
-    if (!lead || !lead.email) {
-        throw new AppError('Critical: Lead data or email missing in quotation for approval.', 500);
+    if (!lead) {
+        throw new AppError('Critical: Lead data missing in quotation for approval.', 500);
     }
 
-    let user = await User.findOne({ email: lead.email });
+    // Ensure we have at least one contact method (phone is now primary, email is optional)
+    if (!lead.phone && !lead.email) {
+        throw new AppError('Critical: Lead contact information (phone or email) missing in quotation for approval.', 500);
+    }
+
+    let user = null;
+    if (lead.phone) {
+      user = await User.findOne({ phone: lead.phone, role: 'customer' });
+    } else if (lead.email) {
+      user = await User.findOne({ email: lead.email, role: 'customer' });
+    }
     let leadUserId; // Renamed variable for clarity to avoid confusion with req.user.id if used elsewhere
     
     if (user) {
       leadUserId = user._id;
-      console.log(`Existing user found: ${leadUserId} for email ${lead.email}`);
+      console.log(`Existing user found: ${leadUserId} for phone ${lead.phone}`);
     } else {
       const password = Math.random().toString(36).slice(-8);
       user = new User({ 
         name: `${lead.firstName} ${lead.lastName}`,
-        email: lead.email,
+        phone: lead.phone,
+        email: lead.email || undefined,
         password, 
         role: 'customer'
       });
       await user.save();
       leadUserId = user._id;
-      console.log(`New user created: ${leadUserId} for email ${lead.email}`);
-      
+      console.log(`New user created: ${leadUserId} for phone ${lead.phone}`);
       try {
         // Send welcome notification via available channels
         await sendWelcomeNotification(user, password);
-        console.log(`Welcome notification sent to ${user.email}`);
+        console.log(`Welcome notification sent to ${user.phone}`);
       } catch (notificationError) {
-        console.error(`Failed to send welcome notification to ${user.email}:`, notificationError.message);
+        console.error(`Failed to send welcome notification to ${user.phone}:`, notificationError.message);
       }
     }
     
-    let customer = await Customer.findOne({ email: lead.email });
+    // Find existing customer by phone (primary) or email (fallback)
+    let customer = null;
+    if (lead.phone) {
+      customer = await Customer.findOne({ phone: lead.phone });
+    }
+    if (!customer && lead.email) {
+      customer = await Customer.findOne({ email: lead.email });
+    }
     
     if (!customer) {
-      console.log(`Creating new customer record for ${lead.email} with user ID: ${leadUserId}`);
+      console.log(`Creating new customer record for phone: ${lead.phone} (email: ${lead.email || 'N/A'}) with user ID: ${leadUserId}`);
       customer = new Customer({ 
         leadId: lead._id,
         user: leadUserId, // Changed to use 'user' field as per updated Customer model
         firstName: lead.firstName,
         lastName: lead.lastName,
-        email: lead.email,
-        phone: lead.phone || '',
+        email: lead.email || undefined,
+        phone: lead.phone,
+        whatsapp: lead.whatsapp || undefined,
+        whatsappSameAsPhone: lead.whatsappSameAsPhone,
+        hasWhatsapp: lead.hasWhatsapp,
+        countryCode: lead.countryCode || '+91',
         businessName: lead.businessName || '',
-        address: lead.address || '',
+        address: lead.billingAddress || lead.address || '',
         customerType: lead.leadType || 'end_user'
       });
       await customer.save();
       console.log(`Created customer with ID: ${customer._id}`);
     } else {
-      console.log(`Existing customer found: ${customer._id} for email ${lead.email}`);
+      console.log(`Existing customer found: ${customer._id} for phone: ${lead.phone} (email: ${lead.email || 'N/A'})`);
       if (!customer.user && leadUserId) { // Check if the 'user' field needs linking
         customer.user = leadUserId; // Use 'user' field
         await customer.save();
