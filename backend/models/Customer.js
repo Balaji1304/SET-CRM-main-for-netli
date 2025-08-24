@@ -86,6 +86,11 @@ const customerSchema = new mongoose.Schema({
     type: String,
     enum: ['end_user', 'plumber', 'dealer', 'builder', 'other']
   },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'inactive'
+  },
   createdAt: {
     type: Date,
     default: Date.now

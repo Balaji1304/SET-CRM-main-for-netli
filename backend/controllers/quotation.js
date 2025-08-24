@@ -1217,6 +1217,15 @@ const approveQuotation = async (quotationInstance) => {
       await customerPurchase.save();
       console.log(`Created CustomerPurchase with ID: ${customerPurchase._id}`);
       
+      // Update customer status since they now have an active purchase order
+      try {
+        const { updateCustomerStatus } = require('./customerPurchaseController');
+        await updateCustomerStatus(customer._id);
+      } catch (statusError) {
+        console.error('Error updating customer status:', statusError);
+        // Don't fail the main operation if status update fails
+      }
+      
       const paymentRecord = new Payment({ 
         customerPurchaseId: customerPurchase._id,
         amountPaid: advanceAmount,
