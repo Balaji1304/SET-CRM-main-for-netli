@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2, X, AlertTriangle, Loader2, Package } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { createLead, getLead, updateLead, checkEmailExists, checkPhoneExists } from '../../services/leadService';
+import { createLead, getLead, updateLead, checkEmailExists, checkPhoneExists, checkWhatsappExists } from '../../services/leadService';
 import { getProducts } from '../../services/productService';
 import { getPowerPlantConfigurations } from '../../services/bundleService';
 import { createCustomizedProduct, updateCustomizedProduct, getAllCustomizedProducts } from '../../services/customizedProductService';
@@ -197,6 +197,16 @@ export default function LeadForm() {
   });
   const phoneCheckTimeout = useRef(null);
 
+  // WhatsApp validation state
+  const [whatsappValidation, setWhatsappValidation] = useState({
+    isChecking: false,
+    exists: false,
+    existingLead: null,
+    error: null,
+    lastCheckedWhatsapp: ''
+  });
+  const whatsappCheckTimeout = useRef(null);
+
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -205,6 +215,9 @@ export default function LeadForm() {
       }
       if (phoneCheckTimeout.current) {
         clearTimeout(phoneCheckTimeout.current);
+      }
+      if (whatsappCheckTimeout.current) {
+        clearTimeout(whatsappCheckTimeout.current);
       }
     };
   }, []);
@@ -563,9 +576,46 @@ export default function LeadForm() {
       handleEmailValidation(value.trim());
     }
 
-    // Trigger phone validation if phone field changes
-    if (name === 'phone' && value.trim() !== phoneValidation.lastCheckedPhone) {
-      handlePhoneValidation(value.trim());
+    // Trigger phone validation only after 10 digits are entered
+    if (name === 'phone') {
+      const cleanPhone = value.replace(/\D/g, '');
+      const phoneWithoutCountryCode = cleanPhone.startsWith('91') && cleanPhone.length === 12 
+        ? cleanPhone.substring(2) 
+        : cleanPhone;
+      
+      if (phoneWithoutCountryCode.length === 10 && phoneWithoutCountryCode !== phoneValidation.lastCheckedPhone) {
+        handlePhoneValidation(value.trim());
+      } else if (phoneWithoutCountryCode.length < 10) {
+        // Reset validation state if less than 10 digits
+        setPhoneValidation({
+          isChecking: false,
+          exists: false,
+          existingLead: null,
+          error: null,
+          lastCheckedPhone: ''
+        });
+      }
+    }
+
+    // Trigger WhatsApp validation only after 10 digits are entered (when different from phone)
+    if (name === 'whatsapp' && !newFormData.whatsappSameAsPhone) {
+      const cleanWhatsapp = value.replace(/\D/g, '');
+      const whatsappWithoutCountryCode = cleanWhatsapp.startsWith('91') && cleanWhatsapp.length === 12 
+        ? cleanWhatsapp.substring(2) 
+        : cleanWhatsapp;
+      
+      if (whatsappWithoutCountryCode.length === 10 && whatsappWithoutCountryCode !== whatsappValidation.lastCheckedWhatsapp) {
+        handleWhatsappValidation(value.trim());
+      } else if (whatsappWithoutCountryCode.length < 10) {
+        // Reset validation state if less than 10 digits
+        setWhatsappValidation({
+          isChecking: false,
+          exists: false,
+          existingLead: null,
+          error: null,
+          lastCheckedWhatsapp: ''
+        });
+      }
     }
   };
 
@@ -686,6 +736,67 @@ export default function LeadForm() {
           existingLead: null,
           error: 'Unable to check phone availability',
           lastCheckedPhone: phone
+        });
+      }
+    }, 800); // 800ms debounce
+  }, [isEditMode, leadId]);
+
+  // WhatsApp validation with debounce
+  const handleWhatsappValidation = useCallback(async (whatsapp) => {
+    // Clear any existing timeout
+    if (whatsappCheckTimeout.current) {
+      clearTimeout(whatsappCheckTimeout.current);
+    }
+
+    // Reset validation state if whatsapp is empty or invalid format
+    if (!whatsapp || !/^[6-9]\d{9}$/.test(whatsapp.replace(/\D/g, '').slice(-10))) {
+      setWhatsappValidation({
+        isChecking: false,
+        exists: false,
+        existingLead: null,
+        error: null,
+        lastCheckedWhatsapp: whatsapp
+      });
+      return;
+    }
+
+    // Set checking state
+    setWhatsappValidation(prev => ({
+      ...prev,
+      isChecking: true,
+      error: null,
+      lastCheckedWhatsapp: whatsapp
+    }));
+
+    // Debounce the API call
+    whatsappCheckTimeout.current = setTimeout(async () => {
+      try {
+        const response = await checkWhatsappExists(whatsapp, isEditMode ? leadId : null);
+        if (response.success) {
+          setWhatsappValidation({
+            isChecking: false,
+            exists: response.exists,
+            existingLead: response.lead,
+            error: null,
+            lastCheckedWhatsapp: whatsapp
+          });
+        } else {
+          setWhatsappValidation({
+            isChecking: false,
+            exists: false,
+            existingLead: null,
+            error: 'Unable to check WhatsApp availability',
+            lastCheckedWhatsapp: whatsapp
+          });
+        }
+      } catch (error) {
+        console.error('Error checking WhatsApp:', error);
+        setWhatsappValidation({
+          isChecking: false,
+          exists: false,
+          existingLead: null,
+          error: 'Unable to check WhatsApp availability',
+          lastCheckedWhatsapp: whatsapp
         });
       }
     }, 800); // 800ms debounce
@@ -951,6 +1062,8 @@ export default function LeadForm() {
       errors.personalInfo = { ...errors.personalInfo, whatsapp: 'WhatsApp number is required when "No" is selected.' };
     } else if (formData.whatsapp && !/^[6-9]\d{9}$/.test(formData.whatsapp.replace(/\D/g, '').slice(-10))) {
       errors.personalInfo = { ...errors.personalInfo, whatsapp: 'Please enter a valid 10-digit WhatsApp number.' };
+    } else if (formData.whatsapp && !formData.whatsappSameAsPhone && whatsappValidation.exists) {
+      errors.personalInfo = { ...errors.personalInfo, whatsapp: 'This WhatsApp number is already associated with another lead.' };
     }
     
     // Ensure at least one contact method is provided
@@ -1691,16 +1804,75 @@ export default function LeadForm() {
                       <label htmlFor="whatsapp" className="block text-sm font-medium text-gray-700 mb-1">
                         WhatsApp Number <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="tel"
-                        id="whatsapp"
-                        name="whatsapp"
-                        value={formData.whatsapp}
-                        onChange={handleInputChange}
-                        placeholder="Enter WhatsApp number"
-                        required={formData.hasWhatsapp && !formData.whatsappSameAsPhone}
-                        className={`mt-1 block w-full px-3 py-2.5 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm text-secondary placeholder-gray-400 ${sectionErrors.personalInfo?.whatsapp ? 'border-red-500' : ''}`}
-                      />
+                      <div className="relative">
+                        <input
+                          type="tel"
+                          id="whatsapp"
+                          name="whatsapp"
+                          value={formData.whatsapp}
+                          onChange={handleInputChange}
+                          placeholder="Enter WhatsApp number"
+                          required={formData.hasWhatsapp && !formData.whatsappSameAsPhone}
+                          className={`mt-1 block w-full px-3 py-2.5 pr-10 bg-white border rounded-lg shadow-sm focus:outline-none focus:ring-1 text-sm text-secondary placeholder-gray-400 ${
+                            sectionErrors.personalInfo?.whatsapp || whatsappValidation.exists 
+                              ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+                              : whatsappValidation.lastCheckedWhatsapp && !whatsappValidation.exists && !whatsappValidation.isChecking 
+                              ? 'border-green-500 focus:ring-green-500 focus:border-green-500' 
+                              : 'border-fourth focus:ring-primary focus:border-primary'
+                          }`}
+                        />
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                          {whatsappValidation.isChecking && formData.whatsapp?.trim() && (
+                            <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+                          )}
+                          {!whatsappValidation.isChecking && whatsappValidation.exists && (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          {!whatsappValidation.isChecking && !whatsappValidation.exists && whatsappValidation.lastCheckedWhatsapp && formData.whatsapp?.trim() && (
+                            <Check className="h-4 w-4 text-green-500" />
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* WhatsApp Validation Messages */}
+                      {formData.whatsapp?.trim() && (
+                        <>
+                          {whatsappValidation.isChecking && (
+                            <p className="text-sm text-gray-500 mt-1 flex items-center">
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              Checking WhatsApp availability...
+                            </p>
+                          )}
+                          
+                          {!whatsappValidation.isChecking && whatsappValidation.exists && whatsappValidation.existingLead && (
+                            <div className="mt-1 p-2 bg-red-50 border border-red-200 rounded-md">
+                              <p className="text-sm text-red-600 font-medium flex items-center">
+                                <X className="h-3 w-3 mr-1" />
+                                WhatsApp number already exists
+                              </p>
+                              <p className="text-xs text-red-500 mt-1">
+                                This WhatsApp number is already associated with {whatsappValidation.existingLead.firstName} {whatsappValidation.existingLead.lastName} 
+                                (Status: {whatsappValidation.existingLead.status}). Please use a different WhatsApp number.
+                              </p>
+                            </div>
+                          )}
+                          
+                          {!whatsappValidation.isChecking && !whatsappValidation.exists && whatsappValidation.lastCheckedWhatsapp && formData.whatsapp?.trim() && (
+                            <p className="text-sm text-green-600 mt-1 flex items-center">
+                              <Check className="h-3 w-3 mr-1" />
+                              WhatsApp number is available
+                            </p>
+                          )}
+                          
+                          {whatsappValidation.error && (
+                            <p className="text-sm text-orange-600 mt-1 flex items-center">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              {whatsappValidation.error}
+                            </p>
+                          )}
+                        </>
+                      )}
+                      
                       {sectionErrors.personalInfo?.whatsapp && (
                         <p className="mt-1 text-sm text-red-600">{sectionErrors.personalInfo.whatsapp}</p>
                       )}

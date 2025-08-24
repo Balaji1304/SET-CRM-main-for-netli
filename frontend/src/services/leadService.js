@@ -53,4 +53,11 @@ export const checkPhoneExists = async (phone, excludeId = null) => {
     method: 'POST',
     body: { phone, excludeId }
   }, false); // Don't cache phone checks
+};
+
+export const checkWhatsappExists = async (whatsapp, excludeId = null) => {
+  return await apiRequest('leads/check-whatsapp', {
+    method: 'POST',
+    body: { whatsapp, excludeId }
+  }, false); // Don't cache WhatsApp checks
 }; 
