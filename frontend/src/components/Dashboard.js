@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  Clock, CheckCircle2, Ticket, Users, DollarSign, Package, Briefcase, BarChart2, Settings, AlertTriangle, ShoppingCart, ListChecks, UserCheck, FileText, Users2, PackageSearch, UserCog, TrendingUp, UserPlus
+  Clock, CheckCircle2, Ticket, Users, DollarSign, Package, Briefcase, BarChart2, Settings, AlertTriangle, ShoppingCart, ListChecks, UserCheck, FileText, Users2, PackageSearch, UserCog, TrendingUp, UserPlus, Building2, Globe, MapPin, Calendar, Timer, Zap, Search, PieChart
 } from 'lucide-react';
 import axios from 'axios';
 import TicketStatsWidget from './TicketStatsWidget';
@@ -292,13 +292,33 @@ const Dashboard = () => {
 
   const renderFrontOfficeExecutiveDashboard = () => (
     <>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
-        {renderCommonCard('Enquiries Created Today', formatNumber(summaryData.enquiriesToday || 0), <UserPlus />)}
-        {renderCommonCard('Pending Assignments', formatNumber(summaryData.pendingAssignments || 0), <Users />)}
-        {renderCommonCard('Leads Assigned Today', formatNumber(summaryData.leadsAssignedToday || 0), <CheckCircle2 />)}
+      {/* Main KPIs */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Total Enquiries', formatNumber(summaryData.totalEnquiries || 0), <FileText />, 'All time')}
+        {renderCommonCard('Enquiries Today', formatNumber(summaryData.enquiriesToday || 0), <UserPlus />, 'Created today')}
+        {renderCommonCard('Pending Assignments', formatNumber(summaryData.pendingAssignments || 0), <Clock className="text-orange-500" />, 'Awaiting assignment')}
+        {renderCommonCard('Converted Today', formatNumber(summaryData.leadsAssignedToday || 0), <CheckCircle2 className="text-green-500" />, 'Assigned to leads')}
       </div>
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
-        {renderSection("Quick Actions", <Package />, 
+
+      {/* Lead Source Analytics */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('IndiaMART Leads', formatNumber(summaryData.leadSourceStats?.indiamart || 0), <Building2 className="text-blue-500" />)}
+        {renderCommonCard('Website Enquiries', formatNumber(summaryData.leadSourceStats?.website || 0), <Globe className="text-green-500" />)}
+        {renderCommonCard('Referral Leads', formatNumber(summaryData.leadSourceStats?.referral || 0), <Users className="text-purple-500" />)}
+        {renderCommonCard('Walk-in Customers', formatNumber(summaryData.leadSourceStats?.walk_in || 0), <MapPin className="text-red-500" />)}
+      </div>
+
+      {/* Assignment Performance */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+        {renderCommonCard('This Week Assignments', formatNumber(summaryData.weeklyAssignments || 0), <Users2 />, 'Leads assigned this week')}
+        {renderCommonCard('This Month Total', formatNumber(summaryData.monthlyEnquiries || 0), <Calendar />, 'Enquiries this month')}
+        {renderCommonCard('Average Response Time', summaryData.avgResponseTime || 'N/A', <Timer className="text-blue-500" />, 'From enquiry to assignment')}
+      </div>
+
+      {/* Main Content Sections */}
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 mb-6">
+        {/* Quick Actions */}
+        {renderSection("Quick Actions", <Zap className="text-yellow-500" />, 
           <div className="space-y-3">
             <button
               onClick={() => window.location.href = '/dashboard/enquiry'}
@@ -314,25 +334,158 @@ const Dashboard = () => {
               <Users className="w-4 h-4" />
               Assign Leads
             </button>
+            <button
+              onClick={() => window.location.href = '/dashboard/enquiry?filter=pending'}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Search className="w-4 h-4" />
+              View Pending
+            </button>
           </div>
         )}
-        {renderSection("Today's Activity", <Clock />, 
+
+        {/* Recent Activity */}
+        {renderSection("Recent Activity", <Clock />, 
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
+            {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent activity.</p>}
+          </div>
+        )}
+
+        {/* Today's Performance */}
+        {renderSection("Today's Performance", <BarChart2 />, 
           <div className="space-y-2">
-            <div className="flex justify-between items-center py-2 border-b border-fourth">
-              <span className="text-sm text-secondary">New Enquiries Captured</span>
-              <span className="text-sm font-semibold text-primary">{summaryData.enquiriesToday || 0}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-fourth">
-              <span className="text-sm text-secondary">Leads Successfully Assigned</span>
-              <span className="text-sm font-semibold text-green-600">{summaryData.leadsAssignedToday || 0}</span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-sm text-secondary">Awaiting Assignment</span>
-              <span className="text-sm font-semibold text-orange-600">{summaryData.pendingAssignments || 0}</span>
-            </div>
+            {renderPerformanceItem('Enquiries Captured', summaryData.enquiriesToday || 0)}
+            {renderPerformanceItem('Successfully Assigned', summaryData.leadsAssignedToday || 0)}
+            {renderPerformanceItem('Pending Assignment', summaryData.pendingAssignments || 0)}
+            {renderPerformanceItem('Conversion Rate', summaryData.todayConversionRate || '0%')}
           </div>
         )}
+      </div>
+
+      {/* Detailed Analytics */}
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 mb-6">
+        {/* Lead Sources Breakdown */}
+        {renderSection("Lead Sources Overview", <PieChart className="text-blue-500" />, 
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
+            {summaryData.leadSourceBreakdown?.length > 0 ? summaryData.leadSourceBreakdown.map((source, idx) => (
+              <div key={idx} className="flex justify-between items-center py-2 border-b border-fourth last:border-b-0">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    source.source === 'indiamart' ? 'bg-blue-500' :
+                    source.source === 'website' ? 'bg-green-500' :
+                    source.source === 'referral' ? 'bg-purple-500' :
+                    source.source === 'walk_in' ? 'bg-red-500' :
+                    'bg-gray-500'
+                  }`}></div>
+                  <span className="text-sm text-secondary capitalize">{source.source.replace('_', ' ')}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-semibold text-secondary">{source.count}</span>
+                  <span className="text-xs text-gray-500 ml-1">({source.percentage}%)</span>
+                </div>
+              </div>
+            )) : <p className='text-sm text-gray-500'>No lead source data available.</p>}
+          </div>
+        )}
+
+        {/* Assignment Status Overview */}
+        {renderSection("Assignment Status", <Users className="text-green-500" />, 
+          <div className="space-y-2">
+            {summaryData.assignmentStats && (
+              <>
+                <div className="flex justify-between items-center py-2 border-b border-fourth">
+                  <span className="text-sm text-secondary">Total Enquiries</span>
+                  <span className="text-sm font-semibold text-secondary">{summaryData.assignmentStats.total || 0}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-fourth">
+                  <span className="text-sm text-secondary">Pending Assignment</span>
+                  <span className="text-sm font-semibold text-orange-600">{summaryData.assignmentStats.pending || 0}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-fourth">
+                  <span className="text-sm text-secondary">Assigned</span>
+                  <span className="text-sm font-semibold text-blue-600">{summaryData.assignmentStats.assigned || 0}</span>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-sm text-secondary">Converted to Leads</span>
+                  <span className="text-sm font-semibold text-green-600">{summaryData.assignmentStats.converted || 0}</span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Notifications */}
         <NotificationWidget userRole="front_office_executive" />
+      </div>
+
+      {/* Recent Enquiries Table */}
+      <div className="grid gap-6 md:grid-cols-1 mb-6">
+        {renderSection("Recent Enquiries", <FileText />, 
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {summaryData.recentEnquiries?.length > 0 ? summaryData.recentEnquiries.slice(0, 5).map((enquiry, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{enquiry.customerName}</div>
+                      <div className="text-sm text-gray-500">{enquiry.phone}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="text-sm text-gray-900 capitalize">{enquiry.leadSource?.replace('_', ' ')}</span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        enquiry.status === 'pending_assignment' ? 'bg-yellow-100 text-yellow-800' :
+                        enquiry.status === 'assigned' ? 'bg-blue-100 text-blue-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {enquiry.status?.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {enquiry.createdAt}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      {enquiry.status === 'pending_assignment' && (
+                        <button 
+                          onClick={() => window.location.href = `/dashboard/lead-assignment?enquiry=${enquiry.id}`}
+                          className="text-primary hover:text-primary-dark"
+                        >
+                          Assign
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
+                      No recent enquiries found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {summaryData.recentEnquiries?.length > 5 && (
+              <div className="mt-4 text-center">
+                <button 
+                  onClick={() => window.location.href = '/dashboard/lead-assignment'}
+                  className="text-primary hover:text-primary-dark text-sm font-medium"
+                >
+                  View All Enquiries →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </>
   );

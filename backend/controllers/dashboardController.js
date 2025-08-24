@@ -7,6 +7,7 @@ const Product = require('../models/Product');
 const Payment = require('../models/Payment');
 const Invoice = require('../models/Invoice');
 const Customer = require('../models/Customer'); // Added Customer model
+const Enquiry = require('../models/Enquiry'); // Added Enquiry model
 const mongoose = require('mongoose');
 
 // Helper to safely execute promises and return default value on error
@@ -171,6 +172,101 @@ exports.getDashboardSummary = async (req, res, next) => {
         totalQuotations: await safeQuery(Quotation.countDocuments(), 0),
         totalQuotationsValue: (quotationStats.draft?.totalValue || 0) + (quotationStats.sent?.totalValue || 0) + (quotationStats.approved?.totalValue || 0),
         approvedDeals: quotationStats.approved?.count || 0
+      };
+    } else if (role === 'front_office_executive') {
+      // Get current date ranges
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Basic stats
+      const totalEnquiries = await safeQuery(Enquiry.countDocuments(), 0, 'FrontOffice: Error fetching total enquiries');
+      const enquiriesToday = await safeQuery(Enquiry.countDocuments({ createdAt: { $gte: startOfToday } }), 0, 'FrontOffice: Error fetching today enquiries');
+      const pendingAssignments = await safeQuery(Enquiry.countDocuments({ assignmentStatus: 'pending_assignment' }), 0, 'FrontOffice: Error fetching pending assignments');
+      const leadsAssignedToday = await safeQuery(Enquiry.countDocuments({ 
+        assignmentStatus: 'converted_to_lead', 
+        convertedAt: { $gte: startOfToday } 
+      }), 0, 'FrontOffice: Error fetching today assignments');
+
+      // Weekly and monthly stats
+      const weeklyAssignments = await safeQuery(Enquiry.countDocuments({ 
+        assignmentStatus: 'converted_to_lead', 
+        convertedAt: { $gte: startOfWeek } 
+      }), 0, 'FrontOffice: Error fetching weekly assignments');
+      const monthlyEnquiries = await safeQuery(Enquiry.countDocuments({ createdAt: { $gte: startOfMonth } }), 0, 'FrontOffice: Error fetching monthly enquiries');
+
+      // Lead source breakdown
+      const leadSourceStats = await safeQuery(Enquiry.aggregate([
+        { $group: { _id: '$leadSource', count: { $sum: 1 } } }
+      ]), [], 'FrontOffice: Error aggregating lead sources');
+
+      const leadSourceBreakdown = leadSourceStats.map(source => ({
+        source: source._id,
+        count: source.count,
+        percentage: Math.round((source.count / totalEnquiries) * 100) || 0
+      }));
+
+      // Assignment status breakdown
+      const assignmentStats = await safeQuery(Enquiry.aggregate([
+        { $group: { _id: '$assignmentStatus', count: { $sum: 1 } } }
+      ]), [], 'FrontOffice: Error aggregating assignment stats');
+
+      const assignmentStatsObj = assignmentStats.reduce((acc, stat) => {
+        acc[stat._id] = stat.count;
+        return acc;
+      }, {});
+
+      // Recent enquiries for table
+      const recentEnquiries = await safeQuery(Enquiry.find()
+        .populate('createdBy', 'name')
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean(), [], 'FrontOffice: Error fetching recent enquiries');
+
+      const formattedRecentEnquiries = recentEnquiries.map(enquiry => ({
+        id: enquiry._id,
+        customerName: `${enquiry.firstName} ${enquiry.lastName || ''}`.trim(),
+        phone: enquiry.phone,
+        leadSource: enquiry.leadSource,
+        status: enquiry.assignmentStatus,
+        createdAt: new Date(enquiry.createdAt).toLocaleDateString('en-GB')
+      }));
+
+      summaryData = {
+        totalEnquiries,
+        enquiriesToday,
+        pendingAssignments,
+        leadsAssignedToday,
+        weeklyAssignments,
+        monthlyEnquiries,
+        avgResponseTime: 'N/A', // Placeholder - requires complex calculation
+        todayConversionRate: enquiriesToday > 0 ? `${Math.round((leadsAssignedToday / enquiriesToday) * 100)}%` : '0%',
+        
+        // Lead source stats (for cards)
+        leadSourceStats: leadSourceStats.reduce((acc, source) => {
+          acc[source._id] = source.count;
+          return acc;
+        }, {}),
+        
+        // Detailed breakdown
+        leadSourceBreakdown,
+        assignmentStats: {
+          total: totalEnquiries,
+          pending: assignmentStatsObj.pending_assignment || 0,
+          assigned: assignmentStatsObj.assigned || 0,
+          converted: assignmentStatsObj.converted_to_lead || 0
+        },
+        
+        recentEnquiries: formattedRecentEnquiries,
+        recentActivity: [
+          { message: `${enquiriesToday} new enquiries captured today`, time: 'Today', type: 'enquiry' },
+          { message: `${leadsAssignedToday} enquiries assigned to sales team`, time: 'Today', type: 'assignment' },
+          { message: `${pendingAssignments} enquiries awaiting assignment`, time: 'Current', type: 'pending' },
+          { message: `${weeklyAssignments} total assignments this week`, time: 'This week', type: 'weekly' }
+        ]
       };
     } else {
       summaryData = { message: "Dashboard data is not configured for this role, or no data found." };
