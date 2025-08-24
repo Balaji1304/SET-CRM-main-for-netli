@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  Clock, CheckCircle2, Ticket, Users, DollarSign, Package, Briefcase, BarChart2, Settings, AlertTriangle, ShoppingCart, ListChecks, UserCheck, FileText, Users2, PackageSearch, UserCog, TrendingUp, UserPlus, Building2, Globe, MapPin, Calendar, Timer, Zap, Search, PieChart
+  Clock, CheckCircle2, Ticket, Users, DollarSign, Package, Briefcase, BarChart2, Settings, AlertTriangle, ShoppingCart, ListChecks, UserCheck, FileText, Users2, PackageSearch, UserCog, TrendingUp, UserPlus, Building2, Globe, MapPin, Calendar, Timer, Zap, Search, PieChart, Truck, CalendarDays, Target, Star, TrendingDown
 } from 'lucide-react';
 import axios from 'axios';
 import TicketStatsWidget from './TicketStatsWidget';
@@ -490,6 +490,245 @@ const Dashboard = () => {
     </>
   );
 
+  const renderMarketingCoordinatorDashboard = () => (
+    <>
+      {/* Primary KPIs - Purchase Order Management */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Total Purchase Orders', formatNumber(summaryData.totalPurchaseOrders || 0), <Package />, 'All active orders')}
+        {renderCommonCard('Ready to Dispatch', formatNumber(summaryData.readyToDispatch || 0), <Truck className="text-blue-500" />, 'Awaiting date allocation')}
+        {renderCommonCard('Dates Allocated Today', formatNumber(summaryData.dateAllocatedToday || 0), <CalendarDays className="text-green-500" />, 'Installation dates set')}
+        {renderCommonCard('Upcoming Installations', formatNumber(summaryData.upcomingInstallations || 0), <Calendar className="text-orange-500" />, 'Next 7 days')}
+      </div>
+
+      {/* Installation & Service Analytics */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('This Week Installations', formatNumber(summaryData.installationsThisWeek || 0), <CalendarDays />)}
+        {renderCommonCard('Active Customers', formatNumber(summaryData.totalCustomers || 0), <Users />)}
+        {renderCommonCard('New Customers (Month)', formatNumber(summaryData.newCustomersThisMonth || 0), <UserPlus className="text-green-500" />)}
+        {renderCommonCard('Monthly Revenue', `₹${formatNumber(summaryData.monthlyRevenue || 0)}`, <DollarSign className="text-green-600" />)}
+      </div>
+
+      {/* Secondary Permissions Analytics */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Total Leads', formatNumber(summaryData.totalLeads || 0), <Target />)}
+        {renderCommonCard('Active Leads', formatNumber(summaryData.activeLeads || 0), <Target className="text-blue-500" />)}
+        {renderCommonCard('Total Quotations', formatNumber(summaryData.totalQuotations || 0), <FileText />)}
+        {renderCommonCard('Pending Quotations', formatNumber(summaryData.pendingQuotations || 0), <FileText className="text-orange-500" />)}
+      </div>
+
+      {/* Main Content Sections */}
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 mb-6">
+        {/* Quick Actions */}
+        {renderSection("Quick Actions", <Zap className="text-yellow-500" />, 
+          <div className="space-y-3">
+            <button
+              onClick={() => window.location.href = '/dashboard/purchase-orders'}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity"
+            >
+              <Package className="w-4 h-4" />
+              Manage Purchase Orders
+            </button>
+            <button
+              onClick={() => window.location.href = '/dashboard/customers'}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-secondary text-white rounded-lg hover:opacity-90 transition-opacity"
+            >
+              <Users className="w-4 h-4" />
+              View Customers
+            </button>
+            <button
+              onClick={() => window.location.href = '/dashboard/leads'}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Target className="w-4 h-4" />
+              Manage Leads
+            </button>
+            <button
+              onClick={() => window.location.href = '/dashboard/quotations'}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              View Quotations
+            </button>
+          </div>
+        )}
+
+        {/* Recent Activity */}
+        {renderSection("Recent Activity", <Clock />, 
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
+            {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent activity.</p>}
+          </div>
+        )}
+
+        {/* Today's Performance */}
+        {renderSection("Performance Metrics", <BarChart2 />, 
+          <div className="space-y-2">
+            {renderPerformanceItem('Orders Ready to Dispatch', summaryData.readyToDispatch || 0)}
+            {renderPerformanceItem('Dates Allocated Today', summaryData.dateAllocatedToday || 0)}
+            {renderPerformanceItem('Upcoming Installations', summaryData.upcomingInstallations || 0)}
+            {renderPerformanceItem('Customer Satisfaction', summaryData.customerSatisfactionRate || 'N/A')}
+          </div>
+        )}
+      </div>
+
+      {/* Service Task Status Breakdown */}
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 mb-6">
+        {/* Service Task Status Overview */}
+        {renderSection("Service Task Status", <Truck className="text-blue-500" />, 
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
+            {summaryData.serviceTaskBreakdown && Object.keys(summaryData.serviceTaskBreakdown).length > 0 ? Object.entries(summaryData.serviceTaskBreakdown).map(([status, count], idx) => (
+              <div key={idx} className="flex justify-between items-center py-2 border-b border-fourth last:border-b-0">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    status === 'pending_assignment' ? 'bg-yellow-500' :
+                    status === 'ready_to_dispatch' ? 'bg-blue-500' :
+                    status === 'installation_date_allocated' ? 'bg-orange-500' :
+                    status === 'assigned' ? 'bg-green-500' :
+                    status === 'completed' ? 'bg-emerald-500' :
+                    'bg-gray-500'
+                  }`}></div>
+                  <span className="text-sm text-secondary capitalize">{status.replace(/_/g, ' ')}</span>
+                </div>
+                <span className="text-sm font-semibold text-secondary">{count}</span>
+              </div>
+            )) : <p className='text-sm text-gray-500'>No service task data available.</p>}
+          </div>
+        )}
+
+        {/* Revenue Analytics */}
+        {renderSection("Revenue Overview", <DollarSign className="text-green-500" />, 
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-2 border-b border-fourth">
+              <span className="text-sm text-secondary">Total Revenue</span>
+              <span className="text-sm font-semibold text-secondary">₹{formatNumber(summaryData.totalRevenue || 0)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-fourth">
+              <span className="text-sm text-secondary">Monthly Revenue</span>
+              <span className="text-sm font-semibold text-green-600">₹{formatNumber(summaryData.monthlyRevenue || 0)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-fourth">
+              <span className="text-sm text-secondary">Active Purchase Orders</span>
+              <span className="text-sm font-semibold text-blue-600">{summaryData.activePurchaseOrders || 0}</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-secondary">Avg Installation Time</span>
+              <span className="text-sm font-semibold text-orange-600">{summaryData.avgInstallationTime || 'N/A'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Notifications */}
+        <NotificationWidget userRole="marketing_coordinator" />
+      </div>
+
+      {/* Recent Purchase Orders Table */}
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mb-6">
+        {renderSection("Recent Purchase Orders", <Package />, 
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {summaryData.recentPurchaseOrders?.length > 0 ? summaryData.recentPurchaseOrders.slice(0, 5).map((order, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{order.purchaseID}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{order.customerName}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        order.status === 'pending_assignment' ? 'bg-yellow-100 text-yellow-800' :
+                        order.status === 'ready_to_dispatch' ? 'bg-blue-100 text-blue-800' :
+                        order.status === 'installation_date_allocated' ? 'bg-orange-100 text-orange-800' :
+                        order.status === 'assigned' ? 'bg-green-100 text-green-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {order.status?.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      ₹{formatNumber(order.totalAmount)}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">
+                      No recent purchase orders found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {summaryData.recentPurchaseOrders?.length > 5 && (
+              <div className="mt-4 text-center">
+                <button 
+                  onClick={() => window.location.href = '/dashboard/purchase-orders'}
+                  className="text-primary hover:text-primary-dark text-sm font-medium"
+                >
+                  View All Purchase Orders →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Upcoming Installations */}
+        {renderSection("Upcoming Installations", <CalendarDays className="text-orange-500" />, 
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engineer</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {summaryData.upcomingInstallationsList?.length > 0 ? summaryData.upcomingInstallationsList.slice(0, 5).map((installation, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{installation.installationDate}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{installation.customerName}</div>
+                      <div className="text-xs text-gray-500">{installation.purchaseID}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{installation.engineerName}</div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-sm text-gray-500">
+                      No upcoming installations scheduled.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {summaryData.upcomingInstallationsList?.length > 5 && (
+              <div className="mt-4 text-center">
+                <button 
+                  onClick={() => window.location.href = '/dashboard/purchase-orders'}
+                  className="text-primary hover:text-primary-dark text-sm font-medium"
+                >
+                  View All Installations →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+
   const renderDashboardByRole = () => {
     switch (user?.role) {
       case 'product_head': return renderProductHeadDashboard();
@@ -499,6 +738,7 @@ const Dashboard = () => {
       case 'front_office_executive': return renderFrontOfficeExecutiveDashboard();
       case 'service_engineer': return renderServiceEngineerDashboard();
       case 'sales_head': return renderSalesHeadDashboard();
+      case 'marketing_coordinator': return renderMarketingCoordinatorDashboard();
       default:
         return (
           <div className="text-center">
