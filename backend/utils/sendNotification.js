@@ -189,7 +189,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
       return await sendWelcomeWhatsApp({
         to: whatsappNumber,
         customerName: `${customer.firstName} ${customer.lastName}`,
-        email: data.email,
+        loginUsername: data.loginUsername || data.email || data.phone,
         password: data.password,
         loginUrl: process.env.FRONTEND_URL || 'your-crm-portal.com',
         countryCode
@@ -431,7 +431,11 @@ const sendWelcomeNotification = async (user, password, leadContactPreferences = 
   const welcomeData = {
     name: user.name,
     email: user.email,
-    password
+    phone: user.phone,
+    password,
+    // For customers, always use phone number as login username
+    // For staff roles, use email as login username
+    loginUsername: user.role === 'customer' ? user.phone : user.email
   };
 
   // Send notification via available channels

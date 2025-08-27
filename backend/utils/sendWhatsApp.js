@@ -342,7 +342,7 @@ const sendWelcomeWhatsApp = async (options) => {
   const { 
     to, 
     customerName, 
-    email,
+    loginUsername, // This can be email or phone number
     password,
     loginUrl,
     countryCode 
@@ -359,7 +359,7 @@ const sendWelcomeWhatsApp = async (options) => {
         },
         {
           type: "text",
-          text: email
+          text: loginUsername
         },
         {
           type: "text",

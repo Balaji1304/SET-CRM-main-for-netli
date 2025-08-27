@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 const formSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string().min(1, "Please enter your email address or phone number"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -58,7 +58,7 @@ const Login = () => {
           navigate(returnUrl);
         }
       } else {
-        setError('Invalid email or password. Please check your credentials and try again.');
+        setError('Invalid credentials. Please check your email/phone number and password and try again.');
       }
     } catch (err) {
       // Create user-friendly error messages based on the backend response
@@ -67,9 +67,9 @@ const Login = () => {
       let userFriendlyMessage;
       
       if (errorMessage.includes('Invalid credentials')) {
-        userFriendlyMessage = 'Invalid email or password. Please check your credentials and try again.';
+        userFriendlyMessage = 'Invalid credentials. Please check your email/phone number and password and try again.';
       } else if (errorMessage.includes('Please provide an email and password')) {
-        userFriendlyMessage = 'Please enter both email and password to continue.';
+        userFriendlyMessage = 'Please enter both username and password to continue.';
       } else if (errorMessage.includes('Server Error') || errorMessage.includes('500')) {
         userFriendlyMessage = 'Our servers are currently experiencing issues. Please try again in a few moments.';
       } else if (errorMessage.includes('Network') || errorMessage.includes('fetch')) {
@@ -77,7 +77,7 @@ const Login = () => {
       } else if (errorMessage.includes('User already exists')) {
         userFriendlyMessage = 'An account with this email already exists. Please try logging in instead.';
       } else if (errorMessage.includes('HTTP 401')) {
-        userFriendlyMessage = 'Invalid email or password. Please check your credentials and try again.';
+        userFriendlyMessage = 'Invalid credentials. Please check your email/phone number and password and try again.';
       } else if (errorMessage.includes('HTTP 400')) {
         userFriendlyMessage = 'Please check your input and try again.';
       } else if (errorMessage.includes('HTTP 404')) {
@@ -153,17 +153,18 @@ const Login = () => {
             )}
             
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email address</label>
+              <label className="text-sm font-medium">Email Address / Phone Number</label>
               <input
                 {...form.register("email")}
-                type="email"
-                placeholder="Enter your email"
+                type="text"
+                placeholder="Enter your email or phone number"
                 onChange={(e) => {
                   form.setValue("email", e.target.value);
                   handleInputChange();
                 }}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
+              <p className="text-xs text-gray-500">Staff: Use email address | Customers: Use phone number</p>
               {form.formState.errors.email && (
                 <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
               )}

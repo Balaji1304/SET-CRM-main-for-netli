@@ -27,11 +27,8 @@ const userSchema = new mongoose.Schema({
       // Required for customer role
       return this.role === 'customer';
     },
-    unique: function() {
-      // Unique for customer role
-      return this.role === 'customer';
-    },
-    sparse: true,
+    unique: true, // Always unique when present
+    sparse: true, // Only enforce uniqueness when field exists
     match: [/^[6-9]\d{9}$/, 'Please add a valid 10-digit phone number']
   },
   password: {

@@ -234,7 +234,7 @@ exports.getInvoiceByPurchaseId = async (req, res) => {
 
     // For demonstration, proceeding without this complex customer check if user is not admin/sales.
     // THIS SHOULD BE IMPLEMENTED CORRECTLY IN PRODUCTION.
-    if (user.role !== 'admin' && user.role !== 'sales_person') {
+    if (user.role !== 'admin' && user.role !== 'sales_person' && user.role !== 'sales_head' && user.role !== 'marketing_coordinator') {
         const customerDoc = await mongoose.model('Customer').findById(invoice.customer);
         if (!customerDoc || customerDoc.email !== user.email) {
              return res.status(403).json({
@@ -272,12 +272,22 @@ exports.sendExistingInvoiceEmail = async (req, res) => {
       throw new AppError('Invoice not found', 404);
     }
 
-    if (!invoice.customer || !invoice.customer.email) {
-      throw new AppError('Customer details or email missing for this invoice', 400);
+    if (!invoice.customer) {
+      throw new AppError('Customer details missing for this invoice', 400);
     }
 
-    // Prepare data for the email template (invoice.handlebars)
-    const emailData = {
+    // Get the lead information from the quotation to use smart notification
+    const quotationWithLead = await Quotation.findById(invoice.quotation._id)
+      .populate('lead', 'firstName lastName email phone whatsapp countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone');
+
+    if (!quotationWithLead || !quotationWithLead.lead) {
+      throw new AppError('Lead information not found for this invoice', 400);
+    }
+
+    const lead = quotationWithLead.lead;
+
+    // Prepare data for the invoice notification
+    const invoiceData = {
       invoiceNumber: invoice.invoiceNumber,
       issueDate: invoice.issueDate,
       companyDetails: invoice.companyDetails, 
@@ -285,14 +295,14 @@ exports.sendExistingInvoiceEmail = async (req, res) => {
         name: invoice.customer.name,
         email: invoice.customer.email,
         phone: invoice.customer.phone || 'N/A',
-        billingAddress: invoice.customerDetails?.billingAddress || invoice.customer?.billingAddress || 'N/A', // Check both invoice.customerDetails and invoice.customer
+        billingAddress: invoice.customerDetails?.billingAddress || lead.billingAddress || 'N/A',
       },
       items: invoice.items.map(item => ({
-        name: item.name || item.product?.name, // item.name on InvoiceItem should be the definitive one
+        name: item.name || item.product?.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         discountPercentage: item.discountPercentage || 0,
-        itemTotal: item.itemTotal // This is the net total for the item, after discount
+        itemTotal: item.itemTotal
       })),
       totalAmount: invoice.totalAmount,
       paidAmount: invoice.paidAmount || 0, 
@@ -307,20 +317,25 @@ exports.sendExistingInvoiceEmail = async (req, res) => {
       },
     };
 
-    // Generate PDF.
-    const pdfBuffer = await generatePDF('invoice', emailData);
+    // Generate PDF for attachment
+    const pdfBuffer = await generatePDF('invoice', invoiceData);
 
-    await sendEmail({
-      email: invoice.customer.email,
-      subject: `Your Invoice ${invoice.invoiceNumber} from ${invoice.companyDetails?.name || 'Our Company'}`,
-      template: 'invoice', // Use the existing invoice.handlebars
-      data: emailData,
-      attachments: [{
-        filename: `Invoice_${invoice.invoiceNumber}.pdf`,
-        content: pdfBuffer,
-        contentType: 'application/pdf'
-      }]
-    });
+    // Use smart notification to send via available channels (email/WhatsApp)
+    const notificationResult = await sendSmartNotification(
+      lead, // Use lead information for contact methods
+      'invoice',
+      invoiceData,
+      {
+        attachments: [{ 
+          filename: `Invoice_${invoice.invoiceNumber}.pdf`, 
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }],
+        documentUrl: null // PDF will be sent as attachment
+      }
+    );
+
+    console.log('Invoice notification results:', notificationResult);
 
     // Optionally, update the invoice to mark it as sent
     // invoice.lastEmailedAt = new Date();
@@ -328,18 +343,19 @@ exports.sendExistingInvoiceEmail = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Invoice ${invoice.invoiceNumber} sent successfully to ${invoice.customer.email}`
+      message: `Invoice ${invoice.invoiceNumber} sent successfully`,
+      notificationResults: notificationResult
     });
 
   } catch (error) {
-    console.error('Error sending invoice email:', error);
+    console.error('Error sending invoice notification:', error);
     // Use the errorHandler utility if it formats responses consistently
     if (typeof errorHandler === 'function') {
         errorHandler(res, error);
     } else {
         res.status(error.statusCode || 500).json({
             success: false,
-            message: error.message || 'Failed to send invoice email'
+            message: error.message || 'Failed to send invoice notification'
         });
     }
   }
