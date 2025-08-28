@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getMyAssignments, acceptAssignment, updateInstallationStatus } from '../../services/installationService';
+import { getMyAssignments, acceptAssignment, startWork } from '../../services/installationService';
 import { toast } from 'react-toastify';
 
 const InstallationDashboard = () => {
@@ -9,27 +9,22 @@ const InstallationDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [showAcceptModal, setShowAcceptModal] = useState(false);
-  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showStartWorkModal, setShowStartWorkModal] = useState(false);
   const [acceptData, setAcceptData] = useState({
     estimatedArrival: '',
     notes: ''
   });
-  const [statusData, setStatusData] = useState({
-    status: '',
-    location: '',
+  const [startWorkData, setStartWorkData] = useState({
     notes: ''
   });
 
-  // Engineer-facing badge mapping: treat pending_signoff and completed as Closed
+  // Simplified engineer badge mapping
   const getEngineerBadge = (status) => {
     const mapping = {
       assigned: { label: 'Assigned', color: 'bg-blue-100 text-blue-800' },
       accepted: { label: 'Accepted', color: 'bg-emerald-100 text-emerald-800' },
-      on_route: { label: 'On the way', color: 'bg-yellow-100 text-yellow-800' },
-      on_site: { label: 'On site', color: 'bg-orange-100 text-orange-800' },
       in_progress: { label: 'Work in progress', color: 'bg-purple-100 text-purple-800' },
-      pending_signoff: { label: 'Closed', color: 'bg-green-100 text-green-800' },
-      completed: { label: 'Closed', color: 'bg-green-100 text-green-800' },
+      completed: { label: 'Completed', color: 'bg-green-100 text-green-800' },
       issues: { label: 'Issues reported', color: 'bg-red-100 text-red-800' }
     };
     return mapping[status] || { label: status, color: 'bg-gray-100 text-gray-800' };
@@ -82,25 +77,23 @@ const InstallationDashboard = () => {
     }
   };
 
-  const handleStatusUpdate = (assignment) => {
+  const handleStartWork = (assignment) => {
     setSelectedAssignment(assignment);
-    setStatusData({
-      status: '',
-      location: '',
+    setStartWorkData({
       notes: ''
     });
-    setShowStatusModal(true);
+    setShowStartWorkModal(true);
   };
 
-  const submitStatusUpdate = async () => {
+  const submitStartWork = async () => {
     try {
-      await updateInstallationStatus(selectedAssignment._id, statusData);
-      toast.success('Status updated successfully!');
-      setShowStatusModal(false);
+      await startWork(selectedAssignment._id, startWorkData);
+      toast.success('Work started successfully!');
+      setShowStartWorkModal(false);
       await fetchAssignments();
     } catch (error) {
-      toast.error('Failed to update status');
-      console.error('Error updating status:', error);
+      toast.error('Failed to start work');
+      console.error('Error starting work:', error);
     }
   };
 
@@ -227,7 +220,7 @@ const InstallationDashboard = () => {
                     </div>
                   )}
 
-                  {/* Actions */}
+                  {/* Actions - Simplified Workflow */}
                   <div className="flex space-x-2">
                     {assignment.installationStatus === 'assigned' && (
                       <button
@@ -237,12 +230,12 @@ const InstallationDashboard = () => {
                         Accept Assignment
                       </button>
                     )}
-                    {['accepted', 'on_route', 'on_site', 'in_progress'].includes(assignment.installationStatus) && (
+                    {assignment.installationStatus === 'accepted' && (
                       <button
-                        onClick={() => handleStatusUpdate(assignment)}
+                        onClick={() => handleStartWork(assignment)}
                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
                       >
-                        Update Status
+                        Start Work
                       </button>
                     )}
                     {assignment.installationStatus === 'in_progress' && (
@@ -250,7 +243,15 @@ const InstallationDashboard = () => {
                         onClick={() => window.location.href = `/dashboard/installations/${assignment._id}/complete`}
                         className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
                       >
-                        Complete
+                        Complete Installation
+                      </button>
+                    )}
+                    {assignment.installationStatus === 'completed' && (
+                      <button
+                        onClick={() => window.location.href = `/dashboard/installations/${assignment._id}/completed`}
+                        className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                      >
+                        View Completion
                       </button>
                     )}
                   </div>
@@ -313,68 +314,40 @@ const InstallationDashboard = () => {
         </div>
       )}
 
-      {/* Status Update Modal */}
-      {showStatusModal && (
+      {/* Start Work Modal */}
+      {showStartWorkModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Update Installation Status
+                Start Work on Installation
               </h3>
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
-                  </label>
-                  <select
-                    value={statusData.status}
-                    onChange={(e) => setStatusData(prev => ({ ...prev, status: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Status</option>
-                    <option value="on_route">En Route</option>
-                    <option value="on_site">On Site</option>
-                    <option value="in_progress">In Progress</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Location (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={statusData.location}
-                    onChange={(e) => setStatusData(prev => ({ ...prev, location: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Current location..."
-                  />
-                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Notes (Optional)
                   </label>
                   <textarea
-                    value={statusData.notes}
-                    onChange={(e) => setStatusData(prev => ({ ...prev, notes: e.target.value }))}
+                    value={startWorkData.notes}
+                    onChange={(e) => setStartWorkData(prev => ({ ...prev, notes: e.target.value }))}
                     rows="3"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Status update notes..."
+                    placeholder="Any notes about starting the work..."
                   />
                 </div>
               </div>
               <div className="flex justify-end space-x-2 mt-6">
                 <button
-                  onClick={() => setShowStatusModal(false)}
+                  onClick={() => setShowStartWorkModal(false)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={submitStatusUpdate}
-                  disabled={!statusData.status}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                  onClick={submitStartWork}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                 >
-                  Update Status
+                  Start Work
                 </button>
               </div>
             </div>

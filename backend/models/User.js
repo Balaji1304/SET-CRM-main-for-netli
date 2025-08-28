@@ -28,6 +28,39 @@ const userSchema = new mongoose.Schema({
     enum: ['customer', 'sales_person', 'sales_representative', 'front_office_executive', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department'],
     default: 'customer'
   },
+  // Contact information for service engineers (field work)
+  phone: {
+    type: String,
+    required: function() {
+      return this.role === 'service_engineer';
+    },
+    trim: true
+  },
+  whatsapp: {
+    type: String,
+    trim: true,
+    // Use phone number if whatsapp is not provided for service engineers
+    default: function() {
+      return this.role === 'service_engineer' ? this.phone : undefined;
+    }
+  },
+  countryCode: {
+    type: String,
+    default: '+91'
+  },
+  // Notification preferences for service engineers
+  notificationPreferences: {
+    whatsappEnabled: {
+      type: Boolean,
+      default: function() {
+        return this.role === 'service_engineer'; // Auto-enable for engineers
+      }
+    },
+    emailEnabled: {
+      type: Boolean,
+      default: true
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -9,11 +9,27 @@ const getNotifications = async (req, res) => {
   try {
     const { page = 1, limit = 20, unreadOnly, type } = req.query;
     
+    // Debug logging for FOE
+    console.log('🔍 Notification Request Debug:', {
+      userId: req.user.id,
+      userRole: req.user.role,
+      userEmail: req.user.email,
+      queryParams: { page, limit, unreadOnly, type }
+    });
+    
     const result = await Notification.getUserNotifications(req.user.id, {
       page: parseInt(page),
       limit: parseInt(limit),
       unreadOnly: unreadOnly === 'true',
       type
+    });
+    
+    console.log('📊 Notification Query Result:', {
+      userId: req.user.id,
+      userRole: req.user.role,
+      notificationCount: result.notifications.length,
+      totalNotifications: result.total,
+      notificationTypes: result.notifications.map(n => n.type)
     });
     
     res.json({
@@ -37,6 +53,13 @@ const getNotifications = async (req, res) => {
 const getNotificationCounts = async (req, res) => {
   try {
     const userId = req.user.id;
+    
+    // Debug logging for FOE
+    console.log('🔢 Notification Counts Request:', {
+      userId: userId,
+      userRole: req.user.role,
+      userEmail: req.user.email
+    });
     
     const [
       totalCount,
