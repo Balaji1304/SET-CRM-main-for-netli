@@ -3,6 +3,7 @@ const OrderTracking = require('../models/OrderTracking');
 const User = require('../models/User');
 const { AppError, errorHandler } = require('../utils/errorHandler');
 const NotificationService = require('../utils/notificationService');
+const { updateCustomerStatus } = require('./customerPurchaseController');
 const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
 
@@ -502,6 +503,9 @@ exports.customerSignoff = async (req, res) => {
     }
 
     await purchase.save();
+
+    // Update customer status based on their purchase orders
+    await updateCustomerStatus(purchase.customerId);
 
     // Update tracking
     try {

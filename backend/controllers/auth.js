@@ -34,16 +34,28 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validate email & password
+    // Validate email/username & password
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide an email and password'
+        message: 'Please provide an email/username and password'
       });
     }
 
-    // Check for user
-    const user = await User.findOne({ email }).select('+password');
+    // Check for user by email or phone (for customers)
+    let user = null;
+    
+    // First try to find by email
+    user = await User.findOne({ email }).select('+password');
+    
+    // If not found and input looks like a phone number, try to find by phone (customers only)
+    if (!user && /^[6-9]\d{9}$/.test(email.replace(/\D/g, ''))) {
+      const cleanPhone = email.replace(/\D/g, '');
+      // Check if it's 10 digits starting with 6-9 (Indian mobile format)
+      if (cleanPhone.length === 10 && /^[6-9]/.test(cleanPhone)) {
+        user = await User.findOne({ phone: cleanPhone, role: 'customer' }).select('+password');
+      }
+    }
 
     if (!user) {
       return res.status(401).json({

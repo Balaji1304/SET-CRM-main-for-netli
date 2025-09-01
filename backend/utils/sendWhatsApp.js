@@ -1,5 +1,6 @@
 const axios = require('axios');
 const NodeCache = require('node-cache');
+const tokenManager = require('./whatsappTokenManager');
 
 // Cache for API responses and rate limiting (5 mins expiry)
 const whatsappCache = new NodeCache({ stdTTL: 300 });
@@ -69,13 +70,12 @@ const sendWhatsAppTemplate = async (options) => {
       return createMockResponse(formattedPhone, 'template', templateName);
     }
 
-    if (!process.env.WHATSAPP_ACCESS_TOKEN) {
-      throw new Error('WHATSAPP_ACCESS_TOKEN not configured');
-    }
-
     if (!process.env.WHATSAPP_PHONE_NUMBER_ID) {
       throw new Error('WHATSAPP_PHONE_NUMBER_ID not configured');
     }
+
+    // Get a valid access token
+    const validAccessToken = await tokenManager.getValidAccessToken();
 
     // Prepare the message payload
     const messageData = {
@@ -342,7 +342,7 @@ const sendWelcomeWhatsApp = async (options) => {
   const { 
     to, 
     customerName, 
-    email,
+    loginUsername, // This can be email or phone number
     password,
     loginUrl,
     countryCode 
@@ -359,7 +359,7 @@ const sendWelcomeWhatsApp = async (options) => {
         },
         {
           type: "text",
-          text: email
+          text: loginUsername
         },
         {
           type: "text",

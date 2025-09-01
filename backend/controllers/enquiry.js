@@ -11,6 +11,16 @@ exports.createEnquiry = async (req, res) => {
     // Add the user ID to the enquiry data
     req.body.createdBy = req.user.id;
 
+    // Handle empty leadType - convert empty string to undefined to allow Mongoose to handle it properly
+    if (req.body.leadType === '') {
+      delete req.body.leadType; // Remove the field entirely so Mongoose doesn't validate empty string
+    }
+    
+    // Handle empty customLeadType
+    if (req.body.customLeadType === '') {
+      delete req.body.customLeadType;
+    }
+
     const enquiry = await Enquiry.create(req.body);
 
     // Create notification for new enquiry
@@ -108,6 +118,16 @@ exports.getEnquiry = async (req, res) => {
 // @access  Private
 exports.updateEnquiry = async (req, res) => {
   try {
+    // Handle empty leadType - convert empty string to undefined to allow Mongoose to handle it properly
+    if (req.body.leadType === '') {
+      delete req.body.leadType; // Remove the field entirely so Mongoose doesn't validate empty string
+    }
+    
+    // Handle empty customLeadType
+    if (req.body.customLeadType === '') {
+      delete req.body.customLeadType;
+    }
+
     const enquiry = await Enquiry.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -168,7 +188,7 @@ exports.deleteEnquiry = async (req, res) => {
 exports.getSalespersons = async (req, res) => {
   try {
     const salespersons = await User.find({ 
-      role: { $in: ['sales_person', 'sales_representative', 'sales_head'] }
+      role: { $in: ['sales_person', 'sales_representative', 'sales_head', 'marketing_coordinator'] }
     }).select('_id name email role');
     
     res.status(200).json({
@@ -190,7 +210,7 @@ exports.getSalespersons = async (req, res) => {
 exports.assignEnquiryToSalesperson = async (req, res) => {
   try {
     const { id } = req.params;
-    const { salespersonId, notes } = req.body;
+    const { salespersonId } = req.body;
 
     if (!salespersonId) {
       return res.status(400).json({
@@ -230,8 +250,8 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
     // Create lead from enquiry data
     const leadData = {
       // Required fields with defaults or from enquiry
-      leadType: enquiry.leadType,
-      customLeadType: enquiry.customLeadType,
+      leadSource: enquiry.leadSource,
+      customLeadSource: enquiry.customLeadSource,
       status: 'pending',
       firstName: enquiry.firstName,
       lastName: enquiry.lastName || '',
@@ -239,11 +259,11 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
       phone: enquiry.phone,
       countryCode: enquiry.countryCode || '+91',
       whatsapp: enquiry.whatsapp || enquiry.phone,
-      billingAddress: enquiry.address || 'Address to be updated by salesperson',
-      shippingAddress: '',
+      billingAddress: enquiry.billingAddress || 'Address to be updated by salesperson',
+      shippingAddress: enquiry.shippingAddress || '',
       businessName: '',
-      customerType: 'end_user', // Default value
-      customCustomerType: '',
+      leadType: enquiry.leadType || 'end_user', // Use from enquiry or default
+      customLeadType: enquiry.customLeadType || '',
       gstinUin: '',
       
       // Products - placeholder for incomplete leads
@@ -260,7 +280,9 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
       dateCollected: new Date(),
       followUpRequired: false,
       followUpDateTime: '',
-      notes: notes || 'Lead created from enquiry form. Please complete the missing information.',
+      notes: enquiry.notes 
+        ? `${enquiry.notes}\n\n--- Lead created from enquiry form. Please complete the missing information. ---`
+        : 'Lead created from enquiry form. Please complete the missing information.',
       
       // Enquiry tracking fields
       createdFromEnquiry: true,
@@ -280,9 +302,6 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
     enquiry.assignmentStatus = 'converted_to_lead';
     enquiry.leadId = lead._id;
     enquiry.convertedAt = new Date();
-    if (notes) {
-      enquiry.notes = notes;
-    }
     await enquiry.save();
 
     // Populate the updated enquiry for response

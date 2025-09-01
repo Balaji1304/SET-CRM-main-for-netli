@@ -11,8 +11,9 @@ export const createLead = async (leadData) => {
   return response;
 };
 
-export const getLeads = async () => {
-  return await apiRequest('leads');
+export const getLeads = async (forQuotation = false) => {
+  const endpoint = forQuotation ? 'leads?forQuotation=true' : 'leads';
+  return await apiRequest(endpoint);
 };
 
 export const getLead = async (id) => {
@@ -45,4 +46,18 @@ export const checkEmailExists = async (email, excludeId = null) => {
     method: 'POST',
     body: { email, excludeId }
   }, false); // Don't cache email checks
+};
+
+export const checkPhoneExists = async (phone, excludeId = null) => {
+  return await apiRequest('leads/check-phone', {
+    method: 'POST',
+    body: { phone, excludeId }
+  }, false); // Don't cache phone checks
+};
+
+export const checkWhatsappExists = async (whatsapp, excludeId = null) => {
+  return await apiRequest('leads/check-whatsapp', {
+    method: 'POST',
+    body: { whatsapp, excludeId }
+  }, false); // Don't cache WhatsApp checks
 }; 

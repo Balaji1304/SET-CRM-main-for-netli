@@ -11,19 +11,20 @@ const {
   sendUrgentCustomerContactWhatsApp
 } = require('./sendWhatsApp');
 
-// Determine available contact methods for a customer
+// Determine available contact methods for a customer using preferredContactMethod
 const getAvailableContactMethods = (customer) => {
-  const methods = [];
-  
-  if (customer.email) {
-    methods.push('email');
+  // Use the preferredContactMethod field that's already calculated in the Lead model
+  // The Lead model ensures this field is always set, so no fallback needed
+  switch (customer.preferredContactMethod) {
+    case 'both':
+      return ['email', 'whatsapp'];
+    case 'email':
+      return ['email'];
+    case 'whatsapp':
+      return ['whatsapp'];
+    default:
+      throw new Error(`Invalid preferredContactMethod: ${customer.preferredContactMethod} for customer ${customer.firstName} ${customer.lastName}`);
   }
-  
-  if (customer.whatsapp || customer.phone) {
-    methods.push('whatsapp');
-  }
-  
-  return methods;
 };
 
 // Send notification via multiple channels
@@ -122,14 +123,28 @@ const sendEmailNotification = async (type, customer, data, attachments = []) => 
 
 // Send WhatsApp notification based on type
 const sendWhatsAppNotification = async (type, customer, data, documentUrl = null) => {
-  const phone = customer.whatsapp || customer.phone;
+  // Determine the correct WhatsApp number to use
+  let whatsappNumber = null;
+  
+  if (customer.hasWhatsapp === false) {
+    throw new Error('Customer has no WhatsApp number');
+  }
+  
+  if (customer.whatsappSameAsPhone && customer.phone) {
+    whatsappNumber = customer.phone;
+  } else if (customer.whatsapp) {
+    whatsappNumber = customer.whatsapp;
+  } else {
+    throw new Error('No valid WhatsApp number found');
+  }
+
   const countryCode = customer.countryCode || '+91';
 
   switch (type) {
     case 'quotation':
       // Send template message for quotation
       const quotationResult = await sendQuotationWhatsApp({
-        to: phone,
+        to: whatsappNumber,
         customerName: `${customer.firstName} ${customer.lastName}`,
         quotationNumber: data.quotationNumber,
         quotationUrl: data.paymentLink || data.quotationUrl || 'Portal login required',
@@ -139,7 +154,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
       // If document URL is provided, send the PDF as well
       if (documentUrl) {
         await sendWhatsAppDocument({
-          to: phone,
+          to: whatsappNumber,
           documentUrl,
           filename: `Quotation_${data.quotationNumber}.pdf`,
           caption: `Your quotation ${data.quotationNumber} is attached.`,
@@ -152,7 +167,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'invoice':
       // Send template message for invoice
       const invoiceResult = await sendInvoiceWhatsApp({
-        to: phone,
+        to: whatsappNumber,
         customerName: `${customer.firstName} ${customer.lastName}`,
         invoiceNumber: data.invoiceNumber,
         amount: `₹${data.total}`,
@@ -163,7 +178,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
       // If document URL is provided, send the PDF as well
       if (documentUrl) {
         await sendWhatsAppDocument({
-          to: phone,
+          to: whatsappNumber,
           documentUrl,
           filename: `Invoice_${data.invoiceNumber}.pdf`,
           caption: `Your invoice ${data.invoiceNumber} is attached.`,
@@ -176,9 +191,9 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'welcome':
       // Send welcome credentials via WhatsApp
       return await sendWelcomeWhatsApp({
-        to: phone,
+        to: whatsappNumber,
         customerName: `${customer.firstName} ${customer.lastName}`,
-        email: data.email,
+        loginUsername: data.loginUsername || data.email || data.phone,
         password: data.password,
         loginUrl: process.env.FRONTEND_URL || 'your-crm-portal.com',
         countryCode
@@ -187,7 +202,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'custom':
       // Send custom text message
       return await sendWhatsAppText({
-        to: phone,
+        to: whatsappNumber,
         text: data.message,
         countryCode
       });
@@ -395,7 +410,7 @@ const sendInvoiceNotification = async (invoice, pdfBuffer = null) => {
 };
 
 // Helper function for welcome notifications
-const sendWelcomeNotification = async (user, password) => {
+const sendWelcomeNotification = async (user, password, leadContactPreferences = null) => {
   const customer = {
     firstName: user.name.split(' ')[0] || 'Customer',
     lastName: user.name.split(' ').slice(1).join(' ') || '',
@@ -404,10 +419,27 @@ const sendWelcomeNotification = async (user, password) => {
     whatsapp: user.whatsapp || user.phone
   };
 
+  // If lead contact preferences are provided, use them. Otherwise fallback to email-only
+  if (leadContactPreferences) {
+    customer.preferredContactMethod = leadContactPreferences.preferredContactMethod;
+    customer.hasWhatsapp = leadContactPreferences.hasWhatsapp;
+    customer.whatsappSameAsPhone = leadContactPreferences.whatsappSameAsPhone;
+    customer.whatsapp = leadContactPreferences.whatsapp;
+    customer.countryCode = leadContactPreferences.countryCode;
+  } else {
+    // Fallback: assume email-only communication for legacy cases
+    customer.preferredContactMethod = 'email';
+    customer.hasWhatsapp = false;
+  }
+
   const welcomeData = {
     name: user.name,
     email: user.email,
-    password
+    phone: user.phone,
+    password,
+    // For customers, always use phone number as login username
+    // For staff roles, use email as login username
+    loginUsername: user.role === 'customer' ? user.phone : user.email
   };
 
   // Send notification via available channels
@@ -503,6 +535,32 @@ const sendServiceEngineerWhatsApp = async (type, engineer, data) => {
     console.error(`Failed to send WhatsApp to engineer ${engineer.name}:`, error.message);
     return { success: false, error: error.message };
   }
+
+// Smart communication workflow - uses preferredContactMethod from Lead model
+const sendSmartNotification = async (customer, type, data, options = {}) => {
+  const { attachments = [], documentUrl = null, forceMethod = null } = options;
+  
+  let preferredMethods = [];
+  
+  // Determine communication strategy based on requirements
+  if (forceMethod) {
+    // Use specific method if forced
+    preferredMethods = [forceMethod];
+  } else {
+    // Use the preferredContactMethod that's already calculated in the Lead model
+    preferredMethods = getAvailableContactMethods(customer);
+  }
+  
+  console.log(`Smart notification for ${customer.firstName}: Using preferredContactMethod='${customer.preferredContactMethod}', methods=[${preferredMethods.join(', ')}]`);
+  
+  return await sendNotification({
+    customer,
+    type,
+    data,
+    preferences: preferredMethods,
+    attachments,
+    documentUrl
+  });
 };
 
 module.exports = {
@@ -512,4 +570,5 @@ module.exports = {
   sendWelcomeNotification,
   getAvailableContactMethods,
   sendServiceEngineerWhatsApp
+  sendSmartNotification,
 }; 

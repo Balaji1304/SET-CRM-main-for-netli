@@ -47,6 +47,50 @@ exports.checkEmailExists = async (req, res) => {
   }
 };
 
+// @desc    Check if phone number already exists
+// @route   POST /api/leads/check-phone
+// @access  Private
+exports.checkPhoneExists = async (req, res) => {
+  try {
+    const { phone, excludeId } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+    
+    const query = { phone: phone.trim() };
+    
+    // If updating an existing lead, exclude it from the check
+    if (excludeId) {
+      query._id = { $ne: excludeId };
+    }
+    
+    const existingLead = await Lead.findOne(query);
+    
+    res.json({
+      success: true,
+      exists: !!existingLead,
+      lead: existingLead ? {
+        id: existingLead._id,
+        firstName: existingLead.firstName,
+        lastName: existingLead.lastName,
+        email: existingLead.email,
+        phone: existingLead.phone,
+        status: existingLead.status
+      } : null
+    });
+  } catch (error) {
+    console.error('Error checking phone:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check phone number'
+    });
+  }
+};
+
 // @desc    Create new lead
 // @route   POST /api/leads
 // @access  Private
@@ -54,6 +98,11 @@ exports.createLead = async (req, res) => {
   try {
     // Add the user ID to the lead data
     req.body.createdBy = req.user.id;
+    
+    // Convert empty email to undefined to work with partial index
+    if (req.body.email === '' || req.body.email === null) {
+      req.body.email = undefined;
+    }
 
     const lead = await Lead.create(req.body);
 
@@ -73,6 +122,18 @@ exports.createLead = async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating lead:', error);
+    
+    // Handle duplicate phone number error specifically
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.phone) {
+      const duplicatePhone = error.keyValue.phone;
+      return res.status(400).json({
+        success: false,
+        message: `A lead with the phone number "${duplicatePhone}" already exists. Please use a different phone number or update the existing lead.`,
+        errorType: 'DUPLICATE_PHONE',
+        duplicateField: 'phone',
+        duplicateValue: duplicatePhone
+      });
+    }
     
     // Handle duplicate email error specifically
     if (error.code === 11000 && error.keyPattern && error.keyPattern.email) {
@@ -111,7 +172,25 @@ exports.createLead = async (req, res) => {
 // @access  Private
 exports.getLeads = async (req, res) => {
   try {
-    const leads = await Lead.find({ createdBy: req.user.id })
+    // Sales head and marketing coordinator can see all leads, others can only see their own leads
+    let query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator') ? {} : { createdBy: req.user.id };
+    
+    // If forQuotation=true, only return leads that are complete
+    if (req.query.forQuotation === 'true') {
+      query = {
+        ...query,
+        $or: [
+          { leadCompletionStatus: 'complete' },
+          { 
+            // Regular leads (not from enquiries) are considered complete by default
+            createdFromEnquiry: { $ne: true },
+            leadCompletionStatus: { $ne: 'incomplete' }
+          }
+        ]
+      };
+    }
+    
+    const leads = await Lead.find(query)
       .populate({
         path: 'products.productId',
         select: 'name category price specifications _id'
@@ -119,7 +198,12 @@ exports.getLeads = async (req, res) => {
       .populate({
         path: 'products.customizedProductId',
         select: 'name unitPrice modelNumber description specifications imageUrls _id'
-      });
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'name email role _id'
+      })
+      .sort({ createdAt: -1, _id: -1 }); // Sort by createdAt first, then by _id as tiebreaker
 
     // Post-process leads to add bundle information for bundle products
     const processedLeads = await Promise.all(
@@ -182,16 +266,24 @@ exports.getLeads = async (req, res) => {
 // @access  Private
 exports.getLead = async (req, res) => {
   try {
-    const lead = await Lead.findOne({
-      _id: req.params.id,
-      createdBy: req.user.id
-    }).populate({
-      path: 'products.productId',
-      select: 'name category price specifications'
-    }).populate({
-      path: 'products.customizedProductId',
-      select: 'name unitPrice modelNumber description specifications imageUrls'
-    });
+    // Sales head and marketing coordinator can view any lead, others can only view their own leads
+    const query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator')
+      ? { _id: req.params.id }
+      : { _id: req.params.id, createdBy: req.user.id };
+    
+    const lead = await Lead.findOne(query)
+      .populate({
+        path: 'products.productId',
+        select: 'name category price specifications'
+      })
+      .populate({
+        path: 'products.customizedProductId',
+        select: 'name unitPrice modelNumber description specifications imageUrls'
+      })
+      .populate({
+        path: 'createdBy',
+        select: 'name email role _id'
+      });
 
     if (!lead) {
       return res.status(404).json({
@@ -255,11 +347,13 @@ exports.updateLead = async (req, res) => {
   try {
     console.log(`Updating lead ${req.params.id} with data:`, req.body);
     
+    // Sales head and marketing coordinator can update any lead, others can only update their own leads
+    const query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator')
+      ? { _id: req.params.id }
+      : { _id: req.params.id, createdBy: req.user.id };
+    
     // Find the lead first
-    const lead = await Lead.findOne({
-      _id: req.params.id,
-      createdBy: req.user.id
-    });
+    const lead = await Lead.findOne(query);
 
     if (!lead) {
       return res.status(404).json({
@@ -346,6 +440,11 @@ exports.updateLead = async (req, res) => {
     }
 
     // Update the lead fields
+    // Convert empty email to undefined to work with partial index
+    if (req.body.email === '' || req.body.email === null) {
+      req.body.email = undefined;
+    }
+    
     Object.keys(req.body).forEach(key => {
       lead[key] = req.body[key];
     });
@@ -409,10 +508,12 @@ exports.updateLead = async (req, res) => {
 // @access  Private
 exports.deleteLead = async (req, res) => {
   try {
-    const lead = await Lead.findOneAndDelete({
-      _id: req.params.id,
-      createdBy: req.user.id
-    });
+    // Sales head and marketing coordinator can delete any lead, others can only delete their own leads
+    const query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator')
+      ? { _id: req.params.id }
+      : { _id: req.params.id, createdBy: req.user.id };
+      
+    const lead = await Lead.findOneAndDelete(query);
 
     if (!lead) {
       return res.status(404).json({

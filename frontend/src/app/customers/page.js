@@ -1,19 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Search, ChevronDown, Plus, Calendar, Filter, RotateCcw } from 'lucide-react';
-import LeadsTable from './LeadsTable';
-import { useNavigate } from 'react-router-dom';
+import { Search, ChevronDown, Filter, RotateCcw, Calendar } from 'lucide-react';
+import CustomersTable from './CustomersTable';
 import { useAuth } from '../../context/AuthContext';
 import { getSalespersons } from '../../services/enquiryService';
 
-export default function Leads() {
+export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const [sortOrder, setSortOrder] = useState('newest');
-  const [completionFilter, setCompletionFilter] = useState('');
-  const [sourceFilter, setSourceFilter] = useState('');
+  const [customerTypeFilter, setCustomerTypeFilter] = useState('');
   const [creatorFilter, setCreatorFilter] = useState('');
+  const [purchaseStatusFilter, setPurchaseStatusFilter] = useState('');
   const [salesPersons, setSalesPersons] = useState([]);
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   // Check if user is sales head or marketing coordinator
@@ -39,24 +36,22 @@ export default function Leads() {
   // Function to reset all filters
   const resetFilters = () => {
     setSearchTerm('');
-    setStatusFilter('');
     setSortOrder('newest');
-    setCompletionFilter('');
-    setSourceFilter('');
+    setCustomerTypeFilter('');
+    setPurchaseStatusFilter('');
     if (isSalesHead) {
       setCreatorFilter('');
     }
   };
 
   // Check if any filters are active
-  const hasActiveFilters = searchTerm || statusFilter || sortOrder !== 'newest' || 
-    completionFilter || sourceFilter || (isSalesHead && creatorFilter);
+  const hasActiveFilters = searchTerm || sortOrder !== 'newest' || 
+    customerTypeFilter || purchaseStatusFilter || (isSalesHead && creatorFilter);
 
   // Count active filters (excluding sort order and search term for display)
   const activeFilterCount = [
-    statusFilter, 
-    completionFilter, 
-    sourceFilter, 
+    customerTypeFilter, 
+    purchaseStatusFilter, 
     ...(isSalesHead ? [creatorFilter] : [])
   ].filter(Boolean).length;
 
@@ -65,9 +60,9 @@ export default function Leads() {
       {/* Header Section - Page Title */}
       <div className="border-b border-fourth pb-5 mb-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-secondary">Leads Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-secondary">Customers</h1>
           {/* Optional: Subtitle if needed, can be text-gray-500 */}
-          {/* <p className="text-sm text-gray-500 mt-1">View and manage all your leads in one place.</p> */}
+          {/* <p className="text-sm text-gray-500 mt-1">Manage and view all customer records.</p> */}
         </div>
       </div>
 
@@ -101,7 +96,7 @@ export default function Leads() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Search leads..."
+                placeholder="Search customers..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 pr-4 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400"
@@ -124,47 +119,35 @@ export default function Leads() {
                 <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
               </div>
 
-              {/* Status Filter */}
+              {/* Customer Type Filter */}
               <div className="relative min-w-[120px] flex-1 xl:flex-initial xl:w-28">
                 <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  value={customerTypeFilter}
+                  onChange={(e) => setCustomerTypeFilter(e.target.value)}
                   className="pl-3 pr-7 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-xs xl:text-sm text-secondary bg-tertiary"
                 >
-                  <option value="">Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="active">Active</option>
-                  <option value="on_hold">On Hold</option>
-                  <option value="closed_won">Won</option>
-                  <option value="closed_lost">Lost</option>
+                  <option value="">Type</option>
+                  <option value="end_user">End User</option>
+                  <option value="plumber">Plumber</option>
+                  <option value="dealer">Dealer</option>
+                  <option value="builder">Builder</option>
+                  <option value="other">Other</option>
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
               </div>
 
-              {/* Completion Status Filter */}
+              {/* Purchase Status Filter */}
               <div className="relative min-w-[120px] flex-1 xl:flex-initial xl:w-32">
                 <select
-                  value={completionFilter}
-                  onChange={(e) => setCompletionFilter(e.target.value)}
+                  value={purchaseStatusFilter}
+                  onChange={(e) => setPurchaseStatusFilter(e.target.value)}
                   className="pl-3 pr-7 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-xs xl:text-sm text-secondary bg-tertiary"
                 >
-                  <option value="">Complete</option>
-                  <option value="complete">Complete</option>
-                  <option value="incomplete">Incomplete</option>
-                </select>
-                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
-              </div>
-
-              {/* Source Filter */}
-              <div className="relative min-w-[110px] flex-1 xl:flex-initial xl:w-28">
-                <select
-                  value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value)}
-                  className="pl-3 pr-7 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-xs xl:text-sm text-secondary bg-tertiary"
-                >
-                  <option value="">Source</option>
-                  <option value="enquiry">Enquiry</option>
-                  <option value="direct">Direct</option>
+                  <option value="">Purchase</option>
+                  <option value="has_purchases">Has Purchases</option>
+                  <option value="no_purchases">No Purchases</option>
+                  <option value="active_purchases">Active</option>
+                  <option value="completed_purchases">Completed</option>
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3.5 h-3.5 pointer-events-none" />
               </div>
@@ -201,28 +184,16 @@ export default function Leads() {
                 </button>
               )}
             </div>
-
-            {/* Right Side - Add Button */}
-            <div className="xl:ml-auto">
-              <button
-                onClick={() => navigate('/dashboard/add-lead')}
-                className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-tertiary bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap w-full xl:w-auto"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Lead
-              </button>
-            </div>
           </div>
         </div>
-        <LeadsTable 
+        <CustomersTable 
           searchTerm={searchTerm}
-          statusFilter={statusFilter}
           sortOrder={sortOrder}
-          completionFilter={completionFilter}
-          sourceFilter={sourceFilter}
+          customerTypeFilter={customerTypeFilter}
           creatorFilter={isSalesHead ? creatorFilter : ''}
+          purchaseStatusFilter={purchaseStatusFilter}
         />
       </div>
     </div>
   );
-} 
+}

@@ -24,17 +24,48 @@ const customerSchema = new mongoose.Schema({
   email: {
     type: String,
     required: false,
-    unique: true,
     sparse: true, // Allow multiple null values
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   phone: {
     type: String,
-    required: false
+    required: [true, 'Phone number is required'],
+    unique: true,
+    validate: {
+      validator: function(v) {
+        const phoneRegex = /^[6-9]\d{9}$/;
+        const cleanPhone = v.replace(/\D/g, '');
+        const phoneWithoutCountryCode = cleanPhone.startsWith('91') && cleanPhone.length === 12 
+          ? cleanPhone.substring(2) 
+          : cleanPhone;
+        return phoneRegex.test(phoneWithoutCountryCode);
+      },
+      message: 'Please enter a valid 10-digit Indian mobile number'
+    }
   },
   whatsapp: {
     type: String,
-    required: false
+    required: false,
+    validate: {
+      validator: function(v) {
+        if (!v) return true;
+        const phoneRegex = /^[6-9]\d{9}$/;
+        const cleanPhone = v.replace(/\D/g, '');
+        const phoneWithoutCountryCode = cleanPhone.startsWith('91') && cleanPhone.length === 12 
+          ? cleanPhone.substring(2) 
+          : cleanPhone;
+        return phoneRegex.test(phoneWithoutCountryCode);
+      },
+      message: 'Please enter a valid 10-digit WhatsApp number'
+    }
+  },
+  whatsappSameAsPhone: {
+    type: Boolean,
+    default: true
+  },
+  hasWhatsapp: {
+    type: Boolean,
+    default: true
   },
   countryCode: {
     type: String,
@@ -55,6 +86,11 @@ const customerSchema = new mongoose.Schema({
     type: String,
     enum: ['end_user', 'plumber', 'dealer', 'builder', 'other']
   },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'inactive'
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -69,8 +105,15 @@ const customerSchema = new mongoose.Schema({
 
 // Validation to ensure at least one contact method is provided
 customerSchema.pre('validate', function(next) {
-  if (!this.email && !this.whatsapp) {
-    const error = new Error('At least one contact method (email or whatsapp) is required');
+  // Handle WhatsApp logic
+  if (this.whatsappSameAsPhone && this.hasWhatsapp) {
+    this.whatsapp = this.phone;
+  } else if (!this.hasWhatsapp) {
+    this.whatsapp = undefined;
+  }
+  
+  if (!this.email && (!this.whatsapp || !this.hasWhatsapp)) {
+    const error = new Error('At least one contact method (email or WhatsApp number) is required');
     error.name = 'ValidationError';
     return next(error);
   }
@@ -83,11 +126,11 @@ customerSchema.pre('save', function(next) {
   
   // Auto-set preferred contact method if not specified
   if (!this.preferredContactMethod) {
-    if (this.email && this.whatsapp) {
+    if (this.email && this.whatsapp && this.hasWhatsapp) {
       this.preferredContactMethod = 'both';
     } else if (this.email) {
       this.preferredContactMethod = 'email';
-    } else if (this.whatsapp) {
+    } else if (this.whatsapp && this.hasWhatsapp) {
       this.preferredContactMethod = 'whatsapp';
     }
   }

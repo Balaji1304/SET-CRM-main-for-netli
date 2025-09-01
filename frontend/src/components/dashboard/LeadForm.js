@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2, X, AlertTriangle, Loader2, Package } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { createLead, getLead, updateLead, checkEmailExists } from '../../services/leadService';
+import { createLead, getLead, updateLead, checkEmailExists, checkPhoneExists, checkWhatsappExists } from '../../services/leadService';
 import { getProducts } from '../../services/productService';
 import { getPowerPlantConfigurations } from '../../services/bundleService';
 import { createCustomizedProduct, updateCustomizedProduct, getAllCustomizedProducts } from '../../services/customizedProductService';
@@ -63,21 +63,21 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText
 };
 
 const FORM_OPTIONS = {
-  leadTypes: [
+  leadSources: [
     { value: 'referral', label: 'Referral' },
     { value: 'indiamart', label: 'IndiaMART' },
     { value: 'exhibition', label: 'Exhibition' },
     { value: 'facebook', label: 'Facebook' },
     { value: 'instagram', label: 'Instagram' },
     { value: 'google_ads', label: 'Google Ads' },
-    { value: 'website', label: 'Website Inquiry' },
+    { value: 'website', label: 'Website' },
     { value: 'cold_call', label: 'Cold Call' },
     { value: 'walk_in', label: 'Walk-in' },
     { value: 'paper_ad', label: 'Paper Ad' },
     { value: 'existing_customer', label: 'Existing Customer' },
     { value: 'other', label: 'Other' }
   ],
-  customerTypes: [
+  leadTypes: [
     { value: 'end_user', label: 'End User' },
     { value: 'plumber', label: 'Plumber' },
     { value: 'dealer', label: 'Dealer' },
@@ -96,6 +96,8 @@ const FORM_OPTIONS = {
 
 
   const defaultFormState = {
+    leadSource: '',
+    customLeadSource: '',
     leadType: '',
     customLeadType: '',
     status: 'pending',
@@ -105,11 +107,11 @@ const FORM_OPTIONS = {
     phone: '',
     countryCode: '+91',
     whatsapp: '',
+    whatsappSameAsPhone: true,
+    hasWhatsapp: true,
     billingAddress: '',
     shippingAddress: '',
     businessName: '',
-    customerType: '',
-    customCustomerType: '',
     gstinUin: '',
     products: [
     { id: `${Date.now()}_0`, category: '', name: '', quantity: '1', unitPrice: '0', totalPrice: '0', productId: '' }
@@ -185,11 +187,37 @@ export default function LeadForm() {
   });
   const emailCheckTimeout = useRef(null);
 
-  // Cleanup email check timeout on unmount
+  // Phone validation state
+  const [phoneValidation, setPhoneValidation] = useState({
+    isChecking: false,
+    exists: false,
+    existingLead: null,
+    error: null,
+    lastCheckedPhone: ''
+  });
+  const phoneCheckTimeout = useRef(null);
+
+  // WhatsApp validation state
+  const [whatsappValidation, setWhatsappValidation] = useState({
+    isChecking: false,
+    exists: false,
+    existingLead: null,
+    error: null,
+    lastCheckedWhatsapp: ''
+  });
+  const whatsappCheckTimeout = useRef(null);
+
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (emailCheckTimeout.current) {
         clearTimeout(emailCheckTimeout.current);
+      }
+      if (phoneCheckTimeout.current) {
+        clearTimeout(phoneCheckTimeout.current);
+      }
+      if (whatsappCheckTimeout.current) {
+        clearTimeout(whatsappCheckTimeout.current);
       }
     };
   }, []);
@@ -295,9 +323,20 @@ export default function LeadForm() {
       error: null,
       lastCheckedEmail: ''
     });
-    // Clear any pending email check
+    // Reset phone validation
+    setPhoneValidation({
+      isChecking: false,
+      exists: false,
+      existingLead: null,
+      error: null,
+      lastCheckedPhone: ''
+    });
+    // Clear any pending checks
     if (emailCheckTimeout.current) {
       clearTimeout(emailCheckTimeout.current);
+    }
+    if (phoneCheckTimeout.current) {
+      clearTimeout(phoneCheckTimeout.current);
     }
   }, []);
 
@@ -503,14 +542,80 @@ export default function LeadForm() {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
+    let newFormData = { 
+      ...formData, 
       [name]: type === 'checkbox' ? checked : (value ?? '') 
-    }));
+    };
+
+    // Handle WhatsApp logic
+    if (name === 'whatsappSameAsPhone') {
+      if (value === 'yes') {
+        newFormData.whatsappSameAsPhone = true;
+        newFormData.hasWhatsapp = true;
+        newFormData.whatsapp = newFormData.phone;
+      } else if (value === 'no') {
+        newFormData.whatsappSameAsPhone = false;
+        newFormData.hasWhatsapp = true;
+        newFormData.whatsapp = '';
+      } else if (value === 'none') {
+        newFormData.whatsappSameAsPhone = false;
+        newFormData.hasWhatsapp = false;
+        newFormData.whatsapp = '';
+      }
+    }
+
+    // If phone changes and whatsappSameAsPhone is true, update whatsapp
+    if (name === 'phone' && newFormData.whatsappSameAsPhone) {
+      newFormData.whatsapp = value;
+    }
+
+    setFormData(newFormData);
 
     // Trigger email validation if email field changes
     if (name === 'email' && value.trim() !== emailValidation.lastCheckedEmail) {
       handleEmailValidation(value.trim());
+    }
+
+    // Trigger phone validation only after 10 digits are entered
+    if (name === 'phone') {
+      const cleanPhone = value.replace(/\D/g, '');
+      const phoneWithoutCountryCode = cleanPhone.startsWith('91') && cleanPhone.length === 12 
+        ? cleanPhone.substring(2) 
+        : cleanPhone;
+      
+      if (phoneWithoutCountryCode.length === 10 && phoneWithoutCountryCode !== phoneValidation.lastCheckedPhone) {
+        handlePhoneValidation(value.trim());
+      } else if (phoneWithoutCountryCode.length < 10) {
+        // Reset validation state if less than 10 digits
+        setPhoneValidation({
+          isChecking: false,
+          exists: false,
+          existingLead: null,
+          error: null,
+          lastCheckedPhone: ''
+        });
+      }
+    }
+
+    // Trigger WhatsApp validation only after 10 digits are entered (when different from phone)
+    if (name === 'whatsapp' && !newFormData.whatsappSameAsPhone) {
+      const cleanWhatsapp = value.replace(/\D/g, '');
+      const whatsappWithoutCountryCode = cleanWhatsapp.startsWith('91') && cleanWhatsapp.length === 12 
+        ? cleanWhatsapp.substring(2) 
+        : cleanWhatsapp;
+      
+      if (whatsappWithoutCountryCode.length === 10 && whatsappWithoutCountryCode !== whatsappValidation.lastCheckedWhatsapp) {
+        handleWhatsappValidation(value.trim());
+      } else if (whatsappWithoutCountryCode.length < 10) {
+        // Reset validation state if less than 10 digits
+        setWhatsappValidation({
+          isChecking: false,
+          exists: false,
+          existingLead: null,
+          error: null,
+          lastCheckedWhatsapp: ''
+        });
+      }
     }
   };
 
@@ -570,6 +675,128 @@ export default function LeadForm() {
           existingLead: null,
           error: 'Unable to check email availability',
           lastCheckedEmail: email
+        });
+      }
+    }, 800); // 800ms debounce
+  }, [isEditMode, leadId]);
+
+  // Phone validation with debounce
+  const handlePhoneValidation = useCallback(async (phone) => {
+    // Clear any existing timeout
+    if (phoneCheckTimeout.current) {
+      clearTimeout(phoneCheckTimeout.current);
+    }
+
+    // Reset validation state if phone is empty or invalid format
+    if (!phone || !/^[6-9]\d{9}$/.test(phone.replace(/\D/g, '').slice(-10))) {
+      setPhoneValidation({
+        isChecking: false,
+        exists: false,
+        existingLead: null,
+        error: null,
+        lastCheckedPhone: phone
+      });
+      return;
+    }
+
+    // Set checking state
+    setPhoneValidation(prev => ({
+      ...prev,
+      isChecking: true,
+      error: null,
+      lastCheckedPhone: phone
+    }));
+
+    // Debounce the API call
+    phoneCheckTimeout.current = setTimeout(async () => {
+      try {
+        const response = await checkPhoneExists(phone, isEditMode ? leadId : null);
+        if (response.success) {
+          setPhoneValidation({
+            isChecking: false,
+            exists: response.exists,
+            existingLead: response.lead,
+            error: null,
+            lastCheckedPhone: phone
+          });
+        } else {
+          setPhoneValidation({
+            isChecking: false,
+            exists: false,
+            existingLead: null,
+            error: 'Unable to check phone availability',
+            lastCheckedPhone: phone
+          });
+        }
+      } catch (error) {
+        console.error('Error checking phone:', error);
+        setPhoneValidation({
+          isChecking: false,
+          exists: false,
+          existingLead: null,
+          error: 'Unable to check phone availability',
+          lastCheckedPhone: phone
+        });
+      }
+    }, 800); // 800ms debounce
+  }, [isEditMode, leadId]);
+
+  // WhatsApp validation with debounce
+  const handleWhatsappValidation = useCallback(async (whatsapp) => {
+    // Clear any existing timeout
+    if (whatsappCheckTimeout.current) {
+      clearTimeout(whatsappCheckTimeout.current);
+    }
+
+    // Reset validation state if whatsapp is empty or invalid format
+    if (!whatsapp || !/^[6-9]\d{9}$/.test(whatsapp.replace(/\D/g, '').slice(-10))) {
+      setWhatsappValidation({
+        isChecking: false,
+        exists: false,
+        existingLead: null,
+        error: null,
+        lastCheckedWhatsapp: whatsapp
+      });
+      return;
+    }
+
+    // Set checking state
+    setWhatsappValidation(prev => ({
+      ...prev,
+      isChecking: true,
+      error: null,
+      lastCheckedWhatsapp: whatsapp
+    }));
+
+    // Debounce the API call
+    whatsappCheckTimeout.current = setTimeout(async () => {
+      try {
+        const response = await checkWhatsappExists(whatsapp, isEditMode ? leadId : null);
+        if (response.success) {
+          setWhatsappValidation({
+            isChecking: false,
+            exists: response.exists,
+            existingLead: response.lead,
+            error: null,
+            lastCheckedWhatsapp: whatsapp
+          });
+        } else {
+          setWhatsappValidation({
+            isChecking: false,
+            exists: false,
+            existingLead: null,
+            error: 'Unable to check WhatsApp availability',
+            lastCheckedWhatsapp: whatsapp
+          });
+        }
+      } catch (error) {
+        console.error('Error checking WhatsApp:', error);
+        setWhatsappValidation({
+          isChecking: false,
+          exists: false,
+          existingLead: null,
+          error: 'Unable to check WhatsApp availability',
+          lastCheckedWhatsapp: whatsapp
         });
       }
     }, 800); // 800ms debounce
@@ -809,21 +1036,44 @@ export default function LeadForm() {
 
   const validateForm = () => {
     const errors = {};
+    if (!formData.leadSource) errors.leadInfo = { ...errors.leadInfo, leadSource: 'Lead Source is required.' };
+    if (formData.leadSource === 'other' && !formData.customLeadSource) errors.leadInfo = { ...errors.leadInfo, customLeadSource: 'Please specify the lead source.' };
     if (!formData.leadType) errors.leadInfo = { ...errors.leadInfo, leadType: 'Lead Type is required.' };
     if (formData.leadType === 'other' && !formData.customLeadType) errors.leadInfo = { ...errors.leadInfo, customLeadType: 'Please specify the lead type.' };
     if (!formData.status) errors.leadInfo = { ...errors.leadInfo, status: 'Status is required.' };
     if (!formData.dateCollected) errors.leadInfo = { ...errors.leadInfo, dateCollected: 'Enquiry Date is required.' };
 
     if (!formData.firstName) errors.personalInfo = { ...errors.personalInfo, firstName: 'First Name is required.' };
-    if (!formData.email) errors.personalInfo = { ...errors.personalInfo, email: 'Email is required.' };
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.personalInfo = { ...errors.personalInfo, email: 'Email is invalid.' };
-    else if (emailValidation.exists) errors.personalInfo = { ...errors.personalInfo, email: 'This email address is already associated with another lead.' };
+    
+    // Email is now optional, but validate format if provided
+    if (formData.email) {
+      if (!/\S+@\S+\.\S+/.test(formData.email)) errors.personalInfo = { ...errors.personalInfo, email: 'Email is invalid.' };
+      else if (emailValidation.exists) errors.personalInfo = { ...errors.personalInfo, email: 'This email address is already associated with another lead.' };
+    }
+    
     if (!formData.phone) errors.personalInfo = { ...errors.personalInfo, phone: 'Phone number is required.' };
-    if (!formData.whatsapp) errors.personalInfo = { ...errors.personalInfo, whatsapp: 'WhatsApp number is required.' };
+    else if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\D/g, '').slice(-10))) {
+      errors.personalInfo = { ...errors.personalInfo, phone: 'Please enter a valid 10-digit Indian mobile number.' };
+    }
+    else if (phoneValidation.exists) errors.personalInfo = { ...errors.personalInfo, phone: 'This phone number is already associated with another lead.' };
+    
+    // Validate WhatsApp if provided
+    if (formData.hasWhatsapp && !formData.whatsappSameAsPhone && !formData.whatsapp) {
+      errors.personalInfo = { ...errors.personalInfo, whatsapp: 'WhatsApp number is required when "No" is selected.' };
+    } else if (formData.whatsapp && !/^[6-9]\d{9}$/.test(formData.whatsapp.replace(/\D/g, '').slice(-10))) {
+      errors.personalInfo = { ...errors.personalInfo, whatsapp: 'Please enter a valid 10-digit WhatsApp number.' };
+    } else if (formData.whatsapp && !formData.whatsappSameAsPhone && whatsappValidation.exists) {
+      errors.personalInfo = { ...errors.personalInfo, whatsapp: 'This WhatsApp number is already associated with another lead.' };
+    }
+    
+    // Ensure at least one contact method is provided
+    if (!formData.email && (!formData.hasWhatsapp || !formData.whatsapp)) {
+      errors.personalInfo = { ...errors.personalInfo, contact: 'Please provide either an email address or WhatsApp number for communication.' };
+    }
+    
     if (!formData.billingAddress) errors.personalInfo = { ...errors.personalInfo, billingAddress: 'Billing address is required.' };
 
-    if (!formData.customerType) errors.businessInfo = { ...errors.businessInfo, customerType: 'Customer Type is required.' };
-    if (formData.customerType === 'other' && !formData.customCustomerType) errors.businessInfo = { ...errors.businessInfo, customCustomerType: 'Please specify the customer type.' };
+    // Business info validation (removed lead source and lead type as they're in leadInfo section)
     
     // Product validation based on type
     if (selectedProductType === 'individual') {
@@ -1405,6 +1655,24 @@ export default function LeadForm() {
           <section>
             {renderSectionHeader('Lead Information', 'leadInfo')}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {renderSelectField('leadSource', 'Lead Source', FORM_OPTIONS.leadSources, true, 'leadInfo')}
+              {formData.leadSource === 'other' && (
+                <div className="w-full">
+                  <label htmlFor="customLeadSource" className="block text-sm font-medium text-gray-700 mb-1 sm:mb-1">
+                    Specify Lead Source <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="customLeadSource"
+                    name="customLeadSource"
+                    value={formData.customLeadSource ?? ''}
+                    onChange={handleInputChange}
+                    placeholder="Enter lead source"
+                    required
+                    className={`mt-1 block w-full px-3 py-2.5 sm:py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-sm text-secondary placeholder-gray-400 touch-target ${sectionErrors.leadInfo?.customLeadSource ? 'border-red-500' : ''}`}
+                  />
+                </div>
+              )}
               {renderSelectField('leadType', 'Lead Type', FORM_OPTIONS.leadTypes, true, 'leadInfo')}
               {formData.leadType === 'other' && (
                 <div className="w-full">
@@ -1433,7 +1701,7 @@ export default function LeadForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {renderInputField('firstName', 'First Name', 'text', 'Enter first name', true, 'personalInfo')}
               {renderInputField('lastName', 'Last Name', 'text', 'Enter last name', false, 'personalInfo')}
-              {renderEmailField('email', 'Email Address', 'name@example.com', true, 'personalInfo')}
+              {renderEmailField('email', 'Email Address', 'name@example.com', false, 'personalInfo')}
               <div className="w-full">
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number <span className="text-red-500">*</span></label>
                 <div className="relative mt-1 flex rounded-lg shadow-sm">
@@ -1456,16 +1724,171 @@ export default function LeadForm() {
                         onChange={handleInputChange}
                       placeholder="(555) 000-0000"
                         required
-                        className={`flex-1 block w-full min-w-0 px-3 py-2.5 bg-white border border-fourth rounded-none rounded-r-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-sm text-secondary placeholder-gray-400 ${sectionErrors.personalInfo?.phone ? 'border-red-500' : ''}`}
+                        className={`flex-1 block w-full min-w-0 px-3 py-2.5 bg-white border border-fourth rounded-none rounded-r-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-sm text-secondary placeholder-gray-400 ${sectionErrors.personalInfo?.phone || phoneValidation.exists ? 'border-red-500' : phoneValidation.lastCheckedPhone && !phoneValidation.exists && !phoneValidation.isChecking ? 'border-green-500' : ''}`}
                     />
+                    {phoneValidation.isChecking && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
+                      </div>
+                    )}
                   </div>
+                  
+                  {/* Phone Validation Messages */}
+                  {sectionErrors.personalInfo?.phone && (
+                    <p className="mt-1 text-sm text-red-600">{sectionErrors.personalInfo.phone}</p>
+                  )}
+                  {phoneValidation.exists && phoneValidation.existingLead && (
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                      <p className="text-sm text-red-600">
+                        This phone number is already associated with <strong>{phoneValidation.existingLead.firstName} {phoneValidation.existingLead.lastName}</strong>
+                        {phoneValidation.existingLead.email && ` (${phoneValidation.existingLead.email})`}
+                      </p>
+                    </div>
+                  )}
+                  {phoneValidation.lastCheckedPhone && !phoneValidation.exists && !phoneValidation.isChecking && !sectionErrors.personalInfo?.phone && (
+                    <p className="mt-1 text-sm text-green-600">✓ Phone number is available</p>
+                  )}
+                  {phoneValidation.error && (
+                    <p className="mt-1 text-sm text-yellow-600">{phoneValidation.error}</p>
+                  )}
                 </div>
 
+              {/* WhatsApp Section with Radio Button Logic */}
               <div className="w-full sm:col-span-2">
-                <div className="flex flex-col lg:flex-row lg:items-end gap-4">
-                  <div className="flex-1">
-                    {renderInputField('whatsapp', 'WhatsApp Number', 'tel', 'Enter WhatsApp number', true, 'personalInfo')}
+                <div className="bg-gray-50 p-4 rounded-lg border border-fourth">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Is WhatsApp Number same as Phone Number?
+                  </label>
+                  
+                  <div className="space-y-2 mb-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="whatsappSameAsPhone"
+                        value="yes"
+                        checked={formData.whatsappSameAsPhone === true && formData.hasWhatsapp === true}
+                        onChange={handleInputChange}
+                        className="mr-2 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-700">Yes (WhatsApp number is same as phone number)</span>
+                    </label>
+                    
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="whatsappSameAsPhone"
+                        value="no"
+                        checked={formData.whatsappSameAsPhone === false && formData.hasWhatsapp === true}
+                        onChange={handleInputChange}
+                        className="mr-2 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-700">No (Different WhatsApp number)</span>
+                    </label>
+                    
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="whatsappSameAsPhone"
+                        value="none"
+                        checked={formData.hasWhatsapp === false}
+                        onChange={handleInputChange}
+                        className="mr-2 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-700">No WhatsApp Number</span>
+                    </label>
                   </div>
+                  
+                  {/* WhatsApp Number Input (only shown when "No" is selected) */}
+                  {formData.whatsappSameAsPhone === false && formData.hasWhatsapp === true && (
+                    <div className="w-full">
+                      <label htmlFor="whatsapp" className="block text-sm font-medium text-gray-700 mb-1">
+                        WhatsApp Number <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="tel"
+                          id="whatsapp"
+                          name="whatsapp"
+                          value={formData.whatsapp}
+                          onChange={handleInputChange}
+                          placeholder="Enter WhatsApp number"
+                          required={formData.hasWhatsapp && !formData.whatsappSameAsPhone}
+                          className={`mt-1 block w-full px-3 py-2.5 pr-10 bg-white border rounded-lg shadow-sm focus:outline-none focus:ring-1 text-sm text-secondary placeholder-gray-400 ${
+                            sectionErrors.personalInfo?.whatsapp || whatsappValidation.exists 
+                              ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+                              : whatsappValidation.lastCheckedWhatsapp && !whatsappValidation.exists && !whatsappValidation.isChecking 
+                              ? 'border-green-500 focus:ring-green-500 focus:border-green-500' 
+                              : 'border-fourth focus:ring-primary focus:border-primary'
+                          }`}
+                        />
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                          {whatsappValidation.isChecking && formData.whatsapp?.trim() && (
+                            <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
+                          )}
+                          {!whatsappValidation.isChecking && whatsappValidation.exists && (
+                            <X className="h-4 w-4 text-red-500" />
+                          )}
+                          {!whatsappValidation.isChecking && !whatsappValidation.exists && whatsappValidation.lastCheckedWhatsapp && formData.whatsapp?.trim() && (
+                            <Check className="h-4 w-4 text-green-500" />
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* WhatsApp Validation Messages */}
+                      {formData.whatsapp?.trim() && (
+                        <>
+                          {whatsappValidation.isChecking && (
+                            <p className="text-sm text-gray-500 mt-1 flex items-center">
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                              Checking WhatsApp availability...
+                            </p>
+                          )}
+                          
+                          {!whatsappValidation.isChecking && whatsappValidation.exists && whatsappValidation.existingLead && (
+                            <div className="mt-1 p-2 bg-red-50 border border-red-200 rounded-md">
+                              <p className="text-sm text-red-600 font-medium flex items-center">
+                                <X className="h-3 w-3 mr-1" />
+                                WhatsApp number already exists
+                              </p>
+                              <p className="text-xs text-red-500 mt-1">
+                                This WhatsApp number is already associated with {whatsappValidation.existingLead.firstName} {whatsappValidation.existingLead.lastName} 
+                                (Status: {whatsappValidation.existingLead.status}). Please use a different WhatsApp number.
+                              </p>
+                            </div>
+                          )}
+                          
+                          {!whatsappValidation.isChecking && !whatsappValidation.exists && whatsappValidation.lastCheckedWhatsapp && formData.whatsapp?.trim() && (
+                            <p className="text-sm text-green-600 mt-1 flex items-center">
+                              <Check className="h-3 w-3 mr-1" />
+                              WhatsApp number is available
+                            </p>
+                          )}
+                          
+                          {whatsappValidation.error && (
+                            <p className="text-sm text-orange-600 mt-1 flex items-center">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              {whatsappValidation.error}
+                            </p>
+                          )}
+                        </>
+                      )}
+                      
+                      {sectionErrors.personalInfo?.whatsapp && (
+                        <p className="mt-1 text-sm text-red-600">{sectionErrors.personalInfo.whatsapp}</p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Show current WhatsApp number when "Yes" is selected */}
+                  {formData.whatsappSameAsPhone === true && formData.hasWhatsapp === true && formData.phone && (
+                    <div className="text-sm text-green-600 bg-green-50 p-2 rounded border border-green-200">
+                      ✓ WhatsApp Number: {formData.countryCode} {formData.phone}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Location Capture */}
+                <div className="flex flex-col lg:flex-row lg:items-end gap-4 mt-4">
                   <div className="flex-shrink-0 flex flex-col items-start lg:items-end">
                     <button
                       type="button"
@@ -1486,6 +1909,16 @@ export default function LeadForm() {
                     )}
                   </div>
                 </div>
+                
+                {/* Contact Method Validation Error */}
+                {sectionErrors.personalInfo?.contact && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600 flex items-center">
+                      <AlertTriangle className="w-4 h-4 mr-2" />
+                      {sectionErrors.personalInfo.contact}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
@@ -1498,27 +1931,7 @@ export default function LeadForm() {
             {renderSectionHeader('Business Information', 'businessInfo')}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {renderInputField('businessName', 'Business Name', 'text', 'Enter business name', false, 'businessInfo')}
-              {renderSelectField('customerType', 'Customer Type', FORM_OPTIONS.customerTypes, true, 'businessInfo')}
-              {formData.customerType === 'other' && (
-                <div className="w-full sm:col-span-2">
-                  <label htmlFor="customCustomerType" className="block text-sm font-medium text-gray-700 mb-1 sm:mb-1">
-                    Specify Customer Type <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="customCustomerType"
-                    name="customCustomerType"
-                    value={formData.customCustomerType ?? ''}
-                    onChange={handleInputChange}
-                    placeholder="Enter customer type"
-                    required
-                    className={`mt-1 block w-full px-3 py-2.5 sm:py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm sm:text-sm text-secondary placeholder-gray-400 touch-target ${sectionErrors.businessInfo?.customCustomerType ? 'border-red-500' : ''}`}
-                  />
-                </div>
-              )}
-              </div>
-              <div className="mt-4 sm:mt-6">
-                {renderInputField('gstinUin', 'GSTIN/UIN', 'text', 'Enter GSTIN or UIN number', false, 'businessInfo')}
+              {renderInputField('gstinUin', 'GSTIN/UIN', 'text', 'Enter GSTIN or UIN number', false, 'businessInfo')}
               </div>
           </section>
 

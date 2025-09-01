@@ -10,12 +10,26 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Please add an email'],
-    unique: true,
+    required: function() {
+      // Only required for non-customer roles
+      return this.role !== 'customer';
+    },
+    unique: false, // Not unique for customers
+    sparse: true,
     match: [
       /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
       'Please add a valid email'
     ]
+  },
+  phone: {
+    type: String,
+    required: function() {
+      // Required for customer role
+      return this.role === 'customer';
+    },
+    unique: true, // Always unique when present
+    sparse: true, // Only enforce uniqueness when field exists
+    match: [/^[6-9]\d{9}$/, 'Please add a valid 10-digit phone number']
   },
   password: {
     type: String,

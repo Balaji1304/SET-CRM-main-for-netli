@@ -24,7 +24,8 @@ import {
   Bell as BellIcon,
   Settings,
   Plus,
-  ChevronRight
+  ChevronRight,
+  UserCheck
 } from 'lucide-react';
 
 // Custom styles for mobile sidebar
@@ -88,16 +89,17 @@ const getNavigation = (userRole) => {
     sales_person: [
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
+      { name: 'Customers', href: '/dashboard/customers', icon: UserCheck },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     front_office_executive: [
-      { name: 'New Enquiry', href: '/dashboard/enquiry', icon: UserPlus },
-      { name: 'Lead Assignment', href: '/dashboard/lead-assignment', icon: Users },
+      { name: 'Enquiries', href: '/dashboard/enquiries', icon: Users },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     sales_head: [
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
+      { name: 'Customers', href: '/dashboard/customers', icon: UserCheck },
       { name: 'Packages', href: '/dashboard/packages', icon: Plus },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
@@ -115,6 +117,9 @@ const getNavigation = (userRole) => {
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     marketing_coordinator: [
+      { name: 'Leads', href: '/dashboard/leads', icon: Users },
+      { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
+      { name: 'Customers', href: '/dashboard/customers', icon: UserCheck },
       { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],

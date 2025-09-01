@@ -15,7 +15,10 @@ export const generateUniqueId = () => {
  * @returns {Object} Default form state
  */
 export const createDefaultFormState = () => ({
+  leadSource: '',
+  customLeadSource: '',
   leadType: '',
+  customLeadType: '',
   status: 'pending',
   firstName: '',
   lastName: '',
@@ -25,7 +28,6 @@ export const createDefaultFormState = () => ({
   whatsapp: '',
   address: '',
   businessName: '',
-  customerType: '',
   products: [
     { 
       id: generateUniqueId(), 

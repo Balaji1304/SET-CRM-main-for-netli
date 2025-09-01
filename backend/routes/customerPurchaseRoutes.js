@@ -21,6 +21,7 @@ const {
   recordManualPayment,
   verifyManualPayment,
   rejectManualPayment,
+  getAllCustomers,
 } = require('../controllers/customerPurchaseController');
 
 // Create quotation from lead
@@ -28,6 +29,9 @@ router.post('/lead/:leadId/quotation', protect, createQuotationFromLead);
 
 // Convert lead to customer when quotation is approved
 router.post('/quotation/:quotationId/approve', protect, convertLeadToCustomer);
+
+// Get all customers for management
+router.get('/customers', protect, authorize('sales_head', 'sales_person', 'marketing_coordinator'), getAllCustomers);
 
 // This is the new primary route for the PO Management page
 router

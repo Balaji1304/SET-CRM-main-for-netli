@@ -4,7 +4,7 @@ const User = require('../models/User');
 const Lead = require('../models/Lead');
 const CustomizedProduct = require('../models/CustomizedProduct');
 const sendEmail = require('../utils/sendEmail');
-const { sendQuotationNotification, sendWelcomeNotification } = require('../utils/sendNotification');
+const { sendQuotationNotification, sendWelcomeNotification, sendSmartNotification } = require('../utils/sendNotification');
 const { generateQuotationNumber } = require('../utils/generateNumbers');
 const generatePDF = require('../utils/generatePDF');
 const { registerHelpers } = require('../utils/handlebarsHelpers');
@@ -30,14 +30,20 @@ exports.getQuotations = async (req, res) => {
     let query = {};
     
     // If user is a sales person, only show their quotations
+    // Sales head and marketing coordinator can see all quotations
     if (req.user.role === 'sales_person') {
       query.createdBy = req.user.id;
     }
     
     // If user is a customer, only show quotations related to their leads
     if (req.user.role === 'customer') {
-      // Find leads associated with this customer's email
-      const leads = await Lead.find({ email: req.user.email });
+      // Find leads associated with this customer's phone number or email
+      const leads = await Lead.find({ 
+        $or: [
+          { phone: req.user.phone },
+          { email: req.user.email }
+        ]
+      });
       const leadIds = leads.map(lead => lead._id);
       query.lead = { $in: leadIds };
     }
@@ -102,7 +108,8 @@ exports.getQuotation = async (req, res) => {
       throw new AppError('Quotation not found', 404);
     }
 
-    // Check access permissions
+    // Check access permissions - sales person can only access their own quotations
+    // Sales head and marketing coordinator can access all quotations
     if (req.user.role === 'sales_person' && quotation.createdBy._id.toString() !== req.user.id) {
       throw new AppError('Not authorized to access this quotation', 403);
     }
@@ -183,7 +190,7 @@ exports.getQuotation = async (req, res) => {
 // @route   POST /api/quotations
 exports.createQuotation = async (req, res) => {
   try {
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
       throw new AppError('Only sales roles can create quotations', 403);
     }
     const { leadId, quotationItems, terms, notes, advancePaymentPercentage } = req.body;
@@ -318,7 +325,7 @@ exports.createQuotation = async (req, res) => {
 exports.updateQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
       throw new AppError('Only sales roles can update quotations', 403);
     }
 
@@ -441,7 +448,7 @@ exports.updateQuotation = async (req, res) => {
 exports.deleteQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
       return res.status(403).json({ success: false, message: 'Only sales roles can delete quotations' });
     }
 
@@ -479,7 +486,7 @@ exports.deleteQuotation = async (req, res) => {
 exports.sendQuotation = async (req, res) => {
   try {
     // Check if user has permission to send quotations
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to send quotations'
@@ -488,7 +495,7 @@ exports.sendQuotation = async (req, res) => {
 
       // Fetch quotation with populated data first
       const quotation = await Quotation.findById(req.params.id)
-      .populate('lead');
+      .populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
 
       if (!quotation) {
       return res.status(404).json({
@@ -534,11 +541,12 @@ exports.sendQuotation = async (req, res) => {
         description: `Advance Payment (${advancePercentage}%) for Quotation #${quotation.quotationNumber}`,
         customer: {
           name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
-          email: quotation.lead.email
+          email: quotation.lead.email || undefined, // Only include email if available
+          contact: quotation.lead.phone ? `${quotation.lead.countryCode || '+91'}${quotation.lead.phone}` : undefined
         },
         notify: {
-          sms: true,
-          email: true
+          sms: !!quotation.lead.phone,
+          email: !!quotation.lead.email
         },
         reminder_enable: true,
         notes: {
@@ -722,10 +730,135 @@ exports.sendQuotation = async (req, res) => {
         { new: true }
       ).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod billingAddress shippingAddress address businessName').populate('createdBy', 'name');
 
-      // Send notification via available channels (email and/or WhatsApp)
+      // Send notification via smart communication workflow
       try {
-        const notificationResult = await sendQuotationNotification(updatedQuotation, quotationItems, pdfBuffer);
-        console.log('Notification results:', notificationResult);
+        // Prepare complete email data structure (same as sendQuotationNotification)
+        const quotationData = {
+          quotationNumber: updatedQuotation.quotationNumber,
+          createdDate: new Date(updatedQuotation.createdAt).toLocaleDateString(),
+          validUntil: new Date(updatedQuotation.validUntil).toLocaleDateString(),
+          status: updatedQuotation.status,
+          lead: {
+            firstName: updatedQuotation.lead.firstName,
+            lastName: updatedQuotation.lead.lastName,
+            businessName: updatedQuotation.lead.businessName,
+            billingAddress: updatedQuotation.lead.billingAddress,
+            shippingAddress: updatedQuotation.lead.shippingAddress,
+            address: updatedQuotation.lead.address, // Keep for backward compatibility
+            email: updatedQuotation.lead.email,
+            phone: updatedQuotation.lead.phone,
+            countryCode: updatedQuotation.lead.countryCode
+          },
+          items: quotationItems.map(item => {
+            let product = {};
+            
+            // Handle regular products
+            if (item.productId) {
+              product = {
+                ...item.productId.toObject(),
+                specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
+                  name: key,
+                  value: value
+                })),
+                images: (item.productId.imageUrls || []).map(url => ({ url }))
+              };
+            }
+            // Handle customized products
+            else if (item.customizedProductId) {
+              const customizedProduct = item.customizedProductId;
+              
+              // Build specifications from the customized product
+              const specifications = [];
+              if (customizedProduct.modelNumber) {
+                specifications.push({ name: 'Model Number', value: customizedProduct.modelNumber });
+              }
+              
+              // Add all specifications from the customized product
+              Object.entries(customizedProduct.specifications || {}).forEach(([key, value]) => {
+                if (value && value.trim()) {
+                  specifications.push({ 
+                    name: key.charAt(0).toUpperCase() + key.slice(1), 
+                    value: value 
+                  });
+                }
+              });
+              
+              product = {
+                _id: customizedProduct._id,
+                name: customizedProduct.name || 'Customized Product',
+                description: customizedProduct.description || '',
+                specifications: specifications,
+                images: (customizedProduct.imageUrls || []).map(url => ({ url }))
+              };
+            }
+            // Handle bundle products with enhanced data
+            else if (item.bundleId) {
+              const bundleProduct = item.bundleId;
+              
+              // Build specifications from the bundle product (only for non-solar bundles)
+              const specifications = [];
+              if (bundleProduct.specifications && bundleProduct.category !== 'power_plants_system') {
+                Object.entries(bundleProduct.specifications).forEach(([key, value]) => {
+                  if (value && value.toString().trim()) {
+                    specifications.push({ 
+                      name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'), 
+                      value: value.toString() 
+                    });
+                  }
+                });
+              }
+              
+              product = {
+                _id: bundleProduct._id,
+                name: bundleProduct.name || 'Bundle Product',
+                category: bundleProduct.category || 'Bundle',
+                description: bundleProduct.description || '',
+                specifications: specifications,
+                images: (bundleProduct.imageUrls || []).map(url => ({ url: url.toString() })),
+                bundleCode: bundleProduct.bundleCode,
+                subcategory: bundleProduct.subcategory,
+                
+                // Add system configuration for solar power plant bundles
+                systemConfiguration: bundleProduct.systemConfiguration ? JSON.parse(JSON.stringify(bundleProduct.systemConfiguration)) : {},
+                
+                // Add bundle components from the quotation item - properly serialize MongoDB documents
+                bundleComponents: (item.bundleComponents || []).map(component => ({
+                  name: component.name || '',
+                  quantity: component.quantity || 0,
+                  make: component.make || '',
+                  componentType: component.componentType || '',
+                  warranty: component.warranty || '',
+                  sortOrder: component.sortOrder || 0
+                }))
+              };
+            }
+            
+            return {
+              product: product,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: item.discount || 0,
+              total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
+            };
+          }),
+          total: updatedQuotation.total,
+          terms: updatedQuotation.terms,
+          notes: updatedQuotation.notes,
+          advanceAmount: advanceAmount,
+          advancePercentage: advancePercentage,
+          paymentLink: updatedQuotation.razorpayPaymentLink
+        };
+
+        const notificationResult = await sendSmartNotification(
+          updatedQuotation.lead,
+          'quotation',
+          quotationData,
+          {
+            attachments: [{ filename: `Quotation_${updatedQuotation.quotationNumber}.pdf`, content: pdfBuffer }],
+            documentUrl: null // PDF will be sent as attachment for email
+          }
+        );
+        console.log('Smart notification results:', notificationResult);
       } catch (notificationError) {
         console.error('Notification failed but quotation marked as sent:', notificationError.message);
         // Continue with success response even if notification fails
@@ -771,7 +904,7 @@ exports.sendQuotation = async (req, res) => {
 // @route   PUT /api/quotations/:id/approve
 exports.handleApproveQuotation = async (req, res) => {
   try {
-    const quotation = await Quotation.findById(req.params.id).populate('lead');
+    const quotation = await Quotation.findById(req.params.id).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
     
     if (!quotation) {
       throw new AppError('Quotation not found', 404);
@@ -781,8 +914,8 @@ exports.handleApproveQuotation = async (req, res) => {
       throw new AppError('Can only approve quotations that are in pending_approval status', 400);
     }
 
-    if (!quotation.lead || !quotation.lead.email) {
-      throw new AppError('Lead data is incomplete. Email is required for approval.', 400);
+    if (!quotation.lead || (!quotation.lead.email && (!quotation.lead.whatsapp || !quotation.lead.hasWhatsapp))) {
+      throw new AppError('Lead data is incomplete. At least one contact method (email or WhatsApp) is required for approval.', 400);
     }
 
     // Role and segregation of duties: only accounts can approve and cannot approve their own
@@ -917,7 +1050,7 @@ exports.handleRazorpayWebhook = async (req, res) => {
       
       const quotation = await Quotation.findOne({ 
         razorpayPaymentLinkId: payment_link.id 
-      }).populate('lead');
+      }).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
 
       if (!quotation) {
         console.error(`Quotation not found for payment link ID: ${payment_link.id}`);
@@ -961,56 +1094,83 @@ const approveQuotation = async (quotationInstance) => {
     console.log(`Starting approval process for quotation ID: ${quotationInstance._id}.`);
     
     const lead = quotationInstance.lead;
-    if (!lead || !lead.email) {
-        throw new AppError('Critical: Lead data or email missing in quotation for approval.', 500);
+    if (!lead) {
+        throw new AppError('Critical: Lead data missing in quotation for approval.', 500);
     }
 
-    let user = await User.findOne({ email: lead.email });
+    // Ensure we have at least one contact method (phone is now primary, email is optional)
+    if (!lead.phone && !lead.email) {
+        throw new AppError('Critical: Lead contact information (phone or email) missing in quotation for approval.', 500);
+    }
+
+    let user = null;
+    if (lead.phone) {
+      user = await User.findOne({ phone: lead.phone, role: 'customer' });
+    } else if (lead.email) {
+      user = await User.findOne({ email: lead.email, role: 'customer' });
+    }
     let leadUserId; // Renamed variable for clarity to avoid confusion with req.user.id if used elsewhere
     
     if (user) {
       leadUserId = user._id;
-      console.log(`Existing user found: ${leadUserId} for email ${lead.email}`);
+      console.log(`Existing user found: ${leadUserId} for phone ${lead.phone}`);
     } else {
       const password = Math.random().toString(36).slice(-8);
       user = new User({ 
         name: `${lead.firstName} ${lead.lastName}`,
-        email: lead.email,
+        phone: lead.phone,
+        email: lead.email || undefined,
         password, 
         role: 'customer'
       });
       await user.save();
       leadUserId = user._id;
-      console.log(`New user created: ${leadUserId} for email ${lead.email}`);
-      
+      console.log(`New user created: ${leadUserId} for phone ${lead.phone}`);
       try {
-        // Send welcome notification via available channels
-        await sendWelcomeNotification(user, password);
-        console.log(`Welcome notification sent to ${user.email}`);
+        // Send welcome notification via available channels with lead's contact preferences
+        await sendWelcomeNotification(user, password, {
+          preferredContactMethod: lead.preferredContactMethod,
+          hasWhatsapp: lead.hasWhatsapp,
+          whatsappSameAsPhone: lead.whatsappSameAsPhone,
+          whatsapp: lead.whatsapp,
+          countryCode: lead.countryCode
+        });
+        console.log(`Welcome notification sent to ${user.phone}`);
       } catch (notificationError) {
-        console.error(`Failed to send welcome notification to ${user.email}:`, notificationError.message);
+        console.error(`Failed to send welcome notification to ${user.phone}:`, notificationError.message);
       }
     }
     
-    let customer = await Customer.findOne({ email: lead.email });
+    // Find existing customer by phone (primary) or email (fallback)
+    let customer = null;
+    if (lead.phone) {
+      customer = await Customer.findOne({ phone: lead.phone });
+    }
+    if (!customer && lead.email) {
+      customer = await Customer.findOne({ email: lead.email });
+    }
     
     if (!customer) {
-      console.log(`Creating new customer record for ${lead.email} with user ID: ${leadUserId}`);
+      console.log(`Creating new customer record for phone: ${lead.phone} (email: ${lead.email || 'N/A'}) with user ID: ${leadUserId}`);
       customer = new Customer({ 
         leadId: lead._id,
         user: leadUserId, // Changed to use 'user' field as per updated Customer model
         firstName: lead.firstName,
         lastName: lead.lastName,
-        email: lead.email,
-        phone: lead.phone || '',
+        email: lead.email || undefined,
+        phone: lead.phone,
+        whatsapp: lead.whatsapp || undefined,
+        whatsappSameAsPhone: lead.whatsappSameAsPhone,
+        hasWhatsapp: lead.hasWhatsapp,
+        countryCode: lead.countryCode || '+91',
         businessName: lead.businessName || '',
-        address: lead.address || '',
-        customerType: lead.customerType || 'end_user'
+        address: lead.billingAddress || lead.address || '',
+        customerType: lead.leadType || 'end_user'
       });
       await customer.save();
       console.log(`Created customer with ID: ${customer._id}`);
     } else {
-      console.log(`Existing customer found: ${customer._id} for email ${lead.email}`);
+      console.log(`Existing customer found: ${customer._id} for phone: ${lead.phone} (email: ${lead.email || 'N/A'})`);
       if (!customer.user && leadUserId) { // Check if the 'user' field needs linking
         customer.user = leadUserId; // Use 'user' field
         await customer.save();
@@ -1057,6 +1217,15 @@ const approveQuotation = async (quotationInstance) => {
       await customerPurchase.save();
       console.log(`Created CustomerPurchase with ID: ${customerPurchase._id}`);
       
+      // Update customer status since they now have an active purchase order
+      try {
+        const { updateCustomerStatus } = require('./customerPurchaseController');
+        await updateCustomerStatus(customer._id);
+      } catch (statusError) {
+        console.error('Error updating customer status:', statusError);
+        // Don't fail the main operation if status update fails
+      }
+      
       const paymentRecord = new Payment({ 
         customerPurchaseId: customerPurchase._id,
         amountPaid: advanceAmount,
@@ -1098,7 +1267,7 @@ exports.confirmOfflinePayment = async (req, res) => {
   try {
     const { amount, transactionNo, paymentMethod, paymentDate, notes } = req.body;
     
-    let quotation = await Quotation.findById(req.params.id).populate('lead');
+    let quotation = await Quotation.findById(req.params.id).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
 
     if (!quotation) {
       throw new AppError('Quotation not found', 404);
@@ -1140,8 +1309,8 @@ exports.confirmOfflinePayment = async (req, res) => {
       throw new AppError(`Advance payment (₹${paymentAmount}) must be at least ₹${minimumAdvance.toFixed(2)} (${advancePercentage}% of total amount)`, 400);
     }
 
-    if (!quotation.lead || !quotation.lead.email) {
-      throw new AppError('Lead data is incomplete. Email is required.', 400);
+    if (!quotation.lead || (!quotation.lead.email && (!quotation.lead.whatsapp || !quotation.lead.hasWhatsapp))) {
+      throw new AppError('Lead data is incomplete. At least one contact method (email or WhatsApp) is required.', 400);
     }
 
     quotation.advancePaymentStatus = 'CONFIRMED';
@@ -1581,7 +1750,7 @@ exports.manualConfirmPayment = async (req, res) => {
     console.log(`Manual payment confirmation request for quotation: ${quotationId}, paymentId: ${paymentId}`);
     
     // Find the quotation
-    const quotation = await Quotation.findById(quotationId).populate('lead');
+    const quotation = await Quotation.findById(quotationId).populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
     
     if (!quotation) {
       console.error(`Quotation not found: ${quotationId}`);

@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Edit2, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Phone, Mail, Building2, Calendar, FileText, AlertCircle, Info, ShoppingCart, Tag, Users, MapPin, IndianRupee, Clock, User } from 'lucide-react';
 import { getLeads, deleteLead } from '../../services/leadService';
+import { useAuth } from '../../context/AuthContext';
 
 const formatEnumValue = (value) => {
   if (!value) return '';
@@ -11,9 +12,17 @@ const formatEnumValue = (value) => {
     .join(' ');
 };
 
-export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
+export default function LeadsTable({ 
+  searchTerm = '', 
+  statusFilter = '', 
+  sortOrder = 'newest',
+  completionFilter = '',
+  sourceFilter = '',
+  creatorFilter = ''
+}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,6 +36,7 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
   const [selectedLeadForView, setSelectedLeadForView] = useState(null);
 
   const itemsPerPage = 10;
+  const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator';
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -44,6 +54,32 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
       setLoading(false);
     }
   }, []);
+
+  // Sort leads based on sortOrder prop
+  const sortedLeads = useMemo(() => {
+    return [...leads].sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.dateCollected || '1970-01-01');
+      const dateB = new Date(b.createdAt || b.dateCollected || '1970-01-01');
+      
+      let timeDiff;
+      if (sortOrder === 'oldest') {
+        timeDiff = dateA.getTime() - dateB.getTime(); // Ascending order (oldest first)
+      } else {
+        timeDiff = dateB.getTime() - dateA.getTime(); // Descending order (newest first)
+      }
+      
+      // If dates are the same, use ObjectId comparison as tiebreaker
+      if (timeDiff === 0) {
+        if (sortOrder === 'oldest') {
+          return (a._id || '').localeCompare(b._id || '');
+        } else {
+          return (b._id || '').localeCompare(a._id || '');
+        }
+      }
+      
+      return timeDiff;
+    });
+  }, [leads, sortOrder]);
 
   // Initial data fetch
   useEffect(() => {
@@ -65,24 +101,50 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
     }
   }, [location.state, fetchLeads]);
 
-  const filteredLeads = leads.filter(lead => {
+  const filteredLeads = sortedLeads.filter(lead => {
     const searchString = [
       lead.firstName,
       lead.lastName,
       lead.email,
       lead.phone,
       lead.businessName,
-      formatEnumValue(lead.customerType),
+      formatEnumValue(lead.leadSource),
+      formatEnumValue(lead.leadType),
       formatEnumValue(lead.status),
-      formatEnumValue(lead.leadType)
+      // Include creator name in search for sales heads
+      ...(isSalesHead && lead.createdBy ? [lead.createdBy.name] : [])
     ].join(' ').toLowerCase();
     
     const formattedStatusFilter = statusFilter.toLowerCase().replace(/\s+/g, '_');
     
+    // Search filter
     const matchesSearch = searchTerm === '' || searchString.includes(searchTerm.toLowerCase());
+    
+    // Status filter
     const matchesStatus = statusFilter === '' || lead.status === formattedStatusFilter;
+    
+    // Completion status filter
+    const matchesCompletion = completionFilter === '' || 
+      (completionFilter === 'complete' && (
+        // For enquiry-based leads, check leadCompletionStatus
+        (lead.createdFromEnquiry && lead.leadCompletionStatus === 'complete') ||
+        // For normal leads (not from enquiry), they are considered complete by default
+        (!lead.createdFromEnquiry)
+      )) ||
+      (completionFilter === 'incomplete' && lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete');
+    
+    // Source filter (enquiry vs direct)
+    const matchesSource = sourceFilter === '' ||
+      (sourceFilter === 'enquiry' && lead.createdFromEnquiry === true) ||
+      (sourceFilter === 'direct' && !lead.createdFromEnquiry);
+    
+    // Creator filter (others vs specific sales persons)
+    const matchesCreator = creatorFilter === '' ||
+      (creatorFilter === 'others' && (!lead.createdBy || lead.createdBy._id !== user?.id)) ||
+      // Check if it's a specific sales person ID
+      (lead.createdBy && lead.createdBy._id === creatorFilter);
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesCompletion && matchesSource && matchesCreator;
   });
 
   const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
@@ -225,11 +287,11 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                     <div className="flex items-center space-x-4 text-gray-600">
                       <div className="flex items-center space-x-2">
                         <Tag className="w-4 h-4" />
-                        <span className="text-sm font-medium">Lead Type: {formatEnumValue(lead.leadType)}</span>
+                        <span className="text-sm font-medium">Lead Source: {formatEnumValue(lead.leadSource)}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Building2 className="w-4 h-4" />
-                        <span className="text-sm">{formatEnumValue(lead.customerType)}</span>
+                        <span className="text-sm">Lead Type: {formatEnumValue(lead.leadType)}</span>
                       </div>
                     </div>
                   </div>
@@ -287,9 +349,30 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                     </div>
                   </div>
                   <div className="text-lg font-bold text-gray-900">
-                    {new Date(lead.dateCollected).toLocaleDateString('en-GB')}
+                    {lead.dateCollected ? new Date(lead.dateCollected).toLocaleDateString('en-GB') : 'N/A'}
                   </div>
                 </div>
+
+                {/* Created By - Show only for sales heads */}
+                {isSalesHead && lead.createdBy && (
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="bg-orange-500 p-2 rounded-lg">
+                        <Users className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900">Created By</h4>
+                        <p className="text-sm text-gray-600">Sales person</p>
+                      </div>
+                    </div>
+                    <div className="text-lg font-bold text-gray-900">
+                      {lead.createdBy.name}
+                    </div>
+                    <div className="text-sm text-gray-600 capitalize">
+                      {lead.createdBy.role?.replace('_', ' ')}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Contact Information */}
@@ -302,7 +385,7 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
                       <span className="text-sm font-medium text-gray-600">Phone</span>
-                      <span className="text-sm text-gray-900">{lead.phone}</span>
+                      <span className="text-sm text-gray-900">{lead.phone || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
                       <span className="text-sm font-medium text-gray-600">Email</span>
@@ -313,10 +396,10 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                         )}
                       </span>
                     </div>
-                    {lead.businessName && (
+                    {(lead.businessName || true) && (
                       <div className="flex justify-between items-center py-2">
                         <span className="text-sm font-medium text-gray-600">Business Name</span>
-                        <span className="text-sm text-gray-900">{lead.businessName}</span>
+                        <span className="text-sm text-gray-900">{lead.businessName || 'N/A'}</span>
                       </div>
                     )}
                   </div>
@@ -330,29 +413,38 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                      <span className="text-sm font-medium text-gray-600">Lead Type</span>
-                      <span className="text-sm text-gray-900">{formatEnumValue(lead.leadType)}</span>
+                      <span className="text-sm font-medium text-gray-600">Lead Source</span>
+                      <span className="text-sm text-gray-900">{formatEnumValue(lead.leadSource) || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                      <span className="text-sm font-medium text-gray-600">Customer Type</span>
-                      <span className="text-sm text-gray-900">{formatEnumValue(lead.customerType)}</span>
+                      <span className="text-sm font-medium text-gray-600">Lead Type</span>
+                      <span className="text-sm text-gray-900">{formatEnumValue(lead.leadType) || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
                       <span className="text-sm font-medium text-gray-600">Status</span>
                       <span className={`text-sm font-medium px-2 py-1 rounded-full ${getStatusColor(lead.status)}`}>
-                        {formatEnumValue(lead.status)}
+                        {formatEnumValue(lead.status) || 'N/A'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-2">
                       <span className="text-sm font-medium text-gray-600">Date Collected</span>
                       <span className="text-sm text-gray-900">
-                        {new Date(lead.dateCollected).toLocaleDateString('en-IN', { 
+                        {lead.dateCollected ? new Date(lead.dateCollected).toLocaleDateString('en-IN', { 
                           year: 'numeric', 
                           month: 'long', 
                           day: 'numeric' 
-                        })}
+                        }) : 'N/A'}
                       </span>
                     </div>
+                    {isSalesHead && lead.createdBy && (
+                      <div className="flex justify-between items-center py-2 border-t border-gray-200">
+                        <span className="text-sm font-medium text-gray-600">Created By</span>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-900">{lead.createdBy.name}</div>
+                          <div className="text-xs text-gray-500 capitalize">{lead.createdBy.role?.replace('_', ' ')}</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -369,10 +461,10 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                       <div key={index} className="bg-white p-4 rounded-lg border flex items-center justify-between">
                         <div className="flex-1">
                           <div className="font-medium text-gray-900">
-                            {product.name || 'Product Name'}
+                            {product.name || 'N/A'}
                           </div>
-                          {product.category && (
-                            <div className="text-sm text-gray-500">{product.category}</div>
+                          {(product.category || true) && (
+                            <div className="text-sm text-gray-500">{product.category || 'N/A'}</div>
                           )}
                         </div>
                         <div className="flex items-center space-x-4">
@@ -400,34 +492,26 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
               )}
 
               {/* Additional Information */}
-              {(lead.address || lead.description || lead.notes) && (
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <FileText className="w-5 h-5 text-gray-600" />
-                    <h4 className="text-lg font-semibold text-gray-900">Additional Information</h4>
+              <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
+                <div className="flex items-center space-x-2 mb-4">
+                  <FileText className="w-5 h-5 text-gray-600" />
+                  <h4 className="text-lg font-semibold text-gray-900">Additional Information</h4>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 block mb-1">Address</span>
+                    <p className="text-sm text-gray-900">{lead.address || 'N/A'}</p>
                   </div>
-                  <div className="space-y-3">
-                    {lead.address && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Address</span>
-                        <p className="text-sm text-gray-900">{lead.address}</p>
-                      </div>
-                    )}
-                    {lead.description && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Description</span>
-                        <p className="text-sm text-gray-900">{lead.description}</p>
-                      </div>
-                    )}
-                    {lead.notes && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Notes</span>
-                        <p className="text-sm text-gray-900">{lead.notes}</p>
-                      </div>
-                    )}
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 block mb-1">Description</span>
+                    <p className="text-sm text-gray-900">{lead.description || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 block mb-1">Notes</span>
+                    <p className="text-sm text-gray-900">{lead.notes || 'N/A'}</p>
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Action Buttons */}
               <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
@@ -548,17 +632,19 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
           </span>
         </div>
         <div>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Customer Type</p>
-          <p className="text-sm text-gray-900">{formatEnumValue(lead.customerType)}</p>
-        </div>
-      </div>
-
-      {/* Lead Type and Budget */}
-      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
-        <div>
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Lead Type</p>
           <p className="text-sm text-gray-900">{formatEnumValue(lead.leadType)}</p>
         </div>
+      </div>
+
+      {/* Lead Source and Budget */}
+      <div className={`grid ${isSalesHead ? 'grid-cols-1' : 'grid-cols-2'} gap-3 pt-3 border-t border-gray-100`}>
+        {!isSalesHead && (
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Lead Source</p>
+            <p className="text-sm text-gray-900">{formatEnumValue(lead.leadSource)}</p>
+          </div>
+        )}
         <div>
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Budget</p>
           <div className="flex items-center space-x-1 text-sm font-medium text-gray-900">
@@ -571,6 +657,22 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
           </div>
         </div>
       </div>
+
+      {/* Additional info for sales head */}
+      {isSalesHead && (
+        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Lead Source</p>
+            <p className="text-sm text-gray-900">{formatEnumValue(lead.leadSource)}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Created By</p>
+            <p className="text-sm text-gray-900 truncate" title={lead.createdBy?.name || 'Unknown'}>
+              {lead.createdBy?.name || 'Unknown'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Date */}
       <div className="pt-2 border-t border-gray-100">
@@ -622,10 +724,10 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                     { key: 'phone', label: 'Phone', width: 'w-24 lg:w-32' },
                     { key: 'email', label: 'Email', width: 'w-48', hideOn2Xl: true },
                     { key: 'business', label: 'Business', width: 'w-36', hideOnXl: true },
-                    { key: 'leadType', label: 'Lead Type', width: 'w-24 lg:w-32', hideOnXl: true },
-                    { key: 'type', label: 'Customer Type', width: 'w-32', hideOnLg: true },
+                    { key: 'leadSource', label: 'Lead Source', width: 'w-24 lg:w-32', hideOnXl: true },
                     { key: 'status', label: 'Status', width: 'w-20 lg:w-24' },
                     { key: 'budget', label: 'Budget', width: 'w-24 lg:w-32' },
+                    ...(isSalesHead ? [{ key: 'createdBy', label: 'Created By', width: 'w-28', hideOnXl: true }] : []),
                     { key: 'date', label: 'Date', width: 'w-28', hideOn2Xl: true },
                     { key: 'actions', label: 'Actions', width: 'w-24 lg:w-32' }
                   ].map((header) => (
@@ -645,7 +747,7 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentLeads.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan={10} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={isSalesHead ? 10 : 9} className="px-6 py-12 text-center text-gray-500">
                       No leads found matching your criteria.
                     </td>
                   </tr>
@@ -683,18 +785,15 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                         <div className="truncate">
                           {lead.email || (lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' 
                             ? <span className="text-gray-400 italic">To be provided by salesperson</span>
-                            : lead.email || 'N/A'
+                            : 'N/A'
                           )}
                         </div>
                       </td>
                       <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-36">
-                        <div className="truncate">{lead.businessName}</div>
+                        <div className="truncate">{lead.businessName || 'N/A'}</div>
                       </td>
                       <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
-                        <div className="truncate">{formatEnumValue(lead.leadType)}</div>
-                      </td>
-                      <td className="hidden lg:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-32">
-                        <div className="truncate">{formatEnumValue(lead.customerType)}</div>
+                        <div className="truncate">{formatEnumValue(lead.leadSource)}</div>
                       </td>
                       <td className="px-2 lg:px-4 xl:px-6 py-4 w-20 lg:w-24">
                         <span className={`inline-flex items-center px-1.5 lg:px-2 py-1 rounded-full text-xs font-medium truncate
@@ -715,6 +814,13 @@ export default function LeadsTable({ searchTerm = '', statusFilter = '' }) {
                           0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0'}
                         </div>
                       </td>
+                      {isSalesHead && (
+                        <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28">
+                          <div className="truncate" title={lead.createdBy?.name || 'Unknown'}>
+                            {lead.createdBy?.name || 'Unknown'}
+                          </div>
+                        </td>
+                      )}
                       <td className="hidden 2xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28">
                         <div className="truncate">
                           {new Date(lead.dateCollected).toLocaleDateString('en-GB')}

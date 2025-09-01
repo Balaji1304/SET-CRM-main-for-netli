@@ -21,6 +21,7 @@ import PerformancePage from './app/performance/page';
 import MaintenancePage from './app/maintenance/page';
 import KnowledgeBasePage from './app/knowledge-base/page';
 import QuotationsPage from './app/quotations/page';
+import CustomersPage from './app/customers/page';
 import AccountsApprovalsPage from './app/quotations/pending-approvals';
 import ApprovedPaymentsPage from './app/quotations/approved-payments';
 import CreateQuotationPage from './app/quotations/create/page';
@@ -119,14 +120,19 @@ function App() {
             } />
 
             {/* Front Office Executive routes */}
-            <Route path="enquiry" element={
+            <Route path="enquiries" element={
+              <ProtectedRoute allowedRoles={['front_office_executive']}>
+                <LeadAssignmentPage />
+              </ProtectedRoute>
+            } />
+            <Route path="enquiries/create" element={
               <ProtectedRoute allowedRoles={['front_office_executive']}>
                 <EnquiryPage />
               </ProtectedRoute>
             } />
-            <Route path="lead-assignment" element={
+            <Route path="enquiry/:id/edit" element={
               <ProtectedRoute allowedRoles={['front_office_executive']}>
-                <LeadAssignmentPage />
+                <EnquiryPage />
               </ProtectedRoute>
             } />
 
@@ -134,17 +140,17 @@ function App() {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="knowledge-base" element={<KnowledgeBasePage />} />
             <Route path="add-lead" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <LeadForm />
               </ProtectedRoute>
             } />
             <Route path="leads" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'front_office_executive', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'front_office_executive', 'sales_head', 'marketing_coordinator']}>
                 <Leads />
               </ProtectedRoute>
             } />
             <Route path="edit-lead/:id" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <LeadForm />
               </ProtectedRoute>
             } />
@@ -234,7 +240,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="quotations" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <QuotationsPage />
               </ProtectedRoute>
             } />
@@ -249,18 +255,23 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="quotations/create" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <CreateQuotationPage />
               </ProtectedRoute>
             } />
             <Route path="quotations/:id" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <QuotationDetailsPage />
               </ProtectedRoute>
             } />
             <Route path="quotations/:id/edit" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <EditQuotationPage />
+              </ProtectedRoute>
+            } />
+            <Route path="customers" element={
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
+                <CustomersPage />
               </ProtectedRoute>
             } />
             <Route path="packages" element={

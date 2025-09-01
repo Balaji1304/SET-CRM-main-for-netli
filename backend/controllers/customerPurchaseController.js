@@ -67,7 +67,7 @@ exports.convertLeadToCustomer = async (req, res) => {
         phone: lead.phone,
         businessName: lead.businessName,
         address: lead.address,
-        customerType: lead.customerType || 'end_user'
+        customerType: lead.leadType || 'end_user'
       });
     }
 
@@ -296,6 +296,9 @@ exports.recordPayment = async (req, res) => {
     }
     
     await purchase.save();
+
+    // Update customer status based on their purchase orders
+    await updateCustomerStatus(purchase.customerId);
 
     // If fully paid, update the quotation status
     if (purchase.isFullyPaid && purchase.quotationId) {
@@ -1077,7 +1080,107 @@ exports.allocateInstallationDate = async (req, res) => {
   }
 };
 
+// @desc    Get all customers for management
+// @route   GET /api/customers
+// @access  Private (sales_head, sales_person, marketing_coordinator)
+exports.getAllCustomers = async (req, res) => {
+  try {
+    const userRole = req.user.role;
+    let query = {};
+
+    // Role-based filtering: sales_person can only see their own customers
+    if (userRole === 'sales_person') {
+      // Find leads created by this sales person, then find customers created from those leads
+      const userLeads = await Lead.find({ createdBy: req.user.id });
+      const leadIds = userLeads.map(lead => lead._id);
+      query.leadId = { $in: leadIds };
+    }
+
+    const customers = await Customer.find(query)
+      .populate({
+        path: 'leadId',
+        select: 'leadNumber source createdBy',
+        populate: {
+          path: 'createdBy',
+          select: 'name email'
+        }
+      })
+      .populate({
+        path: 'user',
+        select: 'name email'
+      })
+      .sort({ createdAt: -1 });
+
+    // Get purchase data for each customer and update their status
+    const customersWithPurchases = await Promise.all(
+      customers.map(async (customer) => {
+        const purchases = await CustomerPurchase.find({ customerId: customer._id })
+          .populate('quotationId', 'quotationNumber total')
+          .sort({ createdAt: -1 });
+
+        const totalPurchases = purchases.length;
+        const totalValue = purchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0);
+        const fullyPaidCount = purchases.filter(purchase => purchase.isFullyPaid).length;
+        const activeCount = purchases.filter(purchase => purchase.status === 'active').length;
+
+        // Update customer status based on active purchases
+        const hasActivePurchases = purchases.some(purchase => purchase.status === 'active');
+        const newStatus = hasActivePurchases ? 'active' : 'inactive';
+        
+        // Update the customer status in database if it's different
+        if (customer.status !== newStatus) {
+          await Customer.findByIdAndUpdate(customer._id, { status: newStatus });
+          customer.status = newStatus; // Update the local object as well
+        }
+
+        return {
+          ...customer.toObject(),
+          purchaseStats: {
+            totalPurchases,
+            totalValue,
+            fullyPaidCount,
+            activeCount,
+            latestPurchase: purchases[0] || null
+          }
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      count: customersWithPurchases.length,
+      data: customersWithPurchases
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
 // Export new manual payment functions for routing
 exports.recordManualPayment = exports.recordManualPayment;
 exports.verifyManualPayment = exports.verifyManualPayment;
 exports.rejectManualPayment = exports.rejectManualPayment;
+
+// Utility function to update customer status based on purchase orders
+const updateCustomerStatus = async (customerId) => {
+  try {
+    // Find all purchase orders for this customer
+    const purchases = await CustomerPurchase.find({ customerId });
+    
+    // Check if customer has any active purchase orders
+    const hasActivePurchases = purchases.some(purchase => purchase.status === 'active');
+    
+    // Update customer status
+    const newStatus = hasActivePurchases ? 'active' : 'inactive';
+    
+    await Customer.findByIdAndUpdate(customerId, { status: newStatus });
+    
+    return newStatus;
+  } catch (error) {
+    console.error('Error updating customer status:', error);
+    throw error;
+  }
+};
+
+// Export the utility function
+exports.updateCustomerStatus = updateCustomerStatus;

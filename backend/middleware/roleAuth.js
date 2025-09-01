@@ -7,7 +7,7 @@ const rolePermissions = {
   service_engineer: ['/api/service-customers', '/api/performance', '/api/tickets', '/api/notifications', '/api/tracking', '/api/installations'],
   sales_head: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders', '/api/notifications', '/api/tracking'],
   accounts_department: ['/api/quotations', '/api/customer-purchases', '/api/notifications', '/api/tracking'],
-  marketing_coordinator: ['/api/notifications', '/api/tracking']
+  marketing_coordinator: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders', '/api/notifications', '/api/tracking']
 
 };
 

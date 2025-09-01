@@ -100,6 +100,7 @@ app.use('/api/notifications', require('./routes/notifications.js'));
 app.use('/api/invoices', require('./routes/invoices.js'));
 app.use('/api/whatsapp', require('./routes/whatsapp.js'));
 app.use('/api/whatsapp-test', require('./routes/whatsappTest.js'));
+app.use('/api/whatsapp', require('./routes/whatsappWebhook.js'));
 app.use('/api/tracking', require('./routes/orderTracking.js'));
 app.use('/api/installations', require('./routes/installations.js'));
 app.use(
@@ -125,6 +126,13 @@ app.use((err, req, res, next) => {
 
 // Initialize WebSocket
 initWebSocket(server);
+
+// Initialize WhatsApp Token Manager
+const tokenManager = require('./utils/whatsappTokenManager');
+if (process.env.WHATSAPP_ACCESS_TOKEN) {
+  tokenManager.setupAutoRefresh();
+  console.log('WhatsApp Token Manager initialized with auto-refresh');
+}
 
 // Start the Server
 const PORT = process.env.PORT || 5000;
