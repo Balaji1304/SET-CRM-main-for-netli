@@ -1061,6 +1061,16 @@ exports.allocateInstallationDate = async (req, res) => {
       console.error('Error updating tracking:', trackingError);
     }
 
+    // Send WhatsApp notification to assigned engineer if already assigned
+    if (purchase.assignedEngineerId) {
+      try {
+        const NotificationService = require('../utils/notificationService');
+        await NotificationService.createInstallationNotification('installation_scheduled', purchase, req.user);
+      } catch (notificationError) {
+        console.error('Failed to create installation scheduled notification:', notificationError);
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: purchase,

@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Bell, Check, CheckCheck, Trash2, Filter, Search, AlertCircle, Clock, User, Package, FileText, DollarSign, X, Settings, Zap, Star, Archive, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { getNotifications, getNotificationCounts, markAsRead, markAllAsRead, deleteNotification } from '../../services/notificationService';
 import { useAuth } from '../../context/AuthContext';
 
 const NotificationsPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [counts, setCounts] = useState({ total: 0, unread: 0, byType: {} });
   const [loading, setLoading] = useState(true);
@@ -114,6 +116,90 @@ const NotificationsPage = () => {
       if (window.showToast) {
         window.showToast('Failed to delete notification', 'error');
       }
+    }
+  };
+
+  const handleNotificationClick = async (notification) => {
+    try {
+      // Mark as read if not already read
+      if (!notification.read) {
+        await handleMarkAsRead([notification._id]);
+      }
+
+      // Navigate to the appropriate page based on redirect URL
+      const redirectUrl = notification.data?.redirectUrl;
+      if (redirectUrl) {
+        navigate(redirectUrl);
+      } else {
+        // Fallback: generate redirect URL based on notification type
+        const fallbackUrl = generateFallbackRedirectUrl(notification.type, notification.data);
+        if (fallbackUrl) {
+          navigate(fallbackUrl);
+        }
+      }
+    } catch (e) {
+      console.error('Error handling notification click:', e);
+      if (window.showToast) {
+        window.showToast('Failed to navigate to notification', 'error');
+      }
+    }
+  };
+
+  // Fallback function to generate redirect URLs for older notifications without redirectUrl
+  const generateFallbackRedirectUrl = (type, data = {}) => {
+    switch (type) {
+      case 'ticket_created':
+      case 'ticket_assigned':
+      case 'ticket_status_changed':
+      case 'ticket_commented':
+        return '/dashboard/ticket-queue';
+      
+      case 'purchase_order_created':
+      case 'purchase_order_updated':
+      case 'order_update':
+        return '/dashboard/orders';
+      
+      case 'quotation_created':
+      case 'quotation_updated':
+      case 'quotation_approved':
+      case 'quotation_rejected':
+      case 'quotation_expired':
+        return data.quotationId ? `/dashboard/quotations/${data.quotationId}` : '/dashboard/quotations';
+      
+      case 'payment_received':
+      case 'payment_failed':
+      case 'payment_pending':
+        return '/dashboard/payments';
+      
+      case 'lead_created':
+      case 'lead_assigned':
+      case 'lead_updated':
+      case 'lead_follow_up':
+        return '/dashboard/leads';
+      
+      case 'enquiry_created':
+      case 'enquiry_assigned':
+      case 'enquiry_converted':
+        return '/dashboard/enquiry';
+      
+      case 'engineer_assigned':
+      case 'assignment_accepted':
+      case 'installation_completed':
+      case 'installation_scheduled':
+      case 'installation_rescheduled':
+      case 'customer_approved':
+      case 'customer_rejected':
+      case 'issue_reported':
+        return '/dashboard/installations';
+      
+      case 'task_reminder':
+        return '/dashboard/performance';
+      case 'performance_alert':
+      case 'sla_breach':
+        return '/dashboard/reports';
+      
+      default:
+        return '/dashboard/notifications';
     }
   };
 
@@ -629,7 +715,10 @@ const NotificationsPage = () => {
                     <input
                       type="checkbox"
                       checked={selectedNotifications.includes(notification._id)}
-                      onChange={() => toggleSelection(notification._id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleSelection(notification._id);
+                      }}
                       className="mt-1 rounded border-gray-300"
                     />
                     
@@ -644,7 +733,10 @@ const NotificationsPage = () => {
                       </div>
                     </div>
                     
-                    <div className="flex-1 min-w-0">
+                    <div 
+                      className="flex-1 min-w-0 cursor-pointer" 
+                      onClick={() => handleNotificationClick(notification)}
+                    >
                       <div className={`flex items-center justify-between ${viewMode === 'cards' ? 'mb-2' : 'mb-1'}`}>
                         <div className="flex items-center space-x-2">
                           <h3 className={`${viewMode === 'cards' ? 'text-sm' : 'text-xs'} font-medium ${
@@ -703,7 +795,10 @@ const NotificationsPage = () => {
                         <div className="flex items-center space-x-1">
                           {!notification.read && (
                       <button
-                              onClick={() => handleMarkAsRead([notification._id])}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkAsRead([notification._id]);
+                              }}
                               className="p-1.5 text-orange-500 hover:text-orange-700 hover:bg-orange-100 rounded transition-colors"
                               title="Mark as read"
                       >
@@ -711,7 +806,10 @@ const NotificationsPage = () => {
                       </button>
                     )}
                     <button
-                            onClick={() => handleDelete(notification._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(notification._id);
+                            }}
                             className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded transition-colors"
                             title="Delete notification"
                     >

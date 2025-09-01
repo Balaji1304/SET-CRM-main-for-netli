@@ -99,6 +99,7 @@ app.use('/api/tickets', require('./routes/tickets.js'));
 app.use('/api/notifications', require('./routes/notifications.js'));
 app.use('/api/invoices', require('./routes/invoices.js'));
 app.use('/api/whatsapp', require('./routes/whatsapp.js'));
+app.use('/api/whatsapp-test', require('./routes/whatsappTest.js'));
 app.use('/api/whatsapp', require('./routes/whatsappWebhook.js'));
 app.use('/api/tracking', require('./routes/orderTracking.js'));
 app.use('/api/installations', require('./routes/installations.js'));

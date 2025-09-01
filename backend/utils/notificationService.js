@@ -1,5 +1,76 @@
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const { sendServiceEngineerWhatsApp } = require('./sendNotification');
+
+// Helper function to generate redirect URLs based on notification type and data
+const getRedirectUrl = (type, data = {}) => {
+  switch (type) {
+    // Ticket notifications
+    case 'ticket_created':
+    case 'ticket_assigned':
+    case 'ticket_status_changed':
+    case 'ticket_commented':
+      return `/dashboard/ticket-queue`;
+    
+    // Purchase order notifications
+    case 'purchase_order_created':
+    case 'purchase_order_updated':
+    case 'order_update':
+      return `/dashboard/orders`;
+    
+    // Quotation notifications
+    case 'quotation_created':
+    case 'quotation_updated':
+    case 'quotation_approved':
+    case 'quotation_rejected':
+    case 'quotation_expired':
+      return data.quotationId ? `/dashboard/quotations/${data.quotationId}` : `/dashboard/quotations`;
+    
+    // Payment notifications
+    case 'payment_received':
+    case 'payment_failed':
+    case 'payment_pending':
+      return `/dashboard/payments`;
+    
+    // Lead notifications - route depends on user role
+    case 'lead_created':
+    case 'lead_assigned':
+    case 'lead_updated':
+    case 'lead_follow_up':
+      return `/dashboard/leads`; // Changed to leads page which is accessible to sales_person, sales_head, front_office_executive
+    
+    // Enquiry notifications
+    case 'enquiry_created':
+    case 'enquiry_assigned':
+    case 'enquiry_converted':
+      return `/dashboard/enquiry`;
+    
+    // Installation notifications
+    case 'engineer_assigned':
+    case 'assignment_accepted':
+    case 'installation_completed':
+    case 'installation_scheduled':
+    case 'installation_rescheduled':
+    case 'customer_approved':
+    case 'customer_rejected':
+    case 'issue_reported':
+      return `/dashboard/installations`;
+    
+    // Task and performance notifications
+    case 'task_reminder':
+      return `/dashboard/performance`;
+    case 'performance_alert':
+    case 'sla_breach':
+      return `/dashboard/reports`;
+    
+    // System notifications
+    case 'system_announcement':
+      return `/dashboard/notifications`;
+    
+    default:
+      return `/dashboard/notifications`;
+  }
+};
 
 class NotificationService {
   // Create a new ticket notification
@@ -70,6 +141,9 @@ class NotificationService {
               ticketTitle: ticket.title,
               ticketStatus: ticket.status,
               ticketPriority: ticket.priority,
+              redirectUrl: getRedirectUrl(type, { ticketId: ticket._id }),
+              entityId: ticket._id,
+              entityType: 'ticket',
               ...additionalData
             }
           })
@@ -344,16 +418,141 @@ class NotificationService {
               purchaseID: purchase.purchaseID,
               installationStatus: purchase.installationStatus,
               engineerName: sender?.name || purchase.assignedEngineerId?.name,
-              customerId: purchase.customerId._id || purchase.customerId
+              customerId: purchase.customerId._id || purchase.customerId,
+              redirectUrl: getRedirectUrl(type, { purchaseId: purchase._id }),
+              entityId: purchase._id,
+              entityType: 'installation'
             }
           })
         )
       );
 
+      // Send WhatsApp notifications to service engineers for critical events
+      await this.sendWhatsAppToServiceEngineers(type, purchase, sender);
+
       return notifications;
     } catch (error) {
       console.error('Error creating installation notification:', error);
       throw error;
+    }
+  }
+
+  // Send WhatsApp notifications to service engineers for critical installation events
+  static async sendWhatsAppToServiceEngineers(type, purchase, sender = null) {
+    try {
+      // Only send WhatsApp for specific high-priority events
+      const whatsappEnabledEvents = [
+        'engineer_assigned',
+        'installation_scheduled', 
+        'installation_rescheduled',
+        'customer_rejected',
+        'issue_reported'
+      ];
+
+      if (!whatsappEnabledEvents.includes(type)) {
+        return; // Skip WhatsApp for this event type
+      }
+
+      let targetEngineers = [];
+      let whatsappType = '';
+      let whatsappData = {};
+
+      // Populate customer and purchase data
+      const customerData = purchase.customerId;
+      const customerName = customerData.firstName 
+        ? `${customerData.firstName} ${customerData.lastName || ''}` 
+        : customerData.name || 'Customer';
+      const customerPhone = customerData.phone || customerData.whatsapp || 'Not provided';
+      const customerAddress = customerData.address || 'Address not provided';
+      const installationDate = purchase.installationDate 
+        ? new Date(purchase.installationDate).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+          })
+        : 'Not scheduled';
+
+      switch (type) {
+        case 'engineer_assigned':
+          // Send WhatsApp to newly assigned engineer
+          if (purchase.assignedEngineerId) {
+            const engineer = await User.findById(purchase.assignedEngineerId);
+            if (engineer) {
+              targetEngineers = [engineer];
+              whatsappType = 'installation_assignment';
+              whatsappData = {
+                customerName,
+                customerPhone,
+                customerAddress,
+                installationDate,
+                orderNumber: purchase.purchaseID
+              };
+            }
+          }
+          break;
+
+        case 'installation_scheduled':
+        case 'installation_rescheduled':
+          // Send WhatsApp to assigned engineer about schedule changes
+          if (purchase.assignedEngineerId) {
+            const engineer = await User.findById(purchase.assignedEngineerId);
+            if (engineer) {
+              targetEngineers = [engineer];
+              whatsappType = 'installation_scheduled';
+              whatsappData = {
+                customerName,
+                installationDate,
+                orderNumber: purchase.purchaseID
+              };
+            }
+          }
+          break;
+
+        case 'customer_rejected':
+          // Send urgent WhatsApp to assigned engineer about customer issues
+          if (purchase.assignedEngineerId) {
+            const engineer = await User.findById(purchase.assignedEngineerId);
+            if (engineer) {
+              targetEngineers = [engineer];
+              whatsappType = 'urgent_customer_contact';
+              whatsappData = {
+                customerName,
+                customerPhone,
+                message: 'Customer has reported issues with the installation. Please contact immediately.',
+                orderNumber: purchase.purchaseID
+              };
+            }
+          }
+          break;
+
+        case 'issue_reported':
+          // Notify all service engineers about reported issues (for awareness)
+          const allEngineers = await User.find({ role: 'service_engineer' });
+          targetEngineers = allEngineers;
+          whatsappType = 'custom_message';
+          whatsappData = {
+            message: `⚠️ ISSUE ALERT\n\nInstallation issue reported for Order #${purchase.purchaseID}\nCustomer: ${customerName}\n\nPlease check dashboard for details.`
+          };
+          break;
+      }
+
+      // Send WhatsApp to target engineers
+      const whatsappPromises = targetEngineers.map(async (engineer) => {
+        try {
+          const result = await sendServiceEngineerWhatsApp(whatsappType, engineer, whatsappData);
+          console.log(`WhatsApp sent to ${engineer.name} for ${type}:`, result.success);
+          return result;
+        } catch (error) {
+          console.error(`Failed to send WhatsApp to ${engineer.name}:`, error);
+          return { success: false, error: error.message };
+        }
+      });
+
+      await Promise.all(whatsappPromises);
+
+    } catch (error) {
+      console.error('Error sending WhatsApp to service engineers:', error);
+      // Don't throw - WhatsApp failure shouldn't break notification creation
     }
   }
 
@@ -421,6 +620,9 @@ class NotificationService {
               phone: enquiry.phone,
               leadSource: enquiry.leadSource,
               assignmentStatus: enquiry.assignmentStatus,
+              redirectUrl: getRedirectUrl(type, { enquiryId: enquiry._id }),
+              entityId: enquiry._id,
+              entityType: 'enquiry',
               ...additionalData
             }
           })
@@ -496,8 +698,11 @@ class NotificationService {
               phone: lead.phone,
               email: lead.email,
               status: lead.status,
+              leadType: lead.leadType,
+              redirectUrl: getRedirectUrl(type, { leadId: lead._id }),
+              entityId: lead._id,
+              entityType: 'lead',
               leadSource: lead.leadSource, // Lead source (how they found us)
-              leadType: lead.leadType, // Lead type (customer type)
               ...additionalData
             }
           })
@@ -574,6 +779,9 @@ class NotificationService {
               status: quotation.status,
               totalAmount: quotation.total || quotation.totalAmount,
               validUntil: quotation.validUntil,
+              redirectUrl: getRedirectUrl(type, { quotationId: quotation._id }),
+              entityId: quotation._id,
+              entityType: 'quotation',
               ...additionalData
             }
           })

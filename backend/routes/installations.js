@@ -4,7 +4,7 @@ const { protect, authorize } = require('../middleware/auth');
 const {
   getMyAssignments,
   acceptAssignment,
-  updateInstallationStatus,
+  startWork,
   completeInstallation,
   uploadCompletionPhotos,
   getInstallationForSignoff,
@@ -15,7 +15,7 @@ const {
 // Service Engineer Routes
 router.get('/my-assignments', protect, authorize('service_engineer'), getMyAssignments);
 router.put('/:purchaseId/accept', protect, authorize('service_engineer'), acceptAssignment);
-router.put('/:purchaseId/status', protect, authorize('service_engineer'), updateInstallationStatus);
+router.put('/:purchaseId/start-work', protect, authorize('service_engineer'), startWork);
 router.post('/:purchaseId/complete', 
   protect, 
   authorize('service_engineer'), 

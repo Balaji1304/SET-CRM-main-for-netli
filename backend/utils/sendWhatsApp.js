@@ -381,6 +381,123 @@ const sendWelcomeWhatsApp = async (options) => {
   });
 };
 
+// Helper function to send installation assignment notification via WhatsApp
+const sendInstallationAssignmentWhatsApp = async (options) => {
+  const { 
+    to, 
+    engineerName, 
+    customerName,
+    customerPhone,
+    customerAddress,
+    installationDate,
+    orderNumber,
+    countryCode 
+  } = options;
+
+  // Use text message for immediate notification (no template approval needed)
+  const message = `🔧 *NEW INSTALLATION ASSIGNMENT*\n\n` +
+    `Hello ${engineerName},\n\n` +
+    `You have been assigned a new installation:\n\n` +
+    `📋 Order: #${orderNumber}\n` +
+    `👤 Customer: ${customerName}\n` +
+    `📞 Phone: ${customerPhone}\n` +
+    `📍 Address: ${customerAddress}\n` +
+    `📅 Date: ${installationDate}\n\n` +
+    `Please log into your dashboard to accept this assignment.\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
+// Helper function to send installation date scheduled notification
+const sendInstallationScheduledWhatsApp = async (options) => {
+  const { 
+    to, 
+    engineerName, 
+    customerName,
+    installationDate,
+    orderNumber,
+    countryCode 
+  } = options;
+
+  const message = `📅 *INSTALLATION SCHEDULED*\n\n` +
+    `Hello ${engineerName},\n\n` +
+    `Installation date confirmed:\n\n` +
+    `📋 Order: #${orderNumber}\n` +
+    `👤 Customer: ${customerName}\n` +
+    `📅 Date: ${installationDate}\n\n` +
+    `Please be prepared for this installation.\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
+// Helper function to send installation reminder
+const sendInstallationReminderWhatsApp = async (options) => {
+  const { 
+    to, 
+    engineerName, 
+    customerName,
+    customerPhone,
+    installationDate,
+    orderNumber,
+    countryCode 
+  } = options;
+
+  const message = `⏰ *INSTALLATION REMINDER*\n\n` +
+    `Hello ${engineerName},\n\n` +
+    `Reminder: You have an installation tomorrow:\n\n` +
+    `📋 Order: #${orderNumber}\n` +
+    `👤 Customer: ${customerName}\n` +
+    `📞 Phone: ${customerPhone}\n` +
+    `📅 Date: ${installationDate}\n\n` +
+    `Please confirm your availability in the dashboard.\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
+// Helper function to send urgent customer contact notification
+const sendUrgentCustomerContactWhatsApp = async (options) => {
+  const { 
+    to, 
+    engineerName, 
+    customerName,
+    customerPhone,
+    message: customerMessage,
+    orderNumber,
+    countryCode 
+  } = options;
+
+  const message = `🚨 *URGENT: CUSTOMER CONTACT*\n\n` +
+    `Hello ${engineerName},\n\n` +
+    `Customer is trying to reach you:\n\n` +
+    `📋 Order: #${orderNumber}\n` +
+    `👤 Customer: ${customerName}\n` +
+    `📞 Phone: ${customerPhone}\n` +
+    `💬 Message: ${customerMessage}\n\n` +
+    `Please contact the customer immediately.\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
 // Test WhatsApp configuration
 const testWhatsAppConfig = async () => {
   try {
@@ -431,6 +548,10 @@ module.exports = {
   sendQuotationWhatsApp,
   sendInvoiceWhatsApp,
   sendWelcomeWhatsApp,
+  sendInstallationAssignmentWhatsApp,
+  sendInstallationScheduledWhatsApp,
+  sendInstallationReminderWhatsApp,
+  sendUrgentCustomerContactWhatsApp,
   testWhatsAppConfig,
   formatPhoneNumber
 }; 

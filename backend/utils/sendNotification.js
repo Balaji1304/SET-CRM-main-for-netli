@@ -4,7 +4,11 @@ const {
   sendInvoiceWhatsApp,
   sendWelcomeWhatsApp,
   sendWhatsAppDocument,
-  sendWhatsAppText
+  sendWhatsAppText,
+  sendInstallationAssignmentWhatsApp,
+  sendInstallationScheduledWhatsApp,
+  sendInstallationReminderWhatsApp,
+  sendUrgentCustomerContactWhatsApp
 } = require('./sendWhatsApp');
 
 // Determine available contact methods for a customer using preferredContactMethod
@@ -446,6 +450,92 @@ const sendWelcomeNotification = async (user, password, leadContactPreferences = 
   });
 };
 
+// Send WhatsApp notification to service engineer
+const sendServiceEngineerWhatsApp = async (type, engineer, data) => {
+  try {
+    if (!engineer.phone && !engineer.whatsapp) {
+      throw new Error('Service engineer has no WhatsApp/phone number configured');
+    }
+
+    // Check if WhatsApp notifications are enabled for this engineer
+    if (engineer.notificationPreferences && !engineer.notificationPreferences.whatsappEnabled) {
+      console.log(`WhatsApp notifications disabled for engineer: ${engineer.name}`);
+      return { success: false, reason: 'WhatsApp notifications disabled' };
+    }
+
+    const phone = engineer.whatsapp || engineer.phone;
+    const countryCode = engineer.countryCode || '+91';
+
+    let result;
+    switch (type) {
+      case 'installation_assignment':
+        result = await sendInstallationAssignmentWhatsApp({
+          to: phone,
+          engineerName: engineer.name,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          customerAddress: data.customerAddress,
+          installationDate: data.installationDate,
+          orderNumber: data.orderNumber,
+          countryCode
+        });
+        break;
+
+      case 'installation_scheduled':
+        result = await sendInstallationScheduledWhatsApp({
+          to: phone,
+          engineerName: engineer.name,
+          customerName: data.customerName,
+          installationDate: data.installationDate,
+          orderNumber: data.orderNumber,
+          countryCode
+        });
+        break;
+
+      case 'installation_reminder':
+        result = await sendInstallationReminderWhatsApp({
+          to: phone,
+          engineerName: engineer.name,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          installationDate: data.installationDate,
+          orderNumber: data.orderNumber,
+          countryCode
+        });
+        break;
+
+      case 'urgent_customer_contact':
+        result = await sendUrgentCustomerContactWhatsApp({
+          to: phone,
+          engineerName: engineer.name,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          message: data.message,
+          orderNumber: data.orderNumber,
+          countryCode
+        });
+        break;
+
+      case 'custom_message':
+        result = await sendWhatsAppText({
+          to: phone,
+          text: data.message,
+          countryCode
+        });
+        break;
+
+      default:
+        throw new Error(`Unknown service engineer notification type: ${type}`);
+    }
+
+    console.log(`WhatsApp notification sent to engineer ${engineer.name}: ${type}`);
+    return { success: true, result };
+
+  } catch (error) {
+    console.error(`Failed to send WhatsApp to engineer ${engineer.name}:`, error.message);
+    return { success: false, error: error.message };
+  }
+
 // Smart communication workflow - uses preferredContactMethod from Lead model
 const sendSmartNotification = async (customer, type, data, options = {}) => {
   const { attachments = [], documentUrl = null, forceMethod = null } = options;
@@ -478,6 +568,7 @@ module.exports = {
   sendQuotationNotification,
   sendInvoiceNotification,
   sendWelcomeNotification,
+  getAvailableContactMethods,
+  sendServiceEngineerWhatsApp
   sendSmartNotification,
-  getAvailableContactMethods
 }; 

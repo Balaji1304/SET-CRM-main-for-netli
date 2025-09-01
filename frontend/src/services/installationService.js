@@ -26,15 +26,15 @@ export const acceptAssignment = async (purchaseId, data) => {
   }
 };
 
-export const updateInstallationStatus = async (purchaseId, statusData) => {
+export const startWork = async (purchaseId, data) => {
   try {
-    const response = await apiRequest(`installations/${purchaseId}/status`, {
+    const response = await apiRequest(`installations/${purchaseId}/start-work`, {
       method: 'PUT',
-      body: statusData
+      body: data
     });
     return response;
   } catch (error) {
-    console.error('Error updating status:', error);
+    console.error('Error starting work:', error);
     throw error;
   }
 };
@@ -97,10 +97,7 @@ export const getInstallationStatusLabel = (status) => {
   const labels = {
     'assigned': 'Assigned',
     'accepted': 'Accepted',
-    'on_route': 'On the way',
-    'on_site': 'On site',
     'in_progress': 'Work in progress',
-    'pending_signoff': 'Awaiting sign-off',
     'completed': 'Completed',
     'issues': 'Issues reported'
   };
@@ -111,10 +108,7 @@ export const getInstallationStatusColor = (status) => {
   const colors = {
     'assigned': 'bg-blue-100 text-blue-800',
     'accepted': 'bg-green-100 text-green-800',
-    'on_route': 'bg-yellow-100 text-yellow-800',
-    'on_site': 'bg-orange-100 text-orange-800',
     'in_progress': 'bg-purple-100 text-purple-800',
-    'pending_signoff': 'bg-indigo-100 text-indigo-800',
     'completed': 'bg-green-100 text-green-800',
     'issues': 'bg-red-100 text-red-800'
   };

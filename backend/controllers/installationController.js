@@ -135,63 +135,45 @@ exports.acceptAssignment = async (req, res) => {
   }
 };
 
-// @desc    Update installation status (check-in, start, progress updates)
-// @route   PUT /api/installations/:purchaseId/status
+// @desc    Start work on installation (simplified workflow)
+// @route   PUT /api/installations/:purchaseId/start-work
 // @access  Private (Service Engineer)
-exports.updateInstallationStatus = async (req, res) => {
+exports.startWork = async (req, res) => {
   try {
-    const { status, location, notes } = req.body;
-    
-    const validStatuses = ['on_route', 'on_site', 'in_progress'];
-    if (!validStatuses.includes(status)) {
-      throw new AppError('Invalid status update', 400);
-    }
+    const { notes } = req.body;
 
     const purchase = await CustomerPurchase.findOne({
       _id: req.params.purchaseId,
       assignedEngineerId: req.user._id
-    });
+    }).populate('customerId', 'firstName lastName email');
 
     if (!purchase) {
       throw new AppError('Assignment not found or not assigned to you', 404);
     }
 
-    // Status progression validation
-    const statusOrder = ['assigned', 'accepted', 'on_route', 'on_site', 'in_progress', 'pending_signoff', 'completed'];
-    const currentIndex = statusOrder.indexOf(purchase.installationStatus);
-    const newIndex = statusOrder.indexOf(status);
-    
-    if (newIndex <= currentIndex && purchase.installationStatus !== 'accepted') {
-      throw new AppError('Cannot move to an earlier or same status', 400);
+    if (purchase.installationStatus !== 'accepted') {
+      throw new AppError('Assignment must be accepted before starting work', 400);
     }
 
-    // Update timestamps based on status
-    const updateData = { installationStatus: status };
-    
-    if (status === 'on_site' && !purchase.actualArrival) {
-      updateData.actualArrival = new Date();
-    }
-    if (status === 'in_progress' && !purchase.installationStartTime) {
-      updateData.installationStartTime = new Date();
+    // Update purchase record
+    purchase.installationStatus = 'in_progress';
+    purchase.workStartedAt = new Date();
+
+    if (notes) {
+      purchase.serviceAssignmentNotes = (purchase.serviceAssignmentNotes || '') + `\n[WORK STARTED]: ${notes}`;
     }
 
-    await CustomerPurchase.findByIdAndUpdate(req.params.purchaseId, updateData);
+    await purchase.save();
 
-    // Update tracking with appropriate message
-    const statusMessages = {
-      'on_route': 'Engineer is on the way to your location',
-      'on_site': 'Engineer has arrived at the installation site',
-      'in_progress': 'Installation work has begun'
-    };
-
+    // Add tracking event
     try {
       const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
       if (tracking) {
         await tracking.addEvent({
           status: 'installation_in_progress',
-          title: `Installation ${status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}`,
-          description: statusMessages[status] + (notes ? `. Notes: ${notes}` : ''),
-          location: location || null,
+          title: 'Installation Work Started',
+          description: 'Installation work has begun' + (notes ? `. Notes: ${notes}` : ''),
+          location: null,
           isVisible: true
         }, req.user._id);
       }
@@ -199,9 +181,17 @@ exports.updateInstallationStatus = async (req, res) => {
       console.error('Error updating tracking:', trackingError);
     }
 
+    // Send notification
+    try {
+      await NotificationService.createInstallationNotification('installation_started', purchase, req.user);
+    } catch (notificationError) {
+      console.error('Failed to create work started notification:', notificationError);
+    }
+
     res.status(200).json({
       success: true,
-      message: 'Status updated successfully'
+      message: 'Work started successfully',
+      data: purchase
     });
   } catch (error) {
     errorHandler(res, error);
@@ -267,9 +257,9 @@ exports.completeInstallation = async (req, res) => {
       }
     }
 
-    // Update purchase record
-    purchase.installationStatus = 'pending_signoff';
-    purchase.installationEndTime = new Date();
+    // Update purchase record - Simplified workflow: completion form marks as completed
+    purchase.installationStatus = 'completed';
+    purchase.workCompletedAt = new Date();
     purchase.completionPhotos = photoUrls;
     
     if (notes) {
@@ -295,7 +285,7 @@ exports.completeInstallation = async (req, res) => {
         await tracking.addEvent({
           status: 'installation_completed',
           title: 'Installation Completed',
-          description: `Installation has been completed by ${req.user.name}. Awaiting customer sign-off.${notes ? ` Notes: ${notes}` : ''}`,
+          description: `Installation has been completed by ${req.user.name}.${notes ? ` Notes: ${notes}` : ''}`,
           isVisible: true
         }, req.user._id);
       }
@@ -375,8 +365,8 @@ exports.getInstallationForSignoff = async (req, res) => {
       assignedEngineerId = req.user._id;
     }
     if (String(assignedEngineerId) !== String(req.user._id)) {
-      if (purchase.installationStatus === 'pending_signoff') {
-        // Auto-reassign for on-device handover when installation is awaiting sign-off
+      if (purchase.installationStatus === 'completed') {
+        // Auto-reassign for on-device handover when installation is completed
         purchase.assignedEngineerId = req.user._id;
         await purchase.save();
       } else {
@@ -384,8 +374,8 @@ exports.getInstallationForSignoff = async (req, res) => {
       }
     }
 
-    if (purchase.installationStatus !== 'pending_signoff') {
-      throw new AppError('Installation is not ready for sign-off', 400);
+    if (!['completed'].includes(purchase.installationStatus)) {
+      throw new AppError('Installation must be completed before collecting feedback', 400);
     }
 
     // Get product details
@@ -477,8 +467,8 @@ exports.customerSignoff = async (req, res) => {
       }
     }
 
-    if (purchase.installationStatus !== 'pending_signoff') {
-      throw new AppError('Installation is not ready for sign-off', 400);
+    if (!['completed'].includes(purchase.installationStatus)) {
+      throw new AppError('Installation must be completed before collecting feedback', 400);
     }
 
     // Validate ratings
@@ -500,15 +490,12 @@ exports.customerSignoff = async (req, res) => {
       professionalismRating: professionalismRating || null
     };
 
-    if (approved) {
-      purchase.installationStatus = 'completed';
-      purchase.serviceTaskStatus = 'completed';
-      purchase.status = 'completed';
-    } else {
-      purchase.installationStatus = 'issues';
-      // Create an issue report for rejection
+    // Note: In simplified workflow, installation is already completed via completion form
+    // This sign-off is just for feedback collection, not status change
+    if (!approved) {
+      // Create an issue report for customer feedback
       purchase.issuesReported.push({
-        description: `Customer rejected installation. Feedback: ${customerFeedback || 'No feedback provided'}`,
+        description: `Customer feedback: ${customerFeedback || 'No feedback provided'}`,
         reportedBy: req.user._id,
         reportedAt: new Date(),
         resolved: false
@@ -524,28 +511,12 @@ exports.customerSignoff = async (req, res) => {
     try {
       const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
       if (tracking) {
-        if (approved) {
-          await tracking.addEvent({
-            status: 'service_activated',
-            title: 'Service Activated',
-            description: `Installation approved by customer. Service is now active.`,
-            isVisible: true
-          }, req.user._id);
-          
-          await tracking.addEvent({
-            status: 'order_completed',
-            title: 'Order Completed',
-            description: `Order has been successfully completed with customer approval.`,
-            isVisible: true
-          }, req.user._id);
-        } else {
-          await tracking.addEvent({
-            status: 'on_hold',
-            title: 'Installation Issues Reported',
-            description: `Customer reported issues with installation. Support team will follow up.`,
-            isVisible: true
-          }, req.user._id);
-        }
+        await tracking.addEvent({
+          status: 'customer_feedback_received',
+          title: 'Customer Feedback Received',
+          description: `Customer provided feedback on the installation. ${customerFeedback ? `Feedback: ${customerFeedback}` : 'No additional feedback.'}`,
+          isVisible: true
+        }, req.user._id);
       }
     } catch (trackingError) {
       console.error('Error updating tracking:', trackingError);

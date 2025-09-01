@@ -92,29 +92,21 @@ const customerPurchaseSchema = new mongoose.Schema({
     enum: ['none', 'pending_verification', 'verified', 'rejected'],
     default: 'none'
   },
-  // Installation workflow fields
+  // Installation workflow fields - Simplified for Service Engineers
   installationStatus: {
     type: String,
-    enum: ['assigned', 'accepted', 'on_route', 'on_site', 'in_progress', 'pending_signoff', 'completed', 'issues'],
+    enum: ['assigned', 'accepted', 'in_progress', 'completed', 'issues'],
     default: 'assigned'
   },
   engineerAcceptedAt: {
     type: Date,
     default: null
   },
-  estimatedArrival: {
+  workStartedAt: {
     type: Date,
     default: null
   },
-  actualArrival: {
-    type: Date,
-    default: null
-  },
-  installationStartTime: {
-    type: Date,
-    default: null
-  },
-  installationEndTime: {
+  workCompletedAt: {
     type: Date,
     default: null
   },
