@@ -70,20 +70,23 @@ class WhatsAppTokenManager {
         throw new Error('App ID and App Secret are required for token refresh');
       }
 
-      // Generate app access token
+      // Generate app access token first
       const appTokenResponse = await axios.get(
         `https://graph.facebook.com/oauth/access_token?client_id=${this.appId}&client_secret=${this.appSecret}&grant_type=client_credentials`
       );
 
       const appAccessToken = appTokenResponse.data.access_token;
+      console.log('Generated app access token');
 
       // If we have a system user, generate token for system user
       if (this.systemUserId) {
+        console.log(`Generating system user token for user: ${this.systemUserId}`);
+        
         const systemUserTokenResponse = await axios.post(
           `https://graph.facebook.com/v19.0/${this.systemUserId}/access_tokens`,
           {
             business_app: this.appId,
-            scope: 'whatsapp_business_messaging,whatsapp_business_management'
+            scope: ['whatsapp_business_messaging', 'whatsapp_business_management']
           },
           {
             headers: {
@@ -99,12 +102,46 @@ class WhatsAppTokenManager {
         // Cache the new token
         tokenCache.set('whatsapp_token', newToken);
         
+        // Update the instance variable
+        this.accessToken = newToken;
+        
         return newToken;
       }
 
-      // Fallback: Use app access token (less preferred for production)
+      // Fallback: Try to generate a long-lived token using the WABA
+      if (this.businessAccountId) {
+        console.log('Attempting to generate token via WABA');
+        
+        try {
+          const wabaTokenResponse = await axios.post(
+            `https://graph.facebook.com/v19.0/${this.businessAccountId}/access_tokens`,
+            {
+              scope: 'whatsapp_business_messaging,whatsapp_business_management'
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${appAccessToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          const newToken = wabaTokenResponse.data.access_token;
+          console.log('Successfully generated token via WABA');
+          
+          tokenCache.set('whatsapp_token', newToken);
+          this.accessToken = newToken;
+          
+          return newToken;
+        } catch (wabaError) {
+          console.log('WABA token generation failed, using app token as fallback');
+        }
+      }
+
+      // Final fallback: Use app access token (temporary solution)
       console.log('Using app access token as fallback');
       tokenCache.set('whatsapp_token', appAccessToken);
+      this.accessToken = appAccessToken;
       return appAccessToken;
 
     } catch (error) {
