@@ -109,7 +109,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="notifications" element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'accounts_department']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department']}>
                 <NotificationsPage />
               </ProtectedRoute>
             } />
@@ -145,7 +145,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="leads" element={
-              <ProtectedRoute allowedRoles={['sales_person', 'front_office_executive', 'sales_head', 'marketing_coordinator']}>
+              <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <Leads />
               </ProtectedRoute>
             } />
@@ -195,7 +195,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="ticket-queue" element={
-              <ProtectedRoute allowedRoles={['product_head']}>
+              <ProtectedRoute allowedRoles={['front_office_executive']}>
                 <TicketQueuePage />
               </ProtectedRoute>
             } />

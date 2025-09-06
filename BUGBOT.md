@@ -99,3 +99,4 @@ Focus on these high-priority issue types:
 - Validate file upload restrictions for product images
 - Review PDF generation for potential XSS risks
 - Ensure proper cleanup of temporary files
+

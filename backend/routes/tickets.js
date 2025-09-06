@@ -28,12 +28,12 @@ router.route('/:id')
   .put(protect, checkRolePermission, updateTicket)
   .delete(protect, checkRolePermission, deleteTicket);
 
-// Product Head: list all tickets
-router.get('/admin/all', protect, authorize('product_head'), getAllTickets);
+// Front Office Executive: list all tickets
+router.get('/admin/all', protect, authorize('front_office_executive'), getAllTickets);
 
-// Product Head: assign/unassign and update meta
-router.put('/admin/:id/assign', protect, authorize('product_head'), assignTicket);
-router.put('/admin/:id/meta', protect, authorize('product_head'), updateTicketMeta);
+// Front Office Executive: assign/unassign and update meta
+router.put('/admin/:id/assign', protect, authorize('front_office_executive'), assignTicket);
+router.put('/admin/:id/meta', protect, authorize('front_office_executive'), updateTicketMeta);
 
 // Service Engineer: my assigned, update status, add comment
 router.get('/engineer/my', protect, authorize('service_engineer'), getAssignedTickets);

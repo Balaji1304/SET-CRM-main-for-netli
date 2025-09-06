@@ -174,3 +174,44 @@ export const getAllCustomers = async () => {
     throw error;
   }
 };
+
+/**
+ * Download Order Form PDF for a purchase
+ * @param {string} purchaseId - Purchase ID
+ * @returns {Promise<Blob>} - PDF blob
+ */
+export const downloadOrderFormPDF = async (purchaseId) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${process.env.REACT_APP_API_URL || '/api'}/customer-purchases/${purchaseId}/order-form/pdf`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download Order Form');
+    }
+
+    return await response.blob();
+  } catch (error) {
+    console.error('Error downloading Order Form PDF:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get Order Form data for a purchase
+ * @param {string} purchaseId - Purchase ID
+ * @returns {Promise<Object>} - Order form data
+ */
+export const getOrderFormData = async (purchaseId) => {
+  try {
+    const response = await apiRequest(`customer-purchases/${purchaseId}/order-form/data`);
+    return response;
+  } catch (error) {
+    console.error('Error fetching Order Form data:', error);
+    throw error;
+  }
+};

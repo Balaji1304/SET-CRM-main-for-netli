@@ -44,15 +44,15 @@ const DashboardLayout = () => {
         <div className="md:hidden fixed top-0 left-0 right-0 bg-tertiary border-b border-fourth shadow-sm flex items-center justify-between p-4 z-30">
           <button
             onClick={toggleMobileSidebar}
-            className="p-2 hover:bg-fourth rounded-lg"
+            className="mobile-action-btn hover:bg-fourth text-secondary transition-colors"
           >
-            <Menu className="h-6 w-6 text-secondary" />
+            <Menu className="h-6 w-6" />
           </button>
           
-          <h1 className="text-lg font-semibold text-secondary">Sunlit CRM</h1>
+          <h1 className="mobile-text-lg font-semibold text-secondary">Sunlit CRM</h1>
           
           {/* Empty div to balance the layout */}
-          <div className="w-10"></div>
+          <div className="w-11"></div>
         </div>
 
         {/* Mobile Sidebar and Content Container */}
@@ -60,28 +60,31 @@ const DashboardLayout = () => {
           {/* Mobile Sidebar - Slide in from left */}
           <div 
             className={`
-              fixed top-0 left-0 h-screen w-64 bg-tertiary shadow-lg overflow-hidden z-50
+              fixed top-0 left-0 h-screen w-64 bg-tertiary shadow-lg z-50 flex flex-col
               transform transition-transform duration-300 ease-in-out
               ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
             `}
             style={{ height: '100dvh' }} 
           >
             {/* Mobile Sidebar Header with App Name and Close Button */}
-            <div className="flex items-center justify-between p-4 border-b border-fourth">
-              <h1 className="text-xl font-bold text-primary">Sunlit CRM</h1>
+            <div className="flex items-center justify-between p-4 border-b border-fourth flex-shrink-0">
+              <h1 className="mobile-text-lg font-bold text-primary">Sunlit CRM</h1>
               <button
                 onClick={toggleMobileSidebar}
-                className="p-2 hover:bg-fourth rounded-full"
+                className="mobile-action-btn hover:bg-fourth text-secondary transition-colors"
               >
-                <X className="h-6 w-6 text-secondary" />
+                <X className="h-6 w-6" />
               </button>
             </div>
             
-            <AppSidebar
-              isMobile={true}
-              onItemClick={toggleMobileSidebar}
-              onLogout={handleLogout}
-            />
+            {/* AppSidebar with flex-1 to take remaining space */}
+            <div className="flex-1 overflow-hidden">
+              <AppSidebar
+                isMobile={true}
+                onItemClick={toggleMobileSidebar}
+                onLogout={handleLogout}
+              />
+            </div>
           </div>
 
           {/* Overlay to prevent interaction with background when sidebar is open */}
@@ -99,7 +102,7 @@ const DashboardLayout = () => {
               ${isMobileSidebarOpen ? 'transform translate-x-64' : 'transform translate-x-0'}
             `}
           >
-            <div className="p-6 md:p-8 lg:p-10">
+            <div className="p-4 sm:p-6 md:p-8 lg:p-10">
               <Outlet />
             </div>
           </div>
@@ -107,7 +110,7 @@ const DashboardLayout = () => {
 
         {/* Desktop Page Content */}
         <div className="hidden md:block w-full">
-          <div className="p-6 md:p-8 lg:p-10">
+          <div className="p-4 sm:p-6 md:p-8 lg:p-10">
             <Outlet />
           </div>
         </div>

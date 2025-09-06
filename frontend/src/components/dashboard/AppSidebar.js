@@ -53,8 +53,7 @@ const mobileStyles = `
   
   /* Ensure proper mobile viewport height handling */
   .mobile-sidebar-container {
-    height: 100vh;
-    height: 100dvh; /* Dynamic viewport height for better mobile support */
+    height: 100%;
   }
   
   /* Add safe area padding for mobile devices with notches */
@@ -62,6 +61,16 @@ const mobileStyles = `
     .mobile-bottom-section {
       padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
+  }
+  
+  /* Ensure logout button is always visible */
+  .mobile-logout-button {
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+  }
+  
+  .mobile-logout-button:hover {
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+    transform: translateY(-1px);
   }
 `;
 
@@ -94,6 +103,7 @@ const getNavigation = (userRole) => {
     ],
     front_office_executive: [
       { name: 'Enquiries', href: '/dashboard/enquiries', icon: Users },
+      { name: 'Tickets Queue', href: '/dashboard/ticket-queue', icon: Ticket },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     sales_head: [
@@ -113,7 +123,6 @@ const getNavigation = (userRole) => {
       { name: 'Solar Power Plant Systems', href: '/dashboard/bundles', icon: Package },
       { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
       { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
-      { name: 'Tickets Queue', href: '/dashboard/ticket-queue', icon: Ticket },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     marketing_coordinator: [
@@ -178,28 +187,28 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
     return (
       <>
         <style>{mobileStyles}</style>
-        <div className="mobile-sidebar-container bg-white flex flex-col">
+        <div className="h-full bg-white flex flex-col">
           {/* Modern Header Section */}
-          <div className="relative overflow-hidden shrink-0">
+          <div className="relative overflow-hidden flex-shrink-0">
             {/* Background Gradient */}
-            <div className="mobile-profile-gradient p-6 pb-8">
-              <div className="flex items-center space-x-4">
+            <div className="mobile-profile-gradient p-4 pb-6">
+              <div className="flex items-center space-x-3">
                 {/* Modern Avatar */}
                 <div className="relative">
-                  <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center shadow-lg">
-                    <span className="text-2xl font-bold text-white">
+                  <div className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center shadow-lg">
+                    <span className="text-lg font-bold text-white">
                       {user?.name?.[0]?.toUpperCase() || 'U'}
                     </span>
                   </div>
-                  <div className="absolute -bottom-1 -right-1 h-5 w-5 bg-green-400 border-2 border-white rounded-full"></div>
+                  <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-green-400 border-2 border-white rounded-full"></div>
                 </div>
                 
                 {/* User Info */}
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-semibold text-white truncate">
+                  <h2 className="text-lg font-semibold text-white truncate">
                     {user?.name || 'User Name'}
                   </h2>
-                  <p className="text-orange-100 text-sm font-medium capitalize">
+                  <p className="text-orange-100 text-xs font-medium capitalize">
                     {(user?.role?.replace('_', ' ') || 'User Role').split(' ').map(word => 
                       word.charAt(0).toUpperCase() + word.slice(1)
                     ).join(' ')}
@@ -209,7 +218,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
             </div>
             
             {/* Decorative Wave */}
-            <div className="absolute bottom-0 left-0 right-0 h-4">
+            <div className="absolute bottom-0 left-0 right-0 h-3">
               <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="h-full w-full">
                 <path 
                   d="M0,60 C120,30 240,90 360,60 C480,30 600,90 720,60 C840,30 960,90 1080,60 C1140,45 1170,37.5 1200,30 L1200,120 L0,120 Z" 
@@ -220,8 +229,8 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
           </div>
           
           {/* Navigation Section - This will scroll */}
-          <div className="flex-1 px-4 py-2 overflow-y-auto min-h-0">
-            <nav className="space-y-1">
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <nav className="px-4 py-2 space-y-1">
               {navigation.flatMap(section => 
                 section.items.map((item, index) => {
                   const isActive = 
@@ -245,7 +254,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
                       }}
                       className={`
                         mobile-sidebar-item group flex items-center justify-between 
-                        rounded-xl py-3.5 px-4 mb-1
+                        rounded-xl py-3 px-3 mb-1 touch-target
                         ${isActive
                           ? 'active text-white shadow-lg' 
                           : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}
@@ -254,19 +263,19 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
                     >
                       <div className="flex items-center space-x-3">
                         <div className={`
-                          p-2 rounded-lg transition-all duration-200 relative
+                          p-1.5 rounded-lg transition-all duration-200 relative
                           ${isActive 
                             ? 'bg-white/20 text-white' 
                             : 'bg-gray-100 text-gray-600 group-hover:bg-orange-100 group-hover:text-orange-600'}
                         `}>
-                          <item.icon className="h-5 w-5" />
+                          <item.icon className="h-4 w-4" />
                           {item.name === 'Notifications' && <NotificationBadge />}
                         </div>
                         <span className="text-sm font-medium">{item.name}</span>
                       </div>
                       
                       {!isActive && (
-                        <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors duration-200" />
+                        <ChevronRight className="h-3 w-3 text-gray-400 group-hover:text-gray-600 transition-colors duration-200" />
                       )}
                     </Link>
                   );
@@ -277,39 +286,39 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
           
           {/* Bottom Section - Always Visible */}
           <div className="flex-shrink-0 bg-white border-t border-gray-100 mobile-bottom-section">
-            {/* Settings Button */}
-            <div className="px-4 pt-3 pb-1">
+            {/* Settings and Logout Buttons Container */}
+            <div className="px-4 py-3 space-y-2">
+              {/* Settings Button */}
               <Link
                 to="/dashboard/settings"
                 onClick={(e) => {
                   e.preventDefault();
                   handleItemClick({ href: '/dashboard/settings' });
                 }}
-                className="mobile-sidebar-item group flex items-center justify-between rounded-xl py-3.5 px-4 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 ease-in-out"
+                className="mobile-sidebar-item group flex items-center justify-between rounded-xl py-3 px-3 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200 ease-in-out touch-target"
               >
                 <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-gray-100 text-gray-600 group-hover:bg-orange-100 group-hover:text-orange-600 transition-all duration-200">
-                    <Settings className="h-5 w-5" />
+                  <div className="p-1.5 rounded-lg bg-gray-100 text-gray-600 group-hover:bg-orange-100 group-hover:text-orange-600 transition-all duration-200">
+                    <Settings className="h-4 w-4" />
                   </div>
                   <span className="text-sm font-medium">Settings</span>
                 </div>
-                <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-colors duration-200" />
+                <ChevronRight className="h-3 w-3 text-gray-400 group-hover:text-gray-600 transition-colors duration-200" />
               </Link>
-            </div>
-            
-            {/* Logout Button */}
-            <div className="px-4 pb-4 pt-1">
+              
+              {/* Logout Button - More Prominent */}
               <button
-                onClick={handleLogout}
-                className="mobile-sidebar-item group flex items-center justify-between w-full rounded-xl py-3.5 px-4 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 ease-in-out"
+                onClick={onLogout}
+                className="mobile-sidebar-item mobile-logout-button group flex items-center justify-between w-full rounded-xl py-3 px-3 text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 ease-in-out border border-red-200 hover:border-red-300 touch-target"
+                style={{ minHeight: '48px' }}
               >
                 <div className="flex items-center space-x-3">
                   <div className="p-2 rounded-lg bg-red-100 text-red-600 group-hover:bg-red-200 transition-all duration-200">
-                    <LogOut className="h-5 w-5" />
+                    <LogOut className="h-4 w-4" />
                   </div>
-                  <span className="text-sm font-medium">Sign Out</span>
+                  <span className="text-sm font-semibold">Sign Out</span>
                 </div>
-                <ChevronRight className="h-4 w-4 text-red-400 group-hover:text-red-600 transition-colors duration-200" />
+                <ChevronRight className="h-3 w-3 text-red-400 group-hover:text-red-600 transition-colors duration-200" />
               </button>
             </div>
           </div>
