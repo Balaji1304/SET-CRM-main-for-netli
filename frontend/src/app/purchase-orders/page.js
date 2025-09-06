@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   getAllPurchaseOrders,
+  acceptOrder,
   updateStatusToReadyToDispatch,
   allocateInstallationDate,
   getServiceEngineers,
@@ -42,7 +43,7 @@ const formatDisplayValue = (value) => {
 };
 
 // Mobile Card Component for responsive design
-const PurchaseOrderCard = ({ po, user, handleUpdateStatus, handleDateSelection, selectedDates, savingDate, handleAllocateDate, openAssignTaskModal, viewPurchaseOrder }) => (
+const PurchaseOrderCard = ({ po, user, handleAcceptOrder, handleEstimatedDispatchDateSelection, estimatedDispatchDates, acceptingOrder, handleUpdateStatus, handleDateSelection, selectedDates, savingDate, handleAllocateDate, openAssignTaskModal, viewPurchaseOrder }) => (
   <div className="rounded-lg border p-4 space-y-4 shadow-sm hover:shadow-md transition-all duration-200 bg-white border-gray-200 mb-4">
     <div className="flex items-start justify-between">
       <div className="flex-1">
@@ -62,6 +63,7 @@ const PurchaseOrderCard = ({ po, user, handleUpdateStatus, handleDateSelection, 
         <div className="flex items-center space-x-2 mt-1">
           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
             ${po.serviceTaskStatus === 'pending_assignment' ? 'bg-yellow-100 text-yellow-800'
+            : po.serviceTaskStatus === 'order_accepted' ? 'bg-purple-100 text-purple-800'
             : po.serviceTaskStatus === 'ready_to_dispatch' ? 'bg-blue-100 text-blue-800'
             : po.serviceTaskStatus === 'installation_date_allocated' ? 'bg-orange-100 text-orange-800'
             : po.serviceTaskStatus === 'assigned' ? 'bg-green-100 text-green-800'
@@ -84,8 +86,14 @@ const PurchaseOrderCard = ({ po, user, handleUpdateStatus, handleDateSelection, 
       </div>
       <div className="flex items-center space-x-2 text-sm text-gray-600">
         <CalendarIcon className="w-4 h-4" />
-        <span>{po.installationDate ? new Date(po.installationDate).toLocaleDateString() : 'Not set'}</span>
+        <span>Install: {po.installationDate ? new Date(po.installationDate).toLocaleDateString() : 'Not set'}</span>
       </div>
+      {po.estimatedDispatchDate && (
+        <div className="flex items-center space-x-2 text-sm text-gray-600">
+          <Calendar className="w-4 h-4" />
+          <span>Est. Dispatch: {new Date(po.estimatedDispatchDate).toLocaleDateString()}</span>
+        </div>
+      )}
       <div className="flex items-center space-x-2 text-sm text-gray-600">
         <Users className="w-4 h-4" />
         <span>{po.assignedEngineerId ? po.assignedEngineerId.name : 'Not assigned'}</span>
@@ -93,8 +101,60 @@ const PurchaseOrderCard = ({ po, user, handleUpdateStatus, handleDateSelection, 
     </div>
 
     <div className="pt-3 border-t border-gray-100">
-      {/* Action for Product Head: Ready to Dispatch */}
+      {/* Action for Product Head: Accept Order */}
       {po.serviceTaskStatus === 'pending_assignment' && (
+        user.role === 'product_head' ? (
+          <div className="flex flex-col space-y-2">
+            <label htmlFor={`dispatch-date-${po._id}`} className="text-sm font-semibold text-gray-700">
+              Set Estimated Dispatch Date:
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input 
+                id={`dispatch-date-${po._id}`}
+                type="date" 
+                className="px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200"
+                onChange={(e) => handleEstimatedDispatchDateSelection(po._id, e.target.value)}
+                value={estimatedDispatchDates[po._id] || ''}
+                title="Select Estimated Dispatch Date"
+                min={new Date().toISOString().split('T')[0]} // Prevent past dates
+              />
+              <button
+                onClick={() => handleAcceptOrder(po._id)}
+                disabled={!estimatedDispatchDates[po._id] || acceptingOrder === po._id}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold ${
+                  !estimatedDispatchDates[po._id]
+                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                    : 'bg-purple-600 text-white hover:opacity-90 shadow-md'
+                } transition-all duration-150`}
+              >
+                {acceptingOrder === po._id ? (
+                  <>
+                    <span className="inline-block animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></span>
+                    Accepting...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2 inline" />
+                    Accept Order
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button 
+            className="px-4 py-2 bg-gray-100 text-gray-500 rounded-xl text-sm font-semibold cursor-not-allowed w-full sm:w-auto"
+            disabled 
+            title="This action is for the Product Head"
+          >
+            <Clock className="w-4 h-4 mr-2 inline" />
+            Waiting for Production Acceptance
+          </button>
+        )
+      )}
+
+      {/* Action for Product Head: Ready to Dispatch */}
+      {po.serviceTaskStatus === 'order_accepted' && (
         <button 
           className={`px-4 py-2 rounded-xl text-sm font-semibold ${
             user.role !== 'product_head' 
@@ -210,6 +270,10 @@ export default function PurchaseOrdersPage() {
   const [selectedDates, setSelectedDates] = useState({});
   const [savingDate, setSavingDate] = useState(null);
   
+  // State for estimated dispatch dates
+  const [estimatedDispatchDates, setEstimatedDispatchDates] = useState({});
+  const [acceptingOrder, setAcceptingOrder] = useState(null);
+  
   // State for confirmation dialog
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
@@ -240,6 +304,64 @@ export default function PurchaseOrdersPage() {
       setEngineers(data);
     } catch (error) {
       toast.error('Failed to fetch engineers.');
+    }
+  };
+
+  const handleEstimatedDispatchDateSelection = (id, date) => {
+    setEstimatedDispatchDates(prev => ({
+      ...prev,
+      [id]: date
+    }));
+  };
+
+  const handleAcceptOrder = (id) => {
+    const estimatedDate = estimatedDispatchDates[id];
+    if (!estimatedDate) {
+      toast.error('Please select an estimated dispatch date first.');
+      return;
+    }
+
+    setConfirmTitle('Accept Order');
+    setConfirmMessage(`Are you sure you want to accept this order with estimated dispatch date: ${new Date(estimatedDate).toLocaleDateString()}?`);
+    setConfirmAction('acceptOrder');
+    setConfirmData({ id, estimatedDate });
+    setShowConfirmDialog(true);
+  };
+
+  const confirmAcceptOrder = async (data) => {
+    const { id, estimatedDate } = data;
+    
+    setAcceptingOrder(id);
+    try {
+      // Update the UI immediately before API call
+      setPurchaseOrders(prev =>
+        prev.map(po =>
+          po._id === id
+            ? { 
+                ...po, 
+                serviceTaskStatus: 'order_accepted',
+                estimatedDispatchDate: estimatedDate
+              }
+            : po
+        )
+      );
+      
+      // Then make the API call
+      await acceptOrder(id, estimatedDate);
+      toast.success('Order accepted successfully.');
+      
+      // Clear the selected estimated dispatch date for this ID
+      setEstimatedDispatchDates(prev => {
+        const newDates = { ...prev };
+        delete newDates[id];
+        return newDates;
+      });
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to accept order.');
+      // Refresh data in case of error to ensure UI is in sync
+      fetchPurchaseOrders();
+    } finally {
+      setAcceptingOrder(null);
     }
   };
 
@@ -494,6 +616,7 @@ export default function PurchaseOrdersPage() {
                 >
                   <option value="">All Statuses</option>
                   <option value="pending_assignment">Pending Assignment</option>
+                  <option value="order_accepted">Order Accepted</option>
                   <option value="ready_to_dispatch">Ready to Dispatch</option>
                   <option value="installation_date_allocated">Installation Date Allocated</option>
                   <option value="assigned">Assigned</option>
@@ -553,6 +676,7 @@ export default function PurchaseOrdersPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
                           ${po.serviceTaskStatus === 'pending_assignment' ? 'bg-yellow-100 text-yellow-800'
+                          : po.serviceTaskStatus === 'order_accepted' ? 'bg-purple-100 text-purple-800'
                           : po.serviceTaskStatus === 'ready_to_dispatch' ? 'bg-blue-100 text-blue-800'
                           : po.serviceTaskStatus === 'installation_date_allocated' ? 'bg-orange-100 text-orange-800'
                           : po.serviceTaskStatus === 'assigned' ? 'bg-green-100 text-green-800'
@@ -575,8 +699,50 @@ export default function PurchaseOrdersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
-                          {/* Action for Product Head: Ready to Dispatch */}
+                          {/* Action for Product Head: Accept Order */}
                           {po.serviceTaskStatus === 'pending_assignment' && (
+                            user.role === 'product_head' ? (
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="date" 
+                                  className="px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
+                                  onChange={(e) => handleEstimatedDispatchDateSelection(po._id, e.target.value)}
+                                  value={estimatedDispatchDates[po._id] || ''}
+                                  title="Select Estimated Dispatch Date"
+                                  min={new Date().toISOString().split('T')[0]} // Prevent past dates
+                                />
+                                <button
+                                  onClick={() => handleAcceptOrder(po._id)}
+                                  disabled={!estimatedDispatchDates[po._id] || acceptingOrder === po._id}
+                                  className={`px-3 py-1.5 rounded-md text-xs font-medium ${
+                                    !estimatedDispatchDates[po._id]
+                                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                                      : 'bg-purple-600 text-white hover:bg-purple-700'
+                                  } transition-all duration-150 whitespace-nowrap`}
+                                >
+                                  {acceptingOrder === po._id ? (
+                                    <>
+                                      <span className="inline-block animate-spin h-3 w-3 mr-1 border-2 border-white border-t-transparent rounded-full"></span>
+                                      Accepting...
+                                    </>
+                                  ) : (
+                                    'Accept Order'
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
+                              <button 
+                                className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md text-xs font-medium cursor-not-allowed"
+                                disabled 
+                                title="Waiting for Product Head to accept order"
+                              >
+                                Accept Order
+                              </button>
+                            )
+                          )}
+
+                          {/* Action for Product Head: Ready to Dispatch */}
+                          {po.serviceTaskStatus === 'order_accepted' && (
                             <button 
                               className={`px-3 py-1.5 rounded-md text-xs font-medium ${
                                 user.role !== 'product_head' 
@@ -715,6 +881,10 @@ export default function PurchaseOrdersPage() {
                 key={po._id}
                 po={po}
                 user={user}
+                handleAcceptOrder={handleAcceptOrder}
+                handleEstimatedDispatchDateSelection={handleEstimatedDispatchDateSelection}
+                estimatedDispatchDates={estimatedDispatchDates}
+                acceptingOrder={acceptingOrder}
                 handleUpdateStatus={handleUpdateStatus}
                 handleDateSelection={handleDateSelection}
                 selectedDates={selectedDates}
@@ -794,6 +964,11 @@ export default function PurchaseOrdersPage() {
     
     // Process the action based on the type
     switch (confirmAction) {
+      case 'acceptOrder':
+        // Handle order acceptance confirmation
+        confirmAcceptOrder(confirmData);
+        break;
+        
       case 'readyToDispatch':
         // Let confirmUpdateStatus handle the state update
         confirmUpdateStatus(confirmData);

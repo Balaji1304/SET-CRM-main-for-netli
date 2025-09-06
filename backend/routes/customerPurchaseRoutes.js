@@ -16,6 +16,7 @@ const {
   getProductHeadTasks,
   getApprovedPurchases,
   getPurchaseOrdersForManagement,
+  acceptOrder,
   updateStatusToReadyToDispatch,
   allocateInstallationDate,
   recordManualPayment,
@@ -88,6 +89,13 @@ router.put(
   '/tasks/:purchaseId/assign',
   protect,
   assignTaskToEngineer
+);
+
+router.put(
+  '/:purchaseId/accept-order',
+  protect,
+  authorize('product_head'),
+  acceptOrder
 );
 
 router.put(

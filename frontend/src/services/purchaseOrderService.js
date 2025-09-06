@@ -18,6 +18,18 @@ export const getPurchaseOrderDetails = async (id) => {
   }
 };
 
+export const acceptOrder = async (id, estimatedDispatchDate) => {
+  try {
+    const res = await apiRequest(`customer-purchases/${id}/accept-order`, {
+      method: 'PUT',
+      body: { estimatedDispatchDate },
+    });
+    return res.data;
+  } catch (err) {
+    throw err;
+  }
+};
+
 export const updateStatusToReadyToDispatch = async (id) => {
   try {
     const res = await apiRequest(`customer-purchases/${id}/ready-to-dispatch`, { method: 'PUT' });

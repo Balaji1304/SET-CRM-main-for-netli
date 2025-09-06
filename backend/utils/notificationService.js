@@ -200,6 +200,17 @@ class NotificationService {
           title = 'Purchase Order Updated';
           message = `Purchase order #${purchaseOrder.orderNumber || purchaseOrder._id} has been updated`;
           break;
+
+        case 'order_accepted':
+          // Notify marketing coordinators and relevant stakeholders
+          const acceptanceStakeholders = await User.find({ 
+            role: { $in: ['marketing_coordinator', 'sales_head'] }
+          });
+          recipients = acceptanceStakeholders.filter(user => user._id).map(user => user._id);
+          title = 'Order Accepted by Production';
+          message = `Order #${purchaseOrder.purchaseID} has been accepted by production and is scheduled for dispatch`;
+          priority = 'high';
+          break;
       }
 
       // Filter out null/undefined recipients

@@ -1,3 +1,4 @@
+
 const Customer = require('../models/Customer');
 const Lead = require('../models/Lead');
 const Quotation = require('../models/Quotation');
@@ -581,7 +582,8 @@ exports.getPurchaseOrdersForManagement = async (req, res) => {
   try {
     // These are the statuses relevant for the PO Management page
     const relevantStatuses = [
-      'pending_assignment', 
+      'pending_assignment',
+      'order_accepted', 
       'ready_to_dispatch', 
       'installation_date_allocated', 
       'assigned'
@@ -913,7 +915,8 @@ exports.getPurchaseOrdersForManagement = async (req, res) => {
   try {
     // These are the statuses relevant for the PO Management page
     const relevantStatuses = [
-      'pending_assignment', 
+      'pending_assignment',
+      'order_accepted', 
       'ready_to_dispatch', 
       'installation_date_allocated', 
       'assigned'
@@ -967,6 +970,82 @@ exports.getApprovedPurchases = async (req, res) => {
   }
 };
 
+// @desc    Accept order and set estimated dispatch date
+// @route   PUT /api/customer-purchases/:purchaseId/accept-order
+// @access  Private (Product Head)
+exports.acceptOrder = async (req, res) => {
+  try {
+    const { estimatedDispatchDate } = req.body;
+    const purchase = await CustomerPurchase.findById(req.params.purchaseId).populate('customerId', 'firstName lastName');
+
+    if (!purchase) {
+      throw new AppError('Purchase not found', 404);
+    }
+
+    // Validate estimated dispatch date
+    if (!estimatedDispatchDate) {
+      throw new AppError('Estimated dispatch date is required', 400);
+    }
+
+    const dispatchDate = new Date(estimatedDispatchDate);
+    if (dispatchDate < new Date()) {
+      throw new AppError('Estimated dispatch date cannot be in the past', 400);
+    }
+
+    // Idempotent: if already accepted, return OK
+    if (purchase.serviceTaskStatus === 'order_accepted') {
+      return res.status(200).json({ success: true, message: 'Order already accepted', data: purchase });
+    }
+
+    // Order can only be accepted from pending_assignment status
+    if (purchase.serviceTaskStatus !== 'pending_assignment') {
+      throw new AppError(`Order must be in 'pending_assignment' status to accept. Current status: ${purchase.serviceTaskStatus}`, 400);
+    }
+
+    purchase.serviceTaskStatus = 'order_accepted';
+    purchase.estimatedDispatchDate = dispatchDate;
+    purchase.updatedAt = new Date();
+    await purchase.save();
+
+    // Update tracking
+    try {
+      const OrderTracking = require('../models/OrderTracking');
+      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
+      if (tracking) {
+        const alreadyLogged = Array.isArray(tracking.events) && tracking.events.some(e => e.status === 'order_approved');
+        if (!alreadyLogged) {
+          await tracking.addEvent({
+            status: 'order_approved',
+            title: 'Order Accepted by Production',
+            description: `Your order has been accepted by production. Estimated dispatch date: ${dispatchDate.toLocaleDateString()}.`,
+            isVisible: true,
+            estimatedDate: dispatchDate
+          }, req.user.id);
+          await tracking.save();
+        }
+      }
+    } catch (trackingError) {
+      console.error('Error updating tracking:', trackingError);
+    }
+
+    // Send notification
+    try {
+      const NotificationService = require('../utils/notificationService');
+      await NotificationService.createPurchaseOrderNotification('order_accepted', purchase, req.user);
+    } catch (notificationError) {
+      console.error('Error sending notification:', notificationError);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Order accepted successfully',
+      data: purchase,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
 // @desc    Update purchase status to 'Ready to Dispatch'
 // @route   PUT /api/customer-purchases/:purchaseId/ready-to-dispatch
 // @access  Private (Product Head)
@@ -983,16 +1062,18 @@ exports.updateStatusToReadyToDispatch = async (req, res) => {
       return res.status(200).json({ success: true, message: 'Already ready_to_dispatch', data: purchase });
     }
 
-    // This is the first step for the Product Head in the new workflow.
-    if (purchase.serviceTaskStatus !== 'pending_assignment') {
-      throw new AppError(`Purchase status must be 'pending_assignment' to dispatch. Current status: ${purchase.serviceTaskStatus}`, 400);
+    // Updated: Order must be accepted before marking as ready to dispatch
+    if (purchase.serviceTaskStatus !== 'order_accepted') {
+      throw new AppError(`Purchase status must be 'order_accepted' to mark as ready to dispatch. Current status: ${purchase.serviceTaskStatus}`, 400);
     }
 
     purchase.serviceTaskStatus = 'ready_to_dispatch';
+    purchase.updatedAt = new Date();
     await purchase.save();
 
     // Update tracking
     try {
+      const OrderTracking = require('../models/OrderTracking');
       const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
       if (tracking) {
         const alreadyLogged = Array.isArray(tracking.events) && tracking.events.some(e => e.status === 'ready_to_dispatch');
@@ -1003,6 +1084,7 @@ exports.updateStatusToReadyToDispatch = async (req, res) => {
             description: 'Your order has been processed and is ready for dispatch.',
             isVisible: true
           }, req.user.id);
+          await tracking.save();
         }
       }
     } catch (trackingError) {

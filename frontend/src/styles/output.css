@@ -972,6 +972,9 @@ video {
 .w-10 {
   width: 2.5rem;
 }
+.w-11 {
+  width: 2.75rem;
+}
 .w-12 {
   width: 3rem;
 }
@@ -1022,6 +1025,9 @@ video {
 }
 .w-5 {
   width: 1.25rem;
+}
+.w-52 {
+  width: 13rem;
 }
 .w-6 {
   width: 1.5rem;
@@ -1164,8 +1170,8 @@ video {
 .max-w-7xl {
   max-width: 80rem;
 }
-.max-w-\[60\%\] {
-  max-width: 60%;
+.max-w-\[55\%\] {
+  max-width: 55%;
 }
 .max-w-full {
   max-width: 100%;
@@ -1292,6 +1298,9 @@ video {
 }
 .items-stretch {
   align-items: stretch;
+}
+.justify-start {
+  justify-content: flex-start;
 }
 .justify-end {
   justify-content: flex-end;
@@ -2211,10 +2220,6 @@ video {
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
 }
-.py-3\.5 {
-  padding-top: 0.875rem;
-  padding-bottom: 0.875rem;
-}
 .py-4 {
   padding-top: 1rem;
   padding-bottom: 1rem;
@@ -2677,6 +2682,13 @@ video {
   --tw-shadow-colored: 0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
+.outline-none {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.outline {
+  outline-style: solid;
+}
 .ring-2 {
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
@@ -2815,7 +2827,49 @@ video {
   
   /* Ensure buttons and inputs are large enough for touch */
   button, input, select, textarea {
-    min-height: 44px;
+    min-height: 48px !important;
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+  
+  /* Enhanced button styles for mobile */
+  .mobile-btn {
+    min-height: 48px !important;
+    min-width: 48px !important;
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+  }
+  
+  .mobile-btn-sm {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 10px 14px !important;
+    font-size: 13px !important;
+  }
+  
+  .mobile-btn-lg {
+    min-height: 52px !important;
+    padding: 16px 20px !important;
+    font-size: 16px !important;
+  }
+  
+  /* Mobile form styling */
+  .mobile-input {
+    min-height: 48px !important;
+    padding: 12px 16px !important;
+    font-size: 16px !important;
+    border-radius: 8px !important;
+    border: 2px solid #e5e7eb !important;
+  }
+  
+  .mobile-input:focus {
+    border-color: #f97316 !important;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
   }
   
   /* Better spacing for mobile forms */
@@ -2826,10 +2880,64 @@ video {
   /* Mobile-friendly table alternatives */
   .mobile-card {
     background: white;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #f3f4f6;
+  }
+  
+  .mobile-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+  }
+  
+  /* Mobile action buttons */
+  .mobile-action-btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Mobile text sizes */
+  .mobile-text-xs { font-size: 12px !important; }
+  .mobile-text-sm { font-size: 14px !important; }
+  .mobile-text-base { font-size: 16px !important; }
+  .mobile-text-lg { font-size: 18px !important; }
+  
+  /* Mobile spacing utilities */
+  .mobile-space-y-2 > * + * { margin-top: 8px !important; }
+  .mobile-space-y-3 > * + * { margin-top: 12px !important; }
+  .mobile-space-y-4 > * + * { margin-top: 16px !important; }
+  
+  .mobile-space-x-2 > * + * { margin-left: 8px !important; }
+  .mobile-space-x-3 > * + * { margin-left: 12px !important; }
+  .mobile-space-x-4 > * + * { margin-left: 16px !important; }
+  
+  /* Text truncation utilities */
+  .line-clamp-1 {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 1 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+  
+  .line-clamp-2 {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 3 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
   }
 }
 
@@ -3289,11 +3397,6 @@ video {
   color: rgb(234 88 12 / var(--tw-text-opacity, 1));
 }
 
-.hover\:text-orange-700:hover {
-  --tw-text-opacity: 1;
-  color: rgb(194 65 12 / var(--tw-text-opacity, 1));
-}
-
 .hover\:text-orange-800:hover {
   --tw-text-opacity: 1;
   color: rgb(154 52 18 / var(--tw-text-opacity, 1));
@@ -3509,6 +3612,31 @@ video {
 
 .focus-visible\:ring-offset-2:focus-visible {
   --tw-ring-offset-width: 2px;
+}
+
+.active\:bg-gray-100:active {
+  --tw-bg-opacity: 1;
+  background-color: rgb(243 244 246 / var(--tw-bg-opacity, 1));
+}
+
+.active\:bg-gray-200:active {
+  --tw-bg-opacity: 1;
+  background-color: rgb(229 231 235 / var(--tw-bg-opacity, 1));
+}
+
+.active\:bg-gray-300:active {
+  --tw-bg-opacity: 1;
+  background-color: rgb(209 213 219 / var(--tw-bg-opacity, 1));
+}
+
+.active\:bg-orange-700:active {
+  --tw-bg-opacity: 1;
+  background-color: rgb(194 65 12 / var(--tw-bg-opacity, 1));
+}
+
+.active\:bg-red-700:active {
+  --tw-bg-opacity: 1;
+  background-color: rgb(185 28 28 / var(--tw-bg-opacity, 1));
 }
 
 .disabled\:pointer-events-none:disabled {
@@ -4393,6 +4521,10 @@ video {
 
   .xl\:items-center {
     align-items: center;
+  }
+
+  .xl\:justify-between {
+    justify-content: space-between;
   }
 
   .xl\:gap-3 {
