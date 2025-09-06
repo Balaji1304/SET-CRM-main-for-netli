@@ -13,7 +13,7 @@ const NotificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-        enum: [
+    enum: [
       'ticket_created',
       'ticket_assigned',
       'ticket_status_changed',
@@ -41,6 +41,7 @@ const NotificationSchema = new mongoose.Schema({
       'installation_completed',
       'installation_scheduled',
       'installation_rescheduled',
+      'installation_started',
       'customer_approved',
       'customer_rejected',
       'issue_reported',

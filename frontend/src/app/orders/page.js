@@ -8,6 +8,8 @@ import {
   CheckCircle, 
   AlertCircle,
   Search,
+  FileText,
+  Download,
   Filter,
   Eye,
   Calendar,
@@ -17,6 +19,7 @@ import {
 import { getMyOrderTracking } from '../../services/trackingService';
 import { STATUS_LABELS, PHASE_LABELS, STATUS_COLORS, PHASE_COLORS } from '../../services/trackingService';
 import { formatNumber } from '../../utils/formatNumber';
+import { getMyPurchases, downloadOrderFormPDF } from '../../services/customerService';
 
 const OrderTrackingCard = ({ tracking, onViewDetails }) => {
   const formatDate = (date) => {
@@ -201,6 +204,31 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
             className="flex-1 bg-blue-50 text-blue-600 py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
           >
             View Details
+          </button>
+          
+          {/* Order Form Button */}
+          <button
+            onClick={async () => {
+              try {
+                const pdfBlob = await downloadOrderFormPDF(tracking.purchaseId._id);
+                const url = window.URL.createObjectURL(pdfBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `Order_Form_${tracking.purchaseId.purchaseID || tracking.purchaseId._id}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+              } catch (error) {
+                console.error('Error downloading Order Form:', error);
+                alert('Failed to download Order Form. Please try again.');
+              }
+            }}
+            className="flex-1 bg-green-50 text-green-600 py-2 px-4 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
+            title="Download Order Form PDF"
+          >
+            <FileText className="w-4 h-4" />
+            Order Form
           </button>
           
           {/* Additional actions based on status */}

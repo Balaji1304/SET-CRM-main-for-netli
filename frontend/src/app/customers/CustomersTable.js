@@ -881,10 +881,10 @@ export default function CustomersTable({
                           <div className="flex items-center justify-center space-x-1 lg:space-x-2">
                             <button
                               onClick={() => handleViewCustomer(customer)}
-                              className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
+                              className="mobile-action-btn text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out border border-transparent hover:border-orange-200"
                               title="View Details"
                             >
-                              <Eye className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                              <Eye className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
@@ -919,23 +919,23 @@ export default function CustomersTable({
           <div className="text-sm text-gray-600 order-2 sm:order-1">
             Showing {Math.min(startIndex + 1, filteredCustomers.length)} to {Math.min(endIndex, filteredCustomers.length)} of {filteredCustomers.length} results
           </div>
-          <div className="flex items-center space-x-2 order-1 sm:order-2">
+          <div className="flex items-center gap-2 order-1 sm:order-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+              className="mobile-action-btn border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
-            <span className="text-sm text-gray-600 px-2"> 
+            <span className="mobile-text-sm text-gray-600 px-3 py-2 min-w-[80px] text-center"> 
               {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+              className="mobile-action-btn border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         </div>

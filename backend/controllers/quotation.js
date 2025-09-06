@@ -18,6 +18,8 @@ const Customer = require('../models/Customer');
 const CustomerPurchase = require('../models/CustomerPurchase');
 const mongoose = require('mongoose');
 const Payment = require('../models/Payment');
+const { generateOrderFormPDF } = require('../utils/generateOrderForm');
+const { sendOrderFormNotification } = require('../utils/sendNotification');
 const NotificationService = require('../utils/notificationService');
 
 // Register handlebars helpers
@@ -1252,6 +1254,48 @@ const approveQuotation = async (quotationInstance) => {
     } catch (notificationError) {
       console.error('Failed to create quotation approval notification:', notificationError);
       // Don't fail the main operation if notification fails
+    }
+
+    // Generate and send Order Form after successful approval and customer purchase creation
+    try {
+      if (customerPurchase && customerPurchase._id) {
+        console.log(`Generating Order Form for purchase ${customerPurchase._id}`);
+        
+        // Generate Order Form PDF
+        const orderFormPDF = await generateOrderFormPDF(customerPurchase._id);
+        
+        // Send Order Form via both email and WhatsApp using the same system as quotations
+        try {
+          const notificationResult = await sendOrderFormNotification(customerPurchase._id, orderFormPDF);
+          console.log('Order Form notification results:', notificationResult);
+          
+          // Log success/failure for each channel
+          if (notificationResult.email.attempted) {
+            if (notificationResult.email.success) {
+              console.log(`✅ Order Form sent successfully via email`);
+            } else {
+              console.log(`❌ Order Form email failed: ${notificationResult.email.error}`);
+            }
+          }
+          
+          if (notificationResult.whatsapp.attempted) {
+            if (notificationResult.whatsapp.success) {
+              console.log(`✅ Order Form notification sent successfully via WhatsApp`);
+            } else {
+              console.log(`❌ Order Form WhatsApp failed: ${notificationResult.whatsapp.error}`);
+            }
+          }
+          
+        } catch (notificationError) {
+          console.error('Failed to send Order Form notifications:', notificationError);
+          // Don't fail the main operation if notification fails
+        }
+        
+        console.log(`Order Form generated and notifications sent for purchase ${customerPurchase._id}`);
+      }
+    } catch (orderFormError) {
+      console.error('Failed to generate/send Order Form:', orderFormError);
+      // Don't fail the main operation if Order Form generation fails
     }
 
     return quotationInstance; 

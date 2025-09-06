@@ -1037,10 +1037,10 @@ export default function LeadAssignmentPage() {
                                     {enquiry.assignmentStatus === 'pending_assignment' && (
                                       <button
                                         onClick={() => handleOpenAssignModal(enquiry)}
-                                        className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-green-200"
+                                        className="mobile-action-btn text-gray-500 hover:text-green-600 hover:bg-green-50 transition-all duration-200 ease-in-out border border-transparent hover:border-green-200"
                                         title="Assign to Salesperson"
                                       >
-                                        <UserPlus className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                        <UserPlus className="h-4 w-4" />
                                       </button>
                                     )}
                                   </div>

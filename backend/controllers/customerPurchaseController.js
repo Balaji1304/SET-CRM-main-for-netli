@@ -9,6 +9,7 @@ const { AppError, errorHandler } = require('../utils/errorHandler');
 const User = require('../models/User');
 const Package = require('../models/Package');
 const OrderTracking = require('../models/OrderTracking');
+const { generateOrderFormPDF, getOrderFormData } = require('../utils/generateOrderForm');
 
 // Convert lead to customer when quotation is approved
 exports.convertLeadToCustomer = async (req, res) => {
@@ -1184,3 +1185,71 @@ const updateCustomerStatus = async (customerId) => {
 
 // Export the utility function
 exports.updateCustomerStatus = updateCustomerStatus;
+
+// @desc    Generate Order Form PDF
+// @route   GET /api/customer-purchases/:id/order-form/pdf
+// @access  Private (Customer or Internal)
+exports.generateOrderFormPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verify access permissions
+    const purchase = await CustomerPurchase.findById(id).populate('customerId');
+    if (!purchase) {
+      throw new AppError('Purchase not found', 404);
+    }
+
+    // Check if user has access to this purchase
+    if (req.user.role === 'customer') {
+      const customer = await Customer.findOne({ user: req.user._id });
+      if (!customer || customer._id.toString() !== purchase.customerId._id.toString()) {
+        throw new AppError('Access denied', 403);
+      }
+    }
+
+    const pdfBuffer = await generateOrderFormPDF(id);
+    
+    // Set response headers for PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Order_Form_${purchase.purchaseID}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error generating Order Form PDF:', error);
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Get Order Form data
+// @route   GET /api/customer-purchases/:id/order-form/data
+// @access  Private (Customer or Internal)
+exports.getOrderFormData = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verify access permissions
+    const purchase = await CustomerPurchase.findById(id).populate('customerId');
+    if (!purchase) {
+      throw new AppError('Purchase not found', 404);
+    }
+
+    // Check if user has access to this purchase
+    if (req.user.role === 'customer') {
+      const customer = await Customer.findOne({ user: req.user._id });
+      if (!customer || customer._id.toString() !== purchase.customerId._id.toString()) {
+        throw new AppError('Access denied', 403);
+      }
+    }
+
+    const orderFormData = await getOrderFormData(id);
+    
+    res.json({
+      success: true,
+      data: orderFormData
+    });
+  } catch (error) {
+    console.error('Error getting Order Form data:', error);
+    errorHandler(res, error);
+  }
+};

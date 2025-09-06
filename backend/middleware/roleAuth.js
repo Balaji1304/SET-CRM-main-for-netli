@@ -1,9 +1,9 @@
 const rolePermissions = {
 
-  customer: ['/api/tickets', '/api/payments', '/api/quotations/customer-products', '/api/notifications', '/api/tracking', '/api/installations'],
+  customer: ['/api/tickets', '/api/payments', '/api/quotations/customer-products', '/api/notifications', '/api/tracking', '/api/installations', '/api/customer-purchases'],
   sales_person: ['/api/leads', '/api/quotations', '/api/invoices', '/api/notifications', '/api/tracking'],
-  front_office_executive: ['/api/enquiries', '/api/leads', '/api/notifications', '/api/tracking'],
-  product_head: ['/api/maintenance', '/api/notifications', '/api/bundles', '/api/tickets', '/api/tracking'],
+  front_office_executive: ['/api/enquiries', '/api/notifications', '/api/tracking', '/api/tickets', '/api/customer-purchases/tasks'],
+  product_head: ['/api/maintenance', '/api/notifications', '/api/bundles', '/api/tracking'],
   service_engineer: ['/api/service-customers', '/api/performance', '/api/tickets', '/api/notifications', '/api/tracking', '/api/installations'],
   sales_head: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders', '/api/notifications', '/api/tracking'],
   accounts_department: ['/api/quotations', '/api/customer-purchases', '/api/notifications', '/api/tracking'],

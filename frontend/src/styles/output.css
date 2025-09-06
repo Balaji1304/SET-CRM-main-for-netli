@@ -552,6 +552,9 @@ video {
 .pointer-events-none {
   pointer-events: none;
 }
+.visible {
+  visibility: visible;
+}
 .fixed {
   position: fixed;
 }
@@ -634,6 +637,9 @@ video {
 .top-12 {
   top: 3rem;
 }
+.top-16 {
+  top: 4rem;
+}
 .top-2 {
   top: 0.5rem;
 }
@@ -648,6 +654,9 @@ video {
 }
 .top-4 {
   top: 1rem;
+}
+.top-full {
+  top: 100%;
 }
 .z-10 {
   z-index: 10;
@@ -704,6 +713,9 @@ video {
 }
 .-ml-1 {
   margin-left: -0.25rem;
+}
+.-ml-2 {
+  margin-left: -0.5rem;
 }
 .mb-1 {
   margin-bottom: 0.25rem;
@@ -1151,6 +1163,9 @@ video {
 }
 .max-w-7xl {
   max-width: 80rem;
+}
+.max-w-\[60\%\] {
+  max-width: 60%;
 }
 .max-w-full {
   max-width: 100%;
@@ -1738,9 +1753,6 @@ video {
 .bg-black\/30 {
   background-color: rgb(0 0 0 / 0.3);
 }
-.bg-black\/50 {
-  background-color: rgb(0 0 0 / 0.5);
-}
 .bg-black\/60 {
   background-color: rgb(0 0 0 / 0.6);
 }
@@ -2219,9 +2231,6 @@ video {
   padding-top: 2rem;
   padding-bottom: 2rem;
 }
-.pb-1 {
-  padding-bottom: 0.25rem;
-}
 .pb-2 {
   padding-bottom: 0.5rem;
 }
@@ -2497,6 +2506,10 @@ video {
 .text-green-800 {
   --tw-text-opacity: 1;
   color: rgb(22 101 52 / var(--tw-text-opacity, 1));
+}
+.text-indigo-600 {
+  --tw-text-opacity: 1;
+  color: rgb(79 70 229 / var(--tw-text-opacity, 1));
 }
 .text-muted-foreground {
   color: hsl(var(--muted-foreground));
@@ -2786,6 +2799,59 @@ video {
   }
 }
 
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  .mobile-padding {
+    padding: 1rem;
+  }
+  
+  .mobile-text-sm {
+    font-size: 0.875rem;
+  }
+  
+  .mobile-gap {
+    gap: 0.75rem;
+  }
+  
+  /* Ensure buttons and inputs are large enough for touch */
+  button, input, select, textarea {
+    min-height: 44px;
+  }
+  
+  /* Better spacing for mobile forms */
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  /* Mobile-friendly table alternatives */
+  .mobile-card {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Safe area insets for devices with notches */
+@supports (padding: max(0px)) {
+  .safe-area-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  
+  .safe-area-left {
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+  
+  .safe-area-right {
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
 /* Responsive table utilities */
 .table-cell-truncate {
   max-width: 0;
@@ -2971,6 +3037,11 @@ video {
   border-color: rgb(254 202 202 / var(--tw-border-opacity, 1));
 }
 
+.hover\:border-red-300:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(252 165 165 / var(--tw-border-opacity, 1));
+}
+
 .hover\:bg-\[\#FF8800\]:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(255 136 0 / var(--tw-bg-opacity, 1));
@@ -3034,6 +3105,11 @@ video {
 .hover\:bg-gray-700:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(55 65 81 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-green-100:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(220 252 231 / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-green-50:hover {

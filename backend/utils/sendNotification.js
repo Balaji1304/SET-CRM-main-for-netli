@@ -122,6 +122,12 @@ const sendEmailNotification = async (type, customer, data, attachments = []) => 
       emailOptions.data = data;
       break;
 
+    case 'orderform':
+      emailOptions.subject = `Order Confirmation - Order Form ${data.orderNumber}`;
+      emailOptions.template = 'orderform';
+      emailOptions.data = data;
+      break;
+
     case 'custom':
       emailOptions.subject = data.subject;
       emailOptions.template = data.template;
@@ -201,6 +207,32 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
       }
 
       return invoiceResult;
+
+    case 'orderform':
+      // Send order confirmation message for Order Form
+      const orderFormMessage = `🎉 *ORDER CONFIRMATION*\n\n` +
+        `Dear ${customer.firstName} ${customer.lastName || ''},\n\n` +
+        `Thank you for your order! Your advance payment has been confirmed.\n\n` +
+        `📋 *Order Details:*\n` +
+        `Order No: ${data.orderNumber}\n` +
+        `Total Amount: ₹${data.totalAmount.toLocaleString('en-IN')}\n` +
+        `Advance Paid: ₹${data.advanceAmount.toLocaleString('en-IN')}\n` +
+        `Remaining: ₹${data.remainingAmount.toLocaleString('en-IN')}\n\n` +
+        `📧 *Your order form has been sent to your email.*\n` +
+        `You can also access it anytime from your customer portal.\n\n` +
+        `🔗 Portal: ${process.env.FRONTEND_URL || 'https://yourapp.com'}/orders\n\n` +
+        `We will contact you soon for installation scheduling.\n\n` +
+        `*Sunlit Solar Team*`;
+
+      const { sendWhatsAppText } = require('./sendWhatsApp');
+      
+      const orderFormResult = await sendWhatsAppText({
+        to: whatsappNumber,
+        text: orderFormMessage,
+        countryCode
+      });
+
+      return orderFormResult;
 
     case 'welcome':
       // Send account creation notification (Utility template only)
@@ -423,6 +455,96 @@ const sendInvoiceNotification = async (invoice, pdfBuffer = null) => {
   });
 };
 
+// Helper function for Order Form notifications
+const sendOrderFormNotification = async (customerPurchase, pdfBuffer = null) => {
+  try {
+    // Get customer purchase with populated data
+    const CustomerPurchase = require('../models/CustomerPurchase');
+    const Customer = require('../models/Customer');
+    const Quotation = require('../models/Quotation');
+    
+    // Fetch full purchase data if not already populated
+    const purchase = await CustomerPurchase.findById(customerPurchase._id || customerPurchase)
+      .populate('customerId')
+      .populate({
+        path: 'quotationId',
+        populate: {
+          path: 'lead',
+          select: 'firstName lastName businessName email phone whatsapp hasWhatsapp whatsappSameAsPhone countryCode preferredContactMethod'
+        }
+      });
+
+    if (!purchase) {
+      throw new Error('Purchase not found for Order Form notification');
+    }
+
+    const customer = purchase.customerId;
+    const lead = purchase.quotationId.lead;
+
+    // Format customer data for notification system
+    const customerForNotification = {
+      firstName: customer.firstName || lead.firstName,
+      lastName: customer.lastName || lead.lastName,
+      email: customer.email || lead.email,
+      phone: customer.phone || lead.phone,
+      whatsapp: customer.whatsapp || lead.whatsapp,
+      hasWhatsapp: lead.hasWhatsapp,
+      whatsappSameAsPhone: lead.whatsappSameAsPhone,
+      countryCode: lead.countryCode || '+91',
+      preferredContactMethod: lead.preferredContactMethod
+    };
+
+    // Prepare email data for Order Form
+    const emailData = {
+      customerName: `${customerForNotification.firstName} ${customerForNotification.lastName || ''}`.trim(),
+      orderNumber: purchase.purchaseID,
+      orderDate: purchase.purchaseDate.toLocaleDateString('en-IN'),
+      totalAmount: purchase.totalAmount.toLocaleString('en-IN'),
+      advanceAmount: purchase.advancePaid.toLocaleString('en-IN'),
+      remainingAmount: purchase.remainingAmount.toLocaleString('en-IN'),
+      paymentMethod: purchase.paymentMethod === 'razorpay' ? 'Online Payment' : 
+                    purchase.paymentMethod === 'bank_transfer' ? 'Bank Transfer' :
+                    purchase.paymentMethod === 'cash' ? 'Cash' :
+                    purchase.paymentMethod === 'check' ? 'Cheque' : 'Other',
+      portalUrl: process.env.FRONTEND_URL || 'https://yourapp.com',
+      currentYear: new Date().getFullYear(),
+      businessDetails: {
+        name: 'Focusun Energy Systems',
+        address: 'Old No: 27 / New No: 30, Jagannathan Nagar, (Opp) CMC, Coimbatore - 14',
+        phone: '0422 2591069, 2572237',
+        email: 'info@focusunsolar.com',
+        website: 'www.focusunsolar.com'
+      },
+      customerDetails: {
+        name: `${customerForNotification.firstName} ${customerForNotification.lastName || ''}`.trim(),
+        businessName: customer.businessName || lead.businessName,
+        email: customerForNotification.email,
+        phone: customerForNotification.phone,
+        address: customer.address || lead.billingAddress || lead.address
+      }
+    };
+
+    // Prepare attachments for email
+    const attachments = pdfBuffer ? [{
+      filename: `Order_Form_${purchase.purchaseID}.pdf`,
+      content: pdfBuffer
+    }] : [];
+
+    // Send notification via available channels
+    return await sendNotification({
+      customer: customerForNotification,
+      type: 'orderform',
+      data: emailData,
+      attachments,
+      documentUrl: null // PDF will be handled as attachment for email
+    });
+
+  } catch (error) {
+    console.error('Error in sendOrderFormNotification:', error);
+    throw error;
+  }
+};
+
 // Helper function for welcome notifications
 const sendWelcomeNotification = async (user, password, leadContactPreferences = null) => {
   const customer = {
@@ -549,7 +671,7 @@ const sendServiceEngineerWhatsApp = async (type, engineer, data) => {
     console.error(`Failed to send WhatsApp to engineer ${engineer.name}:`, error.message);
     return { success: false, error: error.message };
   }
-}; // Added missing closing bracket
+};
 
 // Smart communication workflow - uses preferredContactMethod from Lead model
 const sendSmartNotification = async (customer, type, data, options = {}) => {
@@ -582,6 +704,7 @@ module.exports = {
   sendNotification,
   sendQuotationNotification,
   sendInvoiceNotification,
+  sendOrderFormNotification,
   sendWelcomeNotification,
   getAvailableContactMethods,
   sendServiceEngineerWhatsApp,

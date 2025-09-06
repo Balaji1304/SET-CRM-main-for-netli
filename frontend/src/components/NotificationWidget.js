@@ -12,7 +12,8 @@ const NotificationWidget = ({ userRole = 'customer' }) => {
       purchaseOrders: 0,
       quotations: 0,
       leads: 0,
-      enquiries: 0
+      enquiries: 0,
+      installations: 0
     },
     recent: []
   });
@@ -27,7 +28,18 @@ const NotificationWidget = ({ userRole = 'customer' }) => {
       setLoading(true);
       const response = await apiRequest('/notifications/counts');
       if (response.success) {
-        setNotificationStats(response.data);
+        setNotificationStats({
+          totalUnread: response.data.totalUnread || response.data.unread || 0,
+          byType: {
+            tickets: response.data.byType?.tickets || 0,
+            purchaseOrders: response.data.byType?.purchaseOrders || 0,
+            quotations: response.data.byType?.quotations || 0,
+            leads: response.data.byType?.leads || 0,
+            enquiries: response.data.byType?.enquiries || 0,
+            installations: response.data.byType?.installations || 0
+          },
+          recent: response.data.recent || []
+        });
       }
     } catch (error) {
       console.error('Error fetching notification stats:', error);
@@ -42,7 +54,8 @@ const NotificationWidget = ({ userRole = 'customer' }) => {
       purchaseOrders: 'Orders',
       quotations: 'Quotations',
       leads: 'Leads',
-      enquiries: 'Enquiries'
+      enquiries: 'Enquiries',
+      installations: 'Installations'
     };
     return `${count} ${typeLabels[type] || type}`;
   };
@@ -53,7 +66,8 @@ const NotificationWidget = ({ userRole = 'customer' }) => {
       purchaseOrders: CheckCircle2,
       quotations: Clock,
       leads: Users,
-      enquiries: Users
+      enquiries: Users,
+      installations: CheckCircle2
     };
     const IconComponent = icons[type] || Bell;
     return <IconComponent className="w-4 h-4" />;
@@ -64,10 +78,11 @@ const NotificationWidget = ({ userRole = 'customer' }) => {
       front_office_executive: ['enquiries', 'leads', 'tickets'],
       sales_person: ['leads', 'quotations'],
       sales_head: ['leads', 'quotations', 'purchaseOrders'],
-      product_head: ['tickets', 'purchaseOrders'],
-      service_engineer: ['tickets'],
+      product_head: ['purchaseOrders', 'installations'],
+      service_engineer: ['tickets', 'installations'],
       accounts_department: ['quotations', 'purchaseOrders'],
-      customer: ['tickets', 'quotations']
+      marketing_coordinator: ['leads', 'quotations', 'purchaseOrders'],
+      customer: ['tickets', 'quotations', 'installations']
     };
     return roleTypes[userRole] || ['tickets'];
   };
@@ -80,7 +95,8 @@ const NotificationWidget = ({ userRole = 'customer' }) => {
       purchaseOrders: 'text-blue-600', 
       quotations: 'text-green-600',
       leads: 'text-purple-600',
-      enquiries: 'text-orange-600'
+      enquiries: 'text-orange-600',
+      installations: 'text-indigo-600'
     };
     return colorMap[type] || 'text-gray-600';
   };

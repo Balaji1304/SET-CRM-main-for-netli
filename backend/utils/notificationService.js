@@ -83,9 +83,9 @@ class NotificationService {
 
       switch (type) {
         case 'ticket_created':
-          // Notify product heads about new tickets
-          const productHeads = await User.find({ role: 'product_head' });
-          recipients = productHeads.map(user => user._id);
+          // Notify front office executives about new tickets
+          const frontOfficeExecutives = await User.find({ role: 'front_office_executive' });
+          recipients = frontOfficeExecutives.filter(user => user._id).map(user => user._id);
           title = 'New Support Ticket Created';
           message = `A new ticket "${ticket.title}" has been created by ${ticket.user?.name || 'Customer'}`;
           priority = ticket.priority === 'high' ? 'high' : 'medium';
@@ -103,7 +103,10 @@ class NotificationService {
 
         case 'ticket_status_changed':
           // Notify customer and relevant stakeholders
-          recipients = [ticket.user];
+          recipients = [];
+          if (ticket.user) {
+            recipients.push(ticket.user);
+          }
           if (ticket.assignedEngineerId) {
             recipients.push(ticket.assignedEngineerId);
           }
@@ -113,20 +116,31 @@ class NotificationService {
 
         case 'ticket_commented':
           // Notify ticket owner and assigned engineer (excluding the commenter)
-          recipients = [ticket.user];
-          if (ticket.assignedEngineerId && ticket.assignedEngineerId.toString() !== sender?.toString()) {
+          recipients = [];
+          if (ticket.user) {
+            recipients.push(ticket.user);
+          }
+          if (ticket.assignedEngineerId && ticket.assignedEngineerId.toString() !== sender?._id?.toString()) {
             recipients.push(ticket.assignedEngineerId);
           }
           // Remove sender from recipients
           if (sender) {
-            recipients = recipients.filter(id => id.toString() !== sender.toString());
+            recipients = recipients.filter(id => id.toString() !== sender._id.toString());
           }
           title = 'New Comment on Ticket';
           message = `${sender?.name || 'Someone'} commented on ticket "${ticket.title}"`;
           break;
       }
 
+      // Filter out null/undefined recipients
+      recipients = recipients.filter(id => id !== null && id !== undefined);
+
       // Create notifications for all recipients
+      if (recipients.length === 0) {
+        console.warn(`No valid recipients found for ${type} notification`);
+        return [];
+      }
+
       const notifications = await Promise.all(
         recipients.map(recipientId => 
           Notification.createNotification({
@@ -167,11 +181,11 @@ class NotificationService {
 
       switch (type) {
         case 'purchase_order_created':
-          // Notify inventory managers and sales heads
+          // Notify inventory managers, sales heads, marketing coordinators, and accounts department
           const relevantUsers = await User.find({ 
-            role: { $in: ['inventory_manager', 'sales_head', 'accounts_department'] }
+            role: { $in: ['inventory_manager', 'sales_head', 'marketing_coordinator', 'accounts_department'] }
           });
-          recipients = relevantUsers.map(user => user._id);
+          recipients = relevantUsers.filter(user => user._id).map(user => user._id);
           title = 'New Purchase Order Created';
           message = `Purchase order #${purchaseOrder.orderNumber || purchaseOrder._id} has been created`;
           priority = 'high';
@@ -180,12 +194,20 @@ class NotificationService {
         case 'purchase_order_updated':
           // Notify relevant stakeholders
           const stakeholders = await User.find({ 
-            role: { $in: ['inventory_manager', 'sales_head'] }
+            role: { $in: ['inventory_manager', 'sales_head', 'marketing_coordinator'] }
           });
-          recipients = stakeholders.map(user => user._id);
+          recipients = stakeholders.filter(user => user._id).map(user => user._id);
           title = 'Purchase Order Updated';
           message = `Purchase order #${purchaseOrder.orderNumber || purchaseOrder._id} has been updated`;
           break;
+      }
+
+      // Filter out null/undefined recipients
+      recipients = recipients.filter(id => id !== null && id !== undefined);
+
+      if (recipients.length === 0) {
+        console.warn(`No valid recipients found for ${type} notification`);
+        return [];
       }
 
       const notifications = await Promise.all(
@@ -201,7 +223,10 @@ class NotificationService {
               purchaseOrderId: purchaseOrder._id,
               orderNumber: purchaseOrder.orderNumber,
               status: purchaseOrder.status,
-              totalAmount: purchaseOrder.totalAmount
+              totalAmount: purchaseOrder.totalAmount,
+              redirectUrl: getRedirectUrl(type, { purchaseOrderId: purchaseOrder._id }),
+              entityId: purchaseOrder._id,
+              entityType: 'purchase_order'
             }
           })
         )
@@ -225,19 +250,33 @@ class NotificationService {
       switch (type) {
         case 'quotation_approved':
           // Notify customer and sales team
-          recipients = [quotation.customer];
+          recipients = [];
+          if (quotation.customer) {
+            recipients.push(quotation.customer);
+          }
           const salesTeam = await User.find({ role: { $in: ['sales_person', 'sales_head', 'marketing_coordinator'] } });
-          recipients.push(...salesTeam.map(user => user._id));
+          recipients.push(...salesTeam.filter(user => user._id).map(user => user._id));
           title = 'Quotation Approved';
           message = `Quotation #${quotation.quotationNumber} has been approved`;
           priority = 'high';
           break;
 
         case 'quotation_rejected':
-          recipients = [quotation.customer];
+          recipients = [];
+          if (quotation.customer) {
+            recipients.push(quotation.customer);
+          }
           title = 'Quotation Requires Attention';
           message = `Quotation #${quotation.quotationNumber} needs review`;
           break;
+      }
+
+      // Filter out null/undefined recipients
+      recipients = recipients.filter(id => id !== null && id !== undefined);
+
+      if (recipients.length === 0) {
+        console.warn(`No valid recipients found for ${type} notification`);
+        return [];
       }
 
       const notifications = await Promise.all(
@@ -253,7 +292,10 @@ class NotificationService {
               quotationId: quotation._id,
               quotationNumber: quotation.quotationNumber,
               status: quotation.status,
-              totalAmount: quotation.totalAmount
+              totalAmount: quotation.totalAmount,
+              redirectUrl: getRedirectUrl(type, { quotationId: quotation._id }),
+              entityId: quotation._id,
+              entityType: 'quotation'
             }
           })
         )
@@ -273,7 +315,15 @@ class NotificationService {
       const relevantUsers = await User.find({ 
         role: { $in: ['accounts_department', 'sales_head'] }
       });
-      const recipients = relevantUsers.map(user => user._id);
+      let recipients = relevantUsers.filter(user => user._id).map(user => user._id);
+
+      // Filter out null/undefined recipients
+      recipients = recipients.filter(id => id !== null && id !== undefined);
+
+      if (recipients.length === 0) {
+        console.warn('No valid recipients found for payment notification');
+        return [];
+      }
 
       const notifications = await Promise.all(
         recipients.map(recipientId => 
@@ -288,7 +338,10 @@ class NotificationService {
               paymentId: payment._id,
               amount: payment.amount,
               method: payment.method,
-              status: payment.status
+              status: payment.status,
+              redirectUrl: getRedirectUrl('payment_received'),
+              entityId: payment._id,
+              entityType: 'payment'
             }
           })
         )
@@ -304,6 +357,11 @@ class NotificationService {
   // Create lead assignment notification
   static async createLeadNotification(lead, assignedTo, sender = null) {
     try {
+      if (!assignedTo) {
+        console.warn('No assignedTo user provided for lead notification');
+        return [];
+      }
+
       const notification = await Notification.createNotification({
         recipient: assignedTo,
         sender: sender?._id || null,
@@ -316,7 +374,10 @@ class NotificationService {
           leadName: lead.name,
           company: lead.company,
           phone: lead.phone,
-          email: lead.email
+          email: lead.email,
+          redirectUrl: getRedirectUrl('lead_assigned', { leadId: lead._id }),
+          entityId: lead._id,
+          entityType: 'lead'
         }
       });
 
@@ -338,7 +399,10 @@ class NotificationService {
       switch (type) {
         case 'engineer_assigned':
           // Notify the assigned engineer
-          recipients = [purchase.assignedEngineerId];
+          recipients = [];
+          if (purchase.assignedEngineerId) {
+            recipients.push(purchase.assignedEngineerId);
+          }
           title = 'New Installation Assignment';
           message = `You have been assigned to install products for order ${purchase.purchaseID}. Installation date: ${new Date(purchase.installationDate).toLocaleDateString()}`;
           priority = 'high';
@@ -346,9 +410,13 @@ class NotificationService {
 
         case 'assignment_accepted':
           // Notify customer and management
-          recipients = [purchase.customerId._id || purchase.customerId];
+          recipients = [];
+          const customerId = purchase.customerId?._id || purchase.customerId;
+          if (customerId) {
+            recipients.push(customerId);
+          }
           const management = await User.find({ role: { $in: ['product_head', 'marketing_coordinator'] } });
-          recipients.push(...management.map(user => user._id));
+          recipients.push(...management.filter(user => user._id).map(user => user._id));
           title = 'Installation Assignment Accepted';
           message = `Service engineer ${sender?.name || 'Engineer'} has accepted the installation assignment for order ${purchase.purchaseID}`;
           priority = 'medium';
@@ -356,19 +424,37 @@ class NotificationService {
 
         case 'installation_completed':
           // Notify customer for sign-off
-          recipients = [purchase.customerId._id || purchase.customerId];
+          recipients = [];
+          const customerIdCompleted = purchase.customerId?._id || purchase.customerId;
+          if (customerIdCompleted) {
+            recipients.push(customerIdCompleted);
+          }
           title = 'Installation Completed - Action Required';
           message = `Your installation for order ${purchase.purchaseID} has been completed. Please review and provide feedback.`;
           priority = 'high';
           break;
 
+        case 'installation_scheduled':
+          // Notify assigned engineer about scheduled installation
+          recipients = [];
+          if (purchase.assignedEngineerId) {
+            recipients.push(purchase.assignedEngineerId);
+          }
+          title = 'Installation Scheduled';
+          message = `Your installation for order ${purchase.purchaseID} has been scheduled for ${new Date(purchase.installationDate).toLocaleDateString()}`;
+          priority = 'medium';
+          break;
+
         case 'customer_approved':
           // Notify engineer and management
-          recipients = [purchase.assignedEngineerId];
+          recipients = [];
+          if (purchase.assignedEngineerId) {
+            recipients.push(purchase.assignedEngineerId);
+          }
           const approvalManagement = await User.find({ 
             role: { $in: ['product_head', 'accounts_department'] } 
           });
-          recipients.push(...approvalManagement.map(user => user._id));
+          recipients.push(...approvalManagement.filter(user => user._id).map(user => user._id));
           title = 'Installation Approved by Customer';
           message = `Customer has approved the installation for order ${purchase.purchaseID}. Order is now complete.`;
           priority = 'medium';
@@ -376,11 +462,14 @@ class NotificationService {
 
         case 'customer_rejected':
           // Notify engineer and management
-          recipients = [purchase.assignedEngineerId];
+          recipients = [];
+          if (purchase.assignedEngineerId) {
+            recipients.push(purchase.assignedEngineerId);
+          }
           const rejectionManagement = await User.find({ 
             role: { $in: ['product_head', 'service_engineer'] } 
           });
-          recipients.push(...rejectionManagement.map(user => user._id));
+          recipients.push(...rejectionManagement.filter(user => user._id).map(user => user._id));
           title = 'Installation Issues Reported';
           message = `Customer has reported issues with installation for order ${purchase.purchaseID}. Immediate attention required.`;
           priority = 'high';
@@ -391,17 +480,24 @@ class NotificationService {
           const issueManagement = await User.find({ 
             role: { $in: ['product_head', 'service_engineer'] } 
           });
-          recipients = issueManagement.map(user => user._id);
+          recipients = issueManagement.filter(user => user._id).map(user => user._id);
           title = 'Installation Issue Reported';
           message = `Service engineer has reported an issue during installation for order ${purchase.purchaseID}`;
           priority = 'high';
           break;
       }
 
-      // Remove duplicates and sender from recipients
+      // Filter out null/undefined recipients and remove duplicates
+      recipients = recipients.filter(id => id !== null && id !== undefined);
       recipients = [...new Set(recipients.map(id => id.toString()))];
+      
       if (sender) {
         recipients = recipients.filter(id => id !== sender._id.toString());
+      }
+
+      if (recipients.length === 0) {
+        console.warn(`No valid recipients found for ${type} notification`);
+        return [];
       }
 
       const notifications = await Promise.all(
@@ -418,7 +514,7 @@ class NotificationService {
               purchaseID: purchase.purchaseID,
               installationStatus: purchase.installationStatus,
               engineerName: sender?.name || purchase.assignedEngineerId?.name,
-              customerId: purchase.customerId._id || purchase.customerId,
+              customerId: purchase.customerId?._id || purchase.customerId,
               redirectUrl: getRedirectUrl(type, { purchaseId: purchase._id }),
               entityId: purchase._id,
               entityType: 'installation'
@@ -598,10 +694,17 @@ class NotificationService {
           break;
       }
 
-      // Remove duplicates and sender from recipients
+      // Filter out null/undefined recipients and remove duplicates
+      recipients = recipients.filter(id => id !== null && id !== undefined);
       recipients = [...new Set(recipients.map(id => id.toString()))];
+      
       if (sender) {
         recipients = recipients.filter(id => id !== sender._id.toString());
+      }
+
+      if (recipients.length === 0) {
+        console.warn(`No valid recipients found for ${type} enquiry notification`);
+        return [];
       }
 
       const notifications = await Promise.all(
@@ -646,18 +749,18 @@ class NotificationService {
 
       switch (type) {
         case 'lead_created':
-          // Notify sales heads about new leads
-          const salesHeads = await User.find({ role: 'sales_head' });
-          recipients = salesHeads.map(user => user._id);
+          // Notify sales heads and marketing coordinators about new leads
+          const salesManagement1 = await User.find({ role: { $in: ['sales_head', 'marketing_coordinator'] } });
+          recipients = salesManagement1.map(user => user._id);
           title = 'New Lead Created';
           message = `New lead "${lead.firstName} ${lead.lastName || ''}" created by ${sender?.name || 'System'}`;
           priority = 'medium';
           break;
 
         case 'lead_updated':
-          // Notify sales heads about lead updates
-          const salesManagement = await User.find({ role: 'sales_head' });
-          recipients = salesManagement
+          // Notify sales heads and marketing coordinators about lead updates
+          const salesManagement2 = await User.find({ role: { $in: ['sales_head', 'marketing_coordinator'] } });
+          recipients = salesManagement2
             .filter(user => user._id.toString() !== sender?._id?.toString())
             .map(user => user._id);
           title = 'Lead Updated';
@@ -676,10 +779,17 @@ class NotificationService {
           break;
       }
 
-      // Remove duplicates and sender from recipients
+      // Filter out null/undefined recipients and remove duplicates
+      recipients = recipients.filter(id => id !== null && id !== undefined);
       recipients = [...new Set(recipients.map(id => id.toString()))];
+      
       if (sender) {
         recipients = recipients.filter(id => id !== sender._id.toString());
+      }
+
+      if (recipients.length === 0) {
+        console.warn(`No valid recipients found for ${type} lead notification`);
+        return [];
       }
 
       const notifications = await Promise.all(
@@ -702,7 +812,7 @@ class NotificationService {
               redirectUrl: getRedirectUrl(type, { leadId: lead._id }),
               entityId: lead._id,
               entityType: 'lead',
-              leadSource: lead.leadSource, // Lead source (how they found us)
+              leadSource: lead.leadSource,
               ...additionalData
             }
           })
@@ -758,10 +868,17 @@ class NotificationService {
           break;
       }
 
-      // Remove duplicates and sender from recipients
+      // Filter out null/undefined recipients and remove duplicates
+      recipients = recipients.filter(id => id !== null && id !== undefined);
       recipients = [...new Set(recipients.map(id => id.toString()))];
+      
       if (sender) {
         recipients = recipients.filter(id => id !== sender._id.toString());
+      }
+
+      if (recipients.length === 0) {
+        console.warn(`No valid recipients found for ${type} quotation notification`);
+        return [];
       }
 
       const notifications = await Promise.all(
@@ -822,6 +939,14 @@ class NotificationService {
           break;
       }
 
+      // Filter out null/undefined recipients
+      recipients = recipients.filter(id => id !== null && id !== undefined);
+
+      if (recipients.length === 0) {
+        console.warn(`No valid recipients found for ${type} task notification`);
+        return [];
+      }
+
       const notifications = await Promise.all(
         recipients.map(recipientId => 
           Notification.createNotification({
@@ -831,7 +956,11 @@ class NotificationService {
             title,
             message,
             priority,
-            data: data.additionalData || {}
+            data: {
+              redirectUrl: getRedirectUrl(type),
+              entityType: 'task',
+              ...(data.additionalData || {})
+            }
           })
         )
       );
@@ -900,6 +1029,35 @@ class NotificationService {
       };
     } catch (error) {
       console.error('Error getting notification stats:', error);
+      throw error;
+    }
+  }
+
+  // Create order tracking notification (for customer order updates)
+  static async createNotification(notificationData) {
+    try {
+      if (!notificationData.recipient) {
+        console.warn('No recipient provided for notification');
+        return null;
+      }
+
+      const notification = await Notification.createNotification({
+        recipient: notificationData.recipient,
+        sender: notificationData.sender || null,
+        type: notificationData.type || 'order_update',
+        title: notificationData.title,
+        message: notificationData.message,
+        priority: notificationData.priority || 'medium',
+        data: {
+          redirectUrl: getRedirectUrl(notificationData.type),
+          entityType: notificationData.entityType || 'order',
+          ...(notificationData.data || {})
+        }
+      });
+
+      return notification;
+    } catch (error) {
+      console.error('Error creating direct notification:', error);
       throw error;
     }
   }

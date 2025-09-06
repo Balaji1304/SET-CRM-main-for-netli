@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            width: 100%;
+            max-width: 100%;
+            line-height: 1.8;
+            padding: 0;
+            margin: 0;
+            font-size: 16px;
+        }
+        .container {
+            width: 100%;
+            padding: 20px 25px;
+        }
+        .company-header {
+            position: relative;
+            width: 100%;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #FF7300;
+            padding-bottom: 25px;
+            min-height: 120px;
+            overflow: hidden;
+        }
+        .logo-section {
+            display: inline-block;
+            vertical-align: top;
+            width: 30%;
+        }
+        .company-logo {
+            width: 180px;
+            height: auto;
+            display: block;
+        }
+        .company-info {
+            float: right;
+            text-align: right;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+            margin-left: auto;
+            width: 65%;
+            padding-bottom: 10px;
+        }
+        .company-info strong {
+            color: #000;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .company-info p {
+            margin: 0 0 2px 0;
+        }
+        .company-info a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .order-title {
+            font-size: 16px;
+            color: #333;
+            margin: 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        .ref-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .order-info {
+            margin: 25px 0;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        .order-info-email-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .order-info-email-table td {
+            width: 50%;
+            padding: 0 15px 0 0;
+            vertical-align: top;
+        }
+        .order-info-email-table td:last-child {
+            padding: 0 0 0 15px;
+        }
+        .info-section {
+            margin-bottom: 15px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        .info-value {
+            color: #000;
+            margin-bottom: 8px;
+        }
+        .payment-summary {
+            border: 2px solid #FF7300;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #fff8f0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .payment-summary h3 {
+            color: #FF7300;
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: center;
+            border-bottom: 1px solid #FF7300;
+            padding-bottom: 8px;
+        }
+        .payment-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 16px;
+        }
+        .payment-row:last-child {
+            border-bottom: none;
+        }
+        .payment-row.highlight {
+            background-color: #e8f5e8;
+            padding: 12px 8px;
+            margin: 5px -8px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        .payment-row.remaining {
+            background-color: #ffebee;
+            padding: 12px 8px;
+            margin: 5px -8px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: #c62828;
+        }
+        .order-details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 16px;
+            border: 1px solid #000;
+            table-layout: fixed;
+        }
+        .order-details-table th {
+            font-size: 17px;
+            background-color: #f3f3f3;
+            font-weight: bold;
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+        }
+        .order-details-table th:nth-child(1) { width: 40%; }
+        .order-details-table th:nth-child(2) { width: 15%; }
+        .order-details-table th:nth-child(3) { width: 20%; }
+        .order-details-table th:nth-child(4) { width: 25%; }
+        .order-details-table th,
+        .order-details-table td {
+            padding: 8px;
+            border: 1px solid #000;
+            text-align: left;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .order-details-table td.amount-cell {
+            text-align: right;
+        }
+        .order-details-table tr.total-row {
+            background-color: #f3f3f3;
+            font-weight: bold;
+        }
+        .confirmation-section {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #e8f5e8;
+            border-radius: 8px;
+            border-left: 4px solid #4caf50;
+        }
+        .confirmation-section h3 {
+            color: #2e7d32;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .confirmation-section p {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        .installation-info {
+            margin: 25px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        .installation-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .installation-info p {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .terms-and-conditions {
+            margin: 25px 0;
+            page-break-inside: avoid;
+        }
+        .terms-and-conditions h3 {
+            margin-bottom: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+        .terms-and-conditions div {
+            white-space: pre-line;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #555;
+        }
+        .footer {
+            margin-top: 25px;
+            text-align: right;
+            page-break-inside: avoid;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        .signature-box {
+            text-align: center;
+            width: 45%;
+        }
+        .signature-line {
+            border-bottom: 1px solid #333;
+            margin-bottom: 5px;
+            height: 50px;
+        }
+        .signature-label {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        /* Responsive styles */
+        @media screen and (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            .company-header {
+                min-height: auto;
+                margin-bottom: 25px;
+                padding-bottom: 20px;
+            }
+            .logo-section {
+                width: 35%;
+            }
+            .company-logo {
+                width: 100%;
+                max-width: 120px;
+            }
+            .company-info {
+                width: 60%;
+                font-size: 11px;
+                line-height: 1.3;
+                padding-bottom: 5px;
+            }
+            .order-title {
+                font-size: 14px;
+                margin: 15px 0;
+                clear: both;
+            }
+            .payment-row,
+            .order-info,
+            .order-details-table th,
+            .order-details-table td {
+                font-size: 14px;
+            }
+            .order-details-table {
+                font-size: 13px;
+            }
+            .order-details-table th,
+            .order-details-table td {
+                padding: 6px 8px;
+            }
+            .signature-section {
+                flex-direction: column;
+                gap: 20px;
+            }
+            .signature-box {
+                width: 100%;
+            }
+        }
+
+        @media print {
+            body {
+                font-size: 14px !important;
+                line-height: 1.6 !important;
+            }
+            .container {
+                padding: 15px 20px !important;
+            }
+            .company-header {
+                position: relative;
+                width: 100%;
+                margin-bottom: 20px;
+                min-height: 80px;
+            }
+            .company-logo {
+                width: 120px !important;
+            }
+            .company-info {
+                font-size: 13px !important;
+                line-height: 1.4 !important;
+            }
+            .order-info,
+            .ref-section,
+            .payment-summary,
+            .confirmation-section {
+                font-size: 14px !important;
+                line-height: 1.6 !important;
+            }
+            .order-details-table {
+                font-size: 14px !important;
+                margin: 20px 0 !important;
+            }
+            .order-details-table th {
+                font-size: 15px !important;
+                padding: 10px !important;
+                font-weight: bold !important;
+            }
+            .order-details-table td {
+                padding: 10px !important;
+                font-size: 14px !important;
+            }
+            .terms-and-conditions h3 {
+                font-size: 16px !important;
+                margin-bottom: 12px !important;
+                font-weight: bold !important;
+            }
+            .terms-and-conditions div {
+                font-size: 14px !important;
+                line-height: 1.8 !important;
+            }
+            .footer {
+                font-size: 14px !important;
+                margin-top: 20px !important;
+                line-height: 1.6 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" style="width: 100%; max-width: 100%; padding: 15px 20px; box-sizing: border-box;">
+        <!-- Company Header -->
+        <div class="company-header" style="position: relative; width: 100%; max-width: 100%; margin-bottom: 30px; border-bottom: 2px solid #FF7300; padding-bottom: 25px; min-height: 120px; overflow: hidden; box-sizing: border-box;">
+            <div class="logo-section" style="display: inline-block; vertical-align: top; width: 30%; max-width: 30%;">
+                <img src="https://res.cloudinary.com/dcua87ney/image/upload/v1746715647/logo2_kmndu4.png" alt="{{businessDetails.name}}" class="company-logo" style="width: 100%; max-width: 180px; height: auto; display: block;">
+            </div>
+            <div class="company-info" style="float: right; text-align: right; font-size: 14px; line-height: 1.6; color: #333; margin-left: auto; width: 65%; max-width: 65%; padding-bottom: 10px; box-sizing: border-box;">
+                <p style="margin: 0 0 2px 0;"><strong style="color: #000; display: block; margin-bottom: 2px;">Contact Us</strong></p>
+                <p style="margin: 0 0 2px 0;">Phone: {{businessDetails.phone}}</p>
+                <p style="margin: 0 0 2px 0;">Email: <a href="mailto:{{businessDetails.email}}" style="color: #0066cc; text-decoration: none;">{{businessDetails.email}}</a></p>
+                <p style="margin: 0 0 2px 0;"><strong style="color: #000; display: block; margin-bottom: 2px;">Address:</strong></p>
+                <p style="margin: 0 0 2px 0;">{{businessDetails.address}}</p>
+                {{#if businessDetails.website}}
+                <p style="margin: 0 0 2px 0;">Web: <a href="http://{{businessDetails.website}}" style="color: #0066cc; text-decoration: none;">{{businessDetails.website}}</a></p>
+                {{/if}}
+            </div>
+        </div>
+
+        <!-- Order Title -->
+        <div class="order-title" style="font-size: 16px; color: #333; margin: 20px 0; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
+            <p><strong>ORDER CONFIRMATION</strong></p>
+        </div>
+
+        <!-- Reference Section -->
+        <div class="ref-section" style="margin-bottom: 15px; font-size: 16px;">
+            <div>
+                <p>Order No. – {{orderNumber}}</p>
+                <p>{{orderDate}}</p>
+            </div>
+        </div>
+
+        <!-- Customer Information -->
+        <div class="order-info" style="margin: 25px 0; font-size: 16px; line-height: 1.8;">
+            <table class="order-info-email-table" style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="width: 50%; padding: 0 10px 0 0; vertical-align: top;">
+                        <div class="info-section" style="margin-bottom: 15px;">
+                            <div class="info-label" style="font-weight: bold; color: #333; margin-bottom: 3px;">To:</div>
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{customerDetails.name}}</div>
+                            {{#if customerDetails.businessName}}
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{customerDetails.businessName}}</div>
+                            {{/if}}
+                        </div>
+                        
+                        {{#if customerDetails.address}}
+                        <div class="info-section" style="margin-bottom: 15px;">
+                            <div class="info-label" style="font-weight: bold; color: #333; margin-bottom: 3px;">Address:</div>
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{customerDetails.address}}</div>
+                        </div>
+                        {{/if}}
+                    </td>
+                    <td style="width: 50%; padding: 0 0 0 10px; vertical-align: top;">
+                        {{#if customerDetails.email}}
+                        <div class="info-section" style="margin-bottom: 15px;">
+                            <div class="info-label" style="font-weight: bold; color: #333; margin-bottom: 3px;">Email:</div>
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{customerDetails.email}}</div>
+                        </div>
+                        {{/if}}
+                        
+                        {{#if customerDetails.phone}}
+                        <div class="info-section" style="margin-bottom: 15px;">
+                            <div class="info-label" style="font-weight: bold; color: #333; margin-bottom: 3px;">Phone:</div>
+                            <div class="info-value" style="color: #000; margin-bottom: 8px; word-wrap: break-word; overflow-wrap: break-word;">{{customerDetails.phone}}</div>
+                        </div>
+                        {{/if}}
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Order Confirmation Message -->
+        <div class="confirmation-section" style="margin: 30px 0; padding: 20px; background-color: #e8f5e8; border-radius: 8px; border-left: 4px solid #4caf50;">
+            <h3 style="color: #2e7d32; margin-bottom: 10px; font-size: 18px;">✓ Order Confirmed</h3>
+            <p style="color: #333; margin-bottom: 8px; font-size: 16px;">Thank you for your order! Your advance payment has been successfully received and your order is now confirmed.</p>
+            <p style="color: #333; margin-bottom: 8px; font-size: 16px;">We will contact you soon to schedule the installation process.</p>
+        </div>
+
+        <!-- Payment Summary -->
+        <div class="payment-summary" style="border: 2px solid #FF7300; padding: 20px; margin: 20px 0; background-color: #fff8f0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="color: #FF7300; font-size: 18px; margin-bottom: 15px; text-align: center; border-bottom: 1px solid #FF7300; padding-bottom: 8px;">Payment Summary</h3>
+            
+            <div class="payment-row" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-size: 16px;">
+                <span><strong>Total Order Amount:</strong></span>
+                <span><strong>₹{{totalAmount}}</strong></span>
+            </div>
+            
+            <div class="payment-row highlight" style="background-color: #e8f5e8; padding: 12px 8px; margin: 5px -8px; border-radius: 4px; font-weight: bold; color: #2e7d32; display: flex; justify-content: space-between; font-size: 16px;">
+                <span>✓ Advance Amount Paid:</span>
+                <span>₹{{advanceAmount}}</span>
+            </div>
+            
+            <div class="payment-row remaining" style="background-color: #ffebee; padding: 12px 8px; margin: 5px -8px; border-radius: 4px; font-weight: bold; color: #c62828; display: flex; justify-content: space-between; font-size: 16px;">
+                <span>Remaining Amount:</span>
+                <span>₹{{remainingAmount}}</span>
+            </div>
+            
+            <div class="payment-row" style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: none; font-size: 16px;">
+                <span><strong>Payment Method:</strong></span>
+                <span>{{paymentMethod}}</span>
+            </div>
+        </div>
+
+        <!-- Product Details Section -->
+        {{#each items}}
+        {{#if product.description}}
+        <div class="product-description" style="margin: 20px 0; padding: 15px 20px; background: #ffffff; border-radius: 6px; width: 100%; max-width: 100%; border: 1px solid #e5e7eb; font-size: 16px; line-height: 1.8; box-sizing: border-box;">
+            <div class="product-heading" style="text-align: center; color: #FF7300; margin-bottom: 15px; font-size: 18px; font-weight: bold; border-bottom: 2px solid #FF7300; padding-bottom: 8px;">{{product.name}}</div>
+            <div class="specs-content" style="margin: 15px 0; font-size: 16px; line-height: 1.8; color: #000; max-width: 100%; overflow-wrap: break-word; word-wrap: break-word;">{{product.description}}</div>
+        </div>
+        {{/if}}
+        {{/each}}
+
+        <!-- Order Details Table -->
+        <table class="order-details-table" style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 16px; border: 1px solid #000;">
+            <thead>
+                <tr>
+                    <th style="width: 40%; font-size: 17px; background-color: #f3f3f3; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: left;">Description</th>
+                    <th style="width: 15%; font-size: 17px; background-color: #f3f3f3; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: left;">Qty</th>
+                    <th style="width: 20%; font-size: 17px; background-color: #f3f3f3; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: left;">Unit Price</th>
+                    <th style="width: 25%; font-size: 17px; background-color: #f3f3f3; font-weight: bold; border: 1px solid #000; padding: 8px; text-align: right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each items}}
+                <tr>
+                    <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">
+                        <strong>{{product.name}}</strong>
+                        {{#if product.category}}
+                        <br><small style="color: #666;">Category: {{product.category}}</small>
+                        {{/if}}
+                    </td>
+                    <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">{{quantity}}</td>
+                    <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">₹{{unitPrice}}</td>
+                    <td class="amount-cell" style="padding: 8px; border: 1px solid #000; text-align: right; word-wrap: break-word; overflow-wrap: break-word;">₹{{total}}</td>
+                </tr>
+                {{/each}}
+                <tr class="total-row" style="background-color: #f3f3f3; font-weight: bold;">
+                    <td colspan="3" style="padding: 8px; border: 1px solid #000; text-align: right; word-wrap: break-word; overflow-wrap: break-word;"><strong>TOTAL AMOUNT</strong></td>
+                    <td class="amount-cell" style="padding: 8px; border: 1px solid #000; text-align: right; word-wrap: break-word; overflow-wrap: break-word;">₹{{totalAmount}}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Installation Information -->
+        <div class="installation-info" style="margin: 25px 0; padding: 15px; background-color: #f9f9f9; border-radius: 6px; border: 1px solid #ddd;">
+            <h3 style="color: #333; margin-bottom: 10px; font-size: 16px;">📋 Next Steps - Installation Process</h3>
+            <p style="color: #666; font-size: 14px; margin-bottom: 5px;">• Our technical team will contact you within 2-3 business days to schedule the installation.</p>
+            <p style="color: #666; font-size: 14px; margin-bottom: 5px;">• Site survey and preparation will be conducted before installation begins.</p>
+            <p style="color: #666; font-size: 14px; margin-bottom: 5px;">• Installation typically takes 1-2 days depending on system complexity.</p>
+            <p style="color: #666; font-size: 14px; margin-bottom: 5px;">• Remaining payment will be collected before final handover and commissioning.</p>
+            <p style="color: #666; font-size: 14px; margin-bottom: 5px;">• All necessary documentation and warranty certificates will be provided upon completion.</p>
+        </div>
+
+        <!-- Terms and Conditions -->
+        <div class="terms-and-conditions" style="margin: 25px 0; page-break-inside: avoid;">
+            <h3 style="margin-bottom: 10px; font-size: 16px; font-weight: bold; color: #333;">Terms and Conditions:</h3>
+            <div style="white-space: pre-line; font-size: 14px; line-height: 1.6; color: #555;">
+• This order confirmation is valid for the mentioned products and services only.
+• Installation will be scheduled after successful advance payment verification.
+• Remaining payment must be completed before final commissioning.
+• Warranty terms as per original quotation remain applicable.
+• Any changes to the order must be requested in writing and are subject to approval.
+• Installation dates are subject to weather conditions and site accessibility.
+• Customer must provide necessary site access and basic infrastructure for installation.
+• All products are covered under manufacturer's warranty as specified in quotation.
+• Service and maintenance support available as per company policy.
+• For any queries, please contact us using the information provided above.
+            </div>
+        </div>
+
+        <!-- Signature Section -->
+        <div class="signature-section" style="display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <div class="signature-box" style="text-align: center; width: 45%;">
+                <div class="signature-line" style="border-bottom: 1px solid #333; margin-bottom: 5px; height: 50px;"></div>
+                <div class="signature-label" style="font-size: 14px; color: #666;">Customer Signature</div>
+            </div>
+            <div class="signature-box" style="text-align: center; width: 45%;">
+                <div class="signature-line" style="border-bottom: 1px solid #333; margin-bottom: 5px; height: 50px;"></div>
+                <div class="signature-label" style="font-size: 14px; color: #666;">Authorized Signatory</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">For {{businessDetails.name}}</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer" style="margin-top: 25px; text-align: center; page-break-inside: avoid; font-size: 14px; line-height: 1.6; color: #666;">
+            <p style="margin-bottom: 10px;">Thank you for choosing <strong>{{businessDetails.name}}</strong> for your solar energy needs!</p>
+            <p style="font-size: 12px;">This document serves as your official order confirmation. Please retain this for your records.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -68,28 +68,56 @@ const getNotificationCounts = async (req, res) => {
       purchaseOrderCount,
       quotationCount,
       leadCount,
-      enquiryCount
+      enquiryCount,
+      installationCount
     ] = await Promise.all([
       Notification.countDocuments({ recipient: userId }),
       Notification.countDocuments({ recipient: userId, read: false }),
-      Notification.countDocuments({ recipient: userId, type: { $regex: '^ticket_' }, read: false }),
-      Notification.countDocuments({ recipient: userId, type: { $regex: '^purchase_order_' }, read: false }),
-      Notification.countDocuments({ recipient: userId, type: { $regex: '^quotation_' }, read: false }),
-      Notification.countDocuments({ recipient: userId, type: { $regex: '^lead_' }, read: false }),
-      Notification.countDocuments({ recipient: userId, type: { $regex: '^enquiry_' }, read: false })
+      Notification.countDocuments({ 
+        recipient: userId, 
+        type: { $in: ['ticket_created', 'ticket_assigned', 'ticket_status_changed', 'ticket_commented'] }, 
+        read: false 
+      }),
+      Notification.countDocuments({ 
+        recipient: userId, 
+        type: { $in: ['purchase_order_created', 'purchase_order_updated', 'order_update'] }, 
+        read: false 
+      }),
+      Notification.countDocuments({ 
+        recipient: userId, 
+        type: { $in: ['quotation_created', 'quotation_updated', 'quotation_approved', 'quotation_rejected', 'quotation_expired'] }, 
+        read: false 
+      }),
+      Notification.countDocuments({ 
+        recipient: userId, 
+        type: { $in: ['lead_created', 'lead_assigned', 'lead_updated', 'lead_follow_up'] }, 
+        read: false 
+      }),
+      Notification.countDocuments({ 
+        recipient: userId, 
+        type: { $in: ['enquiry_created', 'enquiry_assigned', 'enquiry_converted'] }, 
+        read: false 
+      }),
+      Notification.countDocuments({ 
+        recipient: userId, 
+        type: { $in: ['engineer_assigned', 'assignment_accepted', 'installation_completed', 'installation_scheduled', 'installation_rescheduled', 'installation_started', 'customer_approved', 'customer_rejected', 'issue_reported'] }, 
+        read: false 
+      })
     ]);
     
     res.json({
       success: true,
       data: {
         total: totalCount,
+        totalUnread: unreadCount,
         unread: unreadCount,
         byType: {
           tickets: ticketCount,
           purchaseOrders: purchaseOrderCount,
           quotations: quotationCount,
           leads: leadCount,
-          enquiries: enquiryCount
+          enquiries: enquiryCount,
+          installations: installationCount
         }
       }
     });

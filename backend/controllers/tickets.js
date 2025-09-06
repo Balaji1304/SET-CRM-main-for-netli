@@ -89,9 +89,9 @@ exports.updateTicket = async (req, res) => {
     let ticket = await Ticket.findOne({ _id: req.params.id, user: req.user.id });
     if (!ticket) throw new AppError('Ticket not found', 404);
     
-    // Remove priority from update data if user is not product head
+    // Remove priority from update data if user is not front office executive
     const updateData = { ...req.body };
-    if (req.user.role !== 'product_head') {
+    if (req.user.role !== 'front_office_executive') {
       delete updateData.priority;
       delete updateData.assignedEngineerId;
       delete updateData.assignedBy;
@@ -119,7 +119,7 @@ exports.deleteTicket = async (req, res) => {
   }
 };
 
-// Product Head: list all tickets
+// Front Office Executive: list all tickets
 exports.getAllTickets = async (req, res) => {
   try {
     const tickets = await Ticket.find()
@@ -132,7 +132,7 @@ exports.getAllTickets = async (req, res) => {
   }
 };
 
-// Product Head: assign/unassign engineer
+// Front Office Executive: assign/unassign engineer
 exports.assignTicket = async (req, res) => {
   try {
     const { engineerId } = req.body;

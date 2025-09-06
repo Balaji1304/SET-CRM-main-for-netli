@@ -22,6 +22,8 @@ const {
   verifyManualPayment,
   rejectManualPayment,
   getAllCustomers,
+  generateOrderFormPDF,
+  getOrderFormData
 } = require('../controllers/customerPurchaseController');
 
 // Create quotation from lead
@@ -102,5 +104,17 @@ router.put(
   allocateInstallationDate
 );
 
+// Order Form routes
+router.get(
+  '/:id/order-form/pdf',
+  protect,
+  generateOrderFormPDF
+);
+
+router.get(
+  '/:id/order-form/data',
+  protect,
+  getOrderFormData
+);
 
 module.exports = router;
