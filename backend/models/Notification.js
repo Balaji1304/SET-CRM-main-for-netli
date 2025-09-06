@@ -20,6 +20,7 @@ const NotificationSchema = new mongoose.Schema({
       'ticket_commented',
       'purchase_order_created',
       'purchase_order_updated',
+      'order_accepted',
       'quotation_approved',
       'quotation_rejected',
       'quotation_created',

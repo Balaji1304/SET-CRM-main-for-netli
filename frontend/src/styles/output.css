@@ -1780,6 +1780,9 @@ video {
   --tw-bg-opacity: 1;
   background-color: rgb(239 246 255 / var(--tw-bg-opacity, 1));
 }
+.bg-blue-50\/30 {
+  background-color: rgb(239 246 255 / 0.3);
+}
 .bg-blue-50\/50 {
   background-color: rgb(239 246 255 / 0.5);
 }
@@ -3500,6 +3503,11 @@ video {
   border-color: rgb(249 115 21 / var(--tw-border-opacity, 1));
 }
 
+.focus\:border-purple-500:focus {
+  --tw-border-opacity: 1;
+  border-color: rgb(168 85 247 / var(--tw-border-opacity, 1));
+}
+
 .focus\:border-red-500:focus {
   --tw-border-opacity: 1;
   border-color: rgb(239 68 68 / var(--tw-border-opacity, 1));
@@ -3571,6 +3579,10 @@ video {
 
 .focus\:ring-primary\/50:focus {
   --tw-ring-color: rgb(249 115 21 / 0.5);
+}
+
+.focus\:ring-purple-500\/20:focus {
+  --tw-ring-color: rgb(168 85 247 / 0.2);
 }
 
 .focus\:ring-red-500:focus {
@@ -4211,6 +4223,13 @@ video {
 
 @media (min-width: 1024px) {
 
+  @media (min-width: 768px) {
+
+    .lg\:md\:p-6 {
+      padding: 1.5rem;
+    }
+  }
+
   .lg\:left-3 {
     left: 0.75rem;
   }
@@ -4249,6 +4268,14 @@ video {
 
   .lg\:h-4 {
     height: 1rem;
+  }
+
+  .lg\:h-full {
+    height: 100%;
+  }
+
+  .lg\:min-h-screen {
+    min-height: 100vh;
   }
 
   .lg\:w-1\/2 {
@@ -4377,6 +4404,41 @@ video {
     margin-bottom: calc(0px * var(--tw-space-y-reverse));
   }
 
+  .lg\:overflow-hidden {
+    overflow: hidden;
+  }
+
+  .lg\:overflow-y-auto {
+    overflow-y: auto;
+  }
+
+  .lg\:rounded-lg {
+    border-radius: 0.5rem;
+  }
+
+  .lg\:border {
+    border-width: 1px;
+  }
+
+  .lg\:border-b {
+    border-bottom-width: 1px;
+  }
+
+  .lg\:border-gray-200 {
+    --tw-border-opacity: 1;
+    border-color: rgb(229 231 235 / var(--tw-border-opacity, 1));
+  }
+
+  .lg\:bg-gray-50 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(249 250 251 / var(--tw-bg-opacity, 1));
+  }
+
+  .lg\:bg-white {
+    --tw-bg-opacity: 1;
+    background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+  }
+
   .lg\:p-1 {
     padding: 0.25rem;
   }
@@ -4387,6 +4449,10 @@ video {
 
   .lg\:p-2 {
     padding: 0.5rem;
+  }
+
+  .lg\:p-4 {
+    padding: 1rem;
   }
 
   .lg\:px-2 {
@@ -4434,6 +4500,12 @@ video {
   .lg\:text-sm {
     font-size: 0.875rem;
     line-height: 1.25rem;
+  }
+
+  .lg\:shadow-sm {
+    --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
   }
 }
 
