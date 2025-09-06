@@ -2,6 +2,20 @@ const axios = require('axios');
 const NodeCache = require('node-cache');
 const tokenManager = require('./whatsappTokenManager');
 
+/**
+ * WhatsApp Business API Integration
+ * 
+ * ACTIVE TEMPLATES (Business verification not required):
+ * 1. quotation_ready (UTILITY) - 2 parameters: customerName, quotationNumber
+ * 2. invoice_generated (UTILITY) - 4 parameters: customerName, invoiceNumber, amount, dueDate
+ * 3. account_created (UTILITY) - 3 parameters: customerName, username, portalUrl
+ * 
+ * REMOVED TEMPLATES (Requires business verification):
+ * - user_verification (AUTHENTICATION) - Removed until business verification complete
+ * 
+ * TODO: After business verification, re-implement authentication templates for OTP/password delivery
+ */
+
 // Cache for API responses and rate limiting (5 mins expiry)
 const whatsappCache = new NodeCache({ stdTTL: 300 });
 
@@ -264,7 +278,7 @@ const sendQuotationWhatsApp = async (options) => {
     countryCode 
   } = options;
 
-  // Use pre-approved template for quotation
+  // Use pre-approved template for quotation (simplified for testing)
   const components = [
     {
       type: "body",
@@ -276,10 +290,6 @@ const sendQuotationWhatsApp = async (options) => {
         {
           type: "text", 
           text: quotationNumber
-        },
-        {
-          type: "text",
-          text: quotationUrl
         }
       ]
     }
@@ -304,7 +314,7 @@ const sendInvoiceWhatsApp = async (options) => {
     countryCode 
   } = options;
 
-  // Use pre-approved template for invoice
+  // Use pre-approved template for invoice (3 parameters)
   const components = [
     {
       type: "body",
@@ -320,10 +330,6 @@ const sendInvoiceWhatsApp = async (options) => {
         {
           type: "text",
           text: amount
-        },
-        {
-          type: "text",
-          text: invoiceUrl
         }
       ]
     }
@@ -337,18 +343,17 @@ const sendInvoiceWhatsApp = async (options) => {
   });
 };
 
-// Helper function to send welcome credentials via WhatsApp
-const sendWelcomeWhatsApp = async (options) => {
+// Helper function to send account creation notification (Utility template)
+const sendAccountCreatedWhatsApp = async (options) => {
   const { 
     to, 
     customerName, 
-    loginUsername, // This can be email or phone number
-    password,
-    loginUrl,
+    loginUsername, // Account identifier/username
+    loginUrl, // Portal URL
     countryCode 
   } = options;
 
-  // Use pre-approved template for welcome message
+  // Use Utility template for account creation notification with username as account identifier
   const components = [
     {
       type: "body",
@@ -359,15 +364,11 @@ const sendWelcomeWhatsApp = async (options) => {
         },
         {
           type: "text",
-          text: loginUsername
+          text: loginUsername // Username as account identifier
         },
         {
           type: "text",
-          text: password
-        },
-        {
-          type: "text",
-          text: loginUrl
+          text: loginUrl || process.env.FRONTEND_URL || "your portal"
         }
       ]
     }
@@ -375,7 +376,7 @@ const sendWelcomeWhatsApp = async (options) => {
 
   return await sendWhatsAppTemplate({
     to,
-    templateName: 'welcome_credentials1', // This template needs to be approved by Meta
+    templateName: 'account_created', // Utility template name
     components,
     countryCode
   });
@@ -547,7 +548,7 @@ module.exports = {
   sendWhatsAppText,
   sendQuotationWhatsApp,
   sendInvoiceWhatsApp,
-  sendWelcomeWhatsApp,
+  sendAccountCreatedWhatsApp,
   sendInstallationAssignmentWhatsApp,
   sendInstallationScheduledWhatsApp,
   sendInstallationReminderWhatsApp,

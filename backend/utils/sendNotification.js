@@ -1,8 +1,22 @@
+/**
+ * Multi-channel Notification Service
+ * 
+ * Supports email + WhatsApp notifications
+ * 
+ * CURRENT WHATSAPP TEMPLATES:
+ * - quotation_ready (utility)
+ * - invoice_generated (utility) 
+ * - account_created (utility)
+ * 
+ * NOTE: Authentication templates removed until business verification complete
+ * Welcome notifications now only send account creation (no password/OTP via WhatsApp)
+ */
+
 const sendEmail = require('./sendEmail');
 const {
   sendQuotationWhatsApp,
   sendInvoiceWhatsApp,
-  sendWelcomeWhatsApp,
+  sendAccountCreatedWhatsApp,
   sendWhatsAppDocument,
   sendWhatsAppText,
   sendInstallationAssignmentWhatsApp,
@@ -221,12 +235,12 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
       return orderFormResult;
 
     case 'welcome':
-      // Send welcome credentials via WhatsApp
-      return await sendWelcomeWhatsApp({
+      // Send account creation notification (Utility template only)
+      // Authentication template removed - requires business verification
+      return await sendAccountCreatedWhatsApp({
         to: whatsappNumber,
         customerName: `${customer.firstName} ${customer.lastName}`,
         loginUsername: data.loginUsername || data.email || data.phone,
-        password: data.password,
         loginUrl: process.env.FRONTEND_URL || 'your-crm-portal.com',
         countryCode
       });
