@@ -49,7 +49,14 @@ const NotificationSchema = new mongoose.Schema({
       'task_reminder',
       'performance_alert',
       'sla_breach',
-      'order_update'
+      'order_update',
+      // Sales Team Notifications
+      'follow_up_reminder',
+      'quotation_pending_approval',
+      'hot_lead_alert',
+      // Accounts Department Notifications
+      'payment_overdue',
+      'invoice_due_soon'
     ],
     required: true
   },

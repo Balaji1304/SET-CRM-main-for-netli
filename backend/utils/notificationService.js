@@ -1,6 +1,6 @@
 const Notification = require('../models/Notification');
 const User = require('../models/User');
-const { sendServiceEngineerWhatsApp } = require('./sendNotification');
+const { sendServiceEngineerWhatsApp, sendSalesTeamWhatsApp, sendAccountsTeamWhatsApp } = require('./sendNotification');
 
 // Helper function to generate redirect URLs based on notification type and data
 const getRedirectUrl = (type, data = {}) => {
@@ -37,13 +37,24 @@ const getRedirectUrl = (type, data = {}) => {
     case 'lead_assigned':
     case 'lead_updated':
     case 'lead_follow_up':
+    case 'follow_up_reminder':
+    case 'hot_lead_alert':
       return `/dashboard/leads`; // Changed to leads page which is accessible to sales_person, sales_head, front_office_executive
+    
+    // Sales notifications
+    case 'quotation_pending_approval':
+      return `/dashboard/quotations`;
     
     // Enquiry notifications
     case 'enquiry_created':
     case 'enquiry_assigned':
     case 'enquiry_converted':
       return `/dashboard/enquiry`;
+    
+    // Accounts notifications
+    case 'payment_overdue':
+    case 'invoice_due_soon':
+      return `/dashboard/payments`;
     
     // Installation notifications
     case 'engineer_assigned':
@@ -1079,6 +1090,240 @@ class NotificationService {
       return notification;
     } catch (error) {
       console.error('Error creating direct notification:', error);
+      throw error;
+    }
+  }
+
+  // SALES TEAM NOTIFICATIONS WITH WHATSAPP
+
+  // Create sales team notification with WhatsApp support
+  static async createSalesNotification(type, data, sender = null) {
+    try {
+      let recipients = [];
+      let title = '';
+      let message = '';
+      let priority = 'medium';
+      let whatsappData = null;
+
+      switch (type) {
+        case 'lead_assigned':
+          // Find the assigned sales person
+          if (data.assignedTo) {
+            recipients = [data.assignedTo];
+            const salesPerson = await User.findById(data.assignedTo);
+            title = 'New Lead Assigned';
+            message = `You have been assigned a new ${data.priority || 'medium'} priority lead: ${data.leadName}`;
+            priority = data.priority === 'high' ? 'high' : 'medium';
+            
+            // Prepare WhatsApp data
+            whatsappData = {
+              leadName: data.leadName,
+              leadPhone: data.leadPhone,
+              leadEmail: data.leadEmail,
+              leadSource: data.leadSource,
+              priority: data.priority || 'medium'
+            };
+
+            // Send WhatsApp notification
+            if (salesPerson) {
+              await sendSalesTeamWhatsApp('lead_assignment', salesPerson, whatsappData);
+            }
+          }
+          break;
+
+        case 'follow_up_reminder':
+          // Find the assigned sales person
+          if (data.assignedTo) {
+            recipients = [data.assignedTo];
+            const salesPerson = await User.findById(data.assignedTo);
+            title = 'Follow-up Reminder';
+            message = `Reminder: Follow up with lead ${data.leadName} (last contact: ${data.daysSinceLastContact} days ago)`;
+            priority = 'medium';
+            
+            // Prepare WhatsApp data
+            whatsappData = {
+              leadName: data.leadName,
+              leadPhone: data.leadPhone,
+              daysSinceLastContact: data.daysSinceLastContact
+            };
+
+            // Send WhatsApp notification
+            if (salesPerson) {
+              await sendSalesTeamWhatsApp('follow_up_reminder', salesPerson, whatsappData);
+            }
+          }
+          break;
+
+        case 'quotation_pending_approval':
+          // Notify all sales heads and the creator
+          const salesHeads = await User.find({ role: 'sales_head' });
+          recipients = salesHeads.map(user => user._id);
+          if (data.createdBy) {
+            recipients.push(data.createdBy);
+          }
+          title = 'Quotation Pending Approval';
+          message = `Quotation ${data.quotationNumber} for ${data.customerName} (₹${data.amount}) is waiting for approval`;
+          priority = 'high';
+          
+          // Prepare WhatsApp data
+          whatsappData = {
+            quotationNumber: data.quotationNumber,
+            customerName: data.customerName,
+            amount: data.amount,
+            daysWaiting: data.daysWaiting || 0
+          };
+
+          // Send WhatsApp to sales heads
+          for (const salesHead of salesHeads) {
+            await sendSalesTeamWhatsApp('quotation_pending', salesHead, whatsappData);
+          }
+          break;
+
+        case 'hot_lead_alert':
+          // Notify assigned sales person or all sales team if not assigned
+          if (data.assignedTo) {
+            recipients = [data.assignedTo];
+            const salesPerson = await User.findById(data.assignedTo);
+            if (salesPerson) {
+              await sendSalesTeamWhatsApp('hot_lead_alert', salesPerson, {
+                leadName: data.leadName,
+                leadPhone: data.leadPhone,
+                reason: data.reason
+              });
+            }
+          } else {
+            const salesTeam = await User.find({ role: { $in: ['sales_person', 'sales_head'] } });
+            recipients = salesTeam.map(user => user._id);
+            
+            // Send WhatsApp to all sales team
+            for (const salesPerson of salesTeam) {
+              await sendSalesTeamWhatsApp('hot_lead_alert', salesPerson, {
+                leadName: data.leadName,
+                leadPhone: data.leadPhone,
+                reason: data.reason
+              });
+            }
+          }
+          title = 'Hot Lead Alert!';
+          message = `URGENT: High-priority lead ${data.leadName} requires immediate attention - ${data.reason}`;
+          priority = 'urgent';
+          break;
+      }
+
+      // Create in-app notifications
+      const notifications = await Promise.all(
+        recipients.map(recipientId => 
+          Notification.createNotification({
+            recipient: recipientId,
+            sender: sender,
+            type: type,
+            title: title,
+            message: message,
+            priority: priority,
+            data: {
+              redirectUrl: getRedirectUrl(type, data),
+              entityType: 'lead',
+              ...data
+            }
+          })
+        )
+      );
+
+      return notifications;
+    } catch (error) {
+      console.error('Error creating sales notification:', error);
+      throw error;
+    }
+  }
+
+  // ACCOUNTS DEPARTMENT NOTIFICATIONS WITH WHATSAPP
+
+  // Create accounts team notification with WhatsApp support
+  static async createAccountsNotification(type, data, sender = null) {
+    try {
+      let recipients = [];
+      let title = '';
+      let message = '';
+      let priority = 'medium';
+
+      // Find accounts department users
+      const accountsTeam = await User.find({ role: 'accounts_department' });
+      recipients = accountsTeam.map(user => user._id);
+
+      switch (type) {
+        case 'payment_received':
+          title = 'Payment Received';
+          message = `Payment of ₹${data.amount} received from ${data.customerName} for invoice ${data.invoiceNumber}`;
+          priority = 'medium';
+
+          // Send WhatsApp notifications
+          for (const accountsPerson of accountsTeam) {
+            await sendAccountsTeamWhatsApp('payment_received', accountsPerson, {
+              customerName: data.customerName,
+              amount: data.amount,
+              paymentMethod: data.paymentMethod,
+              invoiceNumber: data.invoiceNumber
+            });
+          }
+          break;
+
+        case 'payment_overdue':
+          title = 'Payment Overdue';
+          message = `Payment overdue: ${data.customerName} - ₹${data.amount} (${data.daysOverdue} days overdue)`;
+          priority = data.daysOverdue > 30 ? 'urgent' : 'high';
+
+          // Send WhatsApp notifications
+          for (const accountsPerson of accountsTeam) {
+            await sendAccountsTeamWhatsApp('payment_pending', accountsPerson, {
+              customerName: data.customerName,
+              customerPhone: data.customerPhone,
+              amount: data.amount,
+              invoiceNumber: data.invoiceNumber,
+              daysOverdue: data.daysOverdue
+            });
+          }
+          break;
+
+        case 'invoice_due_soon':
+          title = 'Invoice Due Soon';
+          message = `Invoice ${data.invoiceNumber} for ${data.customerName} (₹${data.amount}) due in ${data.daysUntilDue} days`;
+          priority = 'medium';
+
+          // Send WhatsApp notifications
+          for (const accountsPerson of accountsTeam) {
+            await sendAccountsTeamWhatsApp('invoice_due', accountsPerson, {
+              customerName: data.customerName,
+              amount: data.amount,
+              invoiceNumber: data.invoiceNumber,
+              dueDate: data.dueDate,
+              daysUntilDue: data.daysUntilDue
+            });
+          }
+          break;
+      }
+
+      // Create in-app notifications
+      const notifications = await Promise.all(
+        recipients.map(recipientId => 
+          Notification.createNotification({
+            recipient: recipientId,
+            sender: sender,
+            type: type,
+            title: title,
+            message: message,
+            priority: priority,
+            data: {
+              redirectUrl: getRedirectUrl(type, data),
+              entityType: 'payment',
+              ...data
+            }
+          })
+        )
+      );
+
+      return notifications;
+    } catch (error) {
+      console.error('Error creating accounts notification:', error);
       throw error;
     }
   }
