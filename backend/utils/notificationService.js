@@ -202,11 +202,17 @@ class NotificationService {
           break;
 
         case 'order_accepted':
-          // Notify marketing coordinators and relevant stakeholders
+          // Notify marketing coordinators, relevant stakeholders, and customer
           const acceptanceStakeholders = await User.find({ 
             role: { $in: ['marketing_coordinator', 'sales_head'] }
           });
           recipients = acceptanceStakeholders.filter(user => user._id).map(user => user._id);
+          
+          // Also notify the customer if they have a user account
+          if (purchaseOrder.customerId && purchaseOrder.customerId.user) {
+            recipients.push(purchaseOrder.customerId.user);
+          }
+          
           title = 'Order Accepted by Production';
           message = `Order #${purchaseOrder.purchaseID} has been accepted by production and is scheduled for dispatch`;
           priority = 'high';
@@ -422,9 +428,9 @@ class NotificationService {
         case 'assignment_accepted':
           // Notify customer and management
           recipients = [];
-          const customerId = purchase.customerId?._id || purchase.customerId;
-          if (customerId) {
-            recipients.push(customerId);
+          // Notify customer using their User ID
+          if (purchase.customerId && purchase.customerId.user) {
+            recipients.push(purchase.customerId.user);
           }
           const management = await User.find({ role: { $in: ['product_head', 'marketing_coordinator'] } });
           recipients.push(...management.filter(user => user._id).map(user => user._id));
@@ -436,9 +442,9 @@ class NotificationService {
         case 'installation_completed':
           // Notify customer for sign-off
           recipients = [];
-          const customerIdCompleted = purchase.customerId?._id || purchase.customerId;
-          if (customerIdCompleted) {
-            recipients.push(customerIdCompleted);
+          // Notify customer using their User ID
+          if (purchase.customerId && purchase.customerId.user) {
+            recipients.push(purchase.customerId.user);
           }
           title = 'Installation Completed - Action Required';
           message = `Your installation for order ${purchase.purchaseID} has been completed. Please review and provide feedback.`;
@@ -446,13 +452,17 @@ class NotificationService {
           break;
 
         case 'installation_scheduled':
-          // Notify assigned engineer about scheduled installation
+          // Notify assigned engineer and customer about scheduled installation
           recipients = [];
           if (purchase.assignedEngineerId) {
             recipients.push(purchase.assignedEngineerId);
           }
+          // Also notify customer using their User ID
+          if (purchase.customerId && purchase.customerId.user) {
+            recipients.push(purchase.customerId.user);
+          }
           title = 'Installation Scheduled';
-          message = `Your installation for order ${purchase.purchaseID} has been scheduled for ${new Date(purchase.installationDate).toLocaleDateString()}`;
+          message = `Installation for order ${purchase.purchaseID} has been scheduled for ${new Date(purchase.installationDate).toLocaleDateString()}`;
           priority = 'medium';
           break;
 

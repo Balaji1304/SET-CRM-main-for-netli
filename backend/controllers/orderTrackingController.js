@@ -36,7 +36,7 @@ exports.createTrackingRecord = async (req, res) => {
       title: 'Order Placed',
       description: 'Your order has been successfully placed and is being processed.',
       isVisible: true
-    }, req.user.id);
+    }, req.user._id);
 
     res.status(201).json({
       success: true,
@@ -145,7 +145,7 @@ exports.updateTrackingStatus = async (req, res) => {
       metadata,
       estimatedDate,
       isVisible
-    }, req.user.id);
+    }, req.user._id);
 
     // Send notification to customer if event is visible
     if (isVisible) {
@@ -203,7 +203,7 @@ exports.updateShippingDetails = async (req, res) => {
       description: `Your order has been dispatched via ${carrier}. Tracking ID: ${trackingId}`,
       metadata: { carrier, trackingId },
       isVisible: true
-    }, req.user.id);
+    }, req.user._id);
 
     res.status(200).json({
       success: true,
@@ -245,7 +245,7 @@ exports.updateInstallationDetails = async (req, res) => {
       metadata: { engineerId: assignedEngineerId, engineerName: engineer?.name },
       estimatedDate: scheduledDate ? new Date(scheduledDate) : null,
       isVisible: true
-    }, req.user.id);
+    }, req.user._id);
 
     res.status(200).json({
       success: true,

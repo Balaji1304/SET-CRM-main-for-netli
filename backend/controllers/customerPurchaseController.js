@@ -1,4 +1,3 @@
-
 const Customer = require('../models/Customer');
 const Lead = require('../models/Lead');
 const Quotation = require('../models/Quotation');
@@ -10,6 +9,7 @@ const { AppError, errorHandler } = require('../utils/errorHandler');
 const User = require('../models/User');
 const Package = require('../models/Package');
 const OrderTracking = require('../models/OrderTracking');
+const TrackingService = require('../utils/trackingService');
 const { generateOrderFormPDF, getOrderFormData } = require('../utils/generateOrderForm');
 
 // Convert lead to customer when quotation is approved
@@ -764,7 +764,7 @@ exports.getAssignablePurchases = async (req, res) => {
 exports.assignTaskToEngineer = async (req, res) => {
   try {
     const { purchaseId } = req.params;
-    const { assignedEngineerId, serviceDueDate, serviceAssignmentNotes } = req.body;
+    const { assignedEngineerId, serviceDueDate, serviceAssignmentNotes, installationDate } = req.body;
 
     if (!assignedEngineerId) {
       throw new AppError('Assigned engineer is required', 400);
@@ -781,13 +781,30 @@ exports.assignTaskToEngineer = async (req, res) => {
       throw new AppError('Purchase is not active or advance payment not confirmed', 400);
     }
 
-    // In the new workflow, we need to check for installation_date_allocated status
-    if (purchase.serviceTaskStatus !== 'installation_date_allocated') {
-      throw new AppError(`Purchase must have an allocated installation date before assigning an engineer. Current status: ${purchase.serviceTaskStatus}`, 400);
+    // Check if purchase is ready for engineer assignment
+    // Allow both 'installation_date_allocated' (new workflow) and 'assigned' (existing data)
+    const validStatusesForAssignment = ['installation_date_allocated', 'assigned', 'ready_to_dispatch'];
+    if (!validStatusesForAssignment.includes(purchase.serviceTaskStatus)) {
+      throw new AppError(`Purchase must be ready for dispatch or have allocated installation date before assigning an engineer. Current status: ${purchase.serviceTaskStatus}`, 400);
     }
 
+    // Handle installation date - allow assignment even if date not allocated yet
     if (!purchase.installationDate) {
-      throw new AppError('Installation date must be set before assigning an engineer', 400);
+      if (installationDate) {
+        // Set installation date if provided in request
+        purchase.installationDate = installationDate;
+        if (purchase.serviceTaskStatus === 'ready_to_dispatch') {
+          purchase.serviceTaskStatus = 'installation_date_allocated';
+        }
+      } else if (serviceDueDate) {
+        // Use serviceDueDate as fallback installation date
+        purchase.installationDate = serviceDueDate;
+        if (purchase.serviceTaskStatus === 'ready_to_dispatch') {
+          purchase.serviceTaskStatus = 'installation_date_allocated';
+        }
+      } else {
+        throw new AppError('Installation date must be set. Please provide either installationDate or serviceDueDate in the request.', 400);
+      }
     }
     
     // Check if the assignedEngineerId is a valid service engineer
@@ -805,18 +822,18 @@ exports.assignTaskToEngineer = async (req, res) => {
     
     await purchase.save();
 
-    // Update tracking
+    // Update tracking using service
     try {
-      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
-      if (tracking) {
-        await tracking.addEvent({
-          status: 'engineer_assigned',
-          title: 'Service Engineer Assigned',
-          description: `Service engineer ${engineer.name} has been assigned for installation on ${new Date(purchase.installationDate).toLocaleDateString()}.`,
+      await TrackingService.updateFromPurchaseStatus(
+        purchase._id, 
+        'assigned', 
+        req.user._id,
+        {
           estimatedDate: new Date(purchase.installationDate),
-          isVisible: true
-        }, req.user._id);
-      }
+          description: `Service engineer ${engineer.name} has been assigned for installation on ${new Date(purchase.installationDate).toLocaleDateString()}.`,
+          metadata: { engineerId: engineerId, engineerName: engineer.name }
+        }
+      );
     } catch (trackingError) {
       console.error('Error updating tracking:', trackingError);
     }
@@ -1007,23 +1024,17 @@ exports.acceptOrder = async (req, res) => {
     purchase.updatedAt = new Date();
     await purchase.save();
 
-    // Update tracking
+    // Update tracking using service
     try {
-      const OrderTracking = require('../models/OrderTracking');
-      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
-      if (tracking) {
-        const alreadyLogged = Array.isArray(tracking.events) && tracking.events.some(e => e.status === 'order_approved');
-        if (!alreadyLogged) {
-          await tracking.addEvent({
-            status: 'order_approved',
-            title: 'Order Accepted by Production',
-            description: `Your order has been accepted by production. Estimated dispatch date: ${dispatchDate.toLocaleDateString()}.`,
-            isVisible: true,
-            estimatedDate: dispatchDate
-          }, req.user.id);
-          await tracking.save();
+      await TrackingService.updateFromPurchaseStatus(
+        purchase._id, 
+        'order_accepted', 
+        req.user._id,
+        {
+          estimatedDate: dispatchDate,
+          description: `Your order has been accepted by production. Estimated dispatch date: ${dispatchDate.toLocaleDateString()}.`
         }
-      }
+      );
     } catch (trackingError) {
       console.error('Error updating tracking:', trackingError);
     }
@@ -1071,22 +1082,13 @@ exports.updateStatusToReadyToDispatch = async (req, res) => {
     purchase.updatedAt = new Date();
     await purchase.save();
 
-    // Update tracking
+    // Update tracking using service
     try {
-      const OrderTracking = require('../models/OrderTracking');
-      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
-      if (tracking) {
-        const alreadyLogged = Array.isArray(tracking.events) && tracking.events.some(e => e.status === 'ready_to_dispatch');
-        if (!alreadyLogged) {
-          await tracking.addEvent({
-            status: 'ready_to_dispatch',
-            title: 'Ready to Dispatch',
-            description: 'Your order has been processed and is ready for dispatch.',
-            isVisible: true
-          }, req.user.id);
-          await tracking.save();
-        }
-      }
+      await TrackingService.updateFromPurchaseStatus(
+        purchase._id, 
+        'ready_to_dispatch', 
+        req.user._id
+      );
     } catch (trackingError) {
       console.error('Error updating tracking:', trackingError);
     }
