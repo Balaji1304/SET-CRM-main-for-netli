@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Edit2, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Phone, Mail, Building2, Calendar, FileText, AlertCircle, Info, ShoppingCart, Tag, Users, MapPin, IndianRupee, Clock, User } from 'lucide-react';
 import { getLeads, deleteLead } from '../../services/leadService';
@@ -100,6 +101,22 @@ export default function LeadsTable({
       window.history.replaceState({}, document.title, location.pathname);
     }
   }, [location.state, fetchLeads]);
+
+  // Handle scroll prevention when delete modal is open
+  useEffect(() => {
+    if (isDeleteModalOpen) {
+      // Prevent body scroll
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Restore scroll
+      document.body.style.overflow = '';
+    }
+
+    // Cleanup function to ensure styles are reset if component unmounts
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isDeleteModalOpen]);
 
   const filteredLeads = sortedLeads.filter(lead => {
     const searchString = [
@@ -919,9 +936,18 @@ export default function LeadsTable({
       )}
 
       {/* Delete Modal */}
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 ease-out">
+      {isDeleteModalOpen && createPortal(
+        <div 
+          className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4"
+          onClick={(e) => {
+            // Close modal when clicking overlay
+            if (e.target === e.currentTarget) {
+              setIsDeleteModalOpen(false);
+              setError(null);
+            }
+          }}
+        >
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-auto transform transition-all duration-300 ease-out">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">Confirm Delete</h3>
               <button 
@@ -951,7 +977,8 @@ export default function LeadsTable({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
