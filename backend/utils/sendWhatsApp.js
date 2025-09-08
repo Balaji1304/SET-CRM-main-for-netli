@@ -499,6 +499,219 @@ const sendUrgentCustomerContactWhatsApp = async (options) => {
   });
 };
 
+// SALES TEAM WHATSAPP NOTIFICATIONS
+
+// Helper function to send lead assignment notification to sales team
+const sendLeadAssignmentWhatsApp = async (options) => {
+  const { 
+    to, 
+    salesPersonName, 
+    leadName,
+    leadPhone,
+    leadEmail,
+    leadSource,
+    priority,
+    countryCode 
+  } = options;
+
+  const priorityEmoji = priority === 'high' ? '🔥' : priority === 'medium' ? '⚡' : '📋';
+  
+  const message = `${priorityEmoji} *NEW LEAD ASSIGNED*\n\n` +
+    `Hello ${salesPersonName},\n\n` +
+    `You have been assigned a new lead:\n\n` +
+    `👤 Name: ${leadName}\n` +
+    `📞 Phone: ${leadPhone}\n` +
+    `📧 Email: ${leadEmail}\n` +
+    `📍 Source: ${leadSource}\n` +
+    `⚡ Priority: ${priority.toUpperCase()}\n\n` +
+    `Please follow up with this lead as soon as possible.\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
+// Helper function to send follow-up reminder to sales team
+const sendFollowUpReminderWhatsApp = async (options) => {
+  const { 
+    to, 
+    salesPersonName, 
+    leadName,
+    leadPhone,
+    daysSinceLastContact,
+    countryCode 
+  } = options;
+
+  const message = `⏰ *FOLLOW-UP REMINDER*\n\n` +
+    `Hello ${salesPersonName},\n\n` +
+    `Reminder: Follow up required for:\n\n` +
+    `👤 Lead: ${leadName}\n` +
+    `📞 Phone: ${leadPhone}\n` +
+    `📅 Last Contact: ${daysSinceLastContact} days ago\n\n` +
+    `Please contact this lead today to maintain engagement.\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
+// Helper function to send quotation pending approval notification
+const sendQuotationPendingWhatsApp = async (options) => {
+  const { 
+    to, 
+    salesPersonName, 
+    quotationNumber,
+    customerName,
+    amount,
+    daysWaiting,
+    countryCode 
+  } = options;
+
+  const message = `📋 *QUOTATION PENDING APPROVAL*\n\n` +
+    `Hello ${salesPersonName},\n\n` +
+    `Quotation waiting for approval:\n\n` +
+    `📄 Quotation: #${quotationNumber}\n` +
+    `👤 Customer: ${customerName}\n` +
+    `💰 Amount: ₹${amount}\n` +
+    `⏳ Waiting: ${daysWaiting} days\n\n` +
+    `Please follow up with management for approval.\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
+// Helper function to send hot lead alert to sales team
+const sendHotLeadAlertWhatsApp = async (options) => {
+  const { 
+    to, 
+    salesPersonName, 
+    leadName,
+    leadPhone,
+    reason,
+    countryCode 
+  } = options;
+
+  const message = `🔥 *HOT LEAD ALERT*\n\n` +
+    `Hello ${salesPersonName},\n\n` +
+    `URGENT: High-priority lead requires immediate attention!\n\n` +
+    `👤 Lead: ${leadName}\n` +
+    `📞 Phone: ${leadPhone}\n` +
+    `🚨 Reason: ${reason}\n\n` +
+    `Contact this lead immediately - they are highly interested!\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
+// ACCOUNTS DEPARTMENT WHATSAPP NOTIFICATIONS
+
+// Helper function to send payment received notification to accounts
+const sendPaymentReceivedWhatsApp = async (options) => {
+  const { 
+    to, 
+    accountsPersonName, 
+    customerName,
+    amount,
+    paymentMethod,
+    invoiceNumber,
+    countryCode 
+  } = options;
+
+  const message = `💰 *PAYMENT RECEIVED*\n\n` +
+    `Hello ${accountsPersonName},\n\n` +
+    `Payment confirmation:\n\n` +
+    `👤 Customer: ${customerName}\n` +
+    `💵 Amount: ₹${amount}\n` +
+    `💳 Method: ${paymentMethod}\n` +
+    `📄 Invoice: #${invoiceNumber}\n\n` +
+    `Payment has been successfully processed and recorded.\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
+// Helper function to send payment pending notification to accounts
+const sendPaymentPendingWhatsApp = async (options) => {
+  const { 
+    to, 
+    accountsPersonName, 
+    customerName,
+    customerPhone,
+    amount,
+    invoiceNumber,
+    daysOverdue,
+    countryCode 
+  } = options;
+
+  const urgencyEmoji = daysOverdue > 30 ? '🚨' : daysOverdue > 15 ? '⚠️' : '📅';
+  
+  const message = `${urgencyEmoji} *PAYMENT PENDING*\n\n` +
+    `Hello ${accountsPersonName},\n\n` +
+    `Payment follow-up required:\n\n` +
+    `👤 Customer: ${customerName}\n` +
+    `📞 Phone: ${customerPhone}\n` +
+    `💰 Amount: ₹${amount}\n` +
+    `📄 Invoice: #${invoiceNumber}\n` +
+    `⏰ Overdue: ${daysOverdue} days\n\n` +
+    `Please follow up with customer for payment collection.\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
+// Helper function to send invoice due notification to accounts
+const sendInvoiceDueWhatsApp = async (options) => {
+  const { 
+    to, 
+    accountsPersonName, 
+    customerName,
+    amount,
+    invoiceNumber,
+    dueDate,
+    daysUntilDue,
+    countryCode 
+  } = options;
+
+  const message = `📅 *INVOICE DUE REMINDER*\n\n` +
+    `Hello ${accountsPersonName},\n\n` +
+    `Invoice due soon:\n\n` +
+    `👤 Customer: ${customerName}\n` +
+    `💰 Amount: ₹${amount}\n` +
+    `📄 Invoice: #${invoiceNumber}\n` +
+    `📅 Due Date: ${dueDate}\n` +
+    `⏳ Days Until Due: ${daysUntilDue}\n\n` +
+    `Please send reminder to customer before due date.\n\n` +
+    `*Sunlit CRM Team*`;
+
+  return await sendWhatsAppText({
+    to,
+    text: message,
+    countryCode
+  });
+};
+
 // Test WhatsApp configuration
 const testWhatsAppConfig = async () => {
   try {
@@ -553,6 +766,15 @@ module.exports = {
   sendInstallationScheduledWhatsApp,
   sendInstallationReminderWhatsApp,
   sendUrgentCustomerContactWhatsApp,
+  // Sales Team WhatsApp Functions
+  sendLeadAssignmentWhatsApp,
+  sendFollowUpReminderWhatsApp,
+  sendQuotationPendingWhatsApp,
+  sendHotLeadAlertWhatsApp,
+  // Accounts Department WhatsApp Functions
+  sendPaymentReceivedWhatsApp,
+  sendPaymentPendingWhatsApp,
+  sendInvoiceDueWhatsApp,
   testWhatsAppConfig,
   formatPhoneNumber
 }; 

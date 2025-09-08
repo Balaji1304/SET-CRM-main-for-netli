@@ -72,19 +72,37 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
         id: 'payment_confirmed',
         title: 'Payment Confirmed',
         timestamp: tracking.events?.find(e => e.status === 'payment_confirmed')?.timestamp,
-        completed: ['payment_confirmed', 'dispatched', 'delivered', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
+        completed: ['payment_confirmed', 'order_accepted', 'order_approved', 'ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
+      },
+      {
+        id: 'order_accepted',
+        title: 'Order Accepted',
+        timestamp: tracking.events?.find(e => e.status === 'order_accepted' || e.status === 'order_approved')?.timestamp,
+        completed: ['order_accepted', 'order_approved', 'ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
+      },
+      {
+        id: 'ready_to_dispatch',
+        title: 'Ready to Dispatch',
+        timestamp: tracking.events?.find(e => e.status === 'ready_to_dispatch')?.timestamp,
+        completed: ['ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
       },
       {
         id: 'dispatched',
         title: 'Dispatched',
         timestamp: tracking.events?.find(e => e.status === 'dispatched')?.timestamp,
-        completed: ['dispatched', 'delivered', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
+        completed: ['dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
       },
       {
         id: 'delivered',
         title: 'Delivered',
         timestamp: tracking.actualDelivery || tracking.events?.find(e => e.status === 'delivered')?.timestamp,
-        completed: ['delivered', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
+        completed: ['delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
+      },
+      {
+        id: 'installation_scheduled',
+        title: 'Installation Scheduled',
+        timestamp: tracking.events?.find(e => e.status === 'installation_scheduled' || e.status === 'engineer_assigned')?.timestamp,
+        completed: ['installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
       },
       {
         id: 'installation_completed',
@@ -144,6 +162,8 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
             <span>₹{formatNumber(tracking.purchaseId?.totalAmount || 0)}</span>
             <span>•</span>
             <span>#{tracking.trackingNumber}</span>
+            <span>•</span>
+            <span>{tracking.progressPercentage || 0}% Complete</span>
           </div>
           <p className="text-sm text-gray-500 mt-1">
             EXPECTED TOTAL MONTHLY SAVINGS
@@ -297,16 +317,25 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
         title: 'Payment Confirmed',
         description: 'Payment has been processed and verified',
         timestamp: tracking.events?.find(e => e.status === 'payment_confirmed')?.timestamp,
-        completed: ['payment_confirmed', 'dispatched', 'delivered', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
+        completed: ['payment_confirmed', 'order_accepted', 'order_approved', 'ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
         icon: CheckCircle,
         color: 'bg-emerald-500'
+      },
+      {
+        id: 'order_accepted',
+        title: 'Order Accepted',
+        description: 'Your order has been accepted and is being prepared',
+        timestamp: tracking.events?.find(e => e.status === 'order_accepted' || e.status === 'order_approved')?.timestamp,
+        completed: ['order_accepted', 'order_approved', 'ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
+        icon: CheckCircle,
+        color: 'bg-green-500'
       },
       {
         id: 'dispatched',
         title: 'Order Dispatched',
         description: 'Your order has been shipped and is on its way',
         timestamp: tracking.events?.find(e => e.status === 'dispatched')?.timestamp,
-        completed: ['dispatched', 'delivered', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
+        completed: ['dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
         icon: Truck,
         color: 'bg-blue-500'
       },
@@ -315,9 +344,18 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
         title: 'Delivered',
         description: 'Order has been delivered to your location',
         timestamp: tracking.actualDelivery || tracking.events?.find(e => e.status === 'delivered')?.timestamp,
-        completed: ['delivered', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
+        completed: ['delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
         icon: MapPin,
         color: 'bg-purple-500'
+      },
+      {
+        id: 'installation_scheduled',
+        title: 'Installation Scheduled',
+        description: 'Installation has been scheduled with our engineer',
+        timestamp: tracking.events?.find(e => e.status === 'installation_scheduled' || e.status === 'engineer_assigned')?.timestamp,
+        completed: ['installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
+        icon: User,
+        color: 'bg-indigo-500'
       },
       {
         id: 'installation_completed',
@@ -528,6 +566,13 @@ export default function OrdersPage() {
 
   useEffect(() => {
     loadTrackingData();
+    
+    // Auto-refresh every 2 minutes
+    const refreshInterval = setInterval(() => {
+      loadTrackingData();
+    }, 120000);
+    
+    return () => clearInterval(refreshInterval);
   }, []);
 
   const loadTrackingData = async () => {

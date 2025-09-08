@@ -22,7 +22,16 @@ const {
   sendInstallationAssignmentWhatsApp,
   sendInstallationScheduledWhatsApp,
   sendInstallationReminderWhatsApp,
-  sendUrgentCustomerContactWhatsApp
+  sendUrgentCustomerContactWhatsApp,
+  // Sales Team WhatsApp Functions
+  sendLeadAssignmentWhatsApp,
+  sendFollowUpReminderWhatsApp,
+  sendQuotationPendingWhatsApp,
+  sendHotLeadAlertWhatsApp,
+  // Accounts Department WhatsApp Functions
+  sendPaymentReceivedWhatsApp,
+  sendPaymentPendingWhatsApp,
+  sendInvoiceDueWhatsApp
 } = require('./sendWhatsApp');
 
 // Determine available contact methods for a customer using preferredContactMethod
@@ -700,6 +709,157 @@ const sendSmartNotification = async (customer, type, data, options = {}) => {
   });
 };
 
+// SALES TEAM WHATSAPP NOTIFICATIONS
+
+// Send WhatsApp notification to sales team members
+const sendSalesTeamWhatsApp = async (type, salesTeamUser, data) => {
+  try {
+    if (!salesTeamUser.phone && !salesTeamUser.whatsapp) {
+      throw new Error('Sales team member has no WhatsApp/phone number configured');
+    }
+
+    // Check if WhatsApp notifications are enabled for this user
+    if (salesTeamUser.notificationPreferences && !salesTeamUser.notificationPreferences.whatsappEnabled) {
+      console.log(`WhatsApp notifications disabled for sales person: ${salesTeamUser.name}`);
+      return { success: false, reason: 'WhatsApp notifications disabled' };
+    }
+
+    const phone = salesTeamUser.whatsapp || salesTeamUser.phone;
+    const countryCode = salesTeamUser.countryCode || '+91';
+
+    let result;
+    switch (type) {
+      case 'lead_assignment':
+        result = await sendLeadAssignmentWhatsApp({
+          to: phone,
+          salesPersonName: salesTeamUser.name,
+          leadName: data.leadName,
+          leadPhone: data.leadPhone,
+          leadEmail: data.leadEmail,
+          leadSource: data.leadSource,
+          priority: data.priority || 'medium',
+          countryCode
+        });
+        break;
+
+      case 'follow_up_reminder':
+        result = await sendFollowUpReminderWhatsApp({
+          to: phone,
+          salesPersonName: salesTeamUser.name,
+          leadName: data.leadName,
+          leadPhone: data.leadPhone,
+          daysSinceLastContact: data.daysSinceLastContact,
+          countryCode
+        });
+        break;
+
+      case 'quotation_pending':
+        result = await sendQuotationPendingWhatsApp({
+          to: phone,
+          salesPersonName: salesTeamUser.name,
+          quotationNumber: data.quotationNumber,
+          customerName: data.customerName,
+          amount: data.amount,
+          daysWaiting: data.daysWaiting,
+          countryCode
+        });
+        break;
+
+      case 'hot_lead_alert':
+        result = await sendHotLeadAlertWhatsApp({
+          to: phone,
+          salesPersonName: salesTeamUser.name,
+          leadName: data.leadName,
+          leadPhone: data.leadPhone,
+          reason: data.reason,
+          countryCode
+        });
+        break;
+
+      default:
+        throw new Error(`Unknown sales team notification type: ${type}`);
+    }
+
+    console.log(`WhatsApp notification sent to sales person ${salesTeamUser.name}: ${type}`);
+    return { success: true, result };
+
+  } catch (error) {
+    console.error(`Failed to send WhatsApp to sales person ${salesTeamUser.name}:`, error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// ACCOUNTS DEPARTMENT WHATSAPP NOTIFICATIONS
+
+// Send WhatsApp notification to accounts department members
+const sendAccountsTeamWhatsApp = async (type, accountsUser, data) => {
+  try {
+    if (!accountsUser.phone && !accountsUser.whatsapp) {
+      throw new Error('Accounts team member has no WhatsApp/phone number configured');
+    }
+
+    // Check if WhatsApp notifications are enabled for this user
+    if (accountsUser.notificationPreferences && !accountsUser.notificationPreferences.whatsappEnabled) {
+      console.log(`WhatsApp notifications disabled for accounts person: ${accountsUser.name}`);
+      return { success: false, reason: 'WhatsApp notifications disabled' };
+    }
+
+    const phone = accountsUser.whatsapp || accountsUser.phone;
+    const countryCode = accountsUser.countryCode || '+91';
+
+    let result;
+    switch (type) {
+      case 'payment_received':
+        result = await sendPaymentReceivedWhatsApp({
+          to: phone,
+          accountsPersonName: accountsUser.name,
+          customerName: data.customerName,
+          amount: data.amount,
+          paymentMethod: data.paymentMethod,
+          invoiceNumber: data.invoiceNumber,
+          countryCode
+        });
+        break;
+
+      case 'payment_pending':
+        result = await sendPaymentPendingWhatsApp({
+          to: phone,
+          accountsPersonName: accountsUser.name,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          amount: data.amount,
+          invoiceNumber: data.invoiceNumber,
+          daysOverdue: data.daysOverdue,
+          countryCode
+        });
+        break;
+
+      case 'invoice_due':
+        result = await sendInvoiceDueWhatsApp({
+          to: phone,
+          accountsPersonName: accountsUser.name,
+          customerName: data.customerName,
+          amount: data.amount,
+          invoiceNumber: data.invoiceNumber,
+          dueDate: data.dueDate,
+          daysUntilDue: data.daysUntilDue,
+          countryCode
+        });
+        break;
+
+      default:
+        throw new Error(`Unknown accounts team notification type: ${type}`);
+    }
+
+    console.log(`WhatsApp notification sent to accounts person ${accountsUser.name}: ${type}`);
+    return { success: true, result };
+
+  } catch (error) {
+    console.error(`Failed to send WhatsApp to accounts person ${accountsUser.name}:`, error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendNotification,
   sendQuotationNotification,
@@ -708,5 +868,7 @@ module.exports = {
   sendWelcomeNotification,
   getAvailableContactMethods,
   sendServiceEngineerWhatsApp,
+  sendSalesTeamWhatsApp,
+  sendAccountsTeamWhatsApp,
   sendSmartNotification,
 }; 

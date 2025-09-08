@@ -9,6 +9,7 @@ const { AppError, errorHandler } = require('../utils/errorHandler');
 const User = require('../models/User');
 const Package = require('../models/Package');
 const OrderTracking = require('../models/OrderTracking');
+const TrackingService = require('../utils/trackingService');
 const { generateOrderFormPDF, getOrderFormData } = require('../utils/generateOrderForm');
 
 // Convert lead to customer when quotation is approved
@@ -581,7 +582,8 @@ exports.getPurchaseOrdersForManagement = async (req, res) => {
   try {
     // These are the statuses relevant for the PO Management page
     const relevantStatuses = [
-      'pending_assignment', 
+      'pending_assignment',
+      'order_accepted', 
       'ready_to_dispatch', 
       'installation_date_allocated', 
       'assigned'
@@ -762,7 +764,7 @@ exports.getAssignablePurchases = async (req, res) => {
 exports.assignTaskToEngineer = async (req, res) => {
   try {
     const { purchaseId } = req.params;
-    const { assignedEngineerId, serviceDueDate, serviceAssignmentNotes } = req.body;
+    const { assignedEngineerId, serviceDueDate, serviceAssignmentNotes, installationDate } = req.body;
 
     if (!assignedEngineerId) {
       throw new AppError('Assigned engineer is required', 400);
@@ -779,13 +781,30 @@ exports.assignTaskToEngineer = async (req, res) => {
       throw new AppError('Purchase is not active or advance payment not confirmed', 400);
     }
 
-    // In the new workflow, we need to check for installation_date_allocated status
-    if (purchase.serviceTaskStatus !== 'installation_date_allocated') {
-      throw new AppError(`Purchase must have an allocated installation date before assigning an engineer. Current status: ${purchase.serviceTaskStatus}`, 400);
+    // Check if purchase is ready for engineer assignment
+    // Allow both 'installation_date_allocated' (new workflow) and 'assigned' (existing data)
+    const validStatusesForAssignment = ['installation_date_allocated', 'assigned', 'ready_to_dispatch'];
+    if (!validStatusesForAssignment.includes(purchase.serviceTaskStatus)) {
+      throw new AppError(`Purchase must be ready for dispatch or have allocated installation date before assigning an engineer. Current status: ${purchase.serviceTaskStatus}`, 400);
     }
 
+    // Handle installation date - allow assignment even if date not allocated yet
     if (!purchase.installationDate) {
-      throw new AppError('Installation date must be set before assigning an engineer', 400);
+      if (installationDate) {
+        // Set installation date if provided in request
+        purchase.installationDate = installationDate;
+        if (purchase.serviceTaskStatus === 'ready_to_dispatch') {
+          purchase.serviceTaskStatus = 'installation_date_allocated';
+        }
+      } else if (serviceDueDate) {
+        // Use serviceDueDate as fallback installation date
+        purchase.installationDate = serviceDueDate;
+        if (purchase.serviceTaskStatus === 'ready_to_dispatch') {
+          purchase.serviceTaskStatus = 'installation_date_allocated';
+        }
+      } else {
+        throw new AppError('Installation date must be set. Please provide either installationDate or serviceDueDate in the request.', 400);
+      }
     }
     
     // Check if the assignedEngineerId is a valid service engineer
@@ -803,18 +822,18 @@ exports.assignTaskToEngineer = async (req, res) => {
     
     await purchase.save();
 
-    // Update tracking
+    // Update tracking using service
     try {
-      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
-      if (tracking) {
-        await tracking.addEvent({
-          status: 'engineer_assigned',
-          title: 'Service Engineer Assigned',
-          description: `Service engineer ${engineer.name} has been assigned for installation on ${new Date(purchase.installationDate).toLocaleDateString()}.`,
+      await TrackingService.updateFromPurchaseStatus(
+        purchase._id, 
+        'assigned', 
+        req.user._id,
+        {
           estimatedDate: new Date(purchase.installationDate),
-          isVisible: true
-        }, req.user._id);
-      }
+          description: `Service engineer ${engineer.name} has been assigned for installation on ${new Date(purchase.installationDate).toLocaleDateString()}.`,
+          metadata: { engineerId: engineerId, engineerName: engineer.name }
+        }
+      );
     } catch (trackingError) {
       console.error('Error updating tracking:', trackingError);
     }
@@ -913,7 +932,8 @@ exports.getPurchaseOrdersForManagement = async (req, res) => {
   try {
     // These are the statuses relevant for the PO Management page
     const relevantStatuses = [
-      'pending_assignment', 
+      'pending_assignment',
+      'order_accepted', 
       'ready_to_dispatch', 
       'installation_date_allocated', 
       'assigned'
@@ -967,6 +987,76 @@ exports.getApprovedPurchases = async (req, res) => {
   }
 };
 
+// @desc    Accept order and set estimated dispatch date
+// @route   PUT /api/customer-purchases/:purchaseId/accept-order
+// @access  Private (Product Head)
+exports.acceptOrder = async (req, res) => {
+  try {
+    const { estimatedDispatchDate } = req.body;
+    const purchase = await CustomerPurchase.findById(req.params.purchaseId).populate('customerId', 'firstName lastName');
+
+    if (!purchase) {
+      throw new AppError('Purchase not found', 404);
+    }
+
+    // Validate estimated dispatch date
+    if (!estimatedDispatchDate) {
+      throw new AppError('Estimated dispatch date is required', 400);
+    }
+
+    const dispatchDate = new Date(estimatedDispatchDate);
+    if (dispatchDate < new Date()) {
+      throw new AppError('Estimated dispatch date cannot be in the past', 400);
+    }
+
+    // Idempotent: if already accepted, return OK
+    if (purchase.serviceTaskStatus === 'order_accepted') {
+      return res.status(200).json({ success: true, message: 'Order already accepted', data: purchase });
+    }
+
+    // Order can only be accepted from pending_assignment status
+    if (purchase.serviceTaskStatus !== 'pending_assignment') {
+      throw new AppError(`Order must be in 'pending_assignment' status to accept. Current status: ${purchase.serviceTaskStatus}`, 400);
+    }
+
+    purchase.serviceTaskStatus = 'order_accepted';
+    purchase.estimatedDispatchDate = dispatchDate;
+    purchase.updatedAt = new Date();
+    await purchase.save();
+
+    // Update tracking using service
+    try {
+      await TrackingService.updateFromPurchaseStatus(
+        purchase._id, 
+        'order_accepted', 
+        req.user._id,
+        {
+          estimatedDate: dispatchDate,
+          description: `Your order has been accepted by production. Estimated dispatch date: ${dispatchDate.toLocaleDateString()}.`
+        }
+      );
+    } catch (trackingError) {
+      console.error('Error updating tracking:', trackingError);
+    }
+
+    // Send notification
+    try {
+      const NotificationService = require('../utils/notificationService');
+      await NotificationService.createPurchaseOrderNotification('order_accepted', purchase, req.user);
+    } catch (notificationError) {
+      console.error('Error sending notification:', notificationError);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Order accepted successfully',
+      data: purchase,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
 // @desc    Update purchase status to 'Ready to Dispatch'
 // @route   PUT /api/customer-purchases/:purchaseId/ready-to-dispatch
 // @access  Private (Product Head)
@@ -983,28 +1073,22 @@ exports.updateStatusToReadyToDispatch = async (req, res) => {
       return res.status(200).json({ success: true, message: 'Already ready_to_dispatch', data: purchase });
     }
 
-    // This is the first step for the Product Head in the new workflow.
-    if (purchase.serviceTaskStatus !== 'pending_assignment') {
-      throw new AppError(`Purchase status must be 'pending_assignment' to dispatch. Current status: ${purchase.serviceTaskStatus}`, 400);
+    // Updated: Order must be accepted before marking as ready to dispatch
+    if (purchase.serviceTaskStatus !== 'order_accepted') {
+      throw new AppError(`Purchase status must be 'order_accepted' to mark as ready to dispatch. Current status: ${purchase.serviceTaskStatus}`, 400);
     }
 
     purchase.serviceTaskStatus = 'ready_to_dispatch';
+    purchase.updatedAt = new Date();
     await purchase.save();
 
-    // Update tracking
+    // Update tracking using service
     try {
-      const tracking = await OrderTracking.findOne({ purchaseId: purchase._id });
-      if (tracking) {
-        const alreadyLogged = Array.isArray(tracking.events) && tracking.events.some(e => e.status === 'ready_to_dispatch');
-        if (!alreadyLogged) {
-          await tracking.addEvent({
-            status: 'ready_to_dispatch',
-            title: 'Ready to Dispatch',
-            description: 'Your order has been processed and is ready for dispatch.',
-            isVisible: true
-          }, req.user.id);
-        }
-      }
+      await TrackingService.updateFromPurchaseStatus(
+        purchase._id, 
+        'ready_to_dispatch', 
+        req.user._id
+      );
     } catch (trackingError) {
       console.error('Error updating tracking:', trackingError);
     }

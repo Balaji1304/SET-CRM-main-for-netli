@@ -107,6 +107,7 @@ app.use(
   '/api/customer-purchases',
   require('./routes/customerPurchaseRoutes.js')
 );
+app.use('/api/reports/sales', require('./routes/salesReports.js'));
 
 // Route for dashboard summary
 const dashboardRoutes = require('./routes/dashboardRoutes.js');

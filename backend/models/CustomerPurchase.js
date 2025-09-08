@@ -67,10 +67,14 @@ const customerPurchaseSchema = new mongoose.Schema({
   },
   serviceTaskStatus: {
     type: String,
-    enum: ['pending_assignment', 'assigned', 'scheduled', 'in_progress', 'completed', 'cancelled', 'on_hold', 'ready_to_dispatch', 'installation_date_allocated'],
+    enum: ['pending_assignment', 'order_accepted', 'ready_to_dispatch', 'installation_date_allocated', 'assigned', 'scheduled', 'in_progress', 'completed', 'cancelled', 'on_hold'],
     default: 'pending_assignment'
   },
   installationDate: {
+    type: Date,
+    default: null
+  },
+  estimatedDispatchDate: {
     type: Date,
     default: null
   },
