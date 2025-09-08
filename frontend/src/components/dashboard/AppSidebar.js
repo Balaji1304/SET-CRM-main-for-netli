@@ -99,6 +99,7 @@ const getNavigation = (userRole) => {
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
       { name: 'Customers', href: '/dashboard/customers', icon: UserCheck },
+      { name: 'Sales Reports', href: '/dashboard/sales-reports', icon: BarChart },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     front_office_executive: [
@@ -110,6 +111,7 @@ const getNavigation = (userRole) => {
       { name: 'Leads', href: '/dashboard/leads', icon: Users },
       { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
       { name: 'Customers', href: '/dashboard/customers', icon: UserCheck },
+      { name: 'Sales Reports', href: '/dashboard/sales-reports', icon: BarChart },
       { name: 'Packages', href: '/dashboard/packages', icon: Plus },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
