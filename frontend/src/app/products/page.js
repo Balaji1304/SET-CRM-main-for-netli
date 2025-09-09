@@ -678,7 +678,7 @@ export default function ProductListPage() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8">
-          <div className="flex items-center gap-2 sm:gap-3 w-full">
+          <div className="flex items-center justify-between w-full">
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">
               Products Management
             </h1>
@@ -740,10 +740,19 @@ export default function ProductListPage() {
                     </span>
                   )}
                 </button>
+
+                {/* Add Product Button - Desktop Position */}
+                <button
+                  onClick={() => navigate('/dashboard/products/create')}
+                  className="hidden sm:inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-orange-500 transition-colors duration-150 ease-in-out whitespace-nowrap"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Product
+                </button>
               </div>
 
-              {/* Add Product Button - Full Width */}
-              <div className="w-full">
+              {/* Add Product Button - Mobile Only */}
+              <div className="w-full sm:hidden">
                 <button
                   onClick={() => navigate('/dashboard/products/create')}
                   className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-orange-500 transition-colors duration-150 ease-in-out whitespace-nowrap w-full"

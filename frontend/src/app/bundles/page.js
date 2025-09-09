@@ -1588,11 +1588,13 @@ export default function BundlesPage() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8">
-          <div className="flex items-center gap-2 sm:gap-3 w-full">
-            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#FF7300] flex-shrink-0" />
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">
-              Solar Power Plant Systems
-            </h1>
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#FF7300] flex-shrink-0" />
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">
+                Solar Power Plant Systems
+              </h1>
+            </div>
           </div>
         </div>
 
@@ -1651,10 +1653,19 @@ export default function BundlesPage() {
                     </span>
                   )}
                 </button>
+
+                {/* Create System Button - Desktop Position */}
+                <button
+                  onClick={() => navigate('/dashboard/bundles/create')}
+                  className="hidden sm:inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#FF7300] hover:bg-[#FF8800] focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#FF7300] transition-colors duration-150 ease-in-out whitespace-nowrap"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create System
+                </button>
               </div>
 
-              {/* Create System Button - Full Width */}
-              <div className="w-full">
+              {/* Create System Button - Mobile Only */}
+              <div className="w-full sm:hidden">
                 <button
                   onClick={() => navigate('/dashboard/bundles/create')}
                   className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#FF7300] hover:bg-[#FF8800] focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#FF7300] transition-colors duration-150 ease-in-out whitespace-nowrap w-full"

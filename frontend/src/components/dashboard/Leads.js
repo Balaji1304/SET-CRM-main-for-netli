@@ -129,10 +129,19 @@ export default function Leads() {
                   </span>
                 )}
               </button>
+
+              {/* Add Lead Button - Desktop Position */}
+              <button
+                onClick={() => navigate('/dashboard/add-lead')}
+                className="hidden sm:inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-tertiary bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Lead
+              </button>
             </div>
 
-            {/* Add Lead Button - Full Width */}
-            <div className="w-full">
+            {/* Add Lead Button - Mobile Only */}
+            <div className="w-full sm:hidden">
               <button
                 onClick={() => navigate('/dashboard/add-lead')}
                 className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-tertiary bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap w-full"
