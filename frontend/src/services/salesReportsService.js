@@ -1,4 +1,4 @@
-import { apiRequest } from './apiConfig';
+import { apiRequest, API_URL } from './apiConfig';
 
 /**
  * Sales Reports Service
@@ -80,7 +80,7 @@ export const exportReportToPDF = async (reportId) => {
   try {
     const token = localStorage.getItem('token');
     
-    const response = await fetch(`${process.env.REACT_APP_API_URL}/api/reports/sales/${reportId}/export/pdf`, {
+    const response = await fetch(`${API_URL}/reports/sales/${reportId}/export/pdf`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -124,7 +124,7 @@ export const exportReportToExcel = async (reportId) => {
   try {
     const token = localStorage.getItem('token');
     
-    const response = await fetch(`${process.env.REACT_APP_API_URL}/api/reports/sales/${reportId}/export/excel`, {
+    const response = await fetch(`${API_URL}/reports/sales/${reportId}/export/excel`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`

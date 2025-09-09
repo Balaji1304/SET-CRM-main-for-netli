@@ -17,14 +17,18 @@ class PDFReportService {
   static async generateSalesReportPDF(report) {
     try {
       console.log(`Generating PDF for report: ${report.reportId}`);
+      console.log('Report data keys:', Object.keys(report.reportData || {}));
       
       // Load and compile template
       const templatePath = path.join(__dirname, '../templates/salesReport.handlebars');
+      console.log('Template path:', templatePath);
       const templateSource = await fs.readFile(templatePath, 'utf8');
       const template = handlebars.compile(templateSource);
       
       // Prepare data for template
+      console.log('Preparing PDF data...');
       const templateData = this.preparePDFData(report);
+      console.log('Template data prepared successfully');
       
       // Generate HTML from template
       const html = template(templateData);

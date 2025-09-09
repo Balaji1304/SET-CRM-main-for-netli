@@ -312,8 +312,8 @@ reportSchema.virtual('readableFileSize').get(function() {
 // Instance method to generate report ID
 reportSchema.methods.generateReportId = function() {
   const timestamp = Date.now().toString(36);
-  const randomStr = Math.random().toString(36).substr(2, 5);
-  const typePrefix = this.reportType.substr(0, 3).toUpperCase();
+  const randomStr = Math.random().toString(36).substring(2, 7);
+  const typePrefix = this.reportType.substring(0, 3).toUpperCase();
   return `RPT-${typePrefix}-${timestamp}-${randomStr}`;
 };
 
