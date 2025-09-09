@@ -601,6 +601,9 @@ video {
 .left-1 {
   left: 0.25rem;
 }
+.left-14 {
+  left: 3.5rem;
+}
 .left-2 {
   left: 0.5rem;
 }
@@ -2860,14 +2863,6 @@ video {
     padding: 1rem;
   }
   
-  .mobile-top-padding {
-    padding-top: 1.5rem !important; /* 24px - spacing below mobile navbar */
-  }
-  
-  .mobile-top-padding-lg {
-    padding-top: 2rem !important; /* 32px - larger spacing for main content */
-  }
-  
   .mobile-text-sm {
     font-size: 0.875rem;
   }
@@ -2876,33 +2871,6 @@ video {
     gap: 0.75rem;
   }
   
-  /* Mobile body and page padding utilities */
-  .mobile-page-container {
-    padding-top: 1.5rem !important; /* 24px - standard spacing below navbar */
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-  }
-  
-  .mobile-main-content {
-    padding-top: 2rem !important; /* 32px - larger spacing for main content areas */
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-    padding-bottom: 1rem !important;
-  }
-  
-  /* Additional mobile-specific body padding classes */
-  body.mobile-body {
-    padding-top: 0 !important; /* Reset any body padding */
-  }
-  
-  .mobile-navbar-offset {
-    padding-top: 4rem !important; /* 64px - for fixed navbar height + extra spacing */
-  }
-  
-  .mobile-safe-top {
-    padding-top: max(1.5rem, env(safe-area-inset-top) + 1rem) !important;
-  }
-
   /* Ensure inputs are large enough for touch and prevent iOS zoom */
   input, select, textarea {
     min-height: 48px !important;

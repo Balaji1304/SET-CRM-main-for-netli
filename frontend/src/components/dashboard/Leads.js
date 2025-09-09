@@ -65,7 +65,7 @@ export default function Leads() {
       {/* Header Section - Page Title */}
       <div className="border-b border-fourth pb-5 mb-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-secondary">Leads Management</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">Leads Management</h1>
           {/* Optional: Subtitle if needed, can be text-gray-500 */}
           {/* <p className="text-sm text-gray-500 mt-1">View and manage all your leads in one place.</p> */}
         </div>
