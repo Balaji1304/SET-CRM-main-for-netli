@@ -765,7 +765,7 @@ const Dashboard = () => {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-tertiary font-sans h-full w-full overflow-x-hidden">
-      <div className="border-b border-fourth pb-5 mb-8">
+      <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <h1 className="text-3xl font-bold tracking-tight text-secondary">Dashboard</h1>
           <div className="flex items-center space-x-3 text-sm text-gray-600">

@@ -32,7 +32,8 @@ import {
   Filter,
   SortAsc,
   SortDesc,
-  X
+  X,
+  RotateCcw
 } from 'lucide-react';
 
 // Helper function to format enum values for display
@@ -404,7 +405,7 @@ export default function PurchaseOrdersPage() {
   const [engineerFilter, setEngineerFilter] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState('');
   const [createdByFilter, setCreatedByFilter] = useState('');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // State for Assign Task Modal
   const [showAssignTaskModal, setShowAssignTaskModal] = useState(false);
@@ -468,10 +469,17 @@ export default function PurchaseOrdersPage() {
     setDateRangeFilter('');
     setCreatedByFilter('');
     setCurrentPage(1);
+    setShowFilters(false);
   };
 
   // Check if any filters are active
-  const hasActiveFilters = searchTerm || statusFilter || engineerFilter || dateRangeFilter || sortOrder !== 'newest';
+  const activeFilterCount = [
+    searchTerm,
+    statusFilter,
+    engineerFilter,
+    dateRangeFilter,
+    sortOrder !== 'newest' ? sortOrder : null
+  ].filter(Boolean).length;
 
   const fetchEngineers = async () => {
     try {
@@ -832,13 +840,32 @@ export default function PurchaseOrdersPage() {
         {/* Main Content Area - Contains filters and table */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
           {/* Filter and Action Bar */}
-          <div className="p-3 sm:p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
-            <div className="space-y-4">
-              {/* Top Row - Search and Main Actions */}
-              <div className="flex flex-col md:flex-row gap-3 sm:gap-4 justify-between items-start md:items-center">
-                {/* Search Input */}
-                <div className="relative flex-grow md:flex-grow-0 w-full md:w-auto md:max-w-xs">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
+          <div className="p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
+            {/* Filter Status Indicator */}
+            {activeFilterCount > 0 && (
+              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
+                <div className="flex items-center space-x-2">
+                  <Filter className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">
+                    {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
+                  </span>
+                </div>
+                <button
+                  onClick={resetFilters}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-150"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            {/* Main Controls Row */}
+            <div className="flex flex-col gap-3">
+              {/* Search and Filter Toggle Row */}
+              <div className="flex gap-2 items-center">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input
                     type="text"
                     placeholder="Search by PO ID or Customer"
@@ -847,177 +874,120 @@ export default function PurchaseOrdersPage() {
                       setSearchTerm(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 w-full border border-gray-200 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 ease-in-out text-xs sm:text-sm text-gray-900 placeholder-gray-400"
+                    className="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 
-                {/* Filter Toggle and Reset */}
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                  <button
-                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors duration-200 text-sm font-medium ${
-                      showAdvancedFilters 
-                        ? 'bg-orange-50 border-orange-200 text-orange-700' 
-                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Filter className="w-4 h-4" />
-                    <span className="hidden sm:inline">Filters</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${showAdvancedFilters ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  {hasActiveFilters && (
-                    <button
-                      onClick={resetFilters}
-                      className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors duration-200"
-                      title="Clear all filters"
-                    >
-                      <X className="w-4 h-4" />
-                      <span className="hidden sm:inline">Reset</span>
-                    </button>
+                {/* Filter Toggle Button */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`inline-flex items-center justify-center p-2 border rounded-md transition-colors duration-150 ease-in-out ${
+                    showFilters || activeFilterCount > 0
+                      ? 'border-orange-500 bg-orange-500 text-white'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                  title="Toggle filters"
+                >
+                  <Filter className="w-4 h-4" />
+                  {activeFilterCount > 0 && (
+                    <span className="ml-1 text-xs font-medium">
+                      {activeFilterCount}
+                    </span>
                   )}
-                </div>
+                </button>
               </div>
 
-              {/* Advanced Filters Row - Collapsible */}
-              {showAdvancedFilters && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-3 border-t border-gray-100">
-                  {/* Sort Order */}
-                  <div className="relative">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Sort by</label>
-                    <select
-                      value={sortOrder}
-                      onChange={(e) => {
-                        setSortOrder(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full pl-3 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-colors duration-150 ease-in-out text-xs sm:text-sm text-gray-900 bg-white"
-                    >
-                      <option value="newest">Newest First</option>
-                      <option value="oldest">Oldest First</option>
-                      <option value="customer_az">Customer A-Z</option>
-                      <option value="customer_za">Customer Z-A</option>
-                      <option value="po_id_az">PO ID A-Z</option>
-                      <option value="po_id_za">PO ID Z-A</option>
-                      <option value="status">By Status</option>
-                      <option value="install_date_soon">Install Date (Soon)</option>
-                      <option value="install_date_later">Install Date (Later)</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 mt-3 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-                  </div>
+              {/* Collapsible Filters */}
+              {showFilters && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Sort Order */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sort by</label>
+                      <select
+                        value={sortOrder}
+                        onChange={(e) => {
+                          setSortOrder(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="customer_az">Customer A-Z</option>
+                        <option value="customer_za">Customer Z-A</option>
+                        <option value="po_id_az">PO ID A-Z</option>
+                        <option value="po_id_za">PO ID Z-A</option>
+                        <option value="status">By Status</option>
+                        <option value="install_date_soon">Install Date (Soon)</option>
+                        <option value="install_date_later">Install Date (Later)</option>
+                      </select>
+                    </div>
 
-                  {/* Status Filter */}
-                  <div className="relative">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => {
-                        setStatusFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full pl-3 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-colors duration-150 ease-in-out text-xs sm:text-sm text-gray-900 bg-white"
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="pending_assignment">Pending Assignment</option>
-                      <option value="order_accepted">Order Accepted</option>
-                      <option value="ready_to_dispatch">Ready to Dispatch</option>
-                      <option value="installation_date_allocated">Installation Date Allocated</option>
-                      <option value="assigned">Assigned</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 mt-3 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-                  </div>
+                    {/* Status Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="pending_assignment">Pending Assignment</option>
+                        <option value="order_accepted">Order Accepted</option>
+                        <option value="ready_to_dispatch">Ready to Dispatch</option>
+                        <option value="installation_date_allocated">Installation Date Allocated</option>
+                        <option value="assigned">Assigned</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
 
-                  {/* Engineer Filter */}
-                  <div className="relative">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Engineer</label>
-                    <select
-                      value={engineerFilter}
-                      onChange={(e) => {
-                        setEngineerFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full pl-3 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-colors duration-150 ease-in-out text-xs sm:text-sm text-gray-900 bg-white"
-                    >
-                      <option value="">All Engineers</option>
-                      <option value="unassigned">Unassigned</option>
-                      {uniqueEngineers.map(engineer => (
-                        <option key={engineer._id} value={engineer._id}>
-                          {engineer.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 mt-3 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-                  </div>
+                    {/* Engineer Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Engineer</label>
+                      <select
+                        value={engineerFilter}
+                        onChange={(e) => {
+                          setEngineerFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="">All Engineers</option>
+                        <option value="unassigned">Unassigned</option>
+                        {uniqueEngineers.map(engineer => (
+                          <option key={engineer._id} value={engineer._id}>
+                            {engineer.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                  {/* Date Range Filter */}
-                  <div className="relative">
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Created</label>
-                    <select
-                      value={dateRangeFilter}
-                      onChange={(e) => {
-                        setDateRangeFilter(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full pl-3 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-colors duration-150 ease-in-out text-xs sm:text-sm text-gray-900 bg-white"
-                    >
-                      <option value="">All Time</option>
-                      <option value="today">Today</option>
-                      <option value="week">Last Week</option>
-                      <option value="month">Last Month</option>
-                      <option value="quarter">Last Quarter</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 mt-3 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                    {/* Date Range Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Created</label>
+                      <select
+                        value={dateRangeFilter}
+                        onChange={(e) => {
+                          setDateRangeFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="week">Last Week</option>
+                        <option value="month">Last Month</option>
+                        <option value="quarter">Last Quarter</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Filter Summary */}
-              {hasActiveFilters && (
-                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
-                  <span className="text-xs font-medium text-gray-500">Active filters:</span>
-                  {searchTerm && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-md text-xs">
-                      Search: "{searchTerm}"
-                      <button onClick={() => setSearchTerm('')} className="hover:text-orange-900">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {statusFilter && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs">
-                      Status: {formatDisplayValue(statusFilter)}
-                      <button onClick={() => setStatusFilter('')} className="hover:text-blue-900">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {engineerFilter && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs">
-                      Engineer: {engineerFilter === 'unassigned' ? 'Unassigned' : uniqueEngineers.find(e => e._id === engineerFilter)?.name}
-                      <button onClick={() => setEngineerFilter('')} className="hover:text-green-900">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {dateRangeFilter && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-md text-xs">
-                      Created: {dateRangeFilter.charAt(0).toUpperCase() + dateRangeFilter.slice(1)}
-                      <button onClick={() => setDateRangeFilter('')} className="hover:text-purple-900">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                  {sortOrder !== 'newest' && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs">
-                      Sort: {sortOrder.replace('_', ' ')}
-                      <button onClick={() => setSortOrder('newest')} className="hover:text-gray-900">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
           </div>
 

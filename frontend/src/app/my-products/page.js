@@ -157,7 +157,7 @@ export default function MyProductsPage() {
   return (
     <div className="flex flex-col flex-1 bg-tertiary font-sans">
       {/* Heading and Search Section */}
-      <div className="border-b border-fourth pb-5 mb-8">
+      <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <h1 className="text-3xl font-bold tracking-tight text-secondary">My Orders</h1>
           <div className="flex items-center gap-2 w-full sm:w-auto">

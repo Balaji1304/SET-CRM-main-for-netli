@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getEnquiries, getSalespersons, assignEnquiryToSalesperson } from '../../services/enquiryService';
-import { Loader2, AlertTriangle, Search, Filter, Eye, UserPlus, ChevronLeft, ChevronRight, ChevronDown, Phone, MapPin, User, X, Calendar, FileText, ArrowLeft, Plus, Info, Edit2, Trash2, Building2, Clock, Users } from 'lucide-react';
+import { Loader2, AlertTriangle, Search, Filter, Eye, UserPlus, ChevronLeft, ChevronRight, ChevronDown, Phone, MapPin, User, X, Calendar, FileText, ArrowLeft, Plus, Info, Edit2, Trash2, Building2, Clock, Users, RotateCcw } from 'lucide-react';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -666,7 +666,22 @@ export default function LeadAssignmentPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
   const itemsPerPage = 10;
+
+  // Function to reset all filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+    setShowFilters(false);
+    setCurrentPage(1);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm || statusFilter;
+
+  // Count active filters (excluding search term for display)
+  const activeFilterCount = [statusFilter].filter(Boolean).length;
 
   // Success message state
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -854,43 +869,92 @@ export default function LeadAssignmentPage() {
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
         {/* Filter and Action Bar */}
         <div className="p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            {/* Search Input - takes remaining space on left */}
-            <div className="relative flex-grow md:flex-grow-0 w-full md:w-auto md:max-w-xs">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search enquiries..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-200 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
-              />
-            </div>
-            
-            {/* Filters and Add Button - grouped on right */}
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-stretch sm:items-center">
-              <div className="relative flex-1 sm:flex-initial">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="pl-4 pr-10 py-2 w-full border border-gray-200 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-sm text-gray-900 bg-white"
-                >
-                  <option value="">All Statuses</option>
-                  {assignmentStatuses.map(status => (
-                    <option key={status.value} value={status.value}>{status.label}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+          {/* Filter Status Indicator */}
+          {activeFilterCount > 0 && (
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">
+                  {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
+                </span>
               </div>
+              <button
+                onClick={resetFilters}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-150"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
 
+          {/* Main Controls Row */}
+          <div className="flex flex-col gap-3">
+            {/* Search and Filter Toggle Row */}
+            <div className="flex gap-2 items-center">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search enquiries..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
+                />
+              </div>
+              
+              {/* Filter Toggle Button */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`inline-flex items-center justify-center p-2 border rounded-md transition-colors duration-150 ease-in-out ${
+                  showFilters || activeFilterCount > 0
+                    ? 'border-primary bg-primary text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Toggle filters"
+              >
+                <Filter className="w-4 h-4" />
+                {activeFilterCount > 0 && (
+                  <span className="ml-1 text-xs font-medium">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Create Enquiry Button - Full Width */}
+            <div className="w-full">
               <button
                 onClick={() => navigate('/dashboard/enquiries/create')}
-                className="inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap"
+                className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap w-full"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Enquiry
               </button>
             </div>
+
+            {/* Filters Section - Collapsible */}
+            {showFilters && (
+              <div className="border-t border-gray-200 pt-3 space-y-3">
+                {/* Filter Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {/* Status Filter */}
+                  <div className="relative">
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="pl-2 pr-6 py-1.5 w-full border border-gray-200 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
+                    >
+                      <option value="">All Statuses</option>
+                      {assignmentStatuses.map(status => (
+                        <option key={status.value} value={status.value}>{status.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         

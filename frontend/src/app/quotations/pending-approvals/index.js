@@ -119,7 +119,7 @@ export default function AccountsApprovalsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b border-fourth pb-5 mb-8">
+      <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-secondary">Pending Approvals</h1>
       </div>
       <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">

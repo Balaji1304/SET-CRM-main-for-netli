@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from 'react-router-dom';
-import { Search, ChevronDown, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Package, Layers, TrendingUp, Calendar, Info, ShoppingCart, Tag, Zap, Users, Building2, FileText } from 'lucide-react';
+import { Search, ChevronDown, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Package, Layers, TrendingUp, Calendar, Info, ShoppingCart, Tag, Zap, Users, Building2, FileText, Filter, RotateCcw } from 'lucide-react';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { getProducts, deleteProduct } from '../../services/productService';
 
@@ -105,9 +105,28 @@ export default function ProductListPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
 
   const itemsPerPage = 10;
+
+  // Function to reset all filters
+  const resetFilters = () => {
+    setSearchTerm("");
+    setCategoryFilter("all");
+    setStockFilter("all");
+    setSortOption("name-asc");
+    setShowFilters(false);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm || categoryFilter !== "all" || stockFilter !== "all" || sortOption !== "name-asc";
+
+  // Count active filters (excluding search term and sort for display)
+  const activeFilterCount = [
+    categoryFilter !== "all" ? categoryFilter : null,
+    stockFilter !== "all" ? stockFilter : null
+  ].filter(Boolean).length;
 
   // Fetch products when component mounts
   useEffect(() => {
@@ -658,80 +677,135 @@ export default function ProductListPage() {
       <style>{customStyles}</style>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8">
+          <div className="flex items-center gap-2 sm:gap-3 w-full">
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">
               Products Management
             </h1>
           </div>
-          <button
-            onClick={() => navigate('/dashboard/products/add')}
-            className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2.5 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors duration-150 ease-in-out flex items-center justify-center gap-2 touch-target"
-          >
-            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-            Add Product
-          </button>
         </div>
 
         {/* Main Content */}
         <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
           {/* Filters */}
-          <div className="p-3 sm:p-4 border-b border-gray-200 sticky top-0 bg-white z-20">
+          <div className="p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
+            {/* Filter Status Indicator */}
+            {activeFilterCount > 0 && (
+              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
+                <div className="flex items-center space-x-2">
+                  <Filter className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">
+                    {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
+                  </span>
+                </div>
+                <button
+                  onClick={resetFilters}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-150"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            {/* Main Controls Row */}
             <div className="flex flex-col gap-3">
-              {/* Search Bar - Full Width on Mobile */}
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-orange-500 focus:border-transparent touch-target text-sm sm:text-base"
-                />
+              {/* Search and Filter Toggle Row */}
+              <div className="flex gap-2 items-center">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+                
+                {/* Filter Toggle Button */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`inline-flex items-center justify-center p-2 border rounded-md transition-colors duration-150 ease-in-out ${
+                    showFilters || activeFilterCount > 0
+                      ? 'border-orange-500 bg-orange-500 text-white'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                  title="Toggle filters"
+                >
+                  <Filter className="w-4 h-4" />
+                  {activeFilterCount > 0 && (
+                    <span className="ml-1 text-xs font-medium">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
               </div>
-              {/* Filter Controls - Responsive Grid */}
-              <div className="mobile-filter-grid sm:flex sm:gap-3 sm:justify-end">
-                <div className="relative">
-                  <select
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    value={categoryFilter}
-                    className="mobile-select pl-3 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target text-xs sm:text-sm w-full sm:w-auto"
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="Solar Water Heaters">Water Heaters</option>
-                    <option value="Solar Street Lights">Street Lights</option>
-                    <option value="Solar Dryers">Solar Dryers</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-                </div>
-                <div className="relative">
-                  <select
-                    onChange={(e) => setStockFilter(e.target.value)}
-                    value={stockFilter}
-                    className="mobile-select pl-3 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target text-xs sm:text-sm w-full sm:w-auto"
-                  >
-                    <option value="all">All Stock</option>
-                    <option value="in stock">In Stock</option>
-                    <option value="low stock">Low Stock</option>
-                    <option value="out of stock">Out of Stock</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-                </div>
-                <div className="relative">
-                  <select
-                    onChange={(e) => setSortOption(e.target.value)}
-                    value={sortOption}
-                    className="mobile-select pl-3 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target text-xs sm:text-sm w-full sm:w-auto"
-                  >
-                    <option value="name-asc">Name (A-Z)</option>
-                    <option value="name-desc">Name (Z-A)</option>
-                    <option value="price-asc">Price (Low-High)</option>
-                    <option value="price-desc">Price (High-Low)</option>
-                    <option value="stock-asc">Stock Status</option>
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
-                </div>
+
+              {/* Add Product Button - Full Width */}
+              <div className="w-full">
+                <button
+                  onClick={() => navigate('/dashboard/products/create')}
+                  className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-orange-500 transition-colors duration-150 ease-in-out whitespace-nowrap w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Product
+                </button>
               </div>
+
+              {/* Filters Section - Collapsible */}
+              {showFilters && (
+                <div className="border-t border-gray-200 pt-3 space-y-3">
+                  {/* Filter Row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {/* Sort Order */}
+                    <div className="relative">
+                      <select
+                        value={sortOption}
+                        onChange={(e) => setSortOption(e.target.value)}
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 appearance-none"
+                      >
+                        <option value="name-asc">Name (A-Z)</option>
+                        <option value="name-desc">Name (Z-A)</option>
+                        <option value="price-asc">Price (Low-High)</option>
+                        <option value="price-desc">Price (High-Low)</option>
+                        <option value="stock-asc">Stock Status</option>
+                      </select>
+                      <ChevronDown className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                    </div>
+
+                    {/* Category Filter */}
+                    <div className="relative">
+                      <select
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 appearance-none"
+                      >
+                        <option value="all">All Categories</option>
+                        <option value="Solar Water Heaters">Water Heaters</option>
+                        <option value="Solar Street Lights">Street Lights</option>
+                        <option value="Solar Dryers">Solar Dryers</option>
+                      </select>
+                      <ChevronDown className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                    </div>
+
+                    {/* Stock Filter */}
+                    <div className="relative">
+                      <select
+                        value={stockFilter}
+                        onChange={(e) => setStockFilter(e.target.value)}
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-orange-500 focus:border-orange-500 appearance-none"
+                      >
+                        <option value="all">All Stock</option>
+                        <option value="in stock">In Stock</option>
+                        <option value="low stock">Low Stock</option>
+                        <option value="out of stock">Out of Stock</option>
+                      </select>
+                      <ChevronDown className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

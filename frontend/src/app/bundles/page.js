@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Package, Plus, Edit2, Trash2, Eye, Filter, Search, Loader2, AlertTriangle, ArrowLeft, Save, Upload, X, Info, ShoppingCart, Tag, Layers, TrendingUp, Calendar, Users, Building2, Zap, Settings, FileText } from 'lucide-react';
+import { Package, Plus, Edit2, Trash2, Eye, Filter, Search, Loader2, AlertTriangle, ArrowLeft, Save, Upload, X, Info, ShoppingCart, Tag, Layers, TrendingUp, Calendar, Users, Building2, Zap, Settings, FileText, ChevronDown, RotateCcw } from 'lucide-react';
 import { getBundles, deleteBundle, createBundle, getBundle, updateBundle, getCompatibleProducts, getDefaultBundleTerms } from '../../services/bundleService';
 import ConfirmDialog from '../../components/ConfirmDialog';
 
@@ -189,6 +189,7 @@ export default function BundlesPage() {
   const [subcategoryFilter, setSubcategoryFilter] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   
   // UI states
   const [bundleToDelete, setBundleToDelete] = useState(null);
@@ -198,6 +199,21 @@ export default function BundlesPage() {
   
   // Custom KVA state
   const [customKvaValue, setCustomKvaValue] = useState('');
+
+  // Function to reset all filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setSubcategoryFilter('');
+    setBrandFilter('');
+    setStatusFilter('');
+    setShowFilters(false);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm || subcategoryFilter || brandFilter || statusFilter;
+
+  // Count active filters (excluding search term for display)
+  const activeFilterCount = [subcategoryFilter, brandFilter, statusFilter].filter(Boolean).length;
 
   useEffect(() => {
     if (isListMode) {
@@ -1571,76 +1587,141 @@ export default function BundlesPage() {
       <style>{customStyles}</style>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8">
+          <div className="flex items-center gap-2 sm:gap-3 w-full">
             <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#FF7300] flex-shrink-0" />
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">
               Solar Power Plant Systems
             </h1>
           </div>
-          <button
-            onClick={() => navigate('/dashboard/bundles/create')}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors touch-target"
-          >
-            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-            Create System
-          </button>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3 sm:p-6 mb-4 sm:mb-6">
-          <div className="mobile-filter-grid sm:grid sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 sm:gap-4">
-            {/* Search */}
-            <div className="sm:col-span-2 md:col-span-1 lg:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search Systems</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name, code, or description..."
-                  className="pl-10 w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
-                />
+        {/* Main Content Area - Contains filters and grid */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
+          {/* Filter and Action Bar */}
+          <div className="p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
+            {/* Filter Status Indicator */}
+            {activeFilterCount > 0 && (
+              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
+                <div className="flex items-center space-x-2">
+                  <Filter className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">
+                    {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
+                  </span>
+                </div>
+                <button
+                  onClick={resetFilters}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-150"
+                >
+                  Clear all
+                </button>
               </div>
-            </div>
+            )}
 
-            {/* KVA Rating Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">KVA Rating</label>
-              <select
-                value={subcategoryFilter}
-                onChange={(e) => setSubcategoryFilter(e.target.value)}
-                className="mobile-select w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target appearance-none"
-              >
-                <option value="">All Ratings</option>
-                <option value="2kva">2 KVA</option>
-                <option value="4kva">4 KVA</option>
-                <option value="5kva">5 KVA</option>
-                <option value="10kva">10 KVA</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
+            {/* Main Controls Row */}
+            <div className="flex flex-col gap-3">
+              {/* Search and Filter Toggle Row */}
+              <div className="flex gap-2 items-center">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search systems..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+                
+                {/* Filter Toggle Button */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`inline-flex items-center justify-center p-2 border rounded-md transition-colors duration-150 ease-in-out ${
+                    showFilters || activeFilterCount > 0
+                      ? 'border-[#FF7300] bg-[#FF7300] text-white'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                  title="Toggle filters"
+                >
+                  <Filter className="w-4 h-4" />
+                  {activeFilterCount > 0 && (
+                    <span className="ml-1 text-xs font-medium">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+              </div>
 
-            {/* Clear Filters */}
-            <div className="flex items-end">
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setSubcategoryFilter('');
-                  setBrandFilter('');
-                  setStatusFilter('');
-                }}
-                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors touch-target"
-              >
-                Clear Filters
-              </button>
+              {/* Create System Button - Full Width */}
+              <div className="w-full">
+                <button
+                  onClick={() => navigate('/dashboard/bundles/create')}
+                  className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#FF7300] hover:bg-[#FF8800] focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#FF7300] transition-colors duration-150 ease-in-out whitespace-nowrap w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create System
+                </button>
+              </div>
+
+              {/* Filters Section - Collapsible */}
+              {showFilters && (
+                <div className="border-t border-gray-200 pt-3 space-y-3">
+                  {/* Filter Row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {/* KVA Rating Filter */}
+                    <div className="relative">
+                      <select
+                        value={subcategoryFilter}
+                        onChange={(e) => setSubcategoryFilter(e.target.value)}
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                      >
+                        <option value="">All Ratings</option>
+                        <option value="2kva">2 KVA</option>
+                        <option value="4kva">4 KVA</option>
+                        <option value="5kva">5 KVA</option>
+                        <option value="10kva">10 KVA</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                      <ChevronDown className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                    </div>
+
+                    {/* Brand Filter */}
+                    <div className="relative">
+                      <select
+                        value={brandFilter}
+                        onChange={(e) => setBrandFilter(e.target.value)}
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                      >
+                        <option value="">All Brands</option>
+                        <option value="Premium">Premium</option>
+                        <option value="Standard">Standard</option>
+                        <option value="Budget">Budget</option>
+                      </select>
+                      <ChevronDown className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                    </div>
+
+                    {/* Status Filter */}
+                    <div className="relative">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                      >
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                      <ChevronDown className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
         {/* Bundles Grid */}
-        <div className="flex-1">
+        <div className="flex-1 p-4 md:p-6">
           {isListMode && filteredBundles.length === 0 ? (
             <div className="bg-gradient-to-br from-white to-orange-50 rounded-xl border-2 border-dashed border-orange-200 shadow-sm p-6 sm:p-12 text-center">
               <div className="bg-orange-100 rounded-full w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mx-auto mb-4 sm:mb-6">
@@ -1849,6 +1930,7 @@ export default function BundlesPage() {
             </div>
           )}
         </div>
+        </div>
 
       {/* Bundle Details Modal */}
       {showBundleModal && selectedBundle && (
@@ -1871,7 +1953,7 @@ export default function BundlesPage() {
         confirmText={isDeleting ? "Deleting..." : "Delete"}
         isDestructive={true}
       />
-    </div>
+      </div>
     </>
   );
 } 

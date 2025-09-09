@@ -554,35 +554,58 @@ export default function QuotationsTable({
   };
 
   const ConfirmActionDialog = () => {
+    // Prevent background scroll when modal is open
+    useEffect(() => {
+      if (showConfirmDialog) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = 'unset';
+      }
+
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }, [showConfirmDialog]);
+
     if (!showConfirmDialog) return null;
-    return (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
-        <div className="bg-tertiary p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 ease-out">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold text-secondary">Confirm Action</h3>
-            <button onClick={() => setShowConfirmDialog(false)} className="p-1 rounded-full hover:bg-fourth">
-                <X className="w-5 h-5 text-gray-500"/>
+    
+    return createPortal(
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 ease-out max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gray-50/50">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Confirm Action</h3>
+            <button 
+              onClick={() => setShowConfirmDialog(false)} 
+              className="p-2 rounded-lg hover:bg-gray-200 transition-colors duration-150 touch-target"
+              aria-label="Close dialog"
+            >
+              <X className="w-5 h-5 text-gray-500"/>
             </button>
           </div>
-          <p className="text-sm text-gray-600 mb-6">{confirmDialogProps.message}</p>
-          <div className="flex justify-end space-x-3">
-            <button
-              onClick={() => setShowConfirmDialog(false)}
-              disabled={actionInProgress}
-              className="px-4 py-2 border border-fourth rounded-lg text-sm font-medium text-secondary hover:bg-fourth transition-colors duration-150 ease-in-out disabled:opacity-60"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => { if (confirmDialogProps.onConfirm) confirmDialogProps.onConfirm(); }}
-              disabled={actionInProgress}
-              className={`px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out disabled:opacity-60 flex items-center justify-center min-w-[80px]`}
-            >
-              {actionInProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Confirm'}
-            </button>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <p className="text-sm text-gray-600">{confirmDialogProps.message}</p>
+          </div>
+          <div className="border-t border-gray-200 bg-gray-50/50 p-4 sm:p-6">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end space-y-reverse space-y-3 sm:space-y-0 sm:space-x-3">
+              <button
+                onClick={() => setShowConfirmDialog(false)}
+                disabled={actionInProgress}
+                className="w-full sm:w-auto px-5 py-3 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors duration-150 ease-in-out disabled:opacity-60 touch-target"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { if (confirmDialogProps.onConfirm) confirmDialogProps.onConfirm(); }}
+                disabled={actionInProgress}
+                className="w-full sm:w-auto px-6 py-3 bg-primary text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-all duration-150 disabled:opacity-60 flex items-center justify-center min-w-[140px] touch-target shadow-lg hover:shadow-xl"
+              >
+                {actionInProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Confirm'}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
