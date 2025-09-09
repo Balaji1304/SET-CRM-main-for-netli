@@ -1,10 +1,76 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Loader2, Users, Building2 } from 'lucide-react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+
+// Custom styles for better mobile experience
+const customStyles = `
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  @media (max-width: 640px) {
+    .touch-target {
+      min-height: 48px;
+      padding: 12px 16px;
+    }
+    
+    /* Better spacing for mobile forms */
+    .mobile-form-spacing {
+      padding: 16px;
+    }
+    
+    /* Responsive text handling */
+    .mobile-title {
+      font-size: 24px !important;
+      line-height: 1.3 !important;
+    }
+    
+    .mobile-subtitle {
+      font-size: 14px !important;
+      line-height: 1.4 !important;
+    }
+    
+    /* Enhanced input fields for mobile */
+    .mobile-input {
+      font-size: 16px !important; /* Prevents zoom on iOS */
+      padding: 12px 16px !important;
+      min-height: 48px !important;
+    }
+    
+    /* Better error message display */
+    .mobile-error {
+      padding: 12px 16px !important;
+      font-size: 14px !important;
+    }
+    
+    /* Optimized button sizing */
+    .mobile-button {
+      min-height: 48px !important;
+      font-size: 16px !important;
+      padding: 12px 24px !important;
+    }
+  }
+  
+  @media (max-width: 375px) {
+    /* Extra small screens like iPhone SE */
+    .mobile-form-spacing {
+      padding: 12px;
+    }
+    
+    .mobile-title {
+      font-size: 20px !important;
+    }
+    
+    .mobile-subtitle {
+      font-size: 13px !important;
+    }
+  }
+`;
 
 const formSchema = z.object({
   email: z.string().min(1, "Please enter your email address or phone number"),
@@ -106,121 +172,171 @@ const Login = () => {
   }, []);
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left side - Preview Section */}
-      <div className="relative hidden w-1/2 lg:block">
-        <img
-          src={require('../assets/images/login-bg.png')}
-          alt="Dashboard Preview"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-zinc-950/40" />
-        <div className="relative z-10 flex h-full flex-col justify-center p-12">
-          <h1 className="text-5xl font-bold leading-tight text-white">
-            Sunlit CRM System
-          </h1>
-          <p className="mt-4 text-xl text-white/80">
-            Manage your solar business efficiently
-          </p>
-        </div>
-      </div>
-
-      {/* Right side - Login Form */}
-      <div className="flex w-full flex-col items-center justify-center px-4 sm:px-6 lg:w-1/2 lg:px-8">
-        <div className="w-full max-w-sm">
-          <div className="flex flex-col items-center space-y-4">
-            <h2 className="text-2xl font-semibold tracking-tight">
-              Welcome to Sunlit CRM
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Let's sign you in
-            </p>
-          </div>
-
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-8">
-            {error && (
-              <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                  <svg className="w-5 h-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
+    <>
+      <style>{customStyles}</style>
+      <div className="flex min-h-screen bg-gray-50">
+        {/* Left side - Preview Section */}
+        <div className="relative hidden lg:flex lg:w-1/2">
+          <img
+            src={require('../assets/images/login-bg.png')}
+            alt="Dashboard Preview"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-600/90 to-orange-800/90" />
+          <div className="relative z-10 flex h-full flex-col justify-center p-6 sm:p-8 lg:p-12">
+            <div className="max-w-lg">
+              <h1 className="text-4xl lg:text-5xl font-bold leading-tight text-white mb-4">
+                Sunlit CRM System
+              </h1>
+              <p className="text-lg lg:text-xl text-white/90 mb-6">
+                Manage your solar business efficiently with our comprehensive CRM solution
+              </p>
+              <div className="flex items-center space-x-4 text-white/80">
+                <div className="flex items-center space-x-2">
+                  <Building2 className="w-5 h-5" />
+                  <span className="text-sm">Business Management</span>
                 </div>
-                <div className="flex-1">
-                  <span className="font-medium">Login Failed</span>
-                  <p className="mt-1">{error}</p>
+                <div className="flex items-center space-x-2">
+                  <Users className="w-5 h-5" />
+                  <span className="text-sm">Customer Relations</span>
                 </div>
               </div>
-            )}
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Email Address / Phone Number</label>
-              <input
-                {...form.register("email")}
-                type="text"
-                placeholder="Enter your email or phone number"
-                onChange={(e) => {
-                  form.setValue("email", e.target.value);
-                  handleInputChange();
-                }}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <p className="text-xs text-gray-500">Staff: Use email address | Customers: Use phone number</p>
-              {form.formState.errors.email && (
-                <p className="text-sm text-red-500">{form.formState.errors.email.message}</p>
-              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right side - Login Form */}
+        <div className="flex w-full flex-col items-center justify-center lg:w-1/2">
+          <div className="w-full max-w-md mobile-form-spacing px-4 sm:px-6 lg:px-8">
+            {/* Header Section */}
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="flex items-center justify-center mb-4">
+                <div className="bg-white p-3 rounded-full shadow-lg">
+                  <img 
+                    src={process.env.REACT_APP_COMPANY_LOGO_URL} 
+                    alt="Sunlit CRM Logo" 
+                    className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
+                    onError={(e) => {
+                      // Fallback to Building2 icon if logo fails to load
+                      e.target.style.display = 'none';
+                      e.target.nextElementSibling.style.display = 'block';
+                    }}
+                  />
+                  <Building2 className="w-8 h-8 sm:w-10 sm:h-10 text-orange-600 hidden" />
+                </div>
+              </div>
+              <h2 className="mobile-title text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
+                Welcome to Sunlit CRM
+              </h2>
+              <p className="mobile-subtitle mt-2 text-sm sm:text-base text-gray-600">
+                Sign in to access your dashboard
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Password</label>
-              <div className="relative">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+              {/* Error Message */}
+              {error && (
+                <div className="mobile-error p-3 sm:p-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium block">Login Failed</span>
+                    <p className="mt-1 text-xs sm:text-sm break-words">{error}</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Email/Phone Input */}
+              <div className="space-y-2">
+                <label className="block text-sm sm:text-base font-medium text-gray-700">
+                  Email Address / Phone Number
+                </label>
                 <input
-                  {...form.register("password")}
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
+                  {...form.register("email")}
+                  type="text"
+                  placeholder="Enter your email or phone number"
                   onChange={(e) => {
-                    form.setValue("password", e.target.value);
+                    form.setValue("email", e.target.value);
                     handleInputChange();
                   }}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="mobile-input w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 text-sm sm:text-base bg-white touch-target"
                 />
-                <button
-                  type="button"
-                  className="absolute right-0 top-0 h-full px-3 py-2"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-500" />
-                  ) : (
-                    <Eye className="h-4 w-4 text-gray-500" />
-                  )}
-                </button>
+                <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-500">
+                  <Users className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                  <span>Staff: Use email address | Customers: Use phone number</span>
+                </div>
+                {form.formState.errors.email && (
+                  <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                    <span>{form.formState.errors.email.message}</span>
+                  </p>
+                )}
               </div>
-              {form.formState.errors.password && (
-                <p className="text-sm text-red-500">{form.formState.errors.password.message}</p>
-              )}
-            </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed text-white h-10 rounded-md transition-colors duration-200 flex items-center justify-center"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Signing In...
-                </>
-              ) : (
-                'Login'
-              )}
-            </button>
-          </form>
+              {/* Password Input */}
+              <div className="space-y-2">
+                <label className="block text-sm sm:text-base font-medium text-gray-700">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    {...form.register("password")}
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    onChange={(e) => {
+                      form.setValue("password", e.target.value);
+                      handleInputChange();
+                    }}
+                    className="mobile-input w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 text-sm sm:text-base bg-white touch-target"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-0 top-0 h-full px-3 sm:px-4 py-2 sm:py-3 touch-target flex items-center justify-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                    ) : (
+                      <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                    )}
+                  </button>
+                </div>
+                {form.formState.errors.password && (
+                  <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                    <span>{form.formState.errors.password.message}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="mobile-button w-full bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors duration-200 flex items-center justify-center font-medium text-sm sm:text-base touch-target shadow-md hover:shadow-lg transform transition-transform duration-150 hover:scale-[1.02] disabled:transform-none"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                    Signing In...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
+              </button>
+            </form>
+
+            {/* Footer */}
+            <div className="mt-6 sm:mt-8 text-center">
+              <p className="text-xs sm:text-sm text-gray-500">
+                Secure login powered by Sunlit CRM
+              </p>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
