@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Filter, Plus, Eye, Calendar, User, Tag, AlertTriangle, Clock, CheckCircle, XCircle, MessageCircle, Paperclip, X, Upload, FileText, Image } from 'lucide-react';
 import { getMyTickets, createTicket } from '../../services/ticketService';
 import TicketDetailModal from '../../components/TicketDetailModal';
@@ -38,6 +39,19 @@ const TicketsPage = () => {
       }
     })();
   }, []);
+
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (showCreateModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showCreateModal]);
 
   // Filter tickets based on search and filters
   useEffect(() => {
@@ -488,8 +502,8 @@ const TicketsPage = () => {
       </div>
 
       {/* Create Ticket Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      {showCreateModal && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">Create Support Ticket</h2>
@@ -692,7 +706,8 @@ const TicketsPage = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Ticket Detail Modal */}

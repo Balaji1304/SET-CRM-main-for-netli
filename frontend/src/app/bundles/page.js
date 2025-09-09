@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Package, Plus, Edit2, Trash2, Eye, Filter, Search, Loader2, AlertTriangle, ArrowLeft, Save, Upload, X, Info, ShoppingCart, Tag, Layers, TrendingUp, Calendar, Users, Building2, Zap, Settings, FileText } from 'lucide-react';
 import { getBundles, deleteBundle, createBundle, getBundle, updateBundle, getCompatibleProducts, getDefaultBundleTerms } from '../../services/bundleService';
@@ -16,11 +17,96 @@ const customStyles = `
       min-height: 48px;
       padding: 12px 16px;
     }
+    
+    /* Ensure dropdowns don't overflow */
+    .mobile-select {
+      max-width: 100%;
+      min-width: 120px;
+      text-overflow: ellipsis;
+    }
+    
+    /* Compact filter layout */
+    .mobile-filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 8px;
+    }
+    
+    /* Responsive text handling */
+    .mobile-truncate {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+    
+    /* Improved modal responsiveness */
+    .mobile-modal-content {
+      max-height: 95vh;
+      overflow-y: auto;
+    }
+    
+    /* Better spacing for mobile cards */
+    .mobile-card-compact {
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    
+    /* Ensure buttons don't wrap */
+    .mobile-button-container {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 4px;
+      min-width: 0;
+    }
+    
+    /* Force card width constraints */
+    .mobile-card-container {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    
+    /* Compact action buttons for very small screens */
+    .mobile-action-compact {
+      padding: 6px !important;
+      margin: 0 1px !important;
+    }
+  }
+  
+  @media (max-width: 375px) {
+    /* Extra small screens like iPhone SE */
+    .mobile-card-compact {
+      padding: 8px;
+    }
+    
+    .mobile-header-text {
+      font-size: 14px !important;
+      line-height: 1.3 !important;
+    }
+    
+    .mobile-action-buttons {
+      gap: 2px !important;
+    }
+  }
+
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
@@ -669,6 +755,19 @@ export default function BundlesPage() {
 
   // Bundle Details Modal Component
   const BundleDetailsModal = ({ bundle, onClose }) => {
+    // Prevent background scroll when modal is open
+    useEffect(() => {
+      if (bundle) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = 'unset';
+      }
+
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }, [bundle]);
+
     const getKvaDisplayName = (subcategory) => {
       const displayNames = {
         '2kva': '2 KVA',
@@ -680,107 +779,107 @@ export default function BundlesPage() {
       return displayNames[subcategory] || subcategory;
     };
 
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-out">
+    return createPortal(
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full mobile-modal-content transform transition-all duration-300 ease-out">
           {/* Modal Header */}
-          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="bg-white/20 p-2 rounded-lg">
-                <Package className="w-6 h-6 text-white" />
+          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+              <div className="bg-white/20 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <div>
-                <h2 className="text-xl font-semibold text-white">Solar Power Plant System Details</h2>
-                <p className="text-orange-100 text-sm">Complete system configuration and components</p>
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-semibold text-white mobile-truncate">Solar Power Plant System Details</h2>
+                <p className="text-orange-100 text-xs sm:text-sm mobile-truncate">Complete system configuration and components</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-150 touch-target"
+              className="p-1.5 sm:p-2 hover:bg-white/20 rounded-lg transition-colors duration-150 touch-target flex-shrink-0"
             >
-              <X className="w-5 h-5 text-white" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </button>
           </div>
 
           {/* Modal Body */}
-          <div className="max-h-[calc(90vh-120px)] overflow-y-auto">
-            <div className="p-6 space-y-6">
+          <div className="max-h-[calc(95vh-80px)] overflow-y-auto">
+            <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
               {/* System Name and Details */}
-              <div className="border-b border-gray-100 pb-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{bundle.name}</h3>
-                    <div className="flex items-center space-x-4 text-gray-600">
+              <div className="border-b border-gray-100 pb-4 sm:pb-6">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 break-words">{bundle.name}</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-gray-600">
                       <div className="flex items-center space-x-2">
-                        <Tag className="w-4 h-4" />
-                        <span className="text-sm font-medium">Code: {bundle.bundleCode}</span>
+                        <Tag className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-medium mobile-truncate">Code: {bundle.bundleCode}</span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Zap className="w-4 h-4" />
-                        <span className="text-sm">{getKvaDisplayName(bundle.subcategory)}</span>
+                        <Zap className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm mobile-truncate">{getKvaDisplayName(bundle.subcategory)}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="ml-4">
-                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border-2 backdrop-blur-sm ${getSubcategoryBadgeClass(bundle.subcategory)}`}>
+                  <div className="flex-shrink-0">
+                    <span className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border-2 backdrop-blur-sm ${getSubcategoryBadgeClass(bundle.subcategory)}`}>
                       {getKvaDisplayName(bundle.subcategory)}
                     </span>
                   </div>
                 </div>
                 
                 {bundle.description && (
-                  <p className="text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-lg">
+                  <p className="text-xs sm:text-sm text-gray-600 leading-relaxed bg-gray-50 p-3 sm:p-4 rounded-lg mt-3 sm:mt-4 break-words">
                     {bundle.description}
                   </p>
                 )}
               </div>
 
               {/* Key Information Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                 {/* Price Information */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="bg-blue-500 p-2 rounded-lg">
-                      <ShoppingCart className="w-5 h-5 text-white" />
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                    <div className="bg-blue-500 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">System Price</h4>
-                      <p className="text-sm text-gray-600">Complete system cost</p>
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-gray-900 text-sm sm:text-base">System Price</h4>
+                      <p className="text-xs sm:text-sm text-gray-600">Complete system cost</p>
                     </div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">
+                  <div className="text-lg sm:text-2xl font-bold text-gray-900 break-all">
                     {formatCurrency(bundle.price)}
                   </div>
                 </div>
 
                 {/* Components Count */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="bg-green-500 p-2 rounded-lg">
-                      <Package className="w-5 h-5 text-white" />
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-4 rounded-xl border border-green-200">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                    <div className="bg-green-500 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                      <Package className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Components</h4>
-                      <p className="text-sm text-gray-600">System parts</p>
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-gray-900 text-sm sm:text-base">Components</h4>
+                      <p className="text-xs sm:text-sm text-gray-600">System parts</p>
                     </div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">
+                  <div className="text-lg sm:text-2xl font-bold text-gray-900">
                     {bundle.items?.filter(item => item.quantity > 0).length || 0}
                   </div>
                 </div>
 
                 {/* Total Items */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="bg-purple-500 p-2 rounded-lg">
-                      <Users className="w-5 h-5 text-white" />
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 sm:p-4 rounded-xl border border-purple-200 sm:col-span-2 lg:col-span-1">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                    <div className="bg-purple-500 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Total Items</h4>
-                      <p className="text-sm text-gray-600">All quantities</p>
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-gray-900 text-sm sm:text-base">Total Items</h4>
+                      <p className="text-xs sm:text-sm text-gray-600">All quantities</p>
                     </div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">
+                  <div className="text-lg sm:text-2xl font-bold text-gray-900">
                     {bundle.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0}
                   </div>
                 </div>
@@ -788,40 +887,40 @@ export default function BundlesPage() {
 
               {/* System Configuration */}
               {bundle.systemConfiguration && (
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Settings className="w-5 h-5 text-gray-600" />
-                    <h4 className="text-lg font-semibold text-gray-900">System Configuration</h4>
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-5 border border-gray-200">
+                  <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
+                    <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-base sm:text-lg font-semibold text-gray-900">System Configuration</h4>
                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                     {bundle.systemConfiguration.installedCapacityKWP && (
-                      <div className="bg-white p-4 rounded-lg border">
-                        <span className="text-sm font-medium text-gray-500 block mb-1">Installed Capacity</span>
-                        <span className="text-lg font-semibold text-gray-900">{bundle.systemConfiguration.installedCapacityKWP} KWP</span>
+                      <div className="bg-white p-3 sm:p-4 rounded-lg border">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">Installed Capacity</span>
+                        <span className="text-sm sm:text-lg font-semibold text-gray-900">{bundle.systemConfiguration.installedCapacityKWP} KWP</span>
                       </div>
                     )}
                     {bundle.systemConfiguration.areaRequired && (
-                      <div className="bg-white p-4 rounded-lg border">
-                        <span className="text-sm font-medium text-gray-500 block mb-1">Area Required</span>
-                        <span className="text-lg font-semibold text-gray-900">{bundle.systemConfiguration.areaRequired}</span>
+                      <div className="bg-white p-3 sm:p-4 rounded-lg border">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">Area Required</span>
+                        <span className="text-sm sm:text-lg font-semibold text-gray-900">{bundle.systemConfiguration.areaRequired}</span>
                       </div>
                     )}
                     {bundle.systemConfiguration.moduleSpecification && (
-                      <div className="bg-white p-4 rounded-lg border col-span-full">
-                        <span className="text-sm font-medium text-gray-500 block mb-1">Module Specification</span>
-                        <span className="text-gray-900">{bundle.systemConfiguration.moduleSpecification}</span>
+                      <div className="bg-white p-3 sm:p-4 rounded-lg border col-span-full">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">Module Specification</span>
+                        <span className="text-xs sm:text-sm text-gray-900 break-words">{bundle.systemConfiguration.moduleSpecification}</span>
                       </div>
                     )}
                     {bundle.systemConfiguration.inverterSpecification && (
-                      <div className="bg-white p-4 rounded-lg border col-span-full">
-                        <span className="text-sm font-medium text-gray-500 block mb-1">Inverter Specification</span>
-                        <span className="text-gray-900">{bundle.systemConfiguration.inverterSpecification}</span>
+                      <div className="bg-white p-3 sm:p-4 rounded-lg border col-span-full">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">Inverter Specification</span>
+                        <span className="text-xs sm:text-sm text-gray-900 break-words">{bundle.systemConfiguration.inverterSpecification}</span>
                       </div>
                     )}
                     {bundle.systemConfiguration.systemDescription && (
-                      <div className="bg-white p-4 rounded-lg border col-span-full">
-                        <span className="text-sm font-medium text-gray-500 block mb-1">System Description</span>
-                        <p className="text-gray-900">{bundle.systemConfiguration.systemDescription}</p>
+                      <div className="bg-white p-3 sm:p-4 rounded-lg border col-span-full">
+                        <span className="text-xs sm:text-sm font-medium text-gray-500 block mb-1">System Description</span>
+                        <p className="text-xs sm:text-sm text-gray-900 break-words">{bundle.systemConfiguration.systemDescription}</p>
                       </div>
                     )}
                   </div>
@@ -830,20 +929,20 @@ export default function BundlesPage() {
 
               {/* Components List */}
               {bundle.items && bundle.items.length > 0 && (
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Building2 className="w-5 h-5 text-gray-600" />
-                    <h4 className="text-lg font-semibold text-gray-900">System Components</h4>
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-5 border border-gray-200">
+                  <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
+                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-base sm:text-lg font-semibold text-gray-900">System Components</h4>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {bundle.items.filter(item => item.quantity > 0).map((item, index) => (
-                      <div key={index} className="bg-white p-4 rounded-lg border flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900">
+                      <div key={index} className="bg-white p-3 sm:p-4 rounded-lg border flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 text-sm sm:text-base mobile-truncate">
                             {item.solarItem?.name || item.name || 'Component'}
                           </div>
                           {item.solarItem?.warranty && (
-                            <div className="text-sm text-gray-500">Warranty: {item.solarItem.warranty}</div>
+                            <div className="text-xs sm:text-sm text-gray-500">Warranty: {item.solarItem.warranty}</div>
                           )}
                           {item.solarItem?.componentType && (
                             <div className="text-xs text-gray-400 capitalize mt-1">
@@ -851,10 +950,10 @@ export default function BundlesPage() {
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
                           <div className="text-center">
-                            <div className="text-sm font-medium text-gray-500">Quantity</div>
-                            <div className="text-lg font-semibold text-gray-900">{item.quantity}</div>
+                            <div className="text-xs sm:text-sm font-medium text-gray-500">Quantity</div>
+                            <div className="text-sm sm:text-lg font-semibold text-gray-900">{item.quantity}</div>
                           </div>
                         </div>
                       </div>
@@ -865,18 +964,18 @@ export default function BundlesPage() {
 
               {/* System Images */}
               {bundle.imageUrls && bundle.imageUrls.length > 0 && (
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Eye className="w-5 h-5 text-gray-600" />
-                    <h4 className="text-lg font-semibold text-gray-900">System Images</h4>
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-5 border border-gray-200">
+                  <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
+                    <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-base sm:text-lg font-semibold text-gray-900">System Images</h4>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {bundle.imageUrls.map((imageUrl, index) => (
                       <div key={index} className="relative group">
                         <img
                           src={imageUrl}
                           alt={`${bundle.name} - Image ${index + 1}`}
-                          className="w-full h-48 object-cover rounded-lg border border-gray-200 group-hover:opacity-90 transition-opacity duration-200"
+                          className="w-full h-32 sm:h-48 object-cover rounded-lg border border-gray-200 group-hover:opacity-90 transition-opacity duration-200"
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-all duration-200" />
                       </div>
@@ -887,53 +986,53 @@ export default function BundlesPage() {
 
               {/* Terms and Conditions */}
               {bundle.termsAndConditions && (
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <FileText className="w-5 h-5 text-gray-600" />
-                    <h4 className="text-lg font-semibold text-gray-900">Terms and Conditions</h4>
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-5 border border-gray-200">
+                  <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-base sm:text-lg font-semibold text-gray-900">Terms and Conditions</h4>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border">
-                    <p className="text-gray-700 whitespace-pre-line">{bundle.termsAndConditions}</p>
+                  <div className="bg-white p-3 sm:p-4 rounded-lg border">
+                    <p className="text-xs sm:text-sm text-gray-700 whitespace-pre-line break-words">{bundle.termsAndConditions}</p>
                   </div>
                 </div>
               )}
 
               {/* Status and Dates */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Info className="w-5 h-5 text-gray-600" />
-                    <h4 className="text-lg font-semibold text-gray-900">System Status</h4>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-5 border border-gray-200">
+                  <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
+                    <Info className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-base sm:text-lg font-semibold text-gray-900">System Status</h4>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                      <span className="text-sm font-medium text-gray-600">Status</span>
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="flex justify-between items-center py-1 sm:py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Status</span>
                       <div className="flex items-center space-x-2">
                         <div className={`w-2 h-2 rounded-full ${bundle.isActive !== false ? 'bg-green-400' : 'bg-red-400'}`} />
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className="text-xs sm:text-sm font-medium text-gray-900">
                           {bundle.isActive !== false ? 'Active' : 'Inactive'}
                         </span>
                       </div>
                     </div>
                     {bundle.createdAt && (
-                      <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                        <span className="text-sm font-medium text-gray-600">Created</span>
-                        <span className="text-sm text-gray-900">
+                      <div className="flex justify-between items-center py-1 sm:py-2 border-b border-gray-200 last:border-b-0">
+                        <span className="text-xs sm:text-sm font-medium text-gray-600">Created</span>
+                        <span className="text-xs sm:text-sm text-gray-900">
                           {new Date(bundle.createdAt).toLocaleDateString('en-IN', { 
                             year: 'numeric', 
-                            month: 'long', 
+                            month: 'short', 
                             day: 'numeric' 
                           })}
                         </span>
                       </div>
                     )}
                     {bundle.updatedAt && (
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm font-medium text-gray-600">Last Updated</span>
-                        <span className="text-sm text-gray-900">
+                      <div className="flex justify-between items-center py-1 sm:py-2">
+                        <span className="text-xs sm:text-sm font-medium text-gray-600">Last Updated</span>
+                        <span className="text-xs sm:text-sm text-gray-900">
                           {new Date(bundle.updatedAt).toLocaleDateString('en-IN', { 
                             year: 'numeric', 
-                            month: 'long', 
+                            month: 'short', 
                             day: 'numeric' 
                           })}
                         </span>
@@ -944,16 +1043,16 @@ export default function BundlesPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <div className="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-200">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end">
                   <button
                     onClick={() => {
                       onClose();
                       navigate(`/dashboard/bundles/${bundle._id}/edit`);
                     }}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF7300] text-white rounded-lg font-medium hover:bg-[#FF8800] transition-colors duration-150 touch-target"
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[#FF7300] text-white rounded-lg font-medium hover:bg-[#FF8800] transition-colors duration-150 touch-target text-sm sm:text-base"
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-3 h-3 sm:w-4 sm:h-4" />
                     Edit System
                   </button>
                 </div>
@@ -961,7 +1060,8 @@ export default function BundlesPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
@@ -1471,25 +1571,25 @@ export default function BundlesPage() {
       <style>{customStyles}</style>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="border-b border-gray-200 pb-4 sm:pb-5 mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <Package className="w-8 h-8 text-[#FF7300]" />
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
+        <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#FF7300] flex-shrink-0" />
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">
               Solar Power Plant Systems
             </h1>
           </div>
           <button
             onClick={() => navigate('/dashboard/bundles/create')}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors touch-target"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 sm:px-6 py-2 sm:py-3 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors touch-target"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
             Create System
           </button>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sm:p-6 mb-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3 sm:p-6 mb-4 sm:mb-6">
+          <div className="mobile-filter-grid sm:grid sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 sm:gap-4">
             {/* Search */}
             <div className="sm:col-span-2 md:col-span-1 lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Search Systems</label>
@@ -1500,7 +1600,7 @@ export default function BundlesPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by name, code, or description..."
-                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
+                  className="pl-10 w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
                 />
               </div>
             </div>
@@ -1511,7 +1611,7 @@ export default function BundlesPage() {
               <select
                 value={subcategoryFilter}
                 onChange={(e) => setSubcategoryFilter(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target appearance-none"
+                className="mobile-select w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target appearance-none"
               >
                 <option value="">All Ratings</option>
                 <option value="2kva">2 KVA</option>
@@ -1531,7 +1631,7 @@ export default function BundlesPage() {
                   setBrandFilter('');
                   setStatusFilter('');
                 }}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors touch-target"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors touch-target"
               >
                 Clear Filters
               </button>
@@ -1542,12 +1642,12 @@ export default function BundlesPage() {
         {/* Bundles Grid */}
         <div className="flex-1">
           {isListMode && filteredBundles.length === 0 ? (
-            <div className="bg-gradient-to-br from-white to-orange-50 rounded-xl border-2 border-dashed border-orange-200 shadow-sm p-12 text-center">
-              <div className="bg-orange-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
-                <Package className="w-10 h-10 text-[#FF7300]" />
+            <div className="bg-gradient-to-br from-white to-orange-50 rounded-xl border-2 border-dashed border-orange-200 shadow-sm p-6 sm:p-12 text-center">
+              <div className="bg-orange-100 rounded-full w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <Package className="w-8 h-8 sm:w-10 sm:h-10 text-[#FF7300]" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">No systems found</h3>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto leading-relaxed">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 sm:mb-3">No systems found</h3>
+              <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 max-w-md mx-auto leading-relaxed">
                 {bundles.length === 0 
                   ? "Start building your solar power plant system catalog. Create professional system configurations with components, images, and pricing." 
                   : "No systems match your current filters. Try adjusting your search criteria to see more results."
@@ -1556,20 +1656,20 @@ export default function BundlesPage() {
               {bundles.length === 0 && (
                 <button
                   onClick={() => navigate('/dashboard/bundles/create')}
-                  className="inline-flex items-center gap-2 px-8 py-4 bg-[#FF7300] text-white rounded-xl text-base font-semibold hover:bg-[#FF8800] transform hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg"
+                  className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-[#FF7300] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#FF8800] transform hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg touch-target"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   Create Your First System
                 </button>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6">
               {isListMode && filteredBundles.map((bundle) => (
-                <div key={bundle._id} className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-xl card-hover-lift transition-all duration-300 overflow-hidden">
+                <div key={bundle._id} className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-xl card-hover-lift transition-all duration-300 overflow-hidden mobile-card-container">
                   
                   {/* Hero Image Section */}
-                  <div className="relative h-48 bg-gradient-to-br from-orange-50 to-orange-100 gradient-overlay">
+                  <div className="relative h-36 sm:h-48 bg-gradient-to-br from-orange-50 to-orange-100 gradient-overlay">
                     {bundle.imageUrls && bundle.imageUrls.length > 0 ? (
                       <div className="relative h-full w-full">
                         <img
@@ -1580,8 +1680,8 @@ export default function BundlesPage() {
                         {/* Image overlay with count */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
                         {bundle.imageUrls.length > 1 && (
-                          <div className="absolute top-3 right-3">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-black/70 text-white backdrop-blur-sm">
+                          <div className="absolute top-2 sm:top-3 right-2 sm:right-3">
+                            <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-black/70 text-white backdrop-blur-sm">
                               <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
@@ -1593,15 +1693,15 @@ export default function BundlesPage() {
                     ) : (
                       <div className="h-full w-full flex items-center justify-center">
                         <div className="text-center text-gray-400">
-                          <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                          <span className="text-sm">No images</span>
+                          <Package className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-1 sm:mb-2 opacity-50" />
+                          <span className="text-xs sm:text-sm">No images</span>
                         </div>
                       </div>
                     )}
                     
                     {/* KVA Badge */}
-                    <div className="absolute top-3 left-3">
-                      <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold border-2 backdrop-blur-sm ${getSubcategoryBadgeClass(bundle.subcategory)}`}>
+                    <div className="absolute top-2 sm:top-3 left-2 sm:left-3">
+                      <span className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-semibold border-2 backdrop-blur-sm ${getSubcategoryBadgeClass(bundle.subcategory)}`}>
                         {(() => {
                           const predefinedSubcategories = ['2kva', '4kva', '5kva', '10kva'];
                           if (predefinedSubcategories.includes(bundle.subcategory)) {
@@ -1615,24 +1715,24 @@ export default function BundlesPage() {
                   </div>
 
                   {/* Card Content */}
-                  <div className="p-6">
+                  <div className="p-3 sm:p-6 mobile-card-compact">
                     {/* Header */}
-                    <div className="mb-4">
+                    <div className="mb-3 sm:mb-4">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold text-gray-900 truncate group-hover:text-[#FF7300] transition-colors cursor-pointer"
+                          <h3 className="text-base sm:text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-[#FF7300] transition-colors cursor-pointer mobile-header-text"
                               onClick={() => handleViewBundle(bundle)}
                               title="Click to view details">
                             {bundle.name}
                           </h3>
-                          <p className="text-sm text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded inline-block mt-1">
+                          <p className="text-xs sm:text-sm text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded inline-block mt-1 mobile-truncate">
                             {bundle.bundleCode}
                           </p>
                         </div>
                       </div>
                       
                       {bundle.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                        <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 leading-relaxed">
                           {bundle.description}
                         </p>
                       )}
@@ -1640,12 +1740,12 @@ export default function BundlesPage() {
 
                     {/* System Configuration */}
                     {bundle.systemConfiguration && (
-                      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                        <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3 text-xs">
                           {bundle.systemConfiguration.installedCapacityKWP && (
                             <div>
                               <span className="text-gray-500 block">Capacity</span>
-                              <span className="font-semibold text-gray-900">
+                              <span className="font-semibold text-gray-900 text-xs sm:text-sm">
                                 {bundle.systemConfiguration.installedCapacityKWP} KWP
                               </span>
                             </div>
@@ -1653,7 +1753,7 @@ export default function BundlesPage() {
                           {bundle.systemConfiguration.areaRequired && (
                             <div>
                               <span className="text-gray-500 block">Area</span>
-                              <span className="font-semibold text-gray-900">
+                              <span className="font-semibold text-gray-900 text-xs sm:text-sm">
                                 {bundle.systemConfiguration.areaRequired}
                               </span>
                             </div>
@@ -1661,7 +1761,7 @@ export default function BundlesPage() {
                           {bundle.systemConfiguration.moduleSpecification && (
                             <div className="col-span-2">
                               <span className="text-gray-500 block">Module</span>
-                              <span className="font-semibold text-gray-900 text-xs">
+                              <span className="font-semibold text-gray-900 text-xs line-clamp-1">
                                 {bundle.systemConfiguration.moduleSpecification}
                               </span>
                             </div>
@@ -1671,31 +1771,31 @@ export default function BundlesPage() {
                     )}
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div className="text-center p-3 bg-blue-50 rounded-lg">
-                        <div className="text-lg font-bold text-blue-600">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-3 sm:mb-4">
+                      <div className="text-center p-2 sm:p-3 bg-blue-50 rounded-lg">
+                        <div className="text-sm sm:text-lg font-bold text-blue-600">
                           {bundle.items?.filter(item => item.quantity > 0).length || 0}
                         </div>
                         <div className="text-xs text-blue-600 font-medium">Components</div>
                       </div>
                       
-                      <div className="text-center p-3 bg-green-50 rounded-lg">
-                        <div className="text-lg font-bold text-green-600">
+                      <div className="text-center p-2 sm:p-3 bg-green-50 rounded-lg">
+                        <div className="text-sm sm:text-lg font-bold text-green-600">
                           {bundle.items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0}
                         </div>
                         <div className="text-xs text-green-600 font-medium">Total Items</div>
                       </div>
                       
-                      <div className="text-center p-3 bg-orange-50 rounded-lg">
+                      <div className="text-center p-2 sm:p-3 bg-orange-50 rounded-lg">
                         <div className="text-xs text-orange-600 font-medium">Price</div>
-                        <div className="text-sm font-bold text-[#FF7300]">
+                        <div className="text-xs sm:text-sm font-bold text-[#FF7300] line-clamp-1">
                           {formatCurrency(bundle.price)}
                         </div>
                       </div>
                     </div>
 
                     {/* System Status */}
-                    <div className="mb-4 flex items-center justify-between">
+                    <div className="mb-3 sm:mb-4 flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <div className={`w-2 h-2 rounded-full ${bundle.isActive !== false ? 'bg-green-400' : 'bg-red-400'}`} />
                         <span className="text-xs font-medium text-gray-600">
@@ -1714,33 +1814,33 @@ export default function BundlesPage() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex items-center space-x-1">
+                    <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-gray-100">
+                      <div className="flex items-center space-x-1 mobile-action-buttons">
                         <button
                           onClick={() => handleViewBundle(bundle)}
-                          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 hover:text-[#FF7300] hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target"
+                          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-[#FF7300] hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target mobile-action-compact"
                           title="View System Details"
                         >
-                          <Eye className="w-4 h-4" />
-                          View
+                          <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">View</span>
                         </button>
                         <button
                           onClick={() => navigate(`/dashboard/bundles/${bundle._id}/edit`)}
-                          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 hover:text-[#FF7300] hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target"
+                          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-[#FF7300] hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target mobile-action-compact"
                           title="Edit System"
                         >
-                          <Edit2 className="w-4 h-4" />
-                          Edit
+                          <Edit2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">Edit</span>
                         </button>
                       </div>
                       
                       <button
                         onClick={() => handleDeleteBundle(bundle)}
-                        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 touch-target"
+                        className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 touch-target mobile-action-compact"
                         title="Delete System"
                       >
-                        <Trash2 className="w-4 h-4" />
-                        Delete
+                        <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">Delete</span>
                       </button>
                     </div>
                   </div>

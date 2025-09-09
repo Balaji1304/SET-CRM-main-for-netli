@@ -565,14 +565,3 @@ function calculateDataPoints(analyticsData) {
   
   return points;
 }
-
-module.exports = {
-  generateSalesPerformanceReport,
-  getMyReports,
-  getReportDetails,
-  exportReportToPDF,
-  exportReportToExcel,
-  generateLeadAnalysisReport,
-  deleteReport,
-  getSalesDashboard
-};

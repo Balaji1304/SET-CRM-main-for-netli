@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Edit2, FileText, Send, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Loader2, Phone, Mail, Building2, Calendar, User, IndianRupee } from 'lucide-react';
 import { 
@@ -32,6 +33,19 @@ function StandalonePaymentModal({
   paymentError,
   onSetPaymentError 
 }) {
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showModal]);
+
   if (!showModal || !selectedQuotation) return null;
 
   const advancePercentage = selectedQuotation.advancePaymentPercentage || 20;
@@ -61,8 +75,8 @@ function StandalonePaymentModal({
     onSubmit();
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-3 sm:p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md sm:max-w-lg lg:max-w-xl transform transition-all duration-300 ease-out max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gray-50/50">
@@ -238,7 +252,8 @@ function StandalonePaymentModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

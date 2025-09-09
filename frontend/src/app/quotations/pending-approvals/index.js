@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Filter, Check, AlertTriangle, Calendar, CreditCard } from 'lucide-react';
 import { getQuotations, approveQuotation, checkQuotationPaymentStatus } from '../../../services/quotationService';
 import { API_URL } from '../../../services/apiConfig';
@@ -52,6 +53,19 @@ export default function AccountsApprovalsPage() {
       setLoading(false);
     }
   };
+
+  // Prevent background scroll when drawer is open
+  useEffect(() => {
+    if (drawer.open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [drawer.open]);
 
   const filtered = useMemo(() => {
     if (!query) return rows;
@@ -180,8 +194,8 @@ export default function AccountsApprovalsPage() {
           )}
         </div>
         {/* Payment Details Drawer */}
-        {drawer.open && (
-          <div className="fixed inset-0 z-50">
+        {drawer.open && createPortal(
+          <div className="fixed inset-0 z-[9999]">
             <div className="absolute inset-0 bg-black/30" onClick={closeDrawer} />
             <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl p-6 overflow-auto">
               <div className="flex items-center justify-between mb-4">
@@ -220,7 +234,8 @@ export default function AccountsApprovalsPage() {
                 </div>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
         {/* No offline payment modal in Accounts */}
       </div>

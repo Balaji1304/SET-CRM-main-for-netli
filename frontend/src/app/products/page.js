@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronDown, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Package, Layers, TrendingUp, Calendar, Info, ShoppingCart, Tag, Zap, Users, Building2, FileText } from 'lucide-react';
 import ConfirmDialog from '../../components/ConfirmDialog';
@@ -15,6 +16,77 @@ const customStyles = `
     .touch-target {
       min-height: 48px;
       padding: 12px 16px;
+    }
+    
+    /* Ensure dropdowns don't overflow */
+    .mobile-select {
+      max-width: 100%;
+      min-width: 120px;
+      text-overflow: ellipsis;
+    }
+    
+    /* Compact filter layout */
+    .mobile-filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 8px;
+    }
+    
+    /* Responsive text handling */
+    .mobile-truncate {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+    
+    /* Improved modal responsiveness */
+    .mobile-modal-content {
+      max-height: 95vh;
+      overflow-y: auto;
+    }
+    
+    /* Better spacing for mobile cards */
+    .mobile-card-compact {
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    
+    /* Ensure buttons don't wrap */
+    .mobile-button-container {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 4px;
+      min-width: 0;
+    }
+    
+    /* Force card width constraints */
+    .mobile-card-container {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    
+    /* Compact action buttons for very small screens */
+    .mobile-action-compact {
+      padding: 6px !important;
+      margin: 0 1px !important;
+    }
+  }
+  
+  @media (max-width: 375px) {
+    /* Extra small screens like iPhone SE */
+    .mobile-card-compact {
+      padding: 8px;
+    }
+    
+    .mobile-header-text {
+      font-size: 14px !important;
+      line-height: 1.3 !important;
+    }
+    
+    .mobile-action-buttons {
+      gap: 2px !important;
     }
   }
 `;
@@ -163,49 +235,57 @@ export default function ProductListPage() {
   const ProductDetailsModal = ({ product, onClose }) => {
     const stockStatus = getStockStatus(product);
     
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-out">
+    // Prevent scroll when modal is open
+    useEffect(() => {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }, []);
+    
+    return createPortal(
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mobile-modal-content transform transition-all duration-300 ease-out">
           {/* Modal Header */}
-          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="bg-white/20 p-2 rounded-lg">
-                <Package className="w-6 h-6 text-white" />
+          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+              <div className="bg-white/20 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <div>
-                <h2 className="text-xl font-semibold text-white">Product Details</h2>
-                <p className="text-orange-100 text-sm">Complete product information</p>
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-semibold text-white mobile-truncate">Product Details</h2>
+                <p className="text-orange-100 text-xs sm:text-sm mobile-truncate">Complete product information</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-150 touch-target"
+              className="p-1.5 sm:p-2 hover:bg-white/20 rounded-lg transition-colors duration-150 touch-target flex-shrink-0"
             >
-              <X className="w-5 h-5 text-white" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </button>
           </div>
 
           {/* Modal Body */}
-          <div className="max-h-[calc(90vh-120px)] overflow-y-auto">
-            <div className="p-6 space-y-6">
+          <div className="max-h-[calc(95vh-80px)] overflow-y-auto">
+            <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
               {/* Product Name and Model */}
-              <div className="border-b border-gray-100 pb-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{product.name}</h3>
-                    <div className="flex items-center space-x-4 text-gray-600">
+              <div className="border-b border-gray-100 pb-4 sm:pb-6">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2 break-words">{product.name}</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-gray-600">
                       <div className="flex items-center space-x-2">
-                        <Tag className="w-4 h-4" />
-                        <span className="text-sm font-medium">Model: {product.modelNumber}</span>
+                        <Tag className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-medium mobile-truncate">Model: {product.modelNumber}</span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Layers className="w-4 h-4" />
-                        <span className="text-sm">{product.category}</span>
+                        <Layers className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm mobile-truncate">{product.category}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="ml-4">
-                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium
+                  <div className="flex-shrink-0">
+                    <span className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium
                       ${stockStatus === 'In Stock' ? 'bg-green-100 text-green-800 border border-green-200'
                       : stockStatus === 'Low Stock' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
                       : 'bg-red-100 text-red-800 border border-red-200'
@@ -217,105 +297,105 @@ export default function ProductListPage() {
               </div>
 
               {/* Key Information Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                 {/* Price Information */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="bg-blue-500 p-2 rounded-lg">
-                      <ShoppingCart className="w-5 h-5 text-white" />
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                    <div className="bg-blue-500 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Price</h4>
-                      <p className="text-sm text-gray-600">Current selling price</p>
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-gray-900 text-sm sm:text-base">Price</h4>
+                      <p className="text-xs sm:text-sm text-gray-600">Current selling price</p>
                     </div>
                   </div>
                   <div className="flex items-baseline space-x-1">
-                    <span className="text-2xl font-bold text-gray-900">₹</span>
-                    <span className="text-2xl font-bold text-gray-900">
+                    <span className="text-xl sm:text-2xl font-bold text-gray-900">₹</span>
+                    <span className="text-xl sm:text-2xl font-bold text-gray-900 break-all">
                       {product.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
 
                 {/* Stock Information */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="bg-green-500 p-2 rounded-lg">
-                      <Package className="w-5 h-5 text-white" />
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-4 rounded-xl border border-green-200">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                    <div className="bg-green-500 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                      <Package className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Stock Quantity</h4>
-                      <p className="text-sm text-gray-600">Available units</p>
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-gray-900 text-sm sm:text-base">Stock Quantity</h4>
+                      <p className="text-xs sm:text-sm text-gray-600">Available units</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-2xl font-bold text-gray-900">{product.quantity}</span>
-                    <span className="text-sm text-gray-600">units</span>
+                    <span className="text-xl sm:text-2xl font-bold text-gray-900">{product.quantity}</span>
+                    <span className="text-xs sm:text-sm text-gray-600">units</span>
                   </div>
                 </div>
 
                 {/* MOQ Information */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="bg-purple-500 p-2 rounded-lg">
-                      <Users className="w-5 h-5 text-white" />
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 sm:p-4 rounded-xl border border-purple-200">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                    <div className="bg-purple-500 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">MOQ</h4>
-                      <p className="text-sm text-gray-600">Minimum order quantity</p>
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-gray-900 text-sm sm:text-base">MOQ</h4>
+                      <p className="text-xs sm:text-sm text-gray-600">Minimum order quantity</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-2xl font-bold text-gray-900">{product.reorderLevel}</span>
-                    <span className="text-sm text-gray-600">units</span>
+                    <span className="text-xl sm:text-2xl font-bold text-gray-900">{product.reorderLevel}</span>
+                    <span className="text-xs sm:text-sm text-gray-600">units</span>
                   </div>
                 </div>
               </div>
 
               {/* Additional Information */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
                 {/* Product Specifications */}
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Info className="w-5 h-5 text-gray-600" />
-                    <h4 className="text-lg font-semibold text-gray-900">Specifications</h4>
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-5 border border-gray-200">
+                  <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
+                    <Info className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-base sm:text-lg font-semibold text-gray-900">Specifications</h4>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                      <span className="text-sm font-medium text-gray-600">Category</span>
-                      <span className="text-sm text-gray-900">{product.category}</span>
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="flex justify-between items-center py-1 sm:py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Category</span>
+                      <span className="text-xs sm:text-sm text-gray-900 mobile-truncate text-right">{product.category}</span>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                      <span className="text-sm font-medium text-gray-600">Model Number</span>
-                      <span className="text-sm text-gray-900 font-mono">{product.modelNumber}</span>
+                    <div className="flex justify-between items-center py-1 sm:py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Model Number</span>
+                      <span className="text-xs sm:text-sm text-gray-900 font-mono mobile-truncate text-right">{product.modelNumber}</span>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                      <span className="text-sm font-medium text-gray-600">Reorder Level</span>
-                      <span className="text-sm text-gray-900">{product.reorderLevel} units</span>
+                    <div className="flex justify-between items-center py-1 sm:py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Reorder Level</span>
+                      <span className="text-xs sm:text-sm text-gray-900">{product.reorderLevel} units</span>
                     </div>
                     {product.description && (
-                      <div className="py-2">
-                        <span className="text-sm font-medium text-gray-600 block mb-1">Description</span>
-                        <p className="text-sm text-gray-900">{product.description}</p>
+                      <div className="py-1 sm:py-2">
+                        <span className="text-xs sm:text-sm font-medium text-gray-600 block mb-1">Description</span>
+                        <p className="text-xs sm:text-sm text-gray-900 break-words">{product.description}</p>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Availability & Status */}
-                <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <TrendingUp className="w-5 h-5 text-gray-600" />
-                    <h4 className="text-lg font-semibold text-gray-900">Availability & Status</h4>
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-5 border border-gray-200">
+                  <div className="flex items-center space-x-1 sm:space-x-2 mb-3 sm:mb-4">
+                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-base sm:text-lg font-semibold text-gray-900">Availability & Status</h4>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                      <span className="text-sm font-medium text-gray-600">Availability</span>
-                      <span className="text-sm text-gray-900">{product.availability}</span>
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="flex justify-between items-center py-1 sm:py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Availability</span>
+                      <span className="text-xs sm:text-sm text-gray-900 mobile-truncate text-right">{product.availability}</span>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                      <span className="text-sm font-medium text-gray-600">Stock Status</span>
-                      <span className={`text-sm font-medium px-2 py-1 rounded-full
+                    <div className="flex justify-between items-center py-1 sm:py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Stock Status</span>
+                      <span className={`text-xs sm:text-sm font-medium px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full
                         ${stockStatus === 'In Stock' ? 'bg-green-100 text-green-800'
                         : stockStatus === 'Low Stock' ? 'bg-yellow-100 text-yellow-800'
                         : 'bg-red-100 text-red-800'
@@ -323,13 +403,13 @@ export default function ProductListPage() {
                         {stockStatus}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                      <span className="text-sm font-medium text-gray-600">Current Stock</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-900">{product.quantity} units</span>
-                        <div className="w-16 bg-gray-200 rounded-full h-2">
+                    <div className="flex justify-between items-center py-1 sm:py-2 border-b border-gray-200 last:border-b-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Current Stock</span>
+                      <div className="flex items-center space-x-1 sm:space-x-2">
+                        <span className="text-xs sm:text-sm text-gray-900">{product.quantity} units</span>
+                        <div className="w-12 sm:w-16 bg-gray-200 rounded-full h-1.5 sm:h-2">
                           <div 
-                            className={`h-2 rounded-full transition-all duration-300 ${
+                            className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 ${
                               stockStatus === 'In Stock' ? 'bg-green-500' 
                               : stockStatus === 'Low Stock' ? 'bg-yellow-500' 
                               : 'bg-red-500'
@@ -340,9 +420,9 @@ export default function ProductListPage() {
                       </div>
                     </div>
                     {product.updatedAt && (
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm font-medium text-gray-600">Last Updated</span>
-                        <span className="text-sm text-gray-900">
+                      <div className="flex justify-between items-center py-1 sm:py-2">
+                        <span className="text-xs sm:text-sm font-medium text-gray-600">Last Updated</span>
+                        <span className="text-xs sm:text-sm text-gray-900">
                           {new Date(product.updatedAt).toLocaleDateString('en-IN')}
                         </span>
                       </div>
@@ -352,14 +432,14 @@ export default function ProductListPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <div className="flex flex-col sm:flex-row gap-3 justify-end">
+              <div className="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-200">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end">
                   {product.brochureUrl && (
                     <button
                       onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
-                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors duration-150 touch-target"
+                      className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors duration-150 touch-target text-sm sm:text-base"
                     >
-                      <FileText className="w-4 h-4" />
+                      <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
                       View Brochure
                     </button>
                   )}
@@ -368,9 +448,9 @@ export default function ProductListPage() {
                       onClose();
                       handleEditProduct(product._id);
                     }}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF7300] text-white rounded-lg font-medium hover:bg-[#FF8800] transition-colors duration-150 touch-target"
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[#FF7300] text-white rounded-lg font-medium hover:bg-[#FF8800] transition-colors duration-150 touch-target text-sm sm:text-base"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                     Edit Product
                   </button>
                 </div>
@@ -378,77 +458,128 @@ export default function ProductListPage() {
             </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
-  // Mobile Card Component
+  // Delete Modal Component
+  const DeleteModal = () => {
+    // Prevent scroll when modal is open
+    useEffect(() => {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }, []);
+
+    return createPortal(
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-2 sm:p-4">
+        <div className="bg-white p-4 sm:p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 ease-out">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Confirm Delete</h3>
+            <button 
+              onClick={() => { 
+                setShowDeleteDialog(false); 
+                setProductToDelete(null);
+                setError(null);
+              }} 
+              className="p-1 rounded-full hover:bg-gray-100 touch-target"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500"/>
+            </button>
+          </div>
+          <p className="text-sm text-gray-600 mb-4 sm:mb-6 break-words">
+            Are you sure you want to delete "{productToDelete?.name}"? This action cannot be undone.
+          </p>
+          {error && <p className="text-sm text-red-600 mb-3 text-center break-words">{error}</p>}
+          <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-3">
+            <button
+              onClick={() => { 
+                setShowDeleteDialog(false); 
+                setProductToDelete(null);
+                setError(null);
+              }}
+              className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-150 touch-target"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className={`w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center min-w-[70px] sm:min-w-[80px] touch-target`}
+            >
+              {isDeleting ? <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" /> : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
   const ProductCard = ({ product }) => {
     const stockStatus = getStockStatus(product);
     
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+      <div className="mobile-card-compact mobile-card-container bg-white rounded-xl border border-gray-200 space-y-3 shadow-sm hover:shadow-md transition-shadow duration-200">
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1 cursor-pointer hover:text-[#FF7300] transition-colors duration-150"
-                onClick={() => handleViewProduct(product)}>
+        <div className="flex items-start justify-between gap-1 sm:gap-2">
+          <div className="flex-1 min-w-0 max-w-[calc(100%-140px)] sm:max-w-[calc(100%-160px)]">
+            <h3 className="mobile-header-text text-base sm:text-lg font-semibold text-gray-900 mb-1 cursor-pointer hover:text-[#FF7300] transition-colors duration-150 line-clamp-2 leading-tight"
+                onClick={() => handleViewProduct(product)}
+                title={product.name}>
               {product.name}
             </h3>
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <div className="flex items-center space-x-1">
-                <Package className="w-4 h-4" />
-                <span>{product.modelNumber}</span>
-              </div>
+            <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
+              <Package className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="mobile-truncate">{product.modelNumber}</span>
             </div>
           </div>
-          <div className="flex items-center space-x-2 ml-3">
+          <div className="mobile-action-buttons flex items-center gap-0.5 sm:gap-1 flex-shrink-0 w-[140px] sm:w-[160px] justify-end">
             <button
               onClick={() => handleViewProduct(product)}
-              className="p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150 touch-target"
+              className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
               title="View Details"
             >
-              <Info className="w-4 h-4" />
+              <Info className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
             {product.brochureUrl && (
               <button
                 onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
-                className="p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150 touch-target"
+                className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
                 title="View Brochure"
               >
-                <Eye className="w-4 h-4" />
+                <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             )}
             <button
               onClick={() => handleEditProduct(product._id)}
-              className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-150 touch-target"
+              className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-150"
               title="Edit Product"
             >
-              <Edit className="w-4 h-4" />
+              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={() => handleDeleteClick(product)}
-              className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150 touch-target"
+              className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
               title="Delete Product"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
 
-        {/* Stock Status and Category */}
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <Layers className="w-4 h-4" />
-            <span className="truncate">{product.category}</span>
-          </div>
+        {/* Category */}
+        <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
+          <Layers className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+          <span className="mobile-truncate">{product.category}</span>
         </div>
 
-        {/* Status and Details */}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Status and Details Grid */}
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Stock Status</p>
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</p>
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
               ${stockStatus === 'In Stock' ? 'bg-green-100 text-green-800'
               : stockStatus === 'Low Stock' ? 'bg-yellow-100 text-yellow-800'
               : 'bg-red-100 text-red-800'
@@ -457,18 +588,20 @@ export default function ProductListPage() {
             </span>
           </div>
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Quantity</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Qty</p>
             <p className="text-sm text-gray-900">{product.quantity}</p>
           </div>
         </div>
 
         {/* Price and MOQ */}
-        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-2 border-t border-gray-100">
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Price</p>
             <div className="flex items-center space-x-1 text-sm font-medium text-gray-900">
               <span className="text-gray-600 font-semibold">₹</span>
-              <span>{product.price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span className="mobile-truncate">
+                {product.price.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              </span>
             </div>
           </div>
           <div>
@@ -480,9 +613,9 @@ export default function ProductListPage() {
         {/* Availability */}
         <div className="pt-2 border-t border-gray-100">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Availability</p>
-          <div className="flex items-center space-x-1 text-sm text-gray-600">
-            <TrendingUp className="w-4 h-4" />
-            <span>{product.availability}</span>
+          <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-600">
+            <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span className="mobile-truncate">{product.availability}</span>
           </div>
         </div>
       </div>
@@ -525,17 +658,17 @@ export default function ProductListPage() {
       <style>{customStyles}</style>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="border-b border-gray-200 pb-4 sm:pb-5 mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
+        <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">
               Products Management
             </h1>
           </div>
           <button
             onClick={() => navigate('/dashboard/products/add')}
-            className="w-full sm:w-auto px-4 py-2.5 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors duration-150 ease-in-out flex items-center justify-center gap-2 touch-target"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2.5 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors duration-150 ease-in-out flex items-center justify-center gap-2 touch-target"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
             Add Product
           </button>
         </div>
@@ -543,58 +676,60 @@ export default function ProductListPage() {
         {/* Main Content */}
         <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
           {/* Filters */}
-          <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-20">
-            <div className="flex flex-col sm:flex-row gap-4 justify-between">
-              <div className="relative">
+          <div className="p-3 sm:p-4 border-b border-gray-200 sticky top-0 bg-white z-20">
+            <div className="flex flex-col gap-3">
+              {/* Search Bar - Full Width on Mobile */}
+              <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
                   placeholder="Search products..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg w-full sm:w-[300px] focus:ring-2 focus:ring-orange-500 focus:border-transparent touch-target"
+                  className="pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-orange-500 focus:border-transparent touch-target text-sm sm:text-base"
                 />
               </div>
-              <div className="flex gap-3">
+              {/* Filter Controls - Responsive Grid */}
+              <div className="mobile-filter-grid sm:flex sm:gap-3 sm:justify-end">
                 <div className="relative">
                   <select
                     onChange={(e) => setCategoryFilter(e.target.value)}
                     value={categoryFilter}
-                    className="pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target"
+                    className="mobile-select pl-3 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target text-xs sm:text-sm w-full sm:w-auto"
                   >
                     <option value="all">All Categories</option>
-                    <option value="Solar Water Heaters">Solar Water Heaters</option>
-                    <option value="Solar Street Lights">Solar Street Lights</option>
+                    <option value="Solar Water Heaters">Water Heaters</option>
+                    <option value="Solar Street Lights">Street Lights</option>
                     <option value="Solar Dryers">Solar Dryers</option>
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                 </div>
                 <div className="relative">
                   <select
                     onChange={(e) => setStockFilter(e.target.value)}
                     value={stockFilter}
-                    className="pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target"
+                    className="mobile-select pl-3 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target text-xs sm:text-sm w-full sm:w-auto"
                   >
-                    <option value="all">All Stock Status</option>
+                    <option value="all">All Stock</option>
                     <option value="in stock">In Stock</option>
                     <option value="low stock">Low Stock</option>
                     <option value="out of stock">Out of Stock</option>
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                 </div>
                 <div className="relative">
                   <select
                     onChange={(e) => setSortOption(e.target.value)}
                     value={sortOption}
-                    className="pl-4 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target"
+                    className="mobile-select pl-3 pr-8 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent appearance-none touch-target text-xs sm:text-sm w-full sm:w-auto"
                   >
-                    <option value="name-asc">Sort by Name (A-Z)</option>
-                    <option value="name-desc">Sort by Name (Z-A)</option>
-                    <option value="price-asc">Sort by Price (Low-High)</option>
-                    <option value="price-desc">Sort by Price (High-Low)</option>
-                    <option value="stock-asc">Sort by Stock Status</option>
+                    <option value="name-asc">Name (A-Z)</option>
+                    <option value="name-desc">Name (Z-A)</option>
+                    <option value="price-asc">Price (Low-High)</option>
+                    <option value="price-desc">Price (High-Low)</option>
+                    <option value="stock-asc">Stock Status</option>
                   </select>
-                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -723,14 +858,16 @@ export default function ProductListPage() {
 
           {/* Mobile Card View */}
           <div className="md:hidden flex-1 overflow-y-auto">
-            <div className="p-4 space-y-4">
+            <div className="p-2 sm:p-4 space-y-2 sm:space-y-4 w-full">
               {currentProducts.length === 0 && !loading ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-500">No products found matching your criteria.</p>
+                  <p className="text-gray-500 text-sm sm:text-base">No products found matching your criteria.</p>
                 </div>
               ) : (
                 currentProducts.map((product) => (
-                  <ProductCard key={product._id} product={product} />
+                  <div key={product._id} className="w-full max-w-full">
+                    <ProductCard product={product} />
+                  </div>
                 ))
               )}
             </div>
@@ -738,27 +875,27 @@ export default function ProductListPage() {
 
           {/* Pagination */}
           {totalPages > 0 && (
-            <div className="px-2 lg:px-4 xl:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-3 sm:space-y-0">
-              <div className="text-sm text-gray-600 order-2 sm:order-1">
+            <div className="px-2 sm:px-4 lg:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-2 sm:space-y-0">
+              <div className="text-xs sm:text-sm text-gray-600 order-2 sm:order-1">
                 Showing {Math.min(startIndex + 1, sortedProducts.length)} to {Math.min(endIndex, sortedProducts.length)} of {sortedProducts.length} results
               </div>
-              <div className="flex items-center gap-2 order-1 sm:order-2">
+              <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
-                  className="mobile-action-btn border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150"
+                  className="p-2 border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 rounded-lg"
                 >
-                  <ChevronLeft className="w-5 h-5" />
+                  <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
-                <span className="mobile-text-sm text-gray-600 px-3 py-2 min-w-[80px] text-center"> 
+                <span className="text-xs sm:text-sm text-gray-600 px-2 sm:px-3 py-2 min-w-[60px] sm:min-w-[80px] text-center"> 
                   {currentPage} / {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
-                  className="mobile-action-btn border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150"
+                  className="p-2 border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 rounded-lg"
                 >
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
             </div>
@@ -774,48 +911,7 @@ export default function ProductListPage() {
         )}
 
         {/* Delete Modal */}
-        {showDeleteDialog && (
-          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 ease-out">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-semibold text-gray-900">Confirm Delete</h3>
-                <button 
-                  onClick={() => { 
-                    setShowDeleteDialog(false); 
-                    setProductToDelete(null);
-                    setError(null);
-                  }} 
-                  className="p-1 rounded-full hover:bg-gray-100 touch-target"
-                >
-                  <X className="w-5 h-5 text-gray-500"/>
-                </button>
-              </div>
-              <p className="text-sm text-gray-600 mb-6">
-                Are you sure you want to delete "{productToDelete?.name}"? This action cannot be undone.
-              </p>
-              {error && <p className="text-sm text-red-600 mb-3 text-center">{error}</p>}
-              <div className="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-3">
-                <button
-                  onClick={() => { 
-                    setShowDeleteDialog(false); 
-                    setProductToDelete(null);
-                    setError(null);
-                  }}
-                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-150 touch-target"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmDelete}
-                  disabled={isDeleting}
-                  className={`w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px] touch-target`}
-                >
-                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {showDeleteDialog && <DeleteModal />}
       </div>
     </>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Clock, User, Tag, AlertCircle, MessageCircle, Paperclip, Send, Upload, Eye, Download } from 'lucide-react';
 import { updateTicketStatus, addComment, updateTicketMeta, assignTicket } from '../services/ticketService';
 import { getServiceEngineers } from '../services/taskService';
@@ -173,10 +174,23 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
     return colors[priority] || 'bg-gray-100 text-gray-800';
   };
 
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   if (!isOpen || !ticket) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-orange-50">
@@ -527,7 +541,8 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

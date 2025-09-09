@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { 
   Package, 
@@ -277,6 +278,19 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
 };
 
 const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   if (!isOpen || !tracking) return null;
 
   const formatDateTime = (date) => {
@@ -375,8 +389,8 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
   const completedSteps = timelineSteps.filter(step => step.completed).length;
   const progressPercentage = Math.round((completedSteps / timelineSteps.length) * 100);
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
         {/* Modern Header with Gradient */}
         <div className="relative bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6">
@@ -549,7 +563,8 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
