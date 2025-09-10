@@ -871,8 +871,10 @@ export default function LeadsTable({
                         <div className="truncate">{lead.phone}</div>
                       </td>
                       <td className="hidden 2xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-48">
-                        <div className="truncate">
-                          {lead.email || (lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' 
+                        <div className="truncate" title={lead.email || ''}>
+                          {lead.email ? (
+                            lead.email.length > 25 ? `${lead.email.substring(0, 25)}...` : lead.email
+                          ) : (lead.createdFromEnquiry && lead.leadCompletionStatus === 'incomplete' 
                             ? <span className="text-gray-400 italic">To be provided by salesperson</span>
                             : 'N/A'
                           )}

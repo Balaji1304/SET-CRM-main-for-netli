@@ -975,10 +975,19 @@ export default function LeadAssignmentPage() {
                   </span>
                 )}
               </button>
+
+              {/* Create Enquiry Button - Desktop Position */}
+              <button
+                onClick={() => navigate('/dashboard/enquiries/create')}
+                className="hidden sm:inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Enquiry
+              </button>
             </div>
 
-            {/* Create Enquiry Button - Full Width */}
-            <div className="w-full">
+            {/* Create Enquiry Button - Mobile Only */}
+            <div className="w-full sm:hidden">
               <button
                 onClick={() => navigate('/dashboard/enquiries/create')}
                 className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap w-full"

@@ -1,16 +1,58 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, AlertCircle, Loader2, Users, Building2 } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, Loader2, Users, Building2, BarChart3, FileText, ShoppingCart, Zap } from 'lucide-react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
-// Custom styles for better mobile experience
+// Custom styles for enhanced desktop and mobile experience
 const customStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  
+  .modern-gradient {
+    background: linear-gradient(135deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.6) 100%);
+  }
+  
+  .hero-text {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    letter-spacing: -0.025em;
+  }
+  
+  .glass-effect {
+    backdrop-filter: blur(16px);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
   .touch-target {
     min-height: 44px;
     min-width: 44px;
+  }
+  
+  /* Desktop Enhancements */
+  @media (min-width: 1024px) {
+    .desktop-form-title {
+      font-size: 1.875rem !important; /* Reduced from 2xl/3xl */
+      font-family: 'Inter', sans-serif !important;
+      font-weight: 600 !important;
+    }
+    
+    .desktop-form-subtitle {
+      font-size: 0.875rem !important; /* Reduced size */
+      font-family: 'Inter', sans-serif !important;
+    }
+    
+    .desktop-input {
+      font-size: 0.875rem !important; /* Smaller text */
+      font-family: 'Inter', sans-serif !important;
+    }
+    
+    .desktop-button {
+      font-size: 0.875rem !important; /* Smaller button text */
+      font-family: 'Inter', sans-serif !important;
+      font-weight: 500 !important;
+    }
   }
   
   @media (max-width: 640px) {
@@ -175,81 +217,141 @@ const Login = () => {
     <>
       <style>{customStyles}</style>
       <div className="flex min-h-screen bg-gray-50">
-        {/* Left side - Preview Section */}
-        <div className="relative hidden lg:flex lg:w-1/2">
+        {/* Left side - Enhanced Hero Section */}
+        <div className="relative hidden lg:flex lg:w-3/5">
           <img
-            src={require('../assets/images/login-bg.png')}
-            alt="Dashboard Preview"
+            src={require('../assets/images/login-bg-3.jpg')}
+            alt="Solar Energy Solutions"
             className="absolute inset-0 h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-600/90 to-orange-800/90" />
-          <div className="relative z-10 flex h-full flex-col justify-center p-6 sm:p-8 lg:p-12">
-            <div className="max-w-lg">
-              <h1 className="text-4xl lg:text-5xl font-bold leading-tight text-white mb-4">
-                Sunlit CRM System
+          <div className="absolute inset-0 modern-gradient" />
+          
+          <div className="relative z-10 flex h-full flex-col justify-center p-8 lg:p-16 xl:p-20">
+            <div className="max-w-2xl">
+              {/* Company Logo */}
+              <div className="mb-6">
+                <img
+                  src={require('../assets/images/set-logo.png')}
+                  alt="SET Company Logo"
+                  className="h-12 w-auto lg:h-14 xl:h-16 object-contain filter brightness-0 invert"
+                />
+              </div>
+              
+              {/* Modern Badge */}
+              <div className="inline-flex items-center glass-effect rounded-full px-4 py-2 mb-8">
+                <div className="w-2 h-2 bg-orange-500 rounded-full mr-3 animate-pulse"></div>
+                <span className="text-white/90 text-sm font-medium hero-text">
+                  Next-Gen Solar CRM Platform
+                </span>
+              </div>
+              
+              {/* Main Heading */}
+              <h1 className="hero-text text-5xl xl:text-6xl font-bold leading-tight text-white mb-6">
+                Power Your
+                <span className="block text-orange-400">Solar Business</span>
               </h1>
-              <p className="text-lg lg:text-xl text-white/90 mb-6">
-                Manage your solar business efficiently with our comprehensive CRM solution
+              
+              {/* Subtitle */}
+              <p className="hero-text text-xl xl:text-2xl text-white/80 mb-8 leading-relaxed">
+                Streamline operations, boost sales, and deliver exceptional customer experiences with our intelligent CRM solution.
               </p>
-              <div className="flex items-center space-x-4 text-white/80">
-                <div className="flex items-center space-x-2">
-                  <Building2 className="w-5 h-5" />
-                  <span className="text-sm">Business Management</span>
+              
+              {/* Feature Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                <div className="glass-effect rounded-lg p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                      <Users className="w-4 h-4 text-orange-400" />
+                    </div>
+                    <div>
+                      <h3 className="hero-text text-white font-semibold text-sm">Lead Management</h3>
+                      <p className="hero-text text-white/70 text-xs">Track & convert leads</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Users className="w-5 h-5" />
-                  <span className="text-sm">Customer Relations</span>
+                <div className="glass-effect rounded-lg p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-orange-400" />
+                    </div>
+                    <div>
+                      <h3 className="hero-text text-white font-semibold text-sm">Quotation System</h3>
+                      <p className="hero-text text-white/70 text-xs">Generate quotes instantly</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="glass-effect rounded-lg p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                      <ShoppingCart className="w-4 h-4 text-orange-400" />
+                    </div>
+                    <div>
+                      <h3 className="hero-text text-white font-semibold text-sm">Order Tracking</h3>
+                      <p className="hero-text text-white/70 text-xs">Monitor installations</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="glass-effect rounded-lg p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                      <BarChart3 className="w-4 h-4 text-orange-400" />
+                    </div>
+                    <div>
+                      <h3 className="hero-text text-white font-semibold text-sm">Sales Analytics</h3>
+                      <p className="hero-text text-white/70 text-xs">Performance insights</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right side - Login Form */}
-        <div className="flex w-full flex-col items-center justify-center lg:w-1/2">
-          <div className="w-full max-w-md mobile-form-spacing px-4 sm:px-6 lg:px-8">
-            {/* Header Section */}
-            <div className="text-center mb-6 sm:mb-8">
+        {/* Right side - Compact Login Form */}
+        <div className="flex w-full flex-col items-center justify-center lg:w-2/5 bg-white">
+          <div className="w-full max-w-sm mobile-form-spacing px-6 lg:px-8">
+            {/* Header Section - Reduced size */}
+            <div className="text-center mb-6">
               <div className="flex items-center justify-center mb-4">
-                <div className="bg-white p-3 rounded-full shadow-lg">
+                <div className="bg-white">
                   <img 
                     src={process.env.REACT_APP_COMPANY_LOGO_URL} 
                     alt="Sunlit CRM Logo" 
-                    className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
+                    className="w-14 h-14 sm:w-14 sm:h-14 object-contain"
                     onError={(e) => {
                       // Fallback to Building2 icon if logo fails to load
                       e.target.style.display = 'none';
                       e.target.nextElementSibling.style.display = 'block';
                     }}
                   />
-                  <Building2 className="w-8 h-8 sm:w-10 sm:h-10 text-orange-600 hidden" />
+                  <Building2 className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600 hidden" />
                 </div>
               </div>
-              <h2 className="mobile-title text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
-                Welcome to Sunlit CRM
+              <h2 className="desktop-form-title mobile-title text-xl sm:text-2xl font-semibold tracking-tight text-gray-900">
+                Welcome Back
               </h2>
-              <p className="mobile-subtitle mt-2 text-sm sm:text-base text-gray-600">
-                Sign in to access your dashboard
+              <p className="desktop-form-subtitle mobile-subtitle mt-1 text-xs sm:text-sm text-gray-500">
+                Sign in to your account
               </p>
             </div>
 
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               {/* Error Message */}
               {error && (
-                <div className="mobile-error p-3 sm:p-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
+                <div className="mobile-error p-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
                   <div className="flex-shrink-0 mt-0.5">
-                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                    <AlertCircle className="w-4 h-4 text-red-500" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="font-medium block">Login Failed</span>
-                    <p className="mt-1 text-xs sm:text-sm break-words">{error}</p>
+                    <span className="font-medium block text-xs">Login Failed</span>
+                    <p className="mt-1 text-xs break-words">{error}</p>
                   </div>
                 </div>
               )}
               
               {/* Email/Phone Input */}
-              <div className="space-y-2">
-                <label className="block text-sm sm:text-base font-medium text-gray-700">
+              <div className="space-y-1.5">
+                <label className="desktop-form-subtitle block text-xs font-medium text-gray-700">
                   Email Address / Phone Number
                 </label>
                 <input
@@ -260,14 +362,14 @@ const Login = () => {
                     form.setValue("email", e.target.value);
                     handleInputChange();
                   }}
-                  className="mobile-input w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 text-sm sm:text-base bg-white touch-target"
+                  className="desktop-input mobile-input w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 text-sm bg-white touch-target"
                 />
-                <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-500">
-                  <Users className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                  <span>Staff: Use email address | Customers: Use phone number</span>
+                <div className="flex items-center space-x-1.5 text-xs text-gray-500">
+                  <Users className="w-3 h-3 flex-shrink-0" />
+                  <span>Staff: Use email | Customers: Use phone</span>
                 </div>
                 {form.formState.errors.email && (
-                  <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
+                  <p className="text-xs text-red-600 flex items-center space-x-1">
                     <AlertCircle className="w-3 h-3 flex-shrink-0" />
                     <span>{form.formState.errors.email.message}</span>
                   </p>
@@ -275,8 +377,8 @@ const Login = () => {
               </div>
 
               {/* Password Input */}
-              <div className="space-y-2">
-                <label className="block text-sm sm:text-base font-medium text-gray-700">
+              <div className="space-y-1.5">
+                <label className="desktop-form-subtitle block text-xs font-medium text-gray-700">
                   Password
                 </label>
                 <div className="relative">
@@ -288,22 +390,22 @@ const Login = () => {
                       form.setValue("password", e.target.value);
                       handleInputChange();
                     }}
-                    className="mobile-input w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 text-sm sm:text-base bg-white touch-target"
+                    className="desktop-input mobile-input w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 text-sm bg-white touch-target"
                   />
                   <button
                     type="button"
-                    className="absolute right-0 top-0 h-full px-3 sm:px-4 py-2 sm:py-3 touch-target flex items-center justify-center"
+                    className="absolute right-0 top-0 h-full px-3 py-2.5 touch-target flex items-center justify-center"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                      <EyeOff className="h-4 w-4 text-gray-500" />
                     ) : (
-                      <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                      <Eye className="h-4 w-4 text-gray-500" />
                     )}
                   </button>
                 </div>
                 {form.formState.errors.password && (
-                  <p className="text-xs sm:text-sm text-red-600 flex items-center space-x-1">
+                  <p className="text-xs text-red-600 flex items-center space-x-1">
                     <AlertCircle className="w-3 h-3 flex-shrink-0" />
                     <span>{form.formState.errors.password.message}</span>
                   </p>
@@ -314,11 +416,11 @@ const Login = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="mobile-button w-full bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors duration-200 flex items-center justify-center font-medium text-sm sm:text-base touch-target shadow-md hover:shadow-lg transform transition-transform duration-150 hover:scale-[1.02] disabled:transform-none"
+                className="desktop-button mobile-button w-full bg-orange-600 hover:bg-orange-700 disabled:bg-orange-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors duration-200 flex items-center justify-center font-medium text-sm touch-target shadow-sm hover:shadow-md transform transition-transform duration-150 hover:scale-[1.01] disabled:transform-none py-2.5"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                    <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" />
                     Signing In...
                   </>
                 ) : (
@@ -327,9 +429,9 @@ const Login = () => {
               </button>
             </form>
 
-            {/* Footer */}
-            <div className="mt-6 sm:mt-8 text-center">
-              <p className="text-xs sm:text-sm text-gray-500">
+            {/* Footer - Reduced size */}
+            <div className="mt-6 text-center">
+              <p className="text-xs text-gray-400">
                 Secure login powered by Sunlit CRM
               </p>
             </div>
