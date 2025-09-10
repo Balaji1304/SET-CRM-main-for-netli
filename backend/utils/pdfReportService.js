@@ -76,7 +76,7 @@ class PDFReportService {
    * @returns {Object} Template data
    */
   static preparePDFData(report) {
-    const data = report.reportData;
+    const data = report.reportData || {};
     const now = new Date();
     
     return {
@@ -85,13 +85,13 @@ class PDFReportService {
         reportId: report.reportId,
         reportName: report.reportName,
         reportType: this.formatReportType(report.reportType),
-        generatedDate: this.formatDate(report.createdAt),
+        generatedDate: this.formatDate(report.createdAt || now),
         generatedBy: report.generatedBy?.name || 'System',
         generatedFor: report.generatedFor?.name || report.generatedBy?.name,
         period: {
-          start: this.formatDate(report.reportPeriod.startDate),
-          end: this.formatDate(report.reportPeriod.endDate),
-          type: this.formatPeriodType(report.reportPeriod.periodType)
+          start: this.formatDate(report.reportPeriod?.startDate || now),
+          end: this.formatDate(report.reportPeriod?.endDate || now),
+          type: this.formatPeriodType(report.reportPeriod?.periodType || 'custom')
         },
         timestamp: this.formatDateTime(now)
       },
@@ -420,17 +420,20 @@ class PDFReportService {
   }
   
   static formatReportType(type) {
-    return type.split('_').map(word => 
+    if (!type) return '';
+    return String(type).split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
   }
   
   static formatPeriodType(type) {
-    return type.charAt(0).toUpperCase() + type.slice(1);
+    if (!type) return '';
+    return String(type).charAt(0).toUpperCase() + String(type).slice(1);
   }
   
   static formatPerformanceRating(rating) {
-    return rating.split('_').map(word => 
+    if (!rating) return 'Average';
+    return String(rating).split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
   }

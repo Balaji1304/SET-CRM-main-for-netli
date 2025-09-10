@@ -43,8 +43,14 @@ exports.generateSalesPerformanceReport = async (req, res, next) => {
 
     console.log(`Generating sales performance report for user ${targetUserId} from ${start} to ${end}`);
 
+    // Generate unique report ID
+    const timestamp = Date.now().toString(36);
+    const randomStr = Math.random().toString(36).substring(2, 7);
+    const reportId = `RPT-SAL-${timestamp}-${randomStr}`;
+
     // Create report record
     const report = new Report({
+      reportId: reportId,
       reportName: `Sales Performance Report - ${start.toDateString()} to ${end.toDateString()}`,
       reportType,
       reportCategory: userRole === 'sales_head' ? 'team' : 'individual',
@@ -357,8 +363,14 @@ exports.generateLeadAnalysisReport = async (req, res, next) => {
     const end = new Date(endDate);
     SalesAnalyticsService.validateDateRange(start, end);
 
+    // Generate unique report ID
+    const timestamp = Date.now().toString(36);
+    const randomStr = Math.random().toString(36).substring(2, 7);
+    const reportId = `RPT-LEA-${timestamp}-${randomStr}`;
+
     // Create report record
     const report = new Report({
+      reportId: reportId,
       reportName: `Lead Analysis Report - ${start.toDateString()} to ${end.toDateString()}`,
       reportType: 'lead_analysis',
       reportCategory: 'individual',
@@ -566,13 +578,4 @@ function calculateDataPoints(analyticsData) {
   return points;
 }
 
-module.exports = {
-  generateSalesPerformanceReport,
-  getMyReports,
-  getReportDetails,
-  exportReportToPDF,
-  exportReportToExcel,
-  generateLeadAnalysisReport,
-  deleteReport,
-  getSalesDashboard
-};
+// All functions are already exported using exports.functionName above
