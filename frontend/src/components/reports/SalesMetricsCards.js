@@ -21,20 +21,20 @@ const MetricCard = ({ title, value, subtitle, icon: Icon, trend, color = 'blue' 
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-lg shadow-sm border p-4 sm:p-6 hover:shadow-md transition-shadow">
       <div className="flex items-center">
-        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-          <Icon className="h-6 w-6" />
+        <div className={`p-2.5 sm:p-3 rounded-lg ${colorClasses[color]}`}>
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
         <div className="ml-4 flex-1">
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          <p className="text-xs sm:text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">{value}</p>
           {subtitle && (
-            <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">{subtitle}</p>
           )}
           {trend && (
-            <div className={`flex items-center mt-2 text-sm ${trend.positive ? 'text-green-600' : 'text-red-600'}`}>
-              <TrendingUp className={`h-4 w-4 mr-1 ${!trend.positive ? 'transform rotate-180' : ''}`} />
+            <div className={`flex items-center mt-2 text-xs sm:text-sm ${trend.positive ? 'text-green-600' : 'text-red-600'}`}>
+              <TrendingUp className={`h-3 w-3 sm:h-4 sm:w-4 mr-1 ${!trend.positive ? 'transform rotate-180' : ''}`} />
               {trend.value}
             </div>
           )}
@@ -47,15 +47,15 @@ const MetricCard = ({ title, value, subtitle, icon: Icon, trend, color = 'blue' 
 const SalesMetricsCards = ({ data, period }) => {
   if (!data) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-6 mb-6 sm:mb-8">
         {[...Array(6)].map((_, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-sm border p-6 animate-pulse">
+          <div key={index} className="bg-white rounded-lg shadow-sm border p-4 sm:p-6 animate-pulse">
             <div className="flex items-center">
-              <div className="p-3 rounded-lg bg-gray-200 w-12 h-12"></div>
+              <div className="p-3 rounded-lg bg-gray-200 w-10 h-10 sm:w-12 sm:h-12"></div>
               <div className="ml-4 flex-1">
-                <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
-                <div className="h-6 bg-gray-200 rounded w-16 mb-1"></div>
-                <div className="h-3 bg-gray-200 rounded w-24"></div>
+                <div className="h-3 bg-gray-200 rounded w-20 mb-2"></div>
+                <div className="h-5 bg-gray-200 rounded w-16 mb-1"></div>
+                <div className="h-2.5 bg-gray-200 rounded w-24"></div>
               </div>
             </div>
           </div>
@@ -128,7 +128,7 @@ const SalesMetricsCards = ({ data, period }) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-6 mb-6 sm:mb-8">
       {metrics.map((metric, index) => (
         <MetricCard
           key={index}

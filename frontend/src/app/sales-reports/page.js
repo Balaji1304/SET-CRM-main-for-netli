@@ -170,24 +170,24 @@ const SalesReportsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Sales Reports & Analytics</h1>
               <p className="text-gray-600 mt-1">
                 Track performance, analyze trends, and generate insights
               </p>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
               <button
                 onClick={() => {
                   setSelectedReportType('lead_analysis');
                   setShowGenerateModal(true);
                 }}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
               >
                 <BarChart3 className="h-5 w-5 mr-2" />
                 Lead Analysis
@@ -197,7 +197,7 @@ const SalesReportsPage = () => {
                   setSelectedReportType('sales_performance');
                   setShowGenerateModal(true);
                 }}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center"
               >
                 <FileText className="h-5 w-5 mr-2" />
                 Performance Report
@@ -219,15 +219,15 @@ const SalesReportsPage = () => {
         {/* Reports Section */}
         <div className="bg-white rounded-lg shadow-sm border mt-8">
           <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
               <h2 className="text-lg font-semibold text-gray-900">Your Reports</h2>
               
               {/* Filters */}
-              <div className="flex items-center space-x-4">
+              <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-3 sm:items-center">
                 <select
                   value={reportFilters.reportType}
                   onChange={(e) => handleFilterChange('reportType', e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full sm:w-auto"
                 >
                   <option value="">All Types</option>
                   <option value="sales_performance">Performance Reports</option>
@@ -237,7 +237,7 @@ const SalesReportsPage = () => {
                 <select
                   value={reportFilters.status}
                   onChange={(e) => handleFilterChange('status', e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full sm:w-auto"
                 >
                   <option value="">All Status</option>
                   <option value="completed">Completed</option>
@@ -248,7 +248,7 @@ const SalesReportsPage = () => {
                 <select
                   value={reportFilters.period}
                   onChange={(e) => handleFilterChange('period', parseInt(e.target.value))}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm w-full sm:w-auto"
                 >
                   <option value={7}>Last 7 days</option>
                   <option value={30}>Last 30 days</option>
@@ -278,7 +278,54 @@ const SalesReportsPage = () => {
               </div>
             ) : (
               <>
-                <div className="overflow-hidden">
+                {/* Mobile list */}
+                <div className="md:hidden space-y-3">
+                  {reports.map((report) => (
+                    <div key={report._id} className="border rounded-lg p-3 bg-white">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-medium text-gray-900 text-sm">{report.reportName}</div>
+                          <div className="text-[11px] text-gray-500 mt-1">ID: {report.reportId}</div>
+                          <div className="text-xs text-gray-700 mt-2 capitalize">{report.reportType.replace('_', ' ')}</div>
+                          <div className="text-xs text-gray-500 mt-1">{formatDateTime(report.createdAt)}</div>
+                        </div>
+                        <span className={`inline-flex px-2 py-1 text-[10px] font-semibold rounded-full h-fit ${getStatusBadgeColor(report.reportStatus)}`}>
+                          {report.reportStatus}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-end gap-2 mt-2">
+                        {report.reportStatus === 'completed' && (
+                          <>
+                            <button
+                              onClick={() => handleExportReport(report.reportId, 'pdf')}
+                              className="text-blue-600 hover:text-blue-900 p-1.5 rounded border border-gray-200"
+                              title="Export as PDF"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleExportReport(report.reportId, 'excel')}
+                              className="text-green-600 hover:text-green-900 p-1.5 rounded border border-gray-200"
+                              title="Export as Excel"
+                            >
+                              <FileText className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => handleDeleteReport(report.reportId)}
+                          className="text-red-600 hover:text-red-900 p-1.5 rounded border border-gray-200"
+                          title="Delete Report"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
