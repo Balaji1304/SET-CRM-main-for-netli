@@ -32,6 +32,7 @@ import {
 import SalesMetricsCards from '../../components/reports/SalesMetricsCards';
 import ReportGenerationModal from '../../components/reports/ReportGenerationModal';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { ToastContainer } from '../../components/Toast';
 
 const SalesReportsPage = () => {
   const { user } = useAuth();
@@ -124,9 +125,10 @@ const SalesReportsPage = () => {
       } else if (format === 'excel') {
         await exportReportToExcel(reportId);
       }
+      if (window?.showToast) window.showToast(`Exported ${format.toUpperCase()} successfully`, 'success', 3000);
     } catch (error) {
       console.error(`Error exporting report to ${format}:`, error);
-      alert(`Failed to export report to ${format}. Please try again.`);
+      if (window?.showToast) window.showToast(`Failed to export ${format.toUpperCase()}. Please try again.`, 'error', 4000);
     }
   };
 
@@ -135,10 +137,10 @@ const SalesReportsPage = () => {
       try {
         await deleteReport(reportId);
         await loadReports();
-        alert('Report deleted successfully!');
+        if (window?.showToast) window.showToast('Report deleted successfully', 'success', 3000);
       } catch (error) {
         console.error('Error deleting report:', error);
-        alert('Failed to delete report. Please try again.');
+        if (window?.showToast) window.showToast('Failed to delete report', 'error', 4000);
       }
     }
   };
@@ -171,6 +173,7 @@ const SalesReportsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 overflow-x-hidden">
+      <ToastContainer />
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

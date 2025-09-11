@@ -17,10 +17,10 @@ export default function ReportsPage() {
   const [category, setCategory] = useState("all")
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
       <h1 className="text-3xl font-bold tracking-tight text-[#FF7300]">Reports and Analytics</h1>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <select
           value={dateRange}
           onChange={(e) => setDateRange(e.target.value)}
@@ -44,43 +44,43 @@ export default function ReportsPage() {
         </select>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-3 sm:gap-6 md:grid-cols-2">
         {/* Stock Status Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-3 sm:p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold">Stock Status</h2>
           </div>
-          <div className="p-4">
+          <div className="p-3 sm:p-4">
             <PlaceholderChart type="bar" />
           </div>
         </div>
 
         {/* Pricing Trends Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-3 sm:p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold">Pricing Trends</h2>
           </div>
-          <div className="p-4">
+          <div className="p-3 sm:p-4">
             <PlaceholderChart type="line" />
           </div>
         </div>
 
         {/* Stock Distribution Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-3 sm:p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold">Stock Distribution by Category</h2>
           </div>
-          <div className="p-4">
+          <div className="p-3 sm:p-4">
             <PlaceholderChart type="pie" />
           </div>
         </div>
 
         {/* Export Reports Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-3 sm:p-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold">Reports</h2>
           </div>
-          <div className="p-4 space-y-4">
+          <div className="p-3 sm:p-4 space-y-2 sm:space-y-4">
             <button className="w-full px-4 py-2 bg-[#FF7300] hover:bg-[#FF8800] text-white rounded-lg transition-colors">
               Export Inventory Report (PDF)
             </button>
@@ -95,23 +95,23 @@ export default function ReportsPage() {
       </div>
 
       {/* Summary Statistics */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+      <div className="grid gap-2 sm:gap-4 md:grid-cols-4">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
           <h3 className="text-sm font-medium text-gray-500">Total Products</h3>
           <p className="text-2xl font-bold mt-1">1,234</p>
           <p className="text-xs text-gray-500 mt-1">+20% from last month</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
           <h3 className="text-sm font-medium text-gray-500">Low Stock Items</h3>
           <p className="text-2xl font-bold mt-1">28</p>
           <p className="text-xs text-gray-500 mt-1">Requires attention</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
           <h3 className="text-sm font-medium text-gray-500">Total Value</h3>
           <p className="text-2xl font-bold mt-1">$2.4M</p>
           <p className="text-xs text-gray-500 mt-1">Current inventory value</p>
         </div>
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
+        <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200">
           <h3 className="text-sm font-medium text-gray-500">Active Orders</h3>
           <p className="text-2xl font-bold mt-1">45</p>
           <p className="text-xs text-gray-500 mt-1">Processing</p>
