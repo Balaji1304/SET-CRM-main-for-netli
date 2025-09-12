@@ -60,55 +60,97 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
     return "https://images.unsplash.com/photo-1509391366360-2e959784a276?w=150&h=100&fit=crop&auto=format";
   };
 
+  // Get the best available date for a step (actualDate > timestamp > estimatedDate)
+  const getStepDateForCard = (eventStatus, milestoneKey = null, useEstimated = false) => {
+    const event = tracking.events?.find(e => e.status === eventStatus);
+    
+    // Priority 1: actualDate from event (when it actually happened)
+    if (event?.actualDate) {
+      return event.actualDate;
+    }
+    
+    // Priority 2: timestamp from event (when it was logged)
+    if (event?.timestamp) {
+      return event.timestamp;
+    }
+    
+    // Priority 3: milestone date
+    if (milestoneKey && tracking.milestones?.[milestoneKey]) {
+      return tracking.milestones[milestoneKey];
+    }
+    
+    // Priority 4: estimated date for future steps
+    if (useEstimated) {
+      if (eventStatus === 'delivered' && tracking.estimatedDelivery) {
+        return tracking.estimatedDelivery;
+      }
+      if (eventStatus === 'installation_completed' && tracking.estimatedInstallation) {
+        return tracking.estimatedInstallation;
+      }
+      if (event?.estimatedDate) {
+        return event.estimatedDate;
+      }
+    }
+    
+    return null;
+  };
+
   // Timeline steps based on current status and events
   const getTimelineSteps = () => {
     const allSteps = [
       {
         id: 'order_placed',
         title: 'Order Placed',
-        timestamp: tracking.purchaseId?.createdAt,
+        timestamp: getStepDateForCard('order_placed', 'orderPlaced') || tracking.purchaseId?.createdAt,
         completed: true
       },
       {
         id: 'payment_confirmed',
         title: 'Payment Confirmed',
-        timestamp: tracking.events?.find(e => e.status === 'payment_confirmed')?.timestamp,
+        timestamp: getStepDateForCard('payment_confirmed', 'paymentConfirmed'),
+        estimatedDate: !getStepDateForCard('payment_confirmed') ? getStepDateForCard('payment_confirmed', null, true) : null,
         completed: ['payment_confirmed', 'order_accepted', 'order_approved', 'ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
       },
       {
         id: 'order_accepted',
         title: 'Order Accepted',
-        timestamp: tracking.events?.find(e => e.status === 'order_accepted' || e.status === 'order_approved')?.timestamp,
+        timestamp: getStepDateForCard('order_accepted', 'orderApproved') || getStepDateForCard('order_approved', 'orderApproved'),
+        estimatedDate: !getStepDateForCard('order_accepted') && !getStepDateForCard('order_approved') ? getStepDateForCard('order_accepted', null, true) : null,
         completed: ['order_accepted', 'order_approved', 'ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
       },
       {
         id: 'ready_to_dispatch',
         title: 'Ready to Dispatch',
-        timestamp: tracking.events?.find(e => e.status === 'ready_to_dispatch')?.timestamp,
+        timestamp: getStepDateForCard('ready_to_dispatch', 'packageReady'),
+        estimatedDate: !getStepDateForCard('ready_to_dispatch') ? getStepDateForCard('ready_to_dispatch', null, true) : null,
         completed: ['ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
       },
       {
         id: 'dispatched',
         title: 'Dispatched',
-        timestamp: tracking.events?.find(e => e.status === 'dispatched')?.timestamp,
+        timestamp: getStepDateForCard('dispatched', 'dispatched'),
+        estimatedDate: !getStepDateForCard('dispatched') ? getStepDateForCard('dispatched', null, true) : null,
         completed: ['dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
       },
       {
         id: 'delivered',
         title: 'Delivered',
-        timestamp: tracking.actualDelivery || tracking.events?.find(e => e.status === 'delivered')?.timestamp,
+        timestamp: getStepDateForCard('delivered', 'delivered') || tracking.actualDelivery,
+        estimatedDate: !getStepDateForCard('delivered') && !tracking.actualDelivery ? tracking.estimatedDelivery : null,
         completed: ['delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
       },
       {
         id: 'installation_scheduled',
         title: 'Installation Scheduled',
-        timestamp: tracking.events?.find(e => e.status === 'installation_scheduled' || e.status === 'engineer_assigned')?.timestamp,
+        timestamp: getStepDateForCard('installation_scheduled') || getStepDateForCard('engineer_assigned'),
+        estimatedDate: !getStepDateForCard('installation_scheduled') && !getStepDateForCard('engineer_assigned') ? tracking.estimatedInstallation : null,
         completed: ['installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus)
       },
       {
         id: 'installation_completed',
         title: 'Installation Completed',
-        timestamp: tracking.actualInstallation || tracking.events?.find(e => e.status === 'installation_completed')?.timestamp,
+        timestamp: getStepDateForCard('installation_completed', 'installationCompleted') || tracking.actualInstallation,
+        estimatedDate: !getStepDateForCard('installation_completed') && !tracking.actualInstallation ? tracking.estimatedInstallation : null,
         completed: ['installation_completed', 'order_completed'].includes(tracking.currentStatus)
       }
     ];
@@ -206,11 +248,18 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
                     }`}>
                       {step.title}
                     </h4>
-                    {step.timestamp && (
-                      <span className="text-xs text-blue-600 font-medium">
-                        {formatDateTime(step.timestamp)}
-                      </span>
-                    )}
+                    <div className="flex flex-col items-end gap-1">
+                      {step.timestamp && (
+                        <span className="text-xs text-blue-600 font-medium">
+                          {formatDateTime(step.timestamp)}
+                        </span>
+                      )}
+                      {step.estimatedDate && !step.timestamp && (
+                        <span className="text-xs text-gray-500 font-medium">
+                          Expected: {formatDateTime(step.estimatedDate)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -314,6 +363,41 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
     });
   };
 
+  // Get the best available date for a step (actualDate > timestamp > estimatedDate)
+  const getStepDate = (eventStatus, milestoneKey = null, useEstimated = false) => {
+    const event = tracking.events?.find(e => e.status === eventStatus);
+    
+    // Priority 1: actualDate from event (when it actually happened)
+    if (event?.actualDate) {
+      return event.actualDate;
+    }
+    
+    // Priority 2: timestamp from event (when it was logged)
+    if (event?.timestamp) {
+      return event.timestamp;
+    }
+    
+    // Priority 3: milestone date
+    if (milestoneKey && tracking.milestones?.[milestoneKey]) {
+      return tracking.milestones[milestoneKey];
+    }
+    
+    // Priority 4: estimated date for future steps
+    if (useEstimated) {
+      if (eventStatus === 'delivered' && tracking.estimatedDelivery) {
+        return tracking.estimatedDelivery;
+      }
+      if (eventStatus === 'installation_completed' && tracking.estimatedInstallation) {
+        return tracking.estimatedInstallation;
+      }
+      if (event?.estimatedDate) {
+        return event.estimatedDate;
+      }
+    }
+    
+    return null;
+  };
+
   // Enhanced timeline steps for modal
   const getDetailedTimelineSteps = () => {
     const allSteps = [
@@ -321,7 +405,7 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
         id: 'order_placed',
         title: 'Order Placed',
         description: 'Your order has been successfully placed and confirmed',
-        timestamp: tracking.purchaseId?.createdAt,
+        timestamp: getStepDate('order_placed', 'orderPlaced') || tracking.purchaseId?.createdAt,
         completed: true,
         icon: Package,
         color: 'bg-orange-500'
@@ -330,7 +414,8 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
         id: 'payment_confirmed',
         title: 'Payment Confirmed',
         description: 'Payment has been processed and verified',
-        timestamp: tracking.events?.find(e => e.status === 'payment_confirmed')?.timestamp,
+        timestamp: getStepDate('payment_confirmed', 'paymentConfirmed'),
+        estimatedDate: !getStepDate('payment_confirmed') ? getStepDate('payment_confirmed', null, true) : null,
         completed: ['payment_confirmed', 'order_accepted', 'order_approved', 'ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
         icon: CheckCircle,
         color: 'bg-emerald-500'
@@ -339,25 +424,38 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
         id: 'order_accepted',
         title: 'Order Accepted',
         description: 'Your order has been accepted and is being prepared',
-        timestamp: tracking.events?.find(e => e.status === 'order_accepted' || e.status === 'order_approved')?.timestamp,
+        timestamp: getStepDate('order_accepted', 'orderApproved') || getStepDate('order_approved', 'orderApproved'),
+        estimatedDate: !getStepDate('order_accepted') && !getStepDate('order_approved') ? getStepDate('order_accepted', null, true) : null,
         completed: ['order_accepted', 'order_approved', 'ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
         icon: CheckCircle,
         color: 'bg-green-500'
       },
       {
+        id: 'ready_to_dispatch',
+        title: 'Ready to Dispatch',
+        description: 'Your order is ready and will be dispatched soon',
+        timestamp: getStepDate('ready_to_dispatch', 'packageReady'),
+        estimatedDate: !getStepDate('ready_to_dispatch') ? getStepDate('ready_to_dispatch', null, true) : null,
+        completed: ['ready_to_dispatch', 'dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
+        icon: Package,
+        color: 'bg-blue-500'
+      },
+      {
         id: 'dispatched',
         title: 'Order Dispatched',
         description: 'Your order has been shipped and is on its way',
-        timestamp: tracking.events?.find(e => e.status === 'dispatched')?.timestamp,
+        timestamp: getStepDate('dispatched', 'dispatched'),
+        estimatedDate: !getStepDate('dispatched') ? getStepDate('dispatched', null, true) : null,
         completed: ['dispatched', 'delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
         icon: Truck,
-        color: 'bg-blue-500'
+        color: 'bg-blue-600'
       },
       {
         id: 'delivered',
         title: 'Delivered',
         description: 'Order has been delivered to your location',
-        timestamp: tracking.actualDelivery || tracking.events?.find(e => e.status === 'delivered')?.timestamp,
+        timestamp: getStepDate('delivered', 'delivered') || tracking.actualDelivery,
+        estimatedDate: !getStepDate('delivered') && !tracking.actualDelivery ? tracking.estimatedDelivery : null,
         completed: ['delivered', 'installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
         icon: MapPin,
         color: 'bg-purple-500'
@@ -366,7 +464,8 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
         id: 'installation_scheduled',
         title: 'Installation Scheduled',
         description: 'Installation has been scheduled with our engineer',
-        timestamp: tracking.events?.find(e => e.status === 'installation_scheduled' || e.status === 'engineer_assigned')?.timestamp,
+        timestamp: getStepDate('installation_scheduled') || getStepDate('engineer_assigned'),
+        estimatedDate: !getStepDate('installation_scheduled') && !getStepDate('engineer_assigned') ? tracking.estimatedInstallation : null,
         completed: ['installation_scheduled', 'engineer_assigned', 'installation_in_progress', 'installation_completed', 'order_completed'].includes(tracking.currentStatus),
         icon: User,
         color: 'bg-indigo-500'
@@ -375,7 +474,8 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
         id: 'installation_completed',
         title: 'Installation Completed',
         description: 'Solar system installation has been completed successfully',
-        timestamp: tracking.actualInstallation || tracking.events?.find(e => e.status === 'installation_completed')?.timestamp,
+        timestamp: getStepDate('installation_completed', 'installationCompleted') || tracking.actualInstallation,
+        estimatedDate: !getStepDate('installation_completed') && !tracking.actualInstallation ? tracking.estimatedInstallation : null,
         completed: ['installation_completed', 'order_completed'].includes(tracking.currentStatus),
         icon: CheckCircle,
         color: 'bg-orange-500'
@@ -479,11 +579,18 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
                             }`}>
                               {step.title}
                             </h4>
-                            {step.timestamp && (
-                              <span className="text-xs text-orange-600 font-medium bg-orange-100 px-2 py-1 rounded-full">
-                                {formatDateTime(step.timestamp)}
-                              </span>
-                            )}
+                            <div className="flex flex-col items-end gap-1">
+                              {step.timestamp && (
+                                <span className="text-xs text-orange-600 font-medium bg-orange-100 px-2 py-1 rounded-full">
+                                  {formatDateTime(step.timestamp)}
+                                </span>
+                              )}
+                              {step.estimatedDate && !step.timestamp && (
+                                <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full">
+                                  Expected: {formatDateTime(step.estimatedDate)}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <p className={`text-sm ${
                             step.completed ? 'text-gray-600' : 'text-gray-400'
