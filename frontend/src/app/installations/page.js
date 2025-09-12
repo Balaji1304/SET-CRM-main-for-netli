@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getMyAssignments, acceptAssignment, startWork } from '../../services/installationService';
 import { toast } from 'react-toastify';
@@ -35,6 +36,19 @@ const InstallationDashboard = () => {
       fetchAssignments();
     }
   }, [user]);
+
+  // Prevent background scroll when modals are open
+  useEffect(() => {
+    if (showAcceptModal || showStartWorkModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showAcceptModal, showStartWorkModal]);
 
   const fetchAssignments = async () => {
     try {
@@ -263,8 +277,8 @@ const InstallationDashboard = () => {
       </div>
 
       {/* Accept Assignment Modal */}
-      {showAcceptModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      {showAcceptModal && createPortal(
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999]">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -311,12 +325,13 @@ const InstallationDashboard = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Start Work Modal */}
-      {showStartWorkModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      {showStartWorkModal && createPortal(
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999]">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -352,7 +367,8 @@ const InstallationDashboard = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

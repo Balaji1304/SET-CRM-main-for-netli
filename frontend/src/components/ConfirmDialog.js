@@ -1,8 +1,24 @@
+import { createPortal } from 'react-dom';
+import { useEffect } from 'react';
+
 export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, message }) {
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white p-4 sm:p-6 rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out">
         <h3 className="text-lg sm:text-xl font-semibold mb-4 text-gray-900">{title}</h3>
         <p className="text-gray-600 mb-6 text-sm sm:text-base leading-relaxed">
@@ -25,6 +41,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 } 

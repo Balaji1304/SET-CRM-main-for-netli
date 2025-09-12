@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Edit2, FileText, Send, Check, X, ChevronLeft, ChevronRight, AlertTriangle, Loader2, Phone, Mail, Building2, Calendar, User, IndianRupee } from 'lucide-react';
 import { 
@@ -10,6 +11,62 @@ import {
 } from '../../services/quotationService';
 import { getSalespersons } from '../../services/enquiryService';
 import { useAuth } from '../../context/AuthContext';
+
+// Custom styles for mobile responsive design
+const customStyles = `
+  .mobile-action-compact {
+    padding: 6px !important;
+    margin: 0 1px !important;
+  }
+  
+  .mobile-action-buttons {
+    gap: 2px !important;
+  }
+  
+  .mobile-card-compact {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .mobile-card-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .mobile-header-text {
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+  }
+  
+  .mobile-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  
+  /* Improved modal responsiveness */
+  .mobile-modal-content {
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  
+  @media (max-width: 375px) {
+    .mobile-card-compact {
+      padding: 8px;
+    }
+    
+    .mobile-header-text {
+      font-size: 14px !important;
+      line-height: 1.3 !important;
+    }
+    
+    .mobile-action-buttons {
+      gap: 2px !important;
+    }
+  }
+`;
 
 // Helper to format enum values or status strings
 const formatDisplayValue = (value) => {
@@ -32,6 +89,19 @@ function StandalonePaymentModal({
   paymentError,
   onSetPaymentError 
 }) {
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showModal]);
+
   if (!showModal || !selectedQuotation) return null;
 
   const advancePercentage = selectedQuotation.advancePaymentPercentage || 20;
@@ -61,8 +131,8 @@ function StandalonePaymentModal({
     onSubmit();
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-3 sm:p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-3 sm:p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md sm:max-w-lg lg:max-w-xl transform transition-all duration-300 ease-out max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gray-50/50">
@@ -238,7 +308,8 @@ function StandalonePaymentModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -483,83 +554,107 @@ export default function QuotationsTable({
   };
 
   const ConfirmActionDialog = () => {
+    // Prevent background scroll when modal is open
+    useEffect(() => {
+      if (showConfirmDialog) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = 'unset';
+      }
+
+      return () => {
+        document.body.style.overflow = 'unset';
+      };
+    }, [showConfirmDialog]);
+
     if (!showConfirmDialog) return null;
-    return (
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
-        <div className="bg-tertiary p-6 rounded-lg shadow-xl max-w-md w-full transform transition-all duration-300 ease-out">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold text-secondary">Confirm Action</h3>
-            <button onClick={() => setShowConfirmDialog(false)} className="p-1 rounded-full hover:bg-fourth">
-                <X className="w-5 h-5 text-gray-500"/>
+    
+    return createPortal(
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-3 sm:p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 ease-out max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gray-50/50">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Confirm Action</h3>
+            <button 
+              onClick={() => setShowConfirmDialog(false)} 
+              className="p-2 rounded-lg hover:bg-gray-200 transition-colors duration-150 touch-target"
+              aria-label="Close dialog"
+            >
+              <X className="w-5 h-5 text-gray-500"/>
             </button>
           </div>
-          <p className="text-sm text-gray-600 mb-6">{confirmDialogProps.message}</p>
-          <div className="flex justify-end space-x-3">
-            <button
-              onClick={() => setShowConfirmDialog(false)}
-              disabled={actionInProgress}
-              className="px-4 py-2 border border-fourth rounded-lg text-sm font-medium text-secondary hover:bg-fourth transition-colors duration-150 ease-in-out disabled:opacity-60"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => { if (confirmDialogProps.onConfirm) confirmDialogProps.onConfirm(); }}
-              disabled={actionInProgress}
-              className={`px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out disabled:opacity-60 flex items-center justify-center min-w-[80px]`}
-            >
-              {actionInProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Confirm'}
-            </button>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+            <p className="text-sm text-gray-600">{confirmDialogProps.message}</p>
+          </div>
+          <div className="border-t border-gray-200 bg-gray-50/50 p-4 sm:p-6">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end space-y-reverse space-y-3 sm:space-y-0 sm:space-x-3">
+              <button
+                onClick={() => setShowConfirmDialog(false)}
+                disabled={actionInProgress}
+                className="w-full sm:w-auto px-5 py-3 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors duration-150 ease-in-out disabled:opacity-60 touch-target"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { if (confirmDialogProps.onConfirm) confirmDialogProps.onConfirm(); }}
+                disabled={actionInProgress}
+                className="w-full sm:w-auto px-6 py-3 bg-primary text-white rounded-xl text-sm font-semibold hover:opacity-90 transition-all duration-150 disabled:opacity-60 flex items-center justify-center min-w-[140px] touch-target shadow-lg hover:shadow-xl"
+              >
+                {actionInProgress ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Yes, Confirm'}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
   // Mobile Card Component
   const QuotationCard = ({ quotation }) => (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <div className="mobile-card-compact mobile-card-container bg-white rounded-xl border border-gray-200 space-y-3 shadow-sm hover:shadow-md transition-shadow duration-200">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0 overflow-hidden">
-          <h3 className="text-lg font-semibold text-gray-900 mb-1 truncate">
+      <div className="flex items-start justify-between gap-1 sm:gap-2">
+        <div className="flex-1 min-w-0 max-w-[calc(100%-140px)] sm:max-w-[calc(100%-160px)]">
+          <h3 className="mobile-header-text text-base sm:text-lg font-semibold text-gray-900 mb-1 line-clamp-2 leading-tight"
+              title={quotation.quotationNumber || 'N/A'}>
             {quotation.quotationNumber || 'N/A'}
           </h3>
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
+          <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
             <div className="flex items-center space-x-1 min-w-0 overflow-hidden">
-              <User className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{quotation.lead ? `${quotation.lead.firstName} ${quotation.lead.lastName}` : 'N/A'}</span>
+              <User className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="mobile-truncate">{quotation.lead ? `${quotation.lead.firstName} ${quotation.lead.lastName}` : 'N/A'}</span>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="mobile-action-buttons flex items-center gap-0.5 sm:gap-1 flex-shrink-0 w-[140px] sm:w-[160px] justify-end">
           <button
             onClick={() => navigate(`/dashboard/quotations/${quotation._id}`)}
-            className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+            className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
             title="View Quotation"
           >
-            <FileText className="w-4 h-4" />
+            <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
           </button>
           {quotation.status === 'draft' && (
             <>
               <button
                 onClick={() => navigate(`/dashboard/quotations/${quotation._id}/edit`)}
-                className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
                 title="Edit Quotation"
                 disabled={loadingAction[quotation._id]}
               >
-                <Edit2 className="w-4 h-4" />
+                <Edit2 className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
               <button
                 onClick={() => handleSendQuotation(quotation._id)}
-                className={`flex items-center justify-center p-2 rounded transition-colors duration-150 touch-target ${
+                className={`mobile-action-compact p-1 sm:p-1.5 rounded-md transition-colors duration-150 ${
                   loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' 
-                    ? 'text-primary bg-primary/10 cursor-not-allowed' 
-                    : 'text-gray-500 hover:text-primary hover:bg-gray-100'
+                    ? 'text-[#FF7300] bg-orange-50 cursor-not-allowed' 
+                    : 'text-gray-500 hover:text-[#FF7300] hover:bg-orange-50'
                 }`}
                 title={loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? "Sending..." : "Send Quotation"}
                 disabled={loadingAction[quotation._id]}
               >
-                {loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : <Send className="w-4 h-4" />}
+                {loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin text-[#FF7300]" /> : <Send className="w-3 h-3 sm:w-4 sm:h-4" />}
               </button>
             </>
           )}
@@ -572,29 +667,29 @@ export default function QuotationsTable({
                     setShowPaymentModal(true);
                     setPaymentError('');
                   }}
-                  className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                  className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
                   title="Confirm Offline Payment"
                 >
-                  <IndianRupee className="w-4 h-4" />
+                  <IndianRupee className="w-3 h-3 sm:w-4 sm:h-4" />
                 </button>
               )}
               {user?.role === 'accounts_department' && quotation.status === 'pending_approval' && (
                 <button
                   onClick={() => handleApproveQuotation(quotation._id)}
-                  className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                  className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
                   title="Approve Quotation"
                   disabled={loadingAction[quotation._id]}
                 >
-                  <Check className="w-4 h-4" />
+                  <Check className="w-3 h-3 sm:w-4 sm:h-4" />
                 </button>
               )}
               <button
                 onClick={() => handleCloseQuotation(quotation._id)}
-                className="flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+                className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
                 title="Close Quotation"
                 disabled={loadingAction[quotation._id]}
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3 sm:w-4 sm:h-4" />
               </button>
             </>
           )}
@@ -604,60 +699,57 @@ export default function QuotationsTable({
       {/* Amount and Status */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-500">Total Amount</span>
-          <span className="text-lg font-bold text-gray-900 truncate ml-2">
+          <span className="text-xs sm:text-sm font-medium text-gray-500">Total Amount</span>
+          <span className="text-base sm:text-lg font-bold text-gray-900 mobile-truncate ml-2">
             ₹{(quotation.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
       </div>
 
-      {/* Status and Payment Status */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Status and Payment Status - 2 columns */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</p>
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium truncate ${getStatusBadgeClass(quotation.status)}`}>
+          <span className={`inline-flex items-center px-2 sm:px-2.5 py-1 rounded-full text-xs font-medium mobile-truncate ${getStatusBadgeClass(quotation.status)}`}>
             {formatDisplayValue(quotation.status) || 'N/A'}
           </span>
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Payment Status</p>
-          <p className="text-sm text-gray-900 truncate">{formatDisplayValue(quotation.advancePaymentStatus) || 'N/A'}</p>
+          <p className="text-xs sm:text-sm text-gray-900 mobile-truncate">{formatDisplayValue(quotation.advancePaymentStatus) || 'N/A'}</p>
         </div>
       </div>
 
-      {/* Valid Until and Items */}
-      <div className={`grid ${isSalesHead ? 'grid-cols-1' : 'grid-cols-2'} gap-3 pt-3 border-t border-gray-100`}>
-        {!isSalesHead && (
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Valid Until</p>
-            <div className="flex items-center space-x-1 text-sm text-gray-600">
-              <Calendar className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString('en-GB') : 'N/A'}</span>
-            </div>
+      {/* Valid Until and Items - 2 columns */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-2 sm:pt-3 border-t border-gray-100">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Valid Until</p>
+          <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-600">
+            <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+            <span className="mobile-truncate">{quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString('en-GB') : 'N/A'}</span>
           </div>
-        )}
+        </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Items</p>
-          <p className="text-sm text-gray-900 truncate">
+          <p className="text-xs sm:text-sm text-gray-900 mobile-truncate">
             {quotation.quotationItems ? `${quotation.quotationItems.length} item${quotation.quotationItems.length !== 1 ? 's' : ''}` : 'N/A'}
           </p>
         </div>
       </div>
 
-      {/* Sales Head Additional Info */}
+      {/* Sales Head Additional Info - 2 columns */}
       {isSalesHead && (
-        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Valid Until</p>
-            <div className="flex items-center space-x-1 text-sm text-gray-600">
-              <Calendar className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">{quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString('en-GB') : 'N/A'}</span>
-            </div>
-          </div>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 pt-2 sm:pt-3 border-t border-gray-100">
           <div className="min-w-0">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Created By</p>
-            <p className="text-sm text-gray-900 truncate" title={quotation.createdBy?.name || 'Unknown'}>
+            <p className="text-xs sm:text-sm text-gray-900 mobile-truncate" title={quotation.createdBy?.name || 'Unknown'}>
               {quotation.createdBy?.name || 'N/A'}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Payment Method</p>
+            <p className="text-xs sm:text-sm text-gray-900 mobile-truncate">
+              {formatDisplayValue(quotation.paymentMethod) || 'N/A'}
             </p>
           </div>
         </div>
@@ -758,8 +850,10 @@ export default function QuotationsTable({
   }
 
   return (
-    // Root div of QuotationsTable: No card styling here, parent (QuotationsPage.js) provides it.
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <>
+      <style>{customStyles}</style>
+      {/* Root div of QuotationsTable: No card styling here, parent (QuotationsPage.js) provides it. */}
+      <div className="flex flex-col flex-1 overflow-hidden">
       <StandalonePaymentModal
         showModal={showPaymentModal}
         onClose={handleClosePaymentModal}
@@ -933,7 +1027,7 @@ export default function QuotationsTable({
 
       {/* Mobile Card View */}
       <div className="md:hidden flex-1 overflow-y-auto">
-        <div className="p-4 space-y-4">
+        <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
           {currentQuotations.length === 0 && !loading ? (
             <div className="text-center py-12">
               <p className="text-gray-500">No quotations found matching your criteria.</p>
@@ -949,18 +1043,18 @@ export default function QuotationsTable({
       {/* Pagination */}
       {totalPages > 0 && (
         <div className="px-2 lg:px-4 xl:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-3 sm:space-y-0">
-          <div className="text-sm text-gray-600 order-2 sm:order-1">
+          <div className="text-xs sm:text-sm text-gray-600 order-2 sm:order-1">
             Showing {Math.min(startIndex + 1, filteredQuotations.length)} to {Math.min(endIndex, filteredQuotations.length)} of {filteredQuotations.length} results
           </div>
-          <div className="flex items-center space-x-2 order-1 sm:order-2">
+          <div className="flex items-center gap-2 order-1 sm:order-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
               className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <span className="text-sm text-gray-600 px-2"> 
+            <span className="text-xs sm:text-sm text-gray-600 px-3 py-2 min-w-[80px] text-center"> 
               {currentPage} / {totalPages}
             </span>
             <button
@@ -968,7 +1062,7 @@ export default function QuotationsTable({
               disabled={currentPage === totalPages}
               className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -981,5 +1075,6 @@ export default function QuotationsTable({
         </div>
       )}
     </div>
+    </>
   );
 } 

@@ -1,8 +1,70 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Loader2, X, Phone, Mail, Building2, Calendar, IndianRupee, User, ShoppingBag, Package, CreditCard, Users, MapPin, Clock, Info, FileText, Tag, AlertCircle, ChevronDown, ChevronUp, Eye, Truck } from 'lucide-react';
 import { getAllCustomers } from '../../services/customerService';
 import { useAuth } from '../../context/AuthContext';
+
+// Custom styles for mobile responsive design
+const customStyles = `
+  .mobile-action-compact {
+    padding: 6px !important;
+    margin: 0 1px !important;
+  }
+  
+  .mobile-action-buttons {
+    gap: 2px !important;
+  }
+  
+  .mobile-card-compact {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .mobile-card-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .mobile-header-text {
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+  }
+  
+  .mobile-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  
+  /* Improved modal responsiveness */
+  .mobile-modal-content {
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  
+  @media (max-width: 375px) {
+    .mobile-card-compact {
+      padding: 8px;
+    }
+    
+    .mobile-header-text {
+      font-size: 14px !important;
+      line-height: 1.3 !important;
+    }
+    
+    .mobile-action-buttons {
+      gap: 1px !important;
+    }
+    
+    .mobile-action-compact {
+      padding: 4px !important;
+      margin: 0 !important;
+    }
+  }
+`;
 
 const formatEnumValue = (value) => {
   if (!value) return '';
@@ -350,51 +412,59 @@ export default function CustomersTable({
       </div>
     );
 
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[150] p-2 sm:p-4">
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-out">
+    // Prevent scroll when modal is open
+    useEffect(() => {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }, []);
+
+    return createPortal(
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-2xl md:max-w-4xl lg:max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-out mobile-modal-content">
           {/* Modal Header */}
-          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-4 sm:px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center space-x-3 min-w-0 flex-1">
-              <div className="bg-white/20 p-2 rounded-lg flex-shrink-0">
-                <User className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
+          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-3 sm:px-4 md:px-6 py-3 sm:py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+              <div className="bg-white/20 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                <User className="w-4 h-4 sm:w-5 sm:h-6 md:w-6 md:h-6 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg sm:text-xl font-semibold text-white truncate">Customer Details</h2>
+                <h2 className="text-sm sm:text-lg md:text-xl font-semibold text-white truncate">Customer Details</h2>
                 <p className="text-orange-100 text-xs sm:text-sm hidden sm:block">Complete customer information and purchase history</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-150 touch-target flex-shrink-0"
+              className="p-1.5 sm:p-2 hover:bg-white/20 rounded-lg transition-colors duration-150 touch-target flex-shrink-0"
             >
-              <X className="w-5 h-5 text-white" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </button>
           </div>
 
           {/* Modal Body */}
-          <div className="max-h-[calc(90vh-120px)] overflow-y-auto">
-            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+          <div className="max-h-[calc(95vh-80px)] sm:max-h-[calc(90vh-120px)] overflow-y-auto">
+            <div className="p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6">
               {/* Customer Name and Status */}
-              <div className="border-b border-gray-100 pb-4 sm:pb-6">
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-4 space-y-3 sm:space-y-0">
+              <div className="border-b border-gray-100 pb-3 sm:pb-4 md:pb-6">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 sm:mb-4 space-y-2 sm:space-y-0">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                      <h3 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+                      <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 truncate">
                         {customer.firstName} {customer.lastName}
                       </h3>
-                      <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border w-fit ${getStatusColor(customer.status)}`}>
+                      <span className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border w-fit ${getStatusColor(customer.status)}`}>
                         {formatEnumValue(customer.status)}
                       </span>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 text-gray-600">
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 text-gray-600">
                       <div className="flex items-center space-x-2">
-                        <Tag className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm font-medium">Customer Type: {formatEnumValue(customer.customerType)}</span>
+                        <Tag className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-medium">Customer Type: {formatEnumValue(customer.customerType)}</span>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Calendar className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm">Customer Since: {formatDate(customer.createdAt)}</span>
+                        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm">Customer Since: {formatDate(customer.createdAt)}</span>
                       </div>
                     </div>
                   </div>
@@ -402,68 +472,68 @@ export default function CustomersTable({
               </div>
 
               {/* Key Information Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
                 {/* Total Purchase Value */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="bg-blue-500 p-2 rounded-lg">
-                      <IndianRupee className="w-5 h-5 text-white" />
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 sm:p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                    <div className="bg-blue-500 p-1.5 sm:p-2 rounded-lg">
+                      <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-900">Total Purchase Value</h4>
-                      <p className="text-sm text-gray-600">Lifetime spending</p>
+                      <h4 className="text-sm sm:text-base font-semibold text-gray-900">Total Purchase Value</h4>
+                      <p className="text-xs sm:text-sm text-gray-600">Lifetime spending</p>
                     </div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                     ₹{customer.purchaseStats?.totalValue?.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0'}
                   </div>
                 </div>
 
                 {/* Total Orders */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl border border-green-200">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="bg-green-500 p-2 rounded-lg">
-                      <ShoppingBag className="w-5 h-5 text-white" />
+                <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 sm:p-4 rounded-xl border border-green-200">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                    <div className="bg-green-500 p-1.5 sm:p-2 rounded-lg">
+                      <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-900">Total Orders</h4>
-                      <p className="text-sm text-gray-600">Purchase orders</p>
+                      <h4 className="text-sm sm:text-base font-semibold text-gray-900">Total Orders</h4>
+                      <p className="text-xs sm:text-sm text-gray-600">Purchase orders</p>
                     </div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                     {customer.purchaseStats?.totalPurchases || 0}
                   </div>
                 </div>
 
                 {/* Active Orders */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl border border-purple-200">
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className="bg-purple-500 p-2 rounded-lg">
-                      <Package className="w-5 h-5 text-white" />
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 sm:p-4 rounded-xl border border-purple-200">
+                  <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                    <div className="bg-purple-500 p-1.5 sm:p-2 rounded-lg">
+                      <Package className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-900">Active Orders</h4>
-                      <p className="text-sm text-gray-600">Ongoing orders</p>
+                      <h4 className="text-sm sm:text-base font-semibold text-gray-900">Active Orders</h4>
+                      <p className="text-xs sm:text-sm text-gray-600">Ongoing orders</p>
                     </div>
                   </div>
-                  <div className="text-2xl font-bold text-gray-900">
+                  <div className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                     {customer.purchaseStats?.activeCount || 0}
                   </div>
                 </div>
 
                 {/* Created By - Show only for sales heads */}
                 {isSalesHead && customer.leadId?.createdBy && (
-                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-xl border border-orange-200">
-                    <div className="flex items-center space-x-3 mb-3">
-                      <div className="bg-orange-500 p-2 rounded-lg">
-                        <Users className="w-5 h-5 text-white" />
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-3 sm:p-4 rounded-xl border border-orange-200 sm:col-span-2 lg:col-span-1">
+                    <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                      <div className="bg-orange-500 p-1.5 sm:p-2 rounded-lg">
+                        <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-gray-900">Created By</h4>
-                        <p className="text-sm text-gray-600">Sales person</p>
+                        <h4 className="text-sm sm:text-base font-semibold text-gray-900">Created By</h4>
+                        <p className="text-xs sm:text-sm text-gray-600">Sales person</p>
                       </div>
                     </div>
-                    <div className="text-lg font-bold text-gray-900">
+                    <div className="text-base sm:text-lg font-bold text-gray-900">
                       {customer.leadId.createdBy.name}
                     </div>
                   </div>
@@ -471,57 +541,57 @@ export default function CustomersTable({
               </div>
 
               {/* Contact Information */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                <div className="bg-gray-50 rounded-xl p-4 sm:p-5 border border-gray-200">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Phone className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    <h4 className="text-base sm:text-lg font-semibold text-gray-900">Contact Information</h4>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-3 sm:mb-4">
+                    <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900">Contact Information</h4>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-2 border-b border-gray-200 last:border-b-0 space-y-1 sm:space-y-0">
-                      <span className="text-sm font-medium text-gray-600">Phone</span>
-                      <span className="text-sm text-gray-900 break-words">{customer.phone || 'N/A'}</span>
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 sm:py-2 border-b border-gray-200 last:border-b-0 space-y-1 sm:space-y-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Phone</span>
+                      <span className="text-xs sm:text-sm text-gray-900 break-words">{customer.phone || 'N/A'}</span>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-2 border-b border-gray-200 last:border-b-0 space-y-1 sm:space-y-0">
-                      <span className="text-sm font-medium text-gray-600">Email</span>
-                      <span className="text-sm text-gray-900 break-words">{customer.email || 'N/A'}</span>
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 sm:py-2 border-b border-gray-200 last:border-b-0 space-y-1 sm:space-y-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Email</span>
+                      <span className="text-xs sm:text-sm text-gray-900 break-words">{customer.email || 'N/A'}</span>
                     </div>
                     {customer.businessName && (
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-2 space-y-1 sm:space-y-0">
-                        <span className="text-sm font-medium text-gray-600">Business Name</span>
-                        <span className="text-sm text-gray-900 break-words">{customer.businessName}</span>
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 sm:py-2 space-y-1 sm:space-y-0">
+                        <span className="text-xs sm:text-sm font-medium text-gray-600">Business Name</span>
+                        <span className="text-xs sm:text-sm text-gray-900 break-words">{customer.businessName}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Customer Information */}
-                <div className="bg-gray-50 rounded-xl p-4 sm:p-5 border border-gray-200">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Info className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    <h4 className="text-base sm:text-lg font-semibold text-gray-900">Customer Information</h4>
+                <div className="bg-gray-50 rounded-xl p-3 sm:p-4 md:p-5 border border-gray-200">
+                  <div className="flex items-center space-x-2 mb-3 sm:mb-4">
+                    <Info className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900">Customer Information</h4>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-2 border-b border-gray-200 last:border-b-0 space-y-1 sm:space-y-0">
-                      <span className="text-sm font-medium text-gray-600">Customer Type</span>
-                      <span className="text-sm text-gray-900">{formatEnumValue(customer.customerType) || 'N/A'}</span>
+                  <div className="space-y-2 sm:space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 sm:py-2 border-b border-gray-200 last:border-b-0 space-y-1 sm:space-y-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Customer Type</span>
+                      <span className="text-xs sm:text-sm text-gray-900">{formatEnumValue(customer.customerType) || 'N/A'}</span>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-2 border-b border-gray-200 last:border-b-0 space-y-1 sm:space-y-0">
-                      <span className="text-sm font-medium text-gray-600">Status</span>
-                      <span className={`text-sm font-medium px-2 py-1 rounded-full w-fit ${getStatusColor(customer.status)}`}>
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 sm:py-2 border-b border-gray-200 last:border-b-0 space-y-1 sm:space-y-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Status</span>
+                      <span className={`text-xs sm:text-sm font-medium px-2 py-1 rounded-full w-fit ${getStatusColor(customer.status)}`}>
                         {formatEnumValue(customer.status) || 'N/A'}
                       </span>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-2 border-b border-gray-200 last:border-b-0 space-y-1 sm:space-y-0">
-                      <span className="text-sm font-medium text-gray-600">Customer Since</span>
-                      <span className="text-sm text-gray-900">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 sm:py-2 border-b border-gray-200 last:border-b-0 space-y-1 sm:space-y-0">
+                      <span className="text-xs sm:text-sm font-medium text-gray-600">Customer Since</span>
+                      <span className="text-xs sm:text-sm text-gray-900">
                         {formatDate(customer.createdAt)}
                       </span>
                     </div>
                     {customer.address && (
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm font-medium text-gray-600">Address</span>
-                        <span className="text-sm text-gray-900 text-right max-w-48 truncate" title={customer.address}>
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start py-1.5 sm:py-2 space-y-1 sm:space-y-0">
+                        <span className="text-xs sm:text-sm font-medium text-gray-600">Address</span>
+                        <span className="text-xs sm:text-sm text-gray-900 text-left sm:text-right max-w-full sm:max-w-48 break-words" title={customer.address}>
                           {customer.address}
                         </span>
                       </div>
@@ -533,41 +603,41 @@ export default function CustomersTable({
               {/* Active Purchase Orders Section */}
               <div className="bg-gray-50 rounded-xl border border-gray-200">
                 <div 
-                  className="flex items-center justify-between p-4 sm:p-5 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
+                  className="flex items-center justify-between p-3 sm:p-4 md:p-5 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
                   onClick={() => setActiveSection(activeSection === 'open' ? '' : 'open')}
                 >
                   <div className="flex items-center space-x-2 min-w-0 flex-1">
-                    <Package className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    <h4 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                    <Package className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 truncate">
                       Active Purchase Orders ({activePurchases.length})
                     </h4>
                   </div>
                   <div className="flex-shrink-0 ml-2">
                     {activeSection === 'open' ? (
-                      <ChevronUp className="w-5 h-5 text-gray-500" />
+                      <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-500" />
+                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
                     )}
                   </div>
                 </div>
                 
                 {activeSection === 'open' && (
-                  <div className="px-4 sm:px-5 pb-4 sm:pb-5">
+                  <div className="px-3 sm:px-4 md:px-5 pb-3 sm:pb-4 md:pb-5">
                     {loadingPurchases ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                        <span className="ml-2 text-gray-600">Loading purchases...</span>
+                      <div className="flex items-center justify-center py-6 sm:py-8">
+                        <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-gray-400" />
+                        <span className="ml-2 text-sm sm:text-base text-gray-600">Loading purchases...</span>
                       </div>
                     ) : activePurchases.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="space-y-3 sm:space-y-4">
                         {activePurchases.map((purchase) => (
                           <PurchaseCard key={purchase._id} purchase={purchase} />
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8">
-                        <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500">No active purchase orders found</p>
+                      <div className="text-center py-6 sm:py-8">
+                        <Package className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 mx-auto mb-2 sm:mb-3" />
+                        <p className="text-sm sm:text-base text-gray-500">No active purchase orders found</p>
                       </div>
                     )}
                   </div>
@@ -577,41 +647,41 @@ export default function CustomersTable({
               {/* Past Purchase Orders Section */}
               <div className="bg-gray-50 rounded-xl border border-gray-200">
                 <div 
-                  className="flex items-center justify-between p-4 sm:p-5 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
+                  className="flex items-center justify-between p-3 sm:p-4 md:p-5 cursor-pointer hover:bg-gray-100 transition-colors duration-150"
                   onClick={() => setPastSection(pastSection === 'open' ? '' : 'open')}
                 >
                   <div className="flex items-center space-x-2 min-w-0 flex-1">
-                    <FileText className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    <h4 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 flex-shrink-0" />
+                    <h4 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 truncate">
                       Past Purchase Orders ({pastPurchases.length})
                     </h4>
                   </div>
                   <div className="flex-shrink-0 ml-2">
                     {pastSection === 'open' ? (
-                      <ChevronUp className="w-5 h-5 text-gray-500" />
+                      <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
                     ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-500" />
+                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
                     )}
                   </div>
                 </div>
                 
                 {pastSection === 'open' && (
-                  <div className="px-4 sm:px-5 pb-4 sm:pb-5">
+                  <div className="px-3 sm:px-4 md:px-5 pb-3 sm:pb-4 md:pb-5">
                     {loadingPurchases ? (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                        <span className="ml-2 text-gray-600">Loading purchases...</span>
+                      <div className="flex items-center justify-center py-6 sm:py-8">
+                        <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-gray-400" />
+                        <span className="ml-2 text-sm sm:text-base text-gray-600">Loading purchases...</span>
                       </div>
                     ) : pastPurchases.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="space-y-3 sm:space-y-4">
                         {pastPurchases.map((purchase) => (
                           <PurchaseCard key={purchase._id} purchase={purchase} />
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8">
-                        <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500">No completed purchase orders found</p>
+                      <div className="text-center py-6 sm:py-8">
+                        <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-gray-300 mx-auto mb-2 sm:mb-3" />
+                        <p className="text-sm sm:text-base text-gray-500">No completed purchase orders found</p>
                       </div>
                     )}
                   </div>
@@ -620,7 +690,8 @@ export default function CustomersTable({
             </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
@@ -629,31 +700,30 @@ export default function CustomersTable({
     const stats = customer.purchaseStats;
 
     return (
-      <div className="rounded-lg border p-4 space-y-4 shadow-sm hover:shadow-md transition-all duration-200 bg-white border-gray-200">
+      <div className={`mobile-card-compact mobile-card-container rounded-lg border space-y-3 shadow-sm hover:shadow-md transition-all duration-200 bg-white border-gray-200`}>
         {/* Header */}
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
+        <div className="flex items-start justify-between gap-1 sm:gap-2">
+          <div className="flex-1 min-w-0 max-w-[calc(100%-80px)] sm:max-w-[calc(100%-100px)]">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-lg font-semibold cursor-pointer hover:text-[#FF7300] transition-colors duration-150 text-gray-900"
-                  title="Customer name">
+              <h3 className={`mobile-header-text text-base sm:text-lg font-semibold cursor-pointer hover:text-[#FF7300] transition-colors duration-150 line-clamp-2 leading-tight text-gray-900`}
+                  onClick={() => handleViewCustomer(customer)}
+                  title="Click to view details">
                 {customer.firstName} {customer.lastName}
               </h3>
             </div>
             
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <div className="flex items-center space-x-1">
-                <Phone className="w-4 h-4" />
-                <span>{customer.phone}</span>
-              </div>
+            <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
+              <Phone className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="mobile-truncate">{customer.phone}</span>
             </div>
           </div>
-          <div className="flex items-center space-x-2 ml-3">
+          <div className="mobile-action-buttons flex items-center gap-0.5 sm:gap-1 flex-shrink-0 w-[80px] sm:w-[100px] justify-end">
             <button
               onClick={() => handleViewCustomer(customer)}
-              className="p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150 touch-target"
+              className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
               title="View Details"
             >
-              <Eye className="w-4 h-4" />
+              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
@@ -661,20 +731,20 @@ export default function CustomersTable({
         {/* Contact Info */}
         <div className="space-y-2">
           {customer.email && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Mail className="w-4 h-4" />
-              <span className="truncate">{customer.email}</span>
+            <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
+              <Mail className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="mobile-truncate">{customer.email}</span>
             </div>
           )}
           {customer.businessName && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Building2 className="w-4 h-4" />
-              <span className="truncate">{customer.businessName}</span>
+            <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
+              <Building2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="mobile-truncate">{customer.businessName}</span>
             </div>
           )}
         </div>
 
-        {/* Stats */}
+        {/* Status and Customer Type */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</p>
@@ -688,54 +758,53 @@ export default function CustomersTable({
           </div>
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Customer Type</p>
-            <p className="text-sm text-gray-900">{formatEnumValue(customer.customerType)}</p>
+            <p className="text-xs sm:text-sm text-gray-900">{formatEnumValue(customer.customerType)}</p>
           </div>
         </div>
 
-        {/* Purchase Stats */}
+        {/* Purchase Stats - First Row */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Purchases</p>
-            <p className="text-sm text-gray-900">{stats.totalPurchases} orders</p>
+            <p className="text-xs sm:text-sm text-gray-900">{stats.totalPurchases} orders</p>
           </div>
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Value</p>
-            <div className="flex items-center space-x-1 text-sm font-medium text-gray-900">
+            <div className="flex items-center space-x-1 text-xs sm:text-sm font-medium text-gray-900">
               <span className="text-gray-600 font-semibold">₹</span>
-              <span>
+              <span className="mobile-truncate">
                 {stats.totalValue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Additional Purchase Stats */}
+        {/* Purchase Stats - Second Row */}
         <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Active Orders</p>
-            <p className="text-sm text-gray-900">{stats.activeCount}</p>
+            <p className="text-xs sm:text-sm text-gray-900">{stats.activeCount}</p>
           </div>
-
           <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Completed Orders</p>
-            <p className="text-sm text-gray-900">{stats.fullyPaidCount}</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Completed</p>
+            <p className="text-xs sm:text-sm text-gray-900">{stats.fullyPaidCount}</p>
           </div>
         </div>
 
-        {/* Sales Person and Date */}
+        {/* Sales Person and Date for Sales Head */}
         {isSalesHead && (
           <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Created By</p>
-              <p className="text-sm text-gray-900 truncate" title={customer.leadId && customer.leadId.createdBy ? customer.leadId.createdBy.name : 'Unknown'}>
+              <p className="text-xs sm:text-sm text-gray-900 mobile-truncate" title={customer.leadId && customer.leadId.createdBy ? customer.leadId.createdBy.name : 'Unknown'}>
                 {customer.leadId && customer.leadId.createdBy ? customer.leadId.createdBy.name : 'Unknown'}
               </p>
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Customer Since</p>
-              <div className="flex items-center space-x-1 text-sm text-gray-600">
-                <Calendar className="w-4 h-4" />
-                <span>{new Date(customer.createdAt).toLocaleDateString('en-GB')}</span>
+              <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-600">
+                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="mobile-truncate">{new Date(customer.createdAt).toLocaleDateString('en-GB')}</span>
               </div>
             </div>
           </div>
@@ -745,9 +814,9 @@ export default function CustomersTable({
         {!isSalesHead && (
           <div className="pt-2 border-t border-gray-100">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Customer Since</p>
-            <div className="flex items-center space-x-1 text-sm text-gray-600">
-              <Calendar className="w-4 h-4" />
-              <span>{new Date(customer.createdAt).toLocaleDateString('en-GB')}</span>
+            <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-600">
+              <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="mobile-truncate">{new Date(customer.createdAt).toLocaleDateString('en-GB')}</span>
             </div>
           </div>
         )}
@@ -781,7 +850,9 @@ export default function CustomersTable({
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <>
+      <style>{customStyles}</style>
+      <div className="flex flex-col flex-1 overflow-hidden">
       {/* Desktop/Tablet Table View */}
       <div className="hidden md:flex md:flex-col md:flex-1 md:overflow-hidden">
         <div className="overflow-x-auto flex-1 relative">
@@ -900,14 +971,16 @@ export default function CustomersTable({
 
       {/* Mobile Card View */}
       <div className="md:hidden flex-1 overflow-y-auto">
-        <div className="p-4 space-y-4">
+        <div className="p-2 sm:p-4 space-y-2 sm:space-y-4 w-full">
           {currentCustomers.length === 0 && !loading ? (
             <div className="text-center py-12">
-              <p className="text-gray-500">No customers found matching your criteria.</p>
+              <p className="text-gray-500 text-sm sm:text-base">No customers found matching your criteria.</p>
             </div>
           ) : (
             currentCustomers.map((customer) => (
-              <CustomerCard key={customer._id} customer={customer} />
+              <div key={customer._id} className="w-full max-w-full">
+                <CustomerCard customer={customer} />
+              </div>
             ))
           )}
         </div>
@@ -915,27 +988,27 @@ export default function CustomersTable({
 
       {/* Pagination */}
       {totalPages > 0 && (
-        <div className="px-2 lg:px-4 xl:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-3 sm:space-y-0">
-          <div className="text-sm text-gray-600 order-2 sm:order-1">
+        <div className="px-2 sm:px-4 lg:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-2 sm:space-y-0">
+          <div className="text-xs sm:text-sm text-gray-600 order-2 sm:order-1">
             Showing {Math.min(startIndex + 1, filteredCustomers.length)} to {Math.min(endIndex, filteredCustomers.length)} of {filteredCustomers.length} results
           </div>
-          <div className="flex items-center gap-2 order-1 sm:order-2">
+          <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2">
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="mobile-action-btn border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150"
+              className="p-2 border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 rounded-lg"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <span className="mobile-text-sm text-gray-600 px-3 py-2 min-w-[80px] text-center"> 
+            <span className="text-xs sm:text-sm text-gray-600 px-2 sm:px-3 py-2 min-w-[60px] sm:min-w-[80px] text-center"> 
               {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="mobile-action-btn border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150"
+              className="p-2 border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 rounded-lg"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -955,6 +1028,7 @@ export default function CustomersTable({
           onClose={closeCustomerModal} 
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }

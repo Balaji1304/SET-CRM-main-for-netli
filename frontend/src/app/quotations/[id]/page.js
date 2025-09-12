@@ -226,35 +226,35 @@ export default function QuotationDetailsPage() {
     const total = item.quantity * item.unitPrice * (1 - item.discount/100);
     
     return (
-      <div className="bg-tertiary rounded-xl border border-fourth p-5 space-y-4 shadow-sm hover:shadow-md transition-shadow">
-        <div className="flex items-start justify-between gap-4">
+      <div className="bg-tertiary rounded-xl border border-fourth p-3 sm:p-5 space-y-3 sm:space-y-4 shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex items-start justify-between gap-3 sm:gap-4">
           <div className="flex-1 min-w-0">
-            <h4 className="text-base font-semibold text-secondary mb-2 leading-6">{productName}</h4>
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              <Package className="w-4 h-4 text-primary" />
+            <h4 className="text-sm sm:text-base font-semibold text-secondary mb-1 sm:mb-2 leading-5 sm:leading-6 line-clamp-2">{productName}</h4>
+            <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-500">
+              <Package className="w-3 h-3 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
               <span>Item #{index + 1}</span>
             </div>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="text-lg font-bold text-primary mb-1">
+            <p className="text-base sm:text-lg font-bold text-primary mb-0.5 sm:mb-1">
               ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
             <p className="text-xs text-gray-500 uppercase tracking-wider">Total</p>
           </div>
         </div>
         
-        <div className="grid grid-cols-3 gap-4 pt-4 border-t border-fourth">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-3 sm:pt-4 border-t border-fourth">
           <div className="text-center">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Quantity</p>
-            <p className="text-base font-semibold text-secondary">{item.quantity}</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 sm:mb-2">Quantity</p>
+            <p className="text-sm sm:text-base font-semibold text-secondary">{item.quantity}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Unit Price</p>
-            <p className="text-base font-semibold text-secondary">₹{item.unitPrice.toLocaleString('en-IN')}</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 sm:mb-2">Unit Price</p>
+            <p className="text-sm sm:text-base font-semibold text-secondary">₹{item.unitPrice.toLocaleString('en-IN')}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Discount</p>
-            <p className="text-base font-semibold text-secondary">{item.discount}%</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 sm:mb-2">Discount</p>
+            <p className="text-sm sm:text-base font-semibold text-secondary">{item.discount}%</p>
           </div>
         </div>
       </div>
@@ -312,15 +312,15 @@ export default function QuotationDetailsPage() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-secondary">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">
                 Sales Quotation
               </h1>
-              <div className="flex items-center gap-4 mt-2">
-                <p className="text-sm text-gray-600">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2">
+                <p className="text-xs sm:text-sm text-gray-600 mobile-truncate">
                   Ref. No. – {quotation.quotationNumber}
                 </p>
-                <span className="text-gray-300">•</span>
-                <p className="text-sm text-gray-600">
+                <span className="text-gray-300 hidden sm:inline">•</span>
+                <p className="text-xs sm:text-sm text-gray-600">
                   {new Date(quotation.createdAt).toLocaleDateString('en-GB')}
                 </p>
               </div>
@@ -328,7 +328,7 @@ export default function QuotationDetailsPage() {
           </div>
           
           {/* Status Badge and Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <span className={getStatusBadgeClass(quotation.status)}>
               {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
               {isSendingQuotation && quotation.status === 'draft' && ' (Sending...)'}
@@ -338,10 +338,10 @@ export default function QuotationDetailsPage() {
               <>
                 <button
                   onClick={() => navigate(`/dashboard/quotations/${id}/edit`)}
-                  className="px-4 py-2.5 border border-fourth text-secondary rounded-lg text-sm font-medium hover:bg-fourth transition-colors duration-150 ease-in-out flex items-center justify-center gap-2 touch-target"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 border border-fourth text-secondary rounded-lg text-xs sm:text-sm font-medium hover:bg-fourth transition-colors duration-150 ease-in-out flex items-center justify-center gap-1 sm:gap-2 touch-target"
                   disabled={isSendingQuotation}
                 >
-                  <Edit2 className="h-4 w-4" />
+                  <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
                   Edit
                 </button>
                 <button
@@ -350,20 +350,22 @@ export default function QuotationDetailsPage() {
                     setConfirmActionType('send');
                     setShowConfirmDialog(true);
                   }}
-                  className={`px-4 py-2.5 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[150px] gap-2 touch-target ${
+                  className={`px-3 sm:px-4 py-2 sm:py-2.5 bg-primary text-tertiary rounded-lg text-xs sm:text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[120px] sm:min-w-[150px] gap-1 sm:gap-2 touch-target ${
                     isSendingQuotation ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
                   disabled={isSendingQuotation}
                 >
                   {isSendingQuotation ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Sending...
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                      <span className="hidden sm:inline">Sending...</span>
+                      <span className="sm:hidden">Sending</span>
                     </>
                   ) : (
                     <>
-                      <Send className="h-4 w-4" />
-                      Send to Lead
+                      <Send className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Send to Lead</span>
+                      <span className="sm:hidden">Send</span>
                     </>
                   )}
                 </button>
@@ -376,41 +378,56 @@ export default function QuotationDetailsPage() {
                   setConfirmActionType('approve');
                   setShowConfirmDialog(true);
                 }}
-                className="px-4 py-2.5 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center gap-2 touch-target"
+                className="px-3 sm:px-4 py-2 sm:py-2.5 bg-primary text-tertiary rounded-lg text-xs sm:text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center gap-1 sm:gap-2 touch-target"
               >
-                <Check className="h-4 w-4" />
+                <Check className="h-3 w-3 sm:h-4 sm:w-4" />
                 Approve
               </button>
             )}
             {quotation.status === 'pending_approval' && (
-              <span className="px-3 py-2 rounded-lg text-sm font-medium bg-amber-100 text-amber-700 border border-amber-200">Awaiting Accounts Approval</span>
+              <span className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium bg-amber-100 text-amber-700 border border-amber-200 text-center">
+                <span className="hidden sm:inline">Awaiting Accounts Approval</span>
+                <span className="sm:hidden">Pending Approval</span>
+              </span>
             )}
             {quotation.status === 'approved' && (
               <div className="flex flex-col space-y-2">
                 <button
                   onClick={handleSendExistingInvoiceEmail}
-                  className={`px-4 py-2.5 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[150px] gap-2 touch-target ${
+                  className={`px-3 sm:px-4 py-2 sm:py-2.5 bg-primary text-tertiary rounded-lg text-xs sm:text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[120px] sm:min-w-[150px] gap-1 sm:gap-2 touch-target ${
                     (!canSendInvoice || invoiceEmailStatus.sending) ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
                   disabled={!canSendInvoice || invoiceEmailStatus.sending}
                 >
                   {invoiceEmailStatus.sending ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Sending Email...</>
+                    <>
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" /> 
+                      <span className="hidden sm:inline">Sending Email...</span>
+                      <span className="sm:hidden">Sending...</span>
+                    </>
                   ) : (
-                    <><Mail className="h-4 w-4" /> Send Invoice</>
+                    <>
+                      <Mail className="h-3 w-3 sm:h-4 sm:w-4" /> 
+                      <span className="hidden sm:inline">Send Invoice</span>
+                      <span className="sm:hidden">Invoice</span>
+                    </>
                   )}
                 </button>
                 
                 {/* Status Messages */}
                 <div className="text-center sm:text-right space-y-1">
                   {showWaitingForPaymentMessage && (
-                                         <span className="text-sm text-yellow-600 flex items-center justify-center sm:justify-end gap-1">
-                       <IndianRupee className="h-4 w-4" /> Waiting for full payment
-                     </span>
+                    <span className="text-xs sm:text-sm text-yellow-600 flex items-center justify-center sm:justify-end gap-1">
+                      <IndianRupee className="h-3 w-3 sm:h-4 sm:w-4" /> 
+                      <span className="hidden sm:inline">Waiting for full payment</span>
+                      <span className="sm:hidden">Payment pending</span>
+                    </span>
                   )}
                   {showInvoiceNotGeneratedMessage && (
-                    <span className="text-sm text-red-600 flex items-center justify-center sm:justify-end gap-1">
-                      <AlertTriangle className="h-4 w-4" /> Invoice not generated
+                    <span className="text-xs sm:text-sm text-red-600 flex items-center justify-center sm:justify-end gap-1">
+                      <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4" /> 
+                      <span className="hidden sm:inline">Invoice not generated</span>
+                      <span className="sm:hidden">No invoice</span>
                     </span>
                   )}
                 </div>
@@ -424,17 +441,19 @@ export default function QuotationDetailsPage() {
         {/* Main Content Card */}
         <div className="bg-tertiary rounded-xl border border-fourth shadow-sm overflow-hidden">
           {/* Title Section */}
-          <div className="px-6 py-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-fourth">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-fourth">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-secondary tracking-wide">QUOTATION #{quotation.quotationNumber}</h1>
-                <p className="text-sm text-gray-600 mt-1">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-secondary tracking-wide mobile-truncate">
+                  QUOTATION #{quotation.quotationNumber}
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">
                   Professional quotation for your solar energy requirements
                 </p>
               </div>
-              <div className="text-sm text-gray-600 sm:text-right">
+              <div className="text-xs sm:text-sm text-gray-600 sm:text-right">
                 <p className="font-medium">Valid until:</p>
-                <p className="text-lg font-semibold text-primary">
+                <p className="text-base sm:text-lg font-semibold text-primary">
                   {new Date(quotation.validUntil).toLocaleDateString('en-GB')}
                 </p>
               </div>
@@ -442,60 +461,60 @@ export default function QuotationDetailsPage() {
           </div>
           
           {/* Lead Information Section */}
-          <div className="p-6 border-b border-fourth">
-            <h3 className="text-xl font-semibold text-secondary mb-6 border-b border-fourth pb-2">
+          <div className="p-4 sm:p-6 border-b border-fourth">
+            <h3 className="text-lg sm:text-xl font-semibold text-secondary mb-4 sm:mb-6 border-b border-fourth pb-2">
               Lead Information
             </h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
               {/* Left Column - Billing Information */}
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div>
-                  <h4 className="text-sm font-semibold text-secondary mb-3 uppercase tracking-wider">To:</h4>
-                  <div className="space-y-2">
-                    <p className="text-base font-medium text-secondary">
+                  <h4 className="text-xs sm:text-sm font-semibold text-secondary mb-2 sm:mb-3 uppercase tracking-wider">To:</h4>
+                  <div className="space-y-1 sm:space-y-2">
+                    <p className="text-sm sm:text-base font-medium text-secondary">
                       {quotation.lead.firstName} {quotation.lead.lastName}
                     </p>
                     {quotation.lead.businessName && (
-                      <p className="text-gray-700">{quotation.lead.businessName}</p>
+                      <p className="text-xs sm:text-sm text-gray-700">{quotation.lead.businessName}</p>
                     )}
                   </div>
                 </div>
                 
                 <div>
-                  <h4 className="text-sm font-semibold text-secondary mb-3 uppercase tracking-wider">Billing Address:</h4>
-                  <p className="text-gray-700 leading-relaxed">
+                  <h4 className="text-xs sm:text-sm font-semibold text-secondary mb-2 sm:mb-3 uppercase tracking-wider">Billing Address:</h4>
+                  <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
                     {quotation.lead.billingAddress || quotation.lead.address || 'No billing address provided'}
                   </p>
                 </div>
                 
                 {quotation.lead.shippingAddress && (
                   <div>
-                    <h4 className="text-sm font-semibold text-secondary mb-3 uppercase tracking-wider">Shipping Address:</h4>
-                    <p className="text-gray-700 leading-relaxed">{quotation.lead.shippingAddress}</p>
+                    <h4 className="text-xs sm:text-sm font-semibold text-secondary mb-2 sm:mb-3 uppercase tracking-wider">Shipping Address:</h4>
+                    <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">{quotation.lead.shippingAddress}</p>
                   </div>
                 )}
               </div>
               
               {/* Right Column - Contact Information */}
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {quotation.lead.email && (
                   <div>
-                    <h4 className="text-sm font-semibold text-secondary mb-3 uppercase tracking-wider">Email:</h4>
-                    <p className="text-gray-700 break-all">{quotation.lead.email}</p>
+                    <h4 className="text-xs sm:text-sm font-semibold text-secondary mb-2 sm:mb-3 uppercase tracking-wider">Email:</h4>
+                    <p className="text-xs sm:text-sm text-gray-700 break-all">{quotation.lead.email}</p>
                   </div>
                 )}
                 
                 {quotation.lead.phone && (
                   <div>
-                    <h4 className="text-sm font-semibold text-secondary mb-3 uppercase tracking-wider">Phone:</h4>
-                    <p className="text-gray-700">{quotation.lead.countryCode} {quotation.lead.phone}</p>
+                    <h4 className="text-xs sm:text-sm font-semibold text-secondary mb-2 sm:mb-3 uppercase tracking-wider">Phone:</h4>
+                    <p className="text-xs sm:text-sm text-gray-700">{quotation.lead.countryCode} {quotation.lead.phone}</p>
                   </div>
                 )}
                 
                 {quotation.lead.whatsapp && (
                   <div>
-                    <h4 className="text-sm font-semibold text-secondary mb-3 uppercase tracking-wider">WhatsApp:</h4>
-                    <p className="text-gray-700">{quotation.lead.countryCode} {quotation.lead.whatsapp}</p>
+                    <h4 className="text-xs sm:text-sm font-semibold text-secondary mb-2 sm:mb-3 uppercase tracking-wider">WhatsApp:</h4>
+                    <p className="text-xs sm:text-sm text-gray-700">{quotation.lead.countryCode} {quotation.lead.whatsapp}</p>
                   </div>
                 )}
               </div>
@@ -503,10 +522,10 @@ export default function QuotationDetailsPage() {
           </div>
 
           {/* Professional Salutation */}
-          <div className="p-6 border-b border-fourth bg-gray-50">
-            <div className="space-y-4 text-gray-700">
-              <p className="text-base">Dear Sir/Madam,</p>
-              <p className="text-base leading-relaxed">
+          <div className="p-4 sm:p-6 border-b border-fourth bg-gray-50">
+            <div className="space-y-3 sm:space-y-4 text-gray-700">
+              <p className="text-sm sm:text-base">Dear Sir/Madam,</p>
+              <p className="text-sm sm:text-base leading-relaxed">
                 Thank you very much for the keen interest shown by you in our Solar Products. 
                 We are pleased to enclose herewith the detailed quotation for your consideration.
               </p>
@@ -514,8 +533,8 @@ export default function QuotationDetailsPage() {
           </div>
 
           {/* Quotation Items Summary Table */}
-          <div className="p-6 border-b border-fourth">
-            <h3 className="text-xl font-semibold text-secondary mb-6 border-b border-fourth pb-2">
+          <div className="p-4 sm:p-6 border-b border-fourth">
+            <h3 className="text-lg sm:text-xl font-semibold text-secondary mb-4 sm:mb-6 border-b border-fourth pb-2">
               Quotation Summary
             </h3>
             
@@ -581,16 +600,16 @@ export default function QuotationDetailsPage() {
             </div>
 
             {/* Mobile/Tablet Card View */}
-            <div className="lg:hidden space-y-4">
+            <div className="lg:hidden space-y-3 sm:space-y-4">
               {quotation.quotationItems?.map((item, index) => (
                 <ItemCard key={index} item={item} index={index} />
               ))}
               
               {/* Mobile Total */}
-              <div className="bg-gray-100 rounded-lg p-4">
+              <div className="bg-gray-100 rounded-lg p-3 sm:p-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold text-secondary">Total Amount</span>
-                  <span className="text-lg font-bold text-primary">
+                  <span className="text-base sm:text-lg font-semibold text-secondary">Total Amount</span>
+                  <span className="text-base sm:text-lg font-bold text-primary">
                     ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -600,26 +619,26 @@ export default function QuotationDetailsPage() {
 
           {/* Payment Information Section */}
           {quotation.advancePaymentPercentage > 0 && (
-            <div className="p-6 border-b border-fourth">
-              <h3 className="text-xl font-semibold text-secondary mb-6 border-b border-fourth pb-2">
+            <div className="p-4 sm:p-6 border-b border-fourth">
+              <h3 className="text-lg sm:text-xl font-semibold text-secondary mb-4 sm:mb-6 border-b border-fourth pb-2">
                 Payment Information
               </h3>
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
-                <div className="flex items-start space-x-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 sm:p-6">
+                <div className="flex items-start space-x-3 sm:space-x-4">
                   <div className="flex-shrink-0">
-                    <CreditCard className="w-6 h-6 text-primary mt-1" />
+                    <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-primary mt-0.5 sm:mt-1" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-lg font-semibold text-secondary mb-2">Advance Payment Required</h4>
-                    <div className="space-y-2">
-                      <p className="text-gray-700">
+                    <h4 className="text-base sm:text-lg font-semibold text-secondary mb-1 sm:mb-2">Advance Payment Required</h4>
+                    <div className="space-y-1 sm:space-y-2">
+                      <p className="text-xs sm:text-sm text-gray-700">
                         <span className="font-medium">Payment Amount:</span> {quotation.advancePaymentPercentage}% of total amount
                       </p>
-                      <p className="text-2xl font-bold text-primary">
+                      <p className="text-xl sm:text-2xl font-bold text-primary">
                         ₹{((quotation.total * quotation.advancePaymentPercentage / 100) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                       {quotation.status === 'sent' && (
-                        <p className="text-sm text-orange-700 mt-3 p-3 bg-orange-100 rounded">
+                        <p className="text-xs sm:text-sm text-orange-700 mt-2 sm:mt-3 p-2 sm:p-3 bg-orange-100 rounded">
                           <strong>Note:</strong> This advance payment must be completed before the quotation can be approved and processed further.
                         </p>
                       )}
@@ -631,23 +650,23 @@ export default function QuotationDetailsPage() {
           )}
 
           {/* Terms and Conditions Section */}
-          <div className="p-6">
-            <h3 className="text-xl font-semibold text-secondary mb-6 border-b border-fourth pb-2">
+          <div className="p-4 sm:p-6">
+            <h3 className="text-lg sm:text-xl font-semibold text-secondary mb-4 sm:mb-6 border-b border-fourth pb-2">
               Terms & Conditions
             </h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
               <div>
-                <h4 className="text-lg font-medium text-secondary mb-4">Terms & Conditions</h4>
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                <h4 className="text-base sm:text-lg font-medium text-secondary mb-3 sm:mb-4">Terms & Conditions</h4>
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
+                  <p className="text-xs sm:text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
                     {quotation.terms || 'Standard terms and conditions apply. Please contact us for detailed terms.'}
                   </p>
                 </div>
               </div>
               <div>
-                <h4 className="text-lg font-medium text-secondary mb-4">Additional Notes</h4>
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                <h4 className="text-base sm:text-lg font-medium text-secondary mb-3 sm:mb-4">Additional Notes</h4>
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200">
+                  <p className="text-xs sm:text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
                     {quotation.notes || 'For any technical queries or customization requirements, please feel free to contact our technical team.'}
                   </p>
                 </div>
@@ -656,17 +675,17 @@ export default function QuotationDetailsPage() {
           </div>
 
           {/* Professional Footer */}
-          <div className="p-6 bg-gray-50 border-t border-fourth">
-            <div className="text-right">
-              <p className="text-base text-secondary mb-2">For Sunlit Solar</p>
-              <p className="text-base font-medium text-secondary">Authorized Signatory</p>
+          <div className="p-4 sm:p-6 bg-gray-50 border-t border-fourth">
+            <div className="text-center sm:text-right">
+              <p className="text-sm sm:text-base text-secondary mb-1 sm:mb-2">For Sunlit Solar</p>
+              <p className="text-sm sm:text-base font-medium text-secondary">Authorized Signatory</p>
             </div>
           </div>
         </div>
 
         {/* Email timing display */}
         {emailSentTime && (
-          <div className="text-center text-sm text-gray-500 mt-6 p-4 bg-tertiary rounded-lg border border-fourth">
+          <div className="text-center text-xs sm:text-sm text-gray-500 mt-4 sm:mt-6 p-3 sm:p-4 bg-tertiary rounded-lg border border-fourth">
             Email sent in {(emailSentTime / 1000).toFixed(2)} seconds.
           </div>
         )}

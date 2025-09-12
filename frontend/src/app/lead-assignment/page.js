@@ -3,10 +3,68 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getEnquiries, getSalespersons, assignEnquiryToSalesperson } from '../../services/enquiryService';
-import { Loader2, AlertTriangle, Search, Filter, Eye, UserPlus, ChevronLeft, ChevronRight, ChevronDown, Phone, MapPin, User, X, Calendar, FileText, ArrowLeft, Plus, Info, Edit2, Trash2, Building2, Clock, Users } from 'lucide-react';
+import { Loader2, AlertTriangle, Search, Filter, Eye, UserPlus, ChevronLeft, ChevronRight, ChevronDown, Phone, MapPin, User, X, Calendar, FileText, ArrowLeft, Plus, Info, Edit2, Trash2, Building2, Clock, Users, RotateCcw, Mail } from 'lucide-react';
 
 // Custom styles for better mobile experience
 const customStyles = `
+  .mobile-action-compact {
+    padding: 6px !important;
+    margin: 0 1px !important;
+  }
+  
+  .mobile-action-buttons {
+    gap: 2px !important;
+  }
+  
+  .mobile-card-compact {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .mobile-card-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .mobile-header-text {
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+  }
+  
+  .mobile-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  
+  /* Improved modal responsiveness */
+  .mobile-modal-content {
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  
+  @media (max-width: 375px) {
+    .mobile-card-compact {
+      padding: 8px;
+    }
+    
+    .mobile-header-text {
+      font-size: 14px !important;
+      line-height: 1.3 !important;
+    }
+    
+    .mobile-action-buttons {
+      gap: 1px !important;
+    }
+    
+    .mobile-action-compact {
+      padding: 4px !important;
+      margin: 0 !important;
+    }
+  }
+
   .touch-target {
     min-height: 44px;
     min-width: 44px;
@@ -520,73 +578,78 @@ const EnquiryDetailsModal = ({ enquiry, onClose, onEdit, onAssign }) => {
 
 // Mobile Card Component for Enquiries
 const EnquiryCard = ({ enquiry, onAssign, onView }) => (
-  <div className="rounded-lg border p-4 space-y-4 shadow-sm hover:shadow-md transition-all duration-200 bg-white border-gray-200">
-    {/* Header */}
-    <div className="flex items-start justify-between">
-      <div className="flex-1">
+  <div className={`mobile-card-compact mobile-card-container rounded-lg border space-y-3 shadow-sm hover:shadow-md transition-all duration-200 bg-white border-gray-200`}>
+    {/* Header - Name and Action Buttons */}
+    <div className="flex items-start justify-between gap-1 sm:gap-2">
+      <div className="flex-1 min-w-0 max-w-[calc(100%-140px)] sm:max-w-[calc(100%-160px)]">
         <div className="flex items-center gap-2 mb-1">
-          <h3 className="text-lg font-semibold cursor-pointer hover:text-[#FF7300] transition-colors duration-150 text-gray-900"
+          <h3 className={`mobile-header-text text-base sm:text-lg font-semibold cursor-pointer hover:text-[#FF7300] transition-colors duration-150 line-clamp-2 leading-tight text-gray-900`}
               onClick={() => onView(enquiry)}
               title="Click to view details">
             {`${enquiry.firstName} ${enquiry.lastName}`}
           </h3>
         </div>
         
-        <div className="flex items-center space-x-4 text-sm text-gray-600">
-          <div className="flex items-center space-x-1">
-            <Phone className="w-4 h-4" />
-            <span>{enquiry.phone}</span>
-          </div>
+        <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
+          <Phone className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+          <span className="mobile-truncate">{enquiry.phone}</span>
         </div>
       </div>
-      <div className="flex items-center space-x-2 ml-3">
+      <div className="mobile-action-buttons flex items-center gap-0.5 sm:gap-1 flex-shrink-0 w-[140px] sm:w-[160px] justify-end">
         <button
           onClick={() => onView(enquiry)}
-          className="p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150 touch-target"
+          className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
           title="View Details"
         >
-          <Info className="w-4 h-4" />
+          <Info className="w-3 h-3 sm:w-4 sm:h-4" />
         </button>
         {enquiry.assignmentStatus === 'pending_assignment' && (
           <button
             onClick={() => window.location.href = `/dashboard/enquiry/${enquiry._id}/edit`}
-            className="p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-gray-100 transition-colors duration-150 touch-target"
+            className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-150"
             title="Edit Enquiry"
           >
-            <Edit2 className="w-4 h-4" />
+            <Edit2 className="w-3 h-3 sm:w-4 sm:h-4" />
           </button>
         )}
         {enquiry.assignmentStatus === 'pending_assignment' && (
           <button
             onClick={() => onAssign(enquiry)}
-            className="p-2 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 transition-colors duration-150 touch-target"
+            className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-green-600 hover:bg-green-50 transition-colors duration-150"
             title="Assign to Salesperson"
           >
-            <UserPlus className="w-4 h-4" />
+            <UserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
           </button>
         )}
       </div>
     </div>
 
-    {/* Contact Info */}
+    {/* Contact and Address Info */}
     <div className="space-y-2">
-      {(enquiry.billingAddress || enquiry.shippingAddress) && (
-        <div className="space-y-1">
-          {enquiry.billingAddress && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Building2 className="w-4 h-4" />
-              <span className="truncate">{enquiry.billingAddress}</span>
-            </div>
-          )}
+      <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
+        <Mail className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+        <span className="mobile-truncate">
+          {enquiry.email || 'N/A'}
+        </span>
+      </div>
+      {enquiry.billingAddress && (
+        <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
+          <Building2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+          <span className="mobile-truncate">{enquiry.billingAddress}</span>
         </div>
       )}
     </div>
 
-    {/* Status and Assignment */}
+    {/* Status and Assignment Grid */}
     <div className="grid grid-cols-2 gap-3">
       <div>
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Status</p>
-        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusBadgeClass(enquiry.assignmentStatus)}`}>
+        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+          ${enquiry.assignmentStatus === 'pending_assignment' ? 'bg-yellow-100 text-yellow-800'
+          : enquiry.assignmentStatus === 'assigned' ? 'bg-blue-100 text-blue-800'
+          : enquiry.assignmentStatus === 'converted_to_lead' ? 'bg-green-100 text-green-800'
+          : 'bg-gray-100 text-gray-800'
+          }`}>
           {formatAssignmentStatus(enquiry.assignmentStatus)}
         </span>
       </div>
@@ -594,10 +657,10 @@ const EnquiryCard = ({ enquiry, onAssign, onView }) => (
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Assigned To</p>
         {enquiry.assignedTo ? (
           <div>
-            <p className="text-sm text-blue-600 font-medium truncate" title={enquiry.assignedTo.name}>
+            <p className="text-sm text-blue-600 font-medium mobile-truncate" title={enquiry.assignedTo.name}>
               {enquiry.assignedTo.name}
             </p>
-            <p className="text-xs text-gray-500 truncate" title={enquiry.assignedTo.email}>
+            <p className="text-xs text-gray-500 mobile-truncate" title={enquiry.assignedTo.email}>
               {enquiry.assignedTo.email}
             </p>
           </div>
@@ -611,16 +674,17 @@ const EnquiryCard = ({ enquiry, onAssign, onView }) => (
     <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-100">
       <div>
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Lead Source</p>
-        <p className="text-sm text-gray-900">
-          {formatEnumValue(enquiry.leadSource)}
-          {enquiry.customLeadSource && (
-            <span className="text-xs text-gray-500 block">({enquiry.customLeadSource})</span>
-          )}
-        </p>
+        <p className="text-sm text-gray-900">{formatEnumValue(enquiry.leadSource)}</p>
+        {enquiry.customLeadSource && (
+          <p className="text-xs text-gray-500 mobile-truncate">({enquiry.customLeadSource})</p>
+        )}
       </div>
       <div>
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Lead Type</p>
         <p className="text-sm text-gray-900">{enquiry.leadType ? formatEnumValue(enquiry.leadType) : 'N/A'}</p>
+        {enquiry.customLeadType && (
+          <p className="text-xs text-gray-500 mobile-truncate">({enquiry.customLeadType})</p>
+        )}
       </div>
     </div>
 
@@ -628,18 +692,18 @@ const EnquiryCard = ({ enquiry, onAssign, onView }) => (
     {enquiry.productRequirements && (
       <div className="pt-3 border-t border-gray-100">
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Requirements</p>
-        <p className="text-sm text-gray-900" title={enquiry.productRequirements}>
+        <p className="text-sm text-gray-900 line-clamp-2" title={enquiry.productRequirements}>
           {enquiry.productRequirements}
         </p>
       </div>
     )}
 
-    {/* Date */}
+    {/* Created Date */}
     <div className="pt-2 border-t border-gray-100">
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Created</p>
-      <div className="flex items-center space-x-1 text-sm text-gray-600">
-        <Calendar className="w-4 h-4" />
-        <span>{formatDate(enquiry.createdAt)}</span>
+      <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
+        <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+        <span className="mobile-truncate">{formatDate(enquiry.createdAt)}</span>
       </div>
     </div>
   </div>
@@ -666,7 +730,22 @@ export default function LeadAssignmentPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
   const itemsPerPage = 10;
+
+  // Function to reset all filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+    setShowFilters(false);
+    setCurrentPage(1);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm || statusFilter;
+
+  // Count active filters (excluding search term for display)
+  const activeFilterCount = [statusFilter].filter(Boolean).length;
 
   // Success message state
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -835,18 +914,9 @@ export default function LeadAssignmentPage() {
     <div className="flex flex-col h-full">
       <style>{customStyles}</style>
       {/* Header Section - Page Title */}
-      <div className="border-b border-gray-200 pb-5 mb-8">
+      <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => navigate('/dashboard')}
-              className="p-2 rounded-md hover:bg-gray-100 text-gray-600 sm:hidden touch-target"
-              aria-label="Back to dashboard"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Enquiries</h1>
-          </div>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">Enquiries</h1>
         </div>
       </div>
 
@@ -854,43 +924,101 @@ export default function LeadAssignmentPage() {
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
         {/* Filter and Action Bar */}
         <div className="p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            {/* Search Input - takes remaining space on left */}
-            <div className="relative flex-grow md:flex-grow-0 w-full md:w-auto md:max-w-xs">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search enquiries..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-200 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
-              />
-            </div>
-            
-            {/* Filters and Add Button - grouped on right */}
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-stretch sm:items-center">
-              <div className="relative flex-1 sm:flex-initial">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="pl-4 pr-10 py-2 w-full border border-gray-200 rounded-lg focus:ring-1 focus:ring-primary focus:border-primary appearance-none transition-colors duration-150 ease-in-out text-sm text-gray-900 bg-white"
-                >
-                  <option value="">All Statuses</option>
-                  {assignmentStatuses.map(status => (
-                    <option key={status.value} value={status.value}>{status.label}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+          {/* Filter Status Indicator */}
+          {activeFilterCount > 0 && (
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">
+                  {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
+                </span>
               </div>
+              <button
+                onClick={resetFilters}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-150"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
 
+          {/* Main Controls Row */}
+          <div className="flex flex-col gap-3">
+            {/* Search and Filter Toggle Row */}
+            <div className="flex gap-2 items-center">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search enquiries..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
+                />
+              </div>
+              
+              {/* Filter Toggle Button */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`inline-flex items-center justify-center p-2 border rounded-md transition-colors duration-150 ease-in-out ${
+                  showFilters || activeFilterCount > 0
+                    ? 'border-primary bg-primary text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Toggle filters"
+              >
+                <Filter className="w-4 h-4" />
+                {activeFilterCount > 0 && (
+                  <span className="ml-1 text-xs font-medium">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Create Enquiry Button - Desktop Position */}
               <button
                 onClick={() => navigate('/dashboard/enquiries/create')}
-                className="inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap"
+                className="hidden sm:inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Enquiry
               </button>
             </div>
+
+            {/* Create Enquiry Button - Mobile Only */}
+            <div className="w-full sm:hidden">
+              <button
+                onClick={() => navigate('/dashboard/enquiries/create')}
+                className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Enquiry
+              </button>
+            </div>
+
+            {/* Filters Section - Collapsible */}
+            {showFilters && (
+              <div className="border-t border-gray-200 pt-3 space-y-3">
+                {/* Filter Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {/* Status Filter */}
+                  <div className="relative">
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="pl-2 pr-6 py-1.5 w-full border border-gray-200 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
+                    >
+                      <option value="">All Statuses</option>
+                      {assignmentStatuses.map(status => (
+                        <option key={status.value} value={status.value}>{status.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         

@@ -59,10 +59,15 @@
     gap: 0.75rem;
   }
   
-  /* Ensure buttons and inputs are large enough for touch */
-  button, input, select, textarea {
+  /* Ensure inputs are large enough for touch and prevent iOS zoom */
+  input, select, textarea {
     min-height: 48px !important;
     font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+  
+  /* Ensure buttons are touch-friendly but allow custom sizing */
+  button {
+    min-height: 44px !important;
   }
   
   /* Enhanced button styles for mobile */
@@ -173,7 +178,21 @@
     -webkit-box-orient: vertical !important;
     overflow: hidden !important;
   }
-}
+  }
+  
+  .line-clamp-2 {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 3 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
 
 /* Safe area insets for devices with notches */
 @supports (padding: max(0px)) {

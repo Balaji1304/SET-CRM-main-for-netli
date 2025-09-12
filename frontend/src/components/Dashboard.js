@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  Clock, CheckCircle2, Ticket, Users, DollarSign, Package, Briefcase, BarChart2, Settings, AlertTriangle, ShoppingCart, ListChecks, UserCheck, FileText, Users2, PackageSearch, UserCog, TrendingUp, UserPlus, Building2, Globe, MapPin, Calendar, Timer, Zap, Search, PieChart, Truck, CalendarDays, Target, Star, TrendingDown
+  Clock, CheckCircle2, Ticket, Users, IndianRupee, Package, Briefcase, BarChart2, Settings, AlertTriangle, ShoppingCart, ListChecks, UserCheck, FileText, Users2, PackageSearch, UserCog, TrendingUp, UserPlus, Building2, Globe, MapPin, Calendar, Timer, Zap, Search, PieChart, Truck, CalendarDays, Target, Star, TrendingDown
 } from 'lucide-react';
 import axios from 'axios';
 import TicketStatsWidget from './TicketStatsWidget';
@@ -67,13 +67,13 @@ const Dashboard = () => {
   }, [user, token, authLoading, summaryData]);
 
   const renderCommonCard = (title, value, icon, subText = null, cardClassName = '') => (
-    <div className={`rounded-lg border border-fourth bg-tertiary p-6 shadow-sm hover:shadow-md transition-shadow ${cardClassName}`}>
+    <div className={`rounded-lg border border-fourth bg-tertiary p-6 shadow-sm hover:shadow-md transition-shadow w-full max-w-full overflow-hidden ${cardClassName}`}>
       <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        {React.cloneElement(icon, { className: `h-6 w-6 ${icon.props.className || 'text-primary'}` })}
+        <p className="text-sm font-medium text-gray-600 truncate pr-2 flex-1 min-w-0">{title}</p>
+        {React.cloneElement(icon, { className: `h-6 w-6 flex-shrink-0 ${icon.props.className || 'text-primary'}` })}
       </div>
-      <p className="text-3xl font-bold text-secondary">{value === undefined || value === null ? 'N/A' : value}</p>
-      {subText && <p className="text-xs text-gray-500 mt-1">{subText}</p>}
+      <p className="text-3xl font-bold text-secondary truncate">{value === undefined || value === null ? 'N/A' : value}</p>
+      {subText && <p className="text-xs text-gray-500 mt-1 truncate">{subText}</p>}
     </div>
   );
 
@@ -92,12 +92,14 @@ const Dashboard = () => {
   );
 
   const renderSection = (title, icon, children, className = '') => (
-    <div className={`rounded-lg border border-fourth bg-tertiary p-6 shadow-sm ${className}`}>
+    <div className={`rounded-lg border border-fourth bg-tertiary p-6 shadow-sm w-full max-w-full overflow-hidden ${className}`}>
         <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-secondary">{title}</h3>
-            {React.cloneElement(icon, { className: `h-6 w-6 ${icon.props.className || 'text-primary'}` })}
+            <h3 className="text-xl font-semibold text-secondary truncate pr-2">{title}</h3>
+            {React.cloneElement(icon, { className: `h-6 w-6 flex-shrink-0 ${icon.props.className || 'text-primary'}` })}
         </div>
-        {children}
+        <div className="w-full max-w-full overflow-hidden">
+            {children}
+        </div>
     </div>
   );
 
@@ -137,7 +139,7 @@ const Dashboard = () => {
         {renderCommonCard('Total Customers', formatNumber(summaryData.totalCustomers), <Users />)}
         {renderCommonCard('Active Purchases', formatNumber(summaryData.activeOrders), <ShoppingCart />)}
         {renderCommonCard('Open Support Tickets', formatNumber(summaryData.openTickets), <Ticket />)}
-        {renderCommonCard('Total Revenue (All Time)', `₹${formatNumber(summaryData.totalRevenue)}`, <DollarSign />)}
+        {renderCommonCard('Total Revenue (All Time)', `₹${formatNumber(summaryData.totalRevenue)}`, <IndianRupee />)}
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Quotations (Draft)', formatNumber(summaryData.quotationStats?.draft || 0), <FileText />)}
@@ -214,7 +216,7 @@ const Dashboard = () => {
         {renderCommonCard('My Leads Created', formatNumber(summaryData.myLeadsCreated), <Users2 />)}
         {renderCommonCard('My Quotations (Draft)', formatNumber(summaryData.myQuotationStats?.draft || 0), <FileText />)}
         {renderCommonCard('My Quotations (Approved)', formatNumber(summaryData.myQuotationStats?.approved || 0), <FileText />)}
-        {renderCommonCard('Revenue (My Approved Quotes)', `₹${formatNumber(summaryData.revenueFromApprovedQuotations || 0)}`, <DollarSign />)}
+        {renderCommonCard('Revenue (My Approved Quotes)', `₹${formatNumber(summaryData.revenueFromApprovedQuotations || 0)}`, <IndianRupee />)}
       </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
         {renderSection("My Recent Activity", <Clock />, 
@@ -260,7 +262,7 @@ const Dashboard = () => {
     <>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
         {renderCommonCard('Total Quotations', formatNumber(summaryData.totalQuotations), <FileText />)}
-        {renderCommonCard('Total Quotations Value', `₹${formatNumber(summaryData.totalQuotationsValue)}`, <DollarSign />)}
+        {renderCommonCard('Total Quotations Value', `₹${formatNumber(summaryData.totalQuotationsValue)}`, <IndianRupee />)}
         {renderCommonCard('Approved Deals', formatNumber(summaryData.approvedDeals), <CheckCircle2 />)}
       </div>
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3">
@@ -491,7 +493,7 @@ const Dashboard = () => {
   );
 
   const renderMarketingCoordinatorDashboard = () => (
-    <>
+    <div className="w-full max-w-full overflow-x-hidden">
       {/* Primary KPIs - Purchase Order Management */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Total Purchase Orders', formatNumber(summaryData.totalPurchaseOrders || 0), <Package />, 'All active orders')}
@@ -505,7 +507,7 @@ const Dashboard = () => {
         {renderCommonCard('This Week Installations', formatNumber(summaryData.installationsThisWeek || 0), <CalendarDays />)}
         {renderCommonCard('Active Customers', formatNumber(summaryData.totalCustomers || 0), <Users />)}
         {renderCommonCard('New Customers (Month)', formatNumber(summaryData.newCustomersThisMonth || 0), <UserPlus className="text-green-500" />)}
-        {renderCommonCard('Monthly Revenue', `₹${formatNumber(summaryData.monthlyRevenue || 0)}`, <DollarSign className="text-green-600" />)}
+        {renderCommonCard('Monthly Revenue', `₹${formatNumber(summaryData.monthlyRevenue || 0)}`, <IndianRupee className="text-green-600" />)}
       </div>
 
       {/* Secondary Permissions Analytics */}
@@ -520,34 +522,46 @@ const Dashboard = () => {
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 mb-6">
         {/* Quick Actions */}
         {renderSection("Quick Actions", <Zap className="text-yellow-500" />, 
-          <div className="space-y-3">
+          <div className="space-y-3 w-full">
             <button
               onClick={() => window.location.href = '/dashboard/purchase-orders'}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity"
+              className="w-full flex items-center gap-2 px-3 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity text-sm md:text-base min-h-[44px]"
             >
-              <Package className="w-4 h-4" />
-              Manage Purchase Orders
+              <Package className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1 text-left md:text-center">
+                <span className="block sm:hidden">Purchase Orders</span>
+                <span className="hidden sm:block">Manage Purchase Orders</span>
+              </span>
             </button>
             <button
               onClick={() => window.location.href = '/dashboard/customers'}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-secondary text-white rounded-lg hover:opacity-90 transition-opacity"
+              className="w-full flex items-center gap-2 px-3 py-3 bg-secondary text-white rounded-lg hover:opacity-90 transition-opacity text-sm md:text-base min-h-[44px]"
             >
-              <Users className="w-4 h-4" />
-              View Customers
+              <Users className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1 text-left md:text-center">
+                <span className="block sm:hidden">Customers</span>
+                <span className="hidden sm:block">View Customers</span>
+              </span>
             </button>
             <button
               onClick={() => window.location.href = '/dashboard/leads'}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm md:text-base min-h-[44px]"
             >
-              <Target className="w-4 h-4" />
-              Manage Leads
+              <Target className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1 text-left md:text-center">
+                <span className="block sm:hidden">Leads</span>
+                <span className="hidden sm:block">Manage Leads</span>
+              </span>
             </button>
             <button
               onClick={() => window.location.href = '/dashboard/quotations'}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm md:text-base min-h-[44px]"
             >
-              <FileText className="w-4 h-4" />
-              View Quotations
+              <FileText className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1 text-left md:text-center">
+                <span className="block sm:hidden">Quotations</span>
+                <span className="hidden sm:block">View Quotations</span>
+              </span>
             </button>
           </div>
         )}
@@ -595,7 +609,7 @@ const Dashboard = () => {
         )}
 
         {/* Revenue Analytics */}
-        {renderSection("Revenue Overview", <DollarSign className="text-green-500" />, 
+        {renderSection("Revenue Overview", <IndianRupee className="text-green-500" />, 
           <div className="space-y-2">
             <div className="flex justify-between items-center py-2 border-b border-fourth">
               <span className="text-sm text-secondary">Total Revenue</span>
@@ -726,7 +740,7 @@ const Dashboard = () => {
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 
   const renderDashboardByRole = () => {
@@ -750,9 +764,9 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-tertiary font-sans h-full">
-      <div className="border-b border-fourth pb-5 mb-8">
-        <div className="flex items-center justify-between">
+    <div className="flex flex-col flex-1 min-h-0 bg-tertiary font-sans h-full w-full overflow-x-hidden">
+      <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <h1 className="text-3xl font-bold tracking-tight text-secondary">Dashboard</h1>
           <div className="flex items-center space-x-3 text-sm text-gray-600">
             <Settings className="h-5 w-5 text-secondary" />

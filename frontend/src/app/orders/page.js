@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { 
   Package, 
@@ -194,26 +195,26 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
       </div>
 
       {/* Content */}
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {/* Order Info */}
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-1">
+        <div className="mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-1">
             {tracking.purchaseId?.purchaseID || 'Solar Installation Order'}
           </h3>
-          <div className="flex items-center text-sm text-gray-600 space-x-4">
+          <div className="flex flex-wrap items-center text-xs sm:text-sm text-gray-600 gap-2 sm:gap-4">
             <span>₹{formatNumber(tracking.purchaseId?.totalAmount || 0)}</span>
-            <span>•</span>
+            <span className="hidden sm:inline">•</span>
             <span>#{tracking.trackingNumber}</span>
-            <span>•</span>
+            <span className="hidden sm:inline">•</span>
             <span>{tracking.progressPercentage || 0}% Complete</span>
           </div>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
             EXPECTED TOTAL MONTHLY SAVINGS
           </p>
         </div>
 
         {/* Timeline */}
-        <div className="relative mb-6">          
+        <div className="relative mb-4 sm:mb-6">          
           <div className="space-y-0">
             {timelineSteps.map((step, index) => (
               <div key={step.id} className="relative flex items-center pb-6">
@@ -240,21 +241,21 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
                 </div>
 
                 {/* Timeline Content */}
-                <div className="ml-4 min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
+                <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
                     <h4 className={`text-sm font-semibold ${
                       step.completed ? 'text-gray-900' : 'text-gray-500'
                     }`}>
                       {step.title}
                     </h4>
-                    <div className="flex flex-col items-end gap-1">
+                    <div className="flex flex-col items-start sm:items-end gap-1">
                       {step.timestamp && (
-                        <span className="text-xs text-blue-600 font-medium">
+                        <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-0.5 rounded-full">
                           {formatDateTime(step.timestamp)}
                         </span>
                       )}
                       {step.estimatedDate && !step.timestamp && (
-                        <span className="text-xs text-gray-500 font-medium">
+                        <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full">
                           Expected: {formatDateTime(step.estimatedDate)}
                         </span>
                       )}
@@ -267,10 +268,10 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex space-x-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <button
             onClick={() => onViewDetails(tracking)}
-            className="flex-1 bg-blue-50 text-blue-600 py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+            className="flex-1 bg-blue-50 text-blue-600 py-2.5 sm:py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
           >
             View Details
           </button>
@@ -293,10 +294,10 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
                 alert('Failed to download Order Form. Please try again.');
               }
             }}
-            className="flex-1 bg-green-50 text-green-600 py-2 px-4 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
+            className="flex-1 bg-green-50 text-green-600 py-2.5 sm:py-2 px-4 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
             title="Download Order Form PDF"
           >
-            <FileText className="w-4 h-4" />
+            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Order Form
           </button>
           
@@ -326,6 +327,19 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
 };
 
 const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   if (!isOpen || !tracking) return null;
 
   const formatDateTime = (date) => {
@@ -475,34 +489,34 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
   const completedSteps = timelineSteps.filter(step => step.completed).length;
   const progressPercentage = Math.round((completedSteps / timelineSteps.length) * 100);
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
         {/* Modern Header with Gradient */}
-        <div className="relative bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold mb-1">
+        <div className="relative bg-gradient-to-r from-orange-500 to-orange-600 text-white p-4 sm:p-6">
+          <div className="flex items-start sm:items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg sm:text-2xl font-bold mb-1 truncate">
                 {tracking.purchaseId?.purchaseID || 'Solar Installation Order'}
               </h2>
-              <div className="flex items-center space-x-4 text-orange-100">
-                <span className="text-sm">#{tracking.trackingNumber}</span>
-                <span className="text-sm">•</span>
-                <span className="text-sm">₹{formatNumber(tracking.purchaseId?.totalAmount || 0)}</span>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-orange-100 text-xs sm:text-sm">
+                <span>#{tracking.trackingNumber}</span>
+                <span className="hidden sm:inline">•</span>
+                <span>₹{formatNumber(tracking.purchaseId?.totalAmount || 0)}</span>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors ml-2"
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
           {/* Progress Overview */}
-          <div className="mt-6 bg-white bg-opacity-20 rounded-xl p-4">
+          <div className="mt-4 sm:mt-6 bg-white bg-opacity-20 rounded-xl p-3 sm:p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium">Overall Progress</span>
               <span className="text-sm font-bold">{progressPercentage}%</span>
@@ -521,19 +535,19 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(95vh-200px)]">
+        <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-200px)]">
           {/* Timeline Section */}
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-              <Clock className="h-5 w-5 mr-2 text-orange-500" />
+          <div className="mb-6 sm:mb-8">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-500" />
               Order Journey
             </h3>
             
             <div className="relative">
               {/* Timeline Line */}
-              <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+              <div className="absolute left-4 sm:left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
               
-              <div className="space-y-8">
+              <div className="space-y-6 sm:space-y-8">
                 {timelineSteps.map((step, index) => {
                   const Icon = step.icon;
                   const isLast = index === timelineSteps.length - 1;
@@ -541,44 +555,44 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
                   return (
                     <div key={step.id} className="relative flex items-start">
                       {/* Timeline Icon */}
-                      <div className={`relative z-10 flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center border-4 border-white shadow-lg ${
+                      <div className={`relative z-10 flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 sm:border-4 border-white shadow-lg ${
                         step.completed ? step.color : 'bg-gray-300'
                       }`}>
-                        <Icon className="h-5 w-5 text-white" />
+                        <Icon className="h-3 w-3 sm:h-5 sm:w-5 text-white" />
                       </div>
 
                       {/* Connected Line */}
                       {!isLast && step.completed && (
-                        <div className="absolute left-6 top-12 w-0.5 h-8 bg-orange-500"></div>
+                        <div className="absolute left-4 sm:left-6 top-8 sm:top-12 w-0.5 h-6 sm:h-8 bg-orange-500"></div>
                       )}
 
                       {/* Content */}
-                      <div className="ml-6 flex-1">
-                        <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                      <div className="ml-4 sm:ml-6 flex-1">
+                        <div className={`p-3 sm:p-4 rounded-xl border-2 transition-all duration-300 ${
                           step.completed 
                             ? 'bg-orange-50 border-orange-200 shadow-sm' 
                             : 'bg-gray-50 border-gray-200'
                         }`}>
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className={`font-semibold ${
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-2">
+                            <h4 className={`text-sm sm:text-base font-semibold ${
                               step.completed ? 'text-gray-900' : 'text-gray-500'
                             }`}>
                               {step.title}
                             </h4>
-                            <div className="flex flex-col items-end gap-1">
+                            <div className="flex flex-col items-start sm:items-end gap-1">
                               {step.timestamp && (
-                                <span className="text-xs text-orange-600 font-medium bg-orange-100 px-2 py-1 rounded-full">
+                                <span className="text-xs text-orange-600 font-medium bg-orange-100 px-2 py-1 rounded-full whitespace-nowrap">
                                   {formatDateTime(step.timestamp)}
                                 </span>
                               )}
                               {step.estimatedDate && !step.timestamp && (
-                                <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full">
+                                <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full whitespace-nowrap">
                                   Expected: {formatDateTime(step.estimatedDate)}
                                 </span>
                               )}
                             </div>
                           </div>
-                          <p className={`text-sm ${
+                          <p className={`text-xs sm:text-sm ${
                             step.completed ? 'text-gray-600' : 'text-gray-400'
                           }`}>
                             {step.description}
@@ -593,48 +607,48 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
           </div>
 
           {/* Key Information Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {/* Delivery Information */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
-              <div className="flex items-center mb-4">
-                <div className="p-2 bg-blue-500 rounded-lg">
-                  <Truck className="h-5 w-5 text-white" />
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 sm:p-6">
+              <div className="flex items-center mb-3 sm:mb-4">
+                <div className="p-1.5 sm:p-2 bg-blue-500 rounded-lg">
+                  <Truck className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <h4 className="ml-3 font-semibold text-gray-900">Delivery Details</h4>
+                <h4 className="ml-2 sm:ml-3 text-sm sm:text-base font-semibold text-gray-900">Delivery Details</h4>
               </div>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Estimated Delivery</span>
-                  <span className="text-sm font-medium">{formatDateOnly(tracking.estimatedDelivery)}</span>
+              <div className="space-y-2 sm:space-y-3">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                  <span className="text-xs sm:text-sm text-gray-600">Estimated Delivery</span>
+                  <span className="text-xs sm:text-sm font-medium">{formatDateOnly(tracking.estimatedDelivery)}</span>
                 </div>
                 {tracking.actualDelivery && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Actual Delivery</span>
-                    <span className="text-sm font-medium text-green-600">{formatDateOnly(tracking.actualDelivery)}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-xs sm:text-sm text-gray-600">Actual Delivery</span>
+                    <span className="text-xs sm:text-sm font-medium text-green-600">{formatDateOnly(tracking.actualDelivery)}</span>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Installation Information */}
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6">
-              <div className="flex items-center mb-4">
-                <div className="p-2 bg-orange-500 rounded-lg">
-                  <User className="h-5 w-5 text-white" />
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 sm:p-6">
+              <div className="flex items-center mb-3 sm:mb-4">
+                <div className="p-1.5 sm:p-2 bg-orange-500 rounded-lg">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <h4 className="ml-3 font-semibold text-gray-900">Installation Details</h4>
+                <h4 className="ml-2 sm:ml-3 text-sm sm:text-base font-semibold text-gray-900">Installation Details</h4>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {tracking.estimatedInstallation && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Estimated Installation</span>
-                    <span className="text-sm font-medium">{formatDateOnly(tracking.estimatedInstallation)}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-xs sm:text-sm text-gray-600">Estimated Installation</span>
+                    <span className="text-xs sm:text-sm font-medium">{formatDateOnly(tracking.estimatedInstallation)}</span>
                   </div>
                 )}
                 {tracking.actualInstallation && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Completed On</span>
-                    <span className="text-sm font-medium text-green-600">{formatDateOnly(tracking.actualInstallation)}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
+                    <span className="text-xs sm:text-sm text-gray-600">Completed On</span>
+                    <span className="text-xs sm:text-sm font-medium text-green-600">{formatDateOnly(tracking.actualInstallation)}</span>
                   </div>
                 )}
               </div>
@@ -642,7 +656,7 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
           </div>
 
           {/* Action Buttons */}
-          <div className="mt-8 flex flex-col sm:flex-row gap-3">
+          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3">
             <button className="flex-1 bg-orange-500 text-white py-3 px-6 rounded-xl font-medium hover:bg-orange-600 transition-colors flex items-center justify-center">
               <Phone className="h-4 w-4 mr-2" />
               Contact Support
@@ -656,7 +670,8 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
