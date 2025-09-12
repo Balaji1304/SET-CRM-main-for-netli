@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getAllPurchaseOrders,
   acceptOrder,
@@ -29,7 +29,11 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Filter
+  Filter,
+  SortAsc,
+  SortDesc,
+  X,
+  RotateCcw
 } from 'lucide-react';
 
 // Helper function to format enum values for display
@@ -42,32 +46,126 @@ const formatDisplayValue = (value) => {
     .join(' ');
 };
 
+// Custom mobile styles
+const customStyles = `
+  .mobile-card-container {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+  }
+  
+  .mobile-card-container:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+    border-color: #d1d5db;
+  }
+  
+  .mobile-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  
+  .mobile-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  
+  .mobile-info-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  
+  .mobile-info-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #f3f4f6;
+  }
+  
+  .mobile-action-section {
+    padding-top: 16px;
+    border-top: 1px solid #f3f4f6;
+  }
+  
+  @media (max-width: 640px) {
+    .mobile-card-container {
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+    }
+    
+    .mobile-card-header {
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      gap: 8px;
+    }
+    
+    .mobile-info-grid {
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .mobile-info-item {
+      padding: 6px 10px;
+      gap: 6px;
+    }
+    
+    .mobile-action-section {
+      padding-top: 12px;
+    }
+  }
+  
+  @media (max-width: 375px) {
+    .mobile-card-container {
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+  }
+`;
+
 // Mobile Card Component for responsive design
 const PurchaseOrderCard = ({ po, user, handleAcceptOrder, handleEstimatedDispatchDateSelection, estimatedDispatchDates, acceptingOrder, handleUpdateStatus, handleDateSelection, selectedDates, savingDate, handleAllocateDate, openAssignTaskModal, viewPurchaseOrder }) => (
-  <div className="rounded-lg border p-4 space-y-4 shadow-sm hover:shadow-md transition-all duration-200 bg-white border-gray-200 mb-4">
-    <div className="flex items-start justify-between">
-      <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
-          <h3 className="text-lg font-semibold text-gray-900">
+  <div className="mobile-card-container">
+    {/* Header Section */}
+    <div className="mobile-card-header">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-2">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900 mobile-truncate">
             {po.purchaseID}
           </h3>
           <button
             onClick={() => viewPurchaseOrder(po._id)}
-            className="p-1 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors"
+            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors flex-shrink-0"
             title="View details"
           >
             <Eye className="w-4 h-4" />
           </button>
         </div>
         
-        <div className="flex items-center space-x-2 mt-1">
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
-            ${po.serviceTaskStatus === 'pending_assignment' ? 'bg-yellow-100 text-yellow-800'
-            : po.serviceTaskStatus === 'order_accepted' ? 'bg-purple-100 text-purple-800'
-            : po.serviceTaskStatus === 'ready_to_dispatch' ? 'bg-blue-100 text-blue-800'
-            : po.serviceTaskStatus === 'installation_date_allocated' ? 'bg-orange-100 text-orange-800'
-            : po.serviceTaskStatus === 'assigned' ? 'bg-green-100 text-green-800'
-            : 'bg-gray-100 text-gray-800'
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border
+            ${po.serviceTaskStatus === 'pending_assignment' ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+            : po.serviceTaskStatus === 'order_accepted' ? 'bg-purple-50 text-purple-700 border-purple-200'
+            : po.serviceTaskStatus === 'ready_to_dispatch' ? 'bg-blue-50 text-blue-700 border-blue-200'
+            : po.serviceTaskStatus === 'installation_date_allocated' ? 'bg-orange-50 text-orange-700 border-orange-200'
+            : po.serviceTaskStatus === 'assigned' ? 'bg-green-50 text-green-700 border-green-200'
+            : 'bg-gray-50 text-gray-700 border-gray-200'
             }`}>
             {formatDisplayValue(po.serviceTaskStatus)}
           </span>
@@ -75,173 +173,217 @@ const PurchaseOrderCard = ({ po, user, handleAcceptOrder, handleEstimatedDispatc
       </div>
     </div>
 
-    <div className="space-y-3">
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Users className="w-4 h-4" />
-        <span>{po.customerId ? `${po.customerId.firstName} ${po.customerId.lastName}`: 'N/A'}</span>
+    {/* Information Grid */}
+    <div className="mobile-info-grid">
+      <div className="mobile-info-item">
+        <Users className="w-4 h-4 text-gray-500 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</p>
+          <p className="text-sm font-medium text-gray-900 mobile-truncate">
+            {po.customerId ? `${po.customerId.firstName} ${po.customerId.lastName}` : 'N/A'}
+          </p>
+        </div>
       </div>
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Calendar className="w-4 h-4" />
-        <span>{new Date(po.createdAt).toLocaleDateString()}</span>
+      
+      <div className="grid grid-cols-2 gap-3">
+        <div className="mobile-info-item">
+          <Calendar className="w-4 h-4 text-gray-500 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Created</p>
+            <p className="text-sm font-medium text-gray-900">
+              {new Date(po.createdAt).toLocaleDateString()}
+            </p>
+          </div>
+        </div>
+        
+        <div className="mobile-info-item">
+          <CalendarIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Install Date</p>
+            <p className="text-sm font-medium text-gray-900 mobile-truncate">
+              {po.installationDate ? new Date(po.installationDate).toLocaleDateString() : 'Not set'}
+            </p>
+          </div>
+        </div>
       </div>
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <CalendarIcon className="w-4 h-4" />
-        <span>Install: {po.installationDate ? new Date(po.installationDate).toLocaleDateString() : 'Not set'}</span>
-      </div>
+      
       {po.estimatedDispatchDate && (
-        <div className="flex items-center space-x-2 text-sm text-gray-600">
-          <Calendar className="w-4 h-4" />
-          <span>Est. Dispatch: {new Date(po.estimatedDispatchDate).toLocaleDateString()}</span>
+        <div className="mobile-info-item">
+          <Package className="w-4 h-4 text-gray-500 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Est. Dispatch</p>
+            <p className="text-sm font-medium text-gray-900">
+              {new Date(po.estimatedDispatchDate).toLocaleDateString()}
+            </p>
+          </div>
         </div>
       )}
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Users className="w-4 h-4" />
-        <span>{po.assignedEngineerId ? po.assignedEngineerId.name : 'Not assigned'}</span>
+      
+      <div className="mobile-info-item">
+        <Users className="w-4 h-4 text-gray-500 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Engineer</p>
+          <p className="text-sm font-medium text-gray-900 mobile-truncate">
+            {po.assignedEngineerId ? po.assignedEngineerId.name : 'Not assigned'}
+          </p>
+        </div>
       </div>
     </div>
 
-    <div className="pt-3 border-t border-gray-100">
+    {/* Action Section */}
+    <div className="mobile-action-section">
       {/* Action for Product Head: Accept Order */}
       {po.serviceTaskStatus === 'pending_assignment' && (
         user.role === 'product_head' ? (
-          <div className="flex flex-col space-y-2">
-            <label htmlFor={`dispatch-date-${po._id}`} className="text-sm font-semibold text-gray-700">
-              Set Estimated Dispatch Date:
-            </label>
-            <div className="flex flex-col sm:flex-row gap-2">
+          <div className="space-y-3">
+            <div>
+              <label htmlFor={`dispatch-date-${po._id}`} className="block text-sm font-semibold text-gray-700 mb-2">
+                Set Estimated Dispatch Date:
+              </label>
               <input 
                 id={`dispatch-date-${po._id}`}
                 type="date" 
-                className="px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-200 text-sm bg-gray-50/50"
                 onChange={(e) => handleEstimatedDispatchDateSelection(po._id, e.target.value)}
                 value={estimatedDispatchDates[po._id] || ''}
                 title="Select Estimated Dispatch Date"
-                min={new Date().toISOString().split('T')[0]} // Prevent past dates
+                min={new Date().toISOString().split('T')[0]}
               />
-              <button
-                onClick={() => handleAcceptOrder(po._id)}
-                disabled={!estimatedDispatchDates[po._id] || acceptingOrder === po._id}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold ${
-                  !estimatedDispatchDates[po._id]
-                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                    : 'bg-purple-600 text-white hover:opacity-90 shadow-md'
-                } transition-all duration-150`}
-              >
-                {acceptingOrder === po._id ? (
-                  <>
-                    <span className="inline-block animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></span>
-                    Accepting...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2 inline" />
-                    Accept Order
-                  </>
-                )}
-              </button>
             </div>
+            <button
+              onClick={() => handleAcceptOrder(po._id)}
+              disabled={!estimatedDispatchDates[po._id] || acceptingOrder === po._id}
+              className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                !estimatedDispatchDates[po._id]
+                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-200'
+                  : 'bg-purple-600 text-white hover:bg-purple-700 shadow-md hover:shadow-lg border border-purple-600'
+              }`}
+            >
+              {acceptingOrder === po._id ? (
+                <div className="flex items-center justify-center">
+                  <span className="inline-block animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></span>
+                  Accepting...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Accept Order
+                </div>
+              )}
+            </button>
           </div>
         ) : (
-          <button 
-            className="px-4 py-2 bg-gray-100 text-gray-500 rounded-xl text-sm font-semibold cursor-not-allowed w-full sm:w-auto"
-            disabled 
-            title="This action is for the Product Head"
-          >
-            <Clock className="w-4 h-4 mr-2 inline" />
-            Waiting for Production Acceptance
-          </button>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="flex items-center text-gray-600">
+              <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="text-sm font-medium">Waiting for Production Acceptance</span>
+            </div>
+          </div>
         )
       )}
 
       {/* Action for Product Head: Ready to Dispatch */}
       {po.serviceTaskStatus === 'order_accepted' && (
-        <button 
-          className={`px-4 py-2 rounded-xl text-sm font-semibold ${
-            user.role !== 'product_head' 
-              ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
-              : 'bg-orange-600 text-white hover:opacity-90 shadow-md'
-          } transition-all duration-150 w-full sm:w-auto`}
-          onClick={() => handleUpdateStatus(po._id)}
-          disabled={user.role !== 'product_head'}
-          title={user.role !== 'product_head' ? 'This action is for the Product Head' : 'Mark as Ready to Dispatch'}
-        >
-          <Package className="w-4 h-4 mr-2 inline" />
-          Ready to Dispatch
-        </button>
+        user.role === 'product_head' ? (
+          <button 
+            className="w-full px-4 py-3 rounded-lg text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 shadow-md hover:shadow-lg border border-orange-600 transition-all duration-200"
+            onClick={() => handleUpdateStatus(po._id)}
+          >
+            <div className="flex items-center justify-center">
+              <Package className="w-4 h-4 mr-2" />
+              Ready to Dispatch
+            </div>
+          </button>
+        ) : (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="flex items-center text-gray-600">
+              <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="text-sm font-medium">Waiting for Production Team</span>
+            </div>
+          </div>
+        )
       )}
 
       {/* Action for Marketing Coordinator: Allocate Date */}
       {po.serviceTaskStatus === 'ready_to_dispatch' && (
         user.role === 'marketing_coordinator' ? (
-          <div className="flex flex-col space-y-2">
-            <label htmlFor={`date-${po._id}`} className="text-sm font-semibold text-gray-700">
-              Set Installation Date:
-            </label>
-            <div className="flex flex-col sm:flex-row gap-2">
+          <div className="space-y-3">
+            <div>
+              <label htmlFor={`date-${po._id}`} className="block text-sm font-semibold text-gray-700 mb-2">
+                Set Installation Date:
+              </label>
               <input 
                 id={`date-${po._id}`}
                 type="date" 
-                className="px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all duration-200 text-sm bg-gray-50/50"
                 onChange={(e) => handleDateSelection(po._id, e.target.value)}
                 value={selectedDates[po._id] || ''}
                 title="Select Installation Date"
-                min={new Date().toISOString().split('T')[0]} // Prevent past dates
+                min={new Date().toISOString().split('T')[0]}
               />
-              <button
-                onClick={() => handleAllocateDate(po._id)}
-                disabled={!selectedDates[po._id] || savingDate === po._id}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold ${
-                  !selectedDates[po._id]
-                    ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                    : 'bg-orange-600 text-white hover:opacity-90 shadow-md'
-                } transition-all duration-150`}
-              >
-                {savingDate === po._id ? (
-                  <>
-                    <span className="inline-block animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></span>
-                    Saving...
-                  </>
-                ) : (
-                  "Save Date"
-                )}
-              </button>
             </div>
+            <button
+              onClick={() => handleAllocateDate(po._id)}
+              disabled={!selectedDates[po._id] || savingDate === po._id}
+              className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                !selectedDates[po._id]
+                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-200'
+                  : 'bg-orange-600 text-white hover:bg-orange-700 shadow-md hover:shadow-lg border border-orange-600'
+              }`}
+            >
+              {savingDate === po._id ? (
+                <div className="flex items-center justify-center">
+                  <span className="inline-block animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></span>
+                  Saving...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Save Date
+                </div>
+              )}
+            </button>
           </div>
         ) : (
-          <button 
-            className="px-4 py-2 bg-gray-100 text-gray-500 rounded-xl text-sm font-semibold cursor-not-allowed w-full sm:w-auto"
-            disabled 
-            title="Waiting for Marketing Coordinator to allocate date"
-          >
-            <Clock className="w-4 h-4 mr-2 inline" />
-            Waiting for Date Allocation
-          </button>
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="flex items-center text-gray-600">
+              <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="text-sm font-medium">Waiting for Date Allocation</span>
+            </div>
+          </div>
         )
       )}
 
       {/* Action for Product Head: Assign Engineer */}
       {po.serviceTaskStatus === 'installation_date_allocated' && (
-        <button 
-          className={`px-4 py-2 rounded-xl text-sm font-semibold ${
-            user.role !== 'product_head' 
-              ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
-              : 'bg-orange-600 text-white hover:opacity-90 shadow-md'
-          } transition-all duration-150 w-full sm:w-auto`}
-          onClick={() => openAssignTaskModal(po)}
-          disabled={user.role !== 'product_head'}
-          title={user.role !== 'product_head' ? 'This action is for the Product Head' : 'Assign Service Engineer'}
-        >
-          <Users className="w-4 h-4 mr-2 inline" />
-          Assign Engineer
-        </button>
+        user.role === 'product_head' ? (
+          <button 
+            className="w-full px-4 py-3 rounded-lg text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 shadow-md hover:shadow-lg border border-orange-600 transition-all duration-200"
+            onClick={() => openAssignTaskModal(po)}
+          >
+            <div className="flex items-center justify-center">
+              <Users className="w-4 h-4 mr-2" />
+              Assign Engineer
+            </div>
+          </button>
+        ) : (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="flex items-center text-gray-600">
+              <Clock className="w-4 h-4 mr-2 flex-shrink-0" />
+              <span className="text-sm font-medium">Waiting for Engineer Assignment</span>
+            </div>
+          </div>
+        )
       )}
 
       {/* Final Status */}
       {po.serviceTaskStatus === 'assigned' && (
-        <span className="inline-flex items-center px-3 py-2 rounded-xl text-sm font-medium bg-green-100 text-green-800">
-          <CheckCircle className="w-4 h-4 mr-2" />
-          Task Assigned
-        </span>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div className="flex items-center text-green-700">
+            <CheckCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+            <span className="text-sm font-semibold">Task Assigned</span>
+          </div>
+        </div>
       )}
     </div>
   </div>
@@ -259,6 +401,11 @@ export default function PurchaseOrdersPage() {
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [engineerFilter, setEngineerFilter] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState('');
+  const [createdByFilter, setCreatedByFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   // State for Assign Task Modal
   const [showAssignTaskModal, setShowAssignTaskModal] = useState(false);
@@ -296,7 +443,43 @@ export default function PurchaseOrdersPage() {
 
   useEffect(() => {
     fetchPurchaseOrders();
+    fetchEngineers();
   }, [fetchPurchaseOrders]);
+
+  // Get unique engineers for filter dropdown
+  const uniqueEngineers = useMemo(() => {
+    const engineerMap = new Map();
+    purchaseOrders.forEach(po => {
+      if (po.assignedEngineerId) {
+        engineerMap.set(po.assignedEngineerId._id, {
+          _id: po.assignedEngineerId._id,
+          name: po.assignedEngineerId.name
+        });
+      }
+    });
+    return Array.from(engineerMap.values());
+  }, [purchaseOrders]);
+
+  // Reset all filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('');
+    setSortOrder('newest');
+    setEngineerFilter('');
+    setDateRangeFilter('');
+    setCreatedByFilter('');
+    setCurrentPage(1);
+    setShowFilters(false);
+  };
+
+  // Check if any filters are active
+  const activeFilterCount = [
+    searchTerm,
+    statusFilter,
+    engineerFilter,
+    dateRangeFilter,
+    sortOrder !== 'newest' ? sortOrder : null
+  ].filter(Boolean).length;
 
   const fetchEngineers = async () => {
     try {
@@ -547,32 +730,95 @@ export default function PurchaseOrdersPage() {
     // Filter by status
     const matchesStatus = !statusFilter || po.serviceTaskStatus === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    // Filter by assigned engineer
+    const matchesEngineer = !engineerFilter || 
+      (engineerFilter === 'unassigned' && !po.assignedEngineerId) ||
+      (po.assignedEngineerId && po.assignedEngineerId._id === engineerFilter);
+    
+    // Filter by date range
+    let matchesDateRange = true;
+    if (dateRangeFilter) {
+      const createdDate = new Date(po.createdAt);
+      const now = new Date();
+      switch (dateRangeFilter) {
+        case 'today':
+          matchesDateRange = createdDate.toDateString() === now.toDateString();
+          break;
+        case 'week':
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          matchesDateRange = createdDate >= weekAgo;
+          break;
+        case 'month':
+          const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          matchesDateRange = createdDate >= monthAgo;
+          break;
+        case 'quarter':
+          const quarterAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          matchesDateRange = createdDate >= quarterAgo;
+          break;
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesEngineer && matchesDateRange;
+  });
+
+  // Sort purchase orders based on sortOrder
+  const sortedPurchaseOrders = [...filteredPurchaseOrders].sort((a, b) => {
+    const dateA = new Date(a.createdAt);
+    const dateB = new Date(b.createdAt);
+    const installDateA = a.installationDate ? new Date(a.installationDate) : new Date('2099-12-31');
+    const installDateB = b.installationDate ? new Date(b.installationDate) : new Date('2099-12-31');
+    
+    switch (sortOrder) {
+      case 'oldest':
+        return dateA - dateB;
+      case 'customer_az':
+        const customerA = a.customerId ? `${a.customerId.firstName} ${a.customerId.lastName}`.toLowerCase() : 'zzz';
+        const customerB = b.customerId ? `${b.customerId.firstName} ${b.customerId.lastName}`.toLowerCase() : 'zzz';
+        return customerA.localeCompare(customerB);
+      case 'customer_za':
+        const customerA2 = a.customerId ? `${a.customerId.firstName} ${a.customerId.lastName}`.toLowerCase() : '';
+        const customerB2 = b.customerId ? `${b.customerId.firstName} ${b.customerId.lastName}`.toLowerCase() : '';
+        return customerB2.localeCompare(customerA2);
+      case 'status':
+        return (a.serviceTaskStatus || '').localeCompare(b.serviceTaskStatus || '');
+      case 'install_date_soon':
+        return installDateA - installDateB;
+      case 'install_date_later':
+        return installDateB - installDateA;
+      case 'po_id_az':
+        return (a.purchaseID || '').localeCompare(b.purchaseID || '');
+      case 'po_id_za':
+        return (b.purchaseID || '').localeCompare(a.purchaseID || '');
+      case 'newest':
+      default:
+        return dateB - dateA;
+    }
   });
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredPurchaseOrders.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedPurchaseOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentPurchaseOrders = filteredPurchaseOrders.slice(startIndex, endIndex);
+  const currentPurchaseOrders = sortedPurchaseOrders.slice(startIndex, endIndex);
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[80vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-orange-600"></div>
       </div>
     );
   }
 
   if (error && purchaseOrders.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[50vh] text-center p-5">
-        <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
-        <h3 className="text-xl font-semibold text-gray-800 mb-2">Something went wrong</h3>
-        <p className="text-gray-600 mb-4">{error}</p>
+      <div className="flex flex-col items-center justify-center h-[50vh] text-center p-4 sm:p-5">
+        <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 text-red-500 mb-3 sm:mb-4" />
+        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">Something went wrong</h3>
+        <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4">{error}</p>
         <button
           onClick={fetchPurchaseOrders}
-          className="px-4 py-2 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700 shadow-md transition-all duration-150"
+          className="px-3 sm:px-4 py-2 bg-orange-600 text-white rounded-xl text-sm font-semibold hover:bg-orange-700 shadow-md transition-all duration-150"
         >
           Try Again
         </button>
@@ -581,52 +827,169 @@ export default function PurchaseOrdersPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header Section - Page Title */}
-      <div className="border-b border-gray-200 pb-5 mb-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Purchase Orders Management</h1>
-        </div>
-      </div>
-
-      {/* Main Content Area - Contains filters and table */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
-        {/* Filter and Action Bar */}
-        <div className="p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            {/* Search Input */}
-            <div className="relative flex-grow md:flex-grow-0 w-full md:w-auto md:max-w-xs">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search by Purchase Order ID"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-200 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
-              />
-            </div>
-            
-            {/* Filter by Status */}
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-stretch sm:items-center">
-              <div className="relative flex-1 sm:flex-initial">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="pl-4 pr-10 py-2 w-full border border-gray-200 rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 appearance-none transition-colors duration-150 ease-in-out text-sm text-gray-900 bg-white"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="pending_assignment">Pending Assignment</option>
-                  <option value="order_accepted">Order Accepted</option>
-                  <option value="ready_to_dispatch">Ready to Dispatch</option>
-                  <option value="installation_date_allocated">Installation Date Allocated</option>
-                  <option value="assigned">Assigned</option>
-                  <option value="completed">Completed</option>
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
-              </div>
-            </div>
+    <>
+      <style>{customStyles}</style>
+      <div className="flex flex-col h-full">
+        {/* Header Section - Page Title */}
+        <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-6 lg:mb-8">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900">Purchase Orders Management</h1>
           </div>
         </div>
+
+        {/* Main Content Area - Contains filters and table */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col overflow-hidden">
+          {/* Filter and Action Bar */}
+          <div className="p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
+            {/* Filter Status Indicator */}
+            {activeFilterCount > 0 && (
+              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
+                <div className="flex items-center space-x-2">
+                  <Filter className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800">
+                    {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
+                  </span>
+                </div>
+                <button
+                  onClick={resetFilters}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-150"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            {/* Main Controls Row */}
+            <div className="flex flex-col gap-3">
+              {/* Search and Filter Toggle Row */}
+              <div className="flex gap-2 items-center">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search by PO ID or Customer"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+                
+                {/* Filter Toggle Button */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`inline-flex items-center justify-center p-2 border rounded-md transition-colors duration-150 ease-in-out ${
+                    showFilters || activeFilterCount > 0
+                      ? 'border-orange-500 bg-orange-500 text-white'
+                      : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                  title="Toggle filters"
+                >
+                  <Filter className="w-4 h-4" />
+                  {activeFilterCount > 0 && (
+                    <span className="ml-1 text-xs font-medium">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {/* Collapsible Filters */}
+              {showFilters && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Sort Order */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sort by</label>
+                      <select
+                        value={sortOrder}
+                        onChange={(e) => {
+                          setSortOrder(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="customer_az">Customer A-Z</option>
+                        <option value="customer_za">Customer Z-A</option>
+                        <option value="po_id_az">PO ID A-Z</option>
+                        <option value="po_id_za">PO ID Z-A</option>
+                        <option value="status">By Status</option>
+                        <option value="install_date_soon">Install Date (Soon)</option>
+                        <option value="install_date_later">Install Date (Later)</option>
+                      </select>
+                    </div>
+
+                    {/* Status Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="pending_assignment">Pending Assignment</option>
+                        <option value="order_accepted">Order Accepted</option>
+                        <option value="ready_to_dispatch">Ready to Dispatch</option>
+                        <option value="installation_date_allocated">Installation Date Allocated</option>
+                        <option value="assigned">Assigned</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+
+                    {/* Engineer Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Engineer</label>
+                      <select
+                        value={engineerFilter}
+                        onChange={(e) => {
+                          setEngineerFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="">All Engineers</option>
+                        <option value="unassigned">Unassigned</option>
+                        {uniqueEngineers.map(engineer => (
+                          <option key={engineer._id} value={engineer._id}>
+                            {engineer.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Date Range Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Created</label>
+                      <select
+                        value={dateRangeFilter}
+                        onChange={(e) => {
+                          setDateRangeFilter(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                      >
+                        <option value="">All Time</option>
+                        <option value="today">Today</option>
+                        <option value="week">Last Week</option>
+                        <option value="month">Last Month</option>
+                        <option value="quarter">Last Quarter</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
 
         {/* Desktop view - Table */}
         <div className="hidden md:flex md:flex-col md:flex-1 md:overflow-hidden">
@@ -661,20 +1024,20 @@ export default function PurchaseOrdersPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {currentPurchaseOrders.length > 0 ? currentPurchaseOrders.map((po) => (
                     <tr key={po._id} className="hover:bg-gray-50 transition-colors duration-150">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        <div className="flex items-center space-x-2">
-                          {po.purchaseID}
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">
+                        <div className="flex items-center space-x-1 sm:space-x-2">
+                          <span className="mobile-truncate">{po.purchaseID}</span>
                           <button
                             onClick={() => viewPurchaseOrder(po._id)}
-                            className="p-1 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors"
+                            className="p-1 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors flex-shrink-0"
                             title="View details"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 sm:px-2.5 py-1 rounded-full text-xs font-medium
                           ${po.serviceTaskStatus === 'pending_assignment' ? 'bg-yellow-100 text-yellow-800'
                           : po.serviceTaskStatus === 'order_accepted' ? 'bg-purple-100 text-purple-800'
                           : po.serviceTaskStatus === 'ready_to_dispatch' ? 'bg-blue-100 text-blue-800'
@@ -682,30 +1045,30 @@ export default function PurchaseOrdersPage() {
                           : po.serviceTaskStatus === 'assigned' ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
                           }`}>
-                          {formatDisplayValue(po.serviceTaskStatus)}
+                          <span className="mobile-truncate">{formatDisplayValue(po.serviceTaskStatus)}</span>
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                         {new Date(po.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {po.customerId ? `${po.customerId.firstName} ${po.customerId.lastName}`: 'N/A'}
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                        <span className="mobile-truncate">{po.customerId ? `${po.customerId.firstName} ${po.customerId.lastName}`: 'N/A'}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {po.installationDate ? new Date(po.installationDate).toLocaleDateString() : 'Not set'}
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                        <span className="mobile-truncate">{po.installationDate ? new Date(po.installationDate).toLocaleDateString() : 'Not set'}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {po.assignedEngineerId ? po.assignedEngineerId.name : 'Not assigned'}
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                        <span className="mobile-truncate">{po.assignedEngineerId ? po.assignedEngineerId.name : 'Not assigned'}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
+                      <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
+                        <div className="flex items-center space-x-1 sm:space-x-2">
                           {/* Action for Product Head: Accept Order */}
                           {po.serviceTaskStatus === 'pending_assignment' && (
                             user.role === 'product_head' ? (
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-1 sm:space-x-2">
                                 <input 
                                   type="date" 
-                                  className="px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm"
+                                  className="px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-xs sm:text-sm"
                                   onChange={(e) => handleEstimatedDispatchDateSelection(po._id, e.target.value)}
                                   value={estimatedDispatchDates[po._id] || ''}
                                   title="Select Estimated Dispatch Date"
@@ -714,7 +1077,7 @@ export default function PurchaseOrdersPage() {
                                 <button
                                   onClick={() => handleAcceptOrder(po._id)}
                                   disabled={!estimatedDispatchDates[po._id] || acceptingOrder === po._id}
-                                  className={`px-3 py-1.5 rounded-md text-xs font-medium ${
+                                  className={`px-2 sm:px-3 py-1.5 rounded-md text-xs font-medium ${
                                     !estimatedDispatchDates[po._id]
                                       ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
                                       : 'bg-purple-600 text-white hover:bg-purple-700'
@@ -723,20 +1086,25 @@ export default function PurchaseOrdersPage() {
                                   {acceptingOrder === po._id ? (
                                     <>
                                       <span className="inline-block animate-spin h-3 w-3 mr-1 border-2 border-white border-t-transparent rounded-full"></span>
-                                      Accepting...
+                                      <span className="hidden sm:inline">Accepting...</span>
+                                      <span className="sm:hidden">...</span>
                                     </>
                                   ) : (
-                                    'Accept Order'
+                                    <>
+                                      <span className="hidden sm:inline">Accept Order</span>
+                                      <span className="sm:hidden">Accept</span>
+                                    </>
                                   )}
                                 </button>
                               </div>
                             ) : (
                               <button 
-                                className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md text-xs font-medium cursor-not-allowed"
+                                className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md text-xs font-medium cursor-not-allowed"
                                 disabled 
                                 title="Waiting for Product Head to accept order"
                               >
-                                Accept Order
+                                <span className="hidden sm:inline">Accept Order</span>
+                                <span className="sm:hidden">Accept</span>
                               </button>
                             )
                           )}
@@ -744,26 +1112,27 @@ export default function PurchaseOrdersPage() {
                           {/* Action for Product Head: Ready to Dispatch */}
                           {po.serviceTaskStatus === 'order_accepted' && (
                             <button 
-                              className={`px-3 py-1.5 rounded-md text-xs font-medium ${
+                              className={`px-2 sm:px-3 py-1.5 rounded-md text-xs font-medium ${
                                 user.role !== 'product_head' 
                                   ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
                                   : 'bg-orange-600 text-white hover:bg-orange-700'
-                              } transition-all duration-150`}
+                              } transition-all duration-150 whitespace-nowrap`}
                               onClick={() => handleUpdateStatus(po._id)}
                               disabled={user.role !== 'product_head'}
                               title={user.role !== 'product_head' ? 'This action is for the Product Head' : 'Mark as Ready to Dispatch'}
                             >
-                              Ready to Dispatch
+                              <span className="hidden sm:inline">Ready to Dispatch</span>
+                              <span className="sm:hidden">Ready</span>
                             </button>
                           )}
 
                           {/* Action for Marketing Coordinator: Allocate Date */}
                           {po.serviceTaskStatus === 'ready_to_dispatch' && (
                             user.role === 'marketing_coordinator' ? (
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-1 sm:space-x-2">
                                 <input 
                                   type="date" 
-                                  className="px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                                  className="px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-xs sm:text-sm"
                                   onChange={(e) => handleDateSelection(po._id, e.target.value)}
                                   value={selectedDates[po._id] || ''}
                                   title="Select Installation Date"
@@ -772,7 +1141,7 @@ export default function PurchaseOrdersPage() {
                                 <button
                                   onClick={() => handleAllocateDate(po._id)}
                                   disabled={!selectedDates[po._id] || savingDate === po._id}
-                                  className={`px-3 py-1.5 rounded-md text-xs font-medium ${
+                                  className={`px-2 sm:px-3 py-1.5 rounded-md text-xs font-medium ${
                                     !selectedDates[po._id]
                                       ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
                                       : 'bg-orange-600 text-white hover:bg-orange-700'
@@ -781,20 +1150,25 @@ export default function PurchaseOrdersPage() {
                                   {savingDate === po._id ? (
                                     <>
                                       <span className="inline-block animate-spin h-3 w-3 mr-1 border-2 border-white border-t-transparent rounded-full"></span>
-                                      Saving...
+                                      <span className="hidden sm:inline">Saving...</span>
+                                      <span className="sm:hidden">...</span>
                                     </>
                                   ) : (
-                                    'Save Date'
+                                    <>
+                                      <span className="hidden sm:inline">Save Date</span>
+                                      <span className="sm:hidden">Save</span>
+                                    </>
                                   )}
                                 </button>
                               </div>
                             ) : (
                               <button 
-                                className="px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md text-xs font-medium cursor-not-allowed"
+                                className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-500 rounded-md text-xs font-medium cursor-not-allowed"
                                 disabled 
                                 title="Waiting for Marketing Coordinator to allocate date"
                               >
-                                Allocate Date
+                                <span className="hidden sm:inline">Allocate Date</span>
+                                <span className="sm:hidden">Allocate</span>
                               </button>
                             )
                           )}
@@ -802,24 +1176,26 @@ export default function PurchaseOrdersPage() {
                           {/* Action for Product Head: Assign Engineer */}
                           {po.serviceTaskStatus === 'installation_date_allocated' && (
                             <button 
-                              className={`px-3 py-1.5 rounded-md text-xs font-medium ${
+                              className={`px-2 sm:px-3 py-1.5 rounded-md text-xs font-medium ${
                                 user.role !== 'product_head' 
                                   ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
                                   : 'bg-orange-600 text-white hover:bg-orange-700'
-                              } transition-all duration-150`}
+                              } transition-all duration-150 whitespace-nowrap`}
                               onClick={() => openAssignTaskModal(po)}
                               disabled={user.role !== 'product_head'}
                               title={user.role !== 'product_head' ? 'This action is for the Product Head' : 'Assign Service Engineer'}
                             >
-                              Assign Engineer
+                              <span className="hidden sm:inline">Assign Engineer</span>
+                              <span className="sm:hidden">Assign</span>
                             </button>
                           )}
 
                           {/* Final Status */}
                           {po.serviceTaskStatus === 'assigned' && (
-                            <span className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2 sm:px-2.5 py-1.5 rounded-md text-xs font-medium bg-green-100 text-green-800">
                               <CheckCircle className="w-3 h-3 mr-1" />
-                              Task Assigned
+                              <span className="hidden sm:inline">Task Assigned</span>
+                              <span className="sm:hidden">Assigned</span>
                             </span>
                           )}
                         </div>
@@ -827,10 +1203,10 @@ export default function PurchaseOrdersPage() {
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan="7" className="px-6 py-10 text-center text-gray-500">
-                        <Package className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                        <p className="text-lg font-medium">No purchase orders found</p>
-                        <p className="text-sm text-gray-400 mt-1">Purchase orders will appear here when created.</p>
+                      <td colSpan="7" className="px-4 sm:px-6 py-8 sm:py-10 text-center text-gray-500">
+                        <Package className="w-10 h-10 sm:w-12 sm:h-12 mx-auto text-gray-400 mb-2 sm:mb-3" />
+                        <p className="text-base sm:text-lg font-medium">No purchase orders found</p>
+                        <p className="text-xs sm:text-sm text-gray-400 mt-1">Purchase orders will appear here when created.</p>
                       </td>
                     </tr>
                   )}
@@ -841,32 +1217,36 @@ export default function PurchaseOrdersPage() {
 
           {/* Pagination for desktop */}
           {totalPages > 1 && (
-            <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
+            <div className="px-4 sm:px-6 py-3 flex items-center justify-between border-t border-gray-200">
               <div>
-                <p className="text-sm text-gray-700">
+                <p className="text-xs sm:text-sm text-gray-700">
                   Showing <span className="font-medium">{startIndex + 1}</span> to <span className="font-medium">
-                    {Math.min(endIndex, purchaseOrders.length)}</span> of{' '}
-                  <span className="font-medium">{purchaseOrders.length}</span> results
+                    {Math.min(endIndex, sortedPurchaseOrders.length)}</span> of{' '}
+                  <span className="font-medium">{sortedPurchaseOrders.length}</span> results
                 </p>
               </div>
               <nav className="flex justify-end">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   disabled={currentPage === 1}
-                  className={`relative inline-flex items-center px-2 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium ${
+                  className={`relative inline-flex items-center px-2 sm:px-3 py-2 rounded-md border border-gray-300 bg-white text-xs sm:text-sm font-medium ${
                     currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  Previous
+                  <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                  <span className="hidden sm:inline">Previous</span>
+                  <span className="sm:hidden">Prev</span>
                 </button>
                 <button
                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages}
-                  className={`ml-3 relative inline-flex items-center px-2 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium ${
+                  className={`ml-2 sm:ml-3 relative inline-flex items-center px-2 sm:px-3 py-2 rounded-md border border-gray-300 bg-white text-xs sm:text-sm font-medium ${
                     currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  Next
+                  <span className="hidden sm:inline">Next</span>
+                  <span className="sm:hidden">Next</span>
+                  <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
                 </button>
               </nav>
             </div>
@@ -874,7 +1254,7 @@ export default function PurchaseOrdersPage() {
         </div>
 
         {/* Mobile view */}
-        <div className="md:hidden space-y-4">
+        <div className="md:hidden p-3 sm:p-4 space-y-3 sm:space-y-4">
           {currentPurchaseOrders.length > 0 ? (
             currentPurchaseOrders.map((po) => (
               <PurchaseOrderCard
@@ -895,36 +1275,38 @@ export default function PurchaseOrdersPage() {
               />
             ))
           ) : (
-            <div className="flex flex-col items-center justify-center py-10 text-center bg-white rounded-xl shadow p-6">
-              <Package className="w-12 h-12 text-gray-400 mb-3" />
-              <p className="text-lg font-medium text-gray-900">No purchase orders found</p>
-              <p className="text-sm text-gray-500 mt-1">Purchase orders will appear here when created.</p>
+            <div className="flex flex-col items-center justify-center py-8 sm:py-10 text-center bg-white rounded-xl shadow p-4 sm:p-6">
+              <Package className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mb-2 sm:mb-3" />
+              <p className="text-base sm:text-lg font-medium text-gray-900">No purchase orders found</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">Purchase orders will appear here when created.</p>
             </div>
           )}
 
           {/* Pagination for mobile */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between py-3">
+            <div className="flex items-center justify-between py-3 px-1">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className={`flex items-center justify-center px-3 py-2 border rounded-md text-sm font-medium ${
+                className={`flex items-center justify-center px-3 py-2 border rounded-md text-xs sm:text-sm font-medium ${
                   currentPage === 1 ? 'text-gray-300 cursor-not-allowed border-gray-200' : 'text-gray-700 hover:bg-gray-50 border-gray-300'
                 }`}
               >
+                <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                 Previous
               </button>
-              <span className="text-sm text-gray-700">
+              <span className="text-xs sm:text-sm text-gray-700 font-medium">
                 {currentPage} of {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className={`flex items-center justify-center px-3 py-2 border rounded-md text-sm font-medium ${
+                className={`flex items-center justify-center px-3 py-2 border rounded-md text-xs sm:text-sm font-medium ${
                   currentPage === totalPages ? 'text-gray-300 cursor-not-allowed border-gray-200' : 'text-gray-700 hover:bg-gray-50 border-gray-300'
                 }`}
               >
                 Next
+                <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
               </button>
             </div>
           )}
@@ -954,7 +1336,8 @@ export default function PurchaseOrdersPage() {
         title={confirmTitle}
         message={confirmMessage}
       />
-    </div>
+      </div>
+    </>
   );
   
   // Function to handle confirmation actions

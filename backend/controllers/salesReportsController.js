@@ -577,5 +577,3 @@ function calculateDataPoints(analyticsData) {
   
   return points;
 }
-
-// All functions are already exported using exports.functionName above

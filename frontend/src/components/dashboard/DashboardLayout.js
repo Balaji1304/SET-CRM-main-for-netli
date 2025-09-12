@@ -49,7 +49,26 @@ const DashboardLayout = () => {
             <Menu className="h-6 w-6" />
           </button>
           
-          <h1 className="mobile-text-lg font-semibold text-secondary">Sunlit CRM</h1>
+          {/* Company Logo and Name */}
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 flex-shrink-0">
+              <img 
+                src={process.env.REACT_APP_COMPANY_LOGO_URL} 
+                alt="Sunlit Systems Logo" 
+                className="w-full h-full object-contain rounded-lg bg-white p-1"
+                onError={(e) => {
+                  // Fallback to a generic icon if logo fails to load
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'flex';
+                }}
+              />
+              {/* Fallback icon */}
+              <div className="w-full h-full bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-sm hidden">
+                S
+              </div>
+            </div>
+            <span className="text-sm font-semibold text-secondary leading-tight">Sunlit Systems</span>
+          </div>
           
           {/* Empty div to balance the layout */}
           <div className="w-11"></div>
@@ -68,7 +87,29 @@ const DashboardLayout = () => {
           >
             {/* Mobile Sidebar Header with App Name and Close Button */}
             <div className="flex items-center justify-between p-4 border-b border-fourth flex-shrink-0">
-              <h1 className="mobile-text-lg font-bold text-primary">Sunlit CRM</h1>
+              {/* Company Logo and Name */}
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 flex-shrink-0">
+                  <img 
+                    src={process.env.REACT_APP_COMPANY_LOGO_URL} 
+                    alt="Sunlit Systems Logo" 
+                    className="w-full h-full object-contain rounded-lg bg-white p-1"
+                    onError={(e) => {
+                      // Fallback to a generic icon if logo fails to load
+                      e.target.style.display = 'none';
+                      e.target.nextElementSibling.style.display = 'flex';
+                    }}
+                  />
+                  {/* Fallback icon */}
+                  <div className="w-full h-full bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-sm hidden">
+                    S
+                  </div>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-primary leading-tight">Sunlit Systems</span>
+                  <span className="text-xs text-gray-500 leading-tight">CRM Dashboard</span>
+                </div>
+              </div>
               <button
                 onClick={toggleMobileSidebar}
                 className="mobile-action-btn hover:bg-fourth text-secondary transition-colors"
@@ -98,7 +139,7 @@ const DashboardLayout = () => {
           {/* Page Content - Push Right when Sidebar Opens and add top padding for fixed header */}
           <div 
             className={`
-              w-full min-h-screen pt-16 transition-transform duration-300 ease-in-out
+              w-full min-h-screen pt-20 sm:pt-24 transition-transform duration-300 ease-in-out
               ${isMobileSidebarOpen ? 'transform translate-x-64' : 'transform translate-x-0'}
             `}
           >

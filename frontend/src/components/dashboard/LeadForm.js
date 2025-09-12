@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { MapPin, Calendar, Paperclip, ChevronDown, Check, ArrowLeft, Plus, Trash2, X, AlertTriangle, Loader2, Package } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { createLead, getLead, updateLead, checkEmailExists, checkPhoneExists, checkWhatsappExists } from '../../services/leadService';
@@ -23,12 +24,25 @@ const customStyles = `
 `;
 
 const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText = 'Yes, Confirm', cancelText = 'Cancel', isDestructive = false }) => {
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <>
       <style>{customStyles}</style>
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4">
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
         <div className="bg-tertiary p-4 sm:p-6 rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 ease-out">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg sm:text-xl font-semibold text-secondary">{title}</h3>
@@ -58,7 +72,8 @@ const ConfirmDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 

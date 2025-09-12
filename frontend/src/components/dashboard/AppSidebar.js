@@ -336,15 +336,42 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Company Logo Section - REMOVED AS PER REQUEST
-      <div className={`h-20 flex items-center justify-center px-4 border-b border-slate-700 shrink-0`}>
-        {isEffectivelyCollapsed ? (
-          <img src="https://res.cloudinary.com/dcua87ney/image/upload/v1747940426/set-logo.9fc3ca1f3b1472eaca1d_mmqwnt.png" alt="SET" className="h-10 w-auto" /> // Smaller logo when collapsed
-        ) : (
-          <img src="https://res.cloudinary.com/dcua87ney/image/upload/v1747940426/set-logo.9fc3ca1f3b1472eaca1d_mmqwnt.png" alt="Company Logo" className="h-16 w-auto" />
-        )}
+      {/* Company Branding Section */}
+      <div className="border-b border-slate-700 shrink-0 px-3 py-4 relative">
+        <div className="relative h-10">
+          {/* Company Logo - Fixed Position */}
+          <div className="absolute left-2 top-0 w-10 h-10 flex-shrink-0">
+            <img 
+              src={process.env.REACT_APP_COMPANY_LOGO_URL} 
+              alt="Sunlit Systems Logo" 
+              className="w-full h-full object-contain rounded-lg bg-white p-1"
+              onError={(e) => {
+                // Fallback to a generic icon if logo fails to load
+                e.target.style.display = 'none';
+                e.target.nextElementSibling.style.display = 'flex';
+              }}
+            />
+            {/* Fallback icon */}
+            <div className="w-full h-full bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-lg hidden">
+              S
+            </div>
+          </div>
+          
+          {/* Company Name - Appears beside logo */}
+          <div className={`
+            absolute left-14 top-0 h-10 flex flex-col justify-center overflow-hidden
+            transition-opacity duration-300 ease-in-out
+            ${isEffectivelyCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+          `}>
+            <span className="font-bold text-base leading-tight whitespace-nowrap text-white">
+              Sunlit Systems
+            </span>
+            <span className="text-xs text-slate-400 leading-tight whitespace-nowrap">
+              CRM Dashboard
+            </span>
+          </div>
+        </div>
       </div>
-      */}
 
       {/* Navigation Items */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4">

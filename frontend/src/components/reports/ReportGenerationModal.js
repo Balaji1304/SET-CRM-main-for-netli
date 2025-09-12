@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Calendar, Filter } from 'lucide-react';
 import { getDefaultDateRanges, calculatePeriodType } from '../../services/salesReportsService';
 
@@ -15,6 +16,15 @@ const ReportGenerationModal = ({ reportType, onClose, onGenerate }) => {
   });
   const [errors, setErrors] = useState({});
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
 
   const defaultRanges = getDefaultDateRanges();
 
@@ -119,8 +129,8 @@ const ReportGenerationModal = ({ reportType, onClose, onGenerate }) => {
     ? calculatePeriodType(formData.startDate, formData.endDate)
     : '';
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -288,7 +298,8 @@ const ReportGenerationModal = ({ reportType, onClose, onGenerate }) => {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

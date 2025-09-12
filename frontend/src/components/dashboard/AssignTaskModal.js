@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Calendar as CalendarIcon, User as UserIcon, Info } from 'lucide-react'; // UserIcon for Assigned To
 
 const AssignTaskModal = ({
@@ -25,6 +26,19 @@ const AssignTaskModal = ({
       setServiceDueDate(task.serviceDueDate ? new Date(task.serviceDueDate).toISOString().split('T')[0] : '');
       setServiceAssignmentNotes(task.serviceAssignmentNotes || '');
     }
+  }, [task]);
+
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (task) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, [task]);
 
   const handleSubmit = (e) => {
@@ -53,8 +67,8 @@ const AssignTaskModal = ({
   const installationDateText = task.installationDate ? new Date(task.installationDate).toLocaleDateString() : 'Not set';
   const title = "Assign Service Engineer for Installation";
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ease-in-out">
+  return createPortal(
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4 transition-opacity duration-300 ease-in-out">
       <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-in-out scale-95 opacity-0 animate-modalShow">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
@@ -197,7 +211,8 @@ const AssignTaskModal = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

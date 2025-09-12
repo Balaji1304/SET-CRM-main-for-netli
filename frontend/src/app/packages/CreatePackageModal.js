@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { getApprovedSalesOrders } from '../../services/customerService';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +28,19 @@ const CreatePackageModal = ({ isOpen, onClose, onCreatePackage }) => {
     }
   }, [isOpen, token]);
 
+  // Prevent background scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   const handleCreate = () => {
     if (selectedOrder) {
       onCreatePackage(selectedOrder);
@@ -39,8 +53,8 @@ const CreatePackageModal = ({ isOpen, onClose, onCreatePackage }) => {
     return null;
   }
 
-  return (
-    <div className='fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50'>
+  return createPortal(
+    <div className='fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[9999]'>
       <div className='bg-white p-6 rounded-lg shadow-xl w-full max-w-md'>
         <h2 className='text-xl font-bold mb-4'>Create a New Package</h2>
         {loading ? (
@@ -83,7 +97,8 @@ const CreatePackageModal = ({ isOpen, onClose, onCreatePackage }) => {
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
