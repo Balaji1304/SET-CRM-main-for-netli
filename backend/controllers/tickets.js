@@ -10,7 +10,7 @@ const NotificationService = require('../utils/notificationService');
 exports.getTickets = async (req, res) => {
   try {
     const tickets = await Ticket.find({ user: req.user.id })
-      .populate('user', 'name email')
+      .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: tickets });
@@ -65,7 +65,7 @@ exports.createTicket = async (req, res) => {
     const ticket = await Ticket.create(ticketData);
     
     // Populate user info for response
-    const populatedTicket = await Ticket.findById(ticket._id).populate('user', 'name email');
+    const populatedTicket = await Ticket.findById(ticket._id).populate('user', 'name email phone');
     
     // Create notification for new ticket
     try {
@@ -123,7 +123,7 @@ exports.deleteTicket = async (req, res) => {
 exports.getAllTickets = async (req, res) => {
   try {
     const tickets = await Ticket.find()
-      .populate('user', 'name email')
+      .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: tickets });
@@ -136,17 +136,20 @@ exports.getAllTickets = async (req, res) => {
 exports.assignTicket = async (req, res) => {
   try {
     const { engineerId } = req.body;
-    const ticket = await Ticket.findById(req.params.id).populate('user', 'name email');
+    const ticket = await Ticket.findById(req.params.id).populate('user', 'name email phone');
     if (!ticket) throw new AppError('Ticket not found', 404);
     
     const wasAssigned = ticket.assignedEngineerId;
+    
+    // Prevent unassigning if ticket already has an engineer assigned
+    if (!engineerId && wasAssigned) {
+      throw new AppError('Engineer assignment cannot be reverted once assigned', 400);
+    }
     
     if (engineerId) {
       ticket.assignedEngineerId = engineerId;
       ticket.assignedBy = req.user.id;
       if (['open', 'reopened'].includes(ticket.status)) ticket.status = 'assigned';
-    } else {
-      ticket.assignedEngineerId = undefined;
     }
     
     await ticket.save();
@@ -160,7 +163,13 @@ exports.assignTicket = async (req, res) => {
       }
     }
     
-    res.json({ success: true, data: ticket });
+    // Populate and return the complete ticket data
+    const populatedTicket = await Ticket.findById(ticket._id)
+      .populate('user', 'name email phone')
+      .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email');
+    
+    res.json({ success: true, data: populatedTicket });
   } catch (error) {
     errorHandler(res, error);
   }
@@ -177,7 +186,14 @@ exports.updateTicketMeta = async (req, res) => {
     if (action === 'close') ticket.status = 'closed';
     if (action === 'reopen' && ['resolved', 'closed'].includes(ticket.status)) ticket.status = 'reopened';
     await ticket.save();
-    res.json({ success: true, data: ticket });
+    
+    // Populate and return the complete ticket data
+    const populatedTicket = await Ticket.findById(ticket._id)
+      .populate('user', 'name email phone')
+      .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email');
+    
+    res.json({ success: true, data: populatedTicket });
   } catch (error) {
     errorHandler(res, error);
   }
@@ -187,7 +203,7 @@ exports.updateTicketMeta = async (req, res) => {
 exports.getAssignedTickets = async (req, res) => {
   try {
     const tickets = await Ticket.find({ assignedEngineerId: req.user.id })
-      .populate('user', 'name email')
+      .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: tickets });
@@ -208,7 +224,14 @@ exports.updateTicketStatus = async (req, res) => {
     if (order.indexOf(status) < order.indexOf(ticket.status)) throw new AppError('Cannot move ticket to an earlier state', 400);
     ticket.status = status;
     await ticket.save();
-    res.json({ success: true, data: ticket });
+    
+    // Populate and return the complete ticket data
+    const populatedTicket = await Ticket.findById(ticket._id)
+      .populate('user', 'name email phone')
+      .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email');
+    
+    res.json({ success: true, data: populatedTicket });
   } catch (error) {
     errorHandler(res, error);
   }
@@ -223,7 +246,14 @@ exports.addComment = async (req, res) => {
     if (!ticket) throw new AppError('Ticket not found or not assigned to you', 404);
     ticket.comments.push({ author: req.user.id, message });
     await ticket.save();
-    res.status(201).json({ success: true, data: ticket });
+    
+    // Populate and return the complete ticket data
+    const populatedTicket = await Ticket.findById(ticket._id)
+      .populate('user', 'name email phone')
+      .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email');
+    
+    res.status(201).json({ success: true, data: populatedTicket });
   } catch (error) {
     errorHandler(res, error);
   }
@@ -248,7 +278,14 @@ exports.uploadAttachment = async (req, res) => {
     });
 
     await ticket.save();
-    res.status(201).json({ success: true, data: ticket });
+    
+    // Populate and return the complete ticket data
+    const populatedTicket = await Ticket.findById(ticket._id)
+      .populate('user', 'name email phone')
+      .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email');
+    
+    res.status(201).json({ success: true, data: populatedTicket });
   } catch (error) {
     errorHandler(res, error);
   }
