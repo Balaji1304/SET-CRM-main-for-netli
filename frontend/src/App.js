@@ -39,6 +39,7 @@ import PackagesPage from './app/packages/page';
 import BundlesPage from './app/bundles/page';
 import EnquiryPage from './app/enquiry/page';
 import SalesReportsPage from './app/sales-reports/page';
+import ServiceReportsPage from './app/service-reports/page';
 import LeadAssignmentPage from './app/lead-assignment/page';
 import PurchaseOrdersPage from './app/purchase-orders/page';
 import PurchaseOrderDetailPage from './app/purchase-orders/[id]/page';
@@ -278,6 +279,11 @@ function App() {
             <Route path="sales-reports" element={
               <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator']}>
                 <SalesReportsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="service-reports" element={
+              <ProtectedRoute allowedRoles={['service_engineer', 'product_head']}>
+                <ServiceReportsPage />
               </ProtectedRoute>
             } />
             <Route path="packages" element={
