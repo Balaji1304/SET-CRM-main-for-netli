@@ -62,7 +62,7 @@ exports.getQuotations = async (req, res) => {
     }
 
     const quotations = await Quotation.find(query)
-      .populate('lead', 'firstName lastName email')
+      .populate('lead', 'firstName lastName email phone')
       .populate('createdBy', 'name')
       .sort({ createdAt: -1 }); // Sort by newest first
 
@@ -959,25 +959,46 @@ exports.handleApproveQuotation = async (req, res) => {
 
     const approvedQuotation = await approveQuotation(quotation); 
     
-    const quotationItems = await QuotationItem.find({ quotationId: approvedQuotation._id })
-      .populate('productId')
-      .populate('bundleId')
-      .populate('customizedProductId');
+    // Get quotation items and audit log update in parallel with async notifications  
+    const [quotationItems] = await Promise.all([
+      QuotationItem.find({ quotationId: approvedQuotation._id })
+        .populate('productId')
+        .populate('bundleId')
+        .populate('customizedProductId')
+    ]);
 
     const quotationWithItems = approvedQuotation.toObject();
     quotationWithItems.quotationItems = quotationItems;
 
-    // Audit log
-    approvedQuotation.auditLogs = approvedQuotation.auditLogs || [];
-    approvedQuotation.auditLogs.push({ action: 'approved', by: req.user.id, details: { to: 'approved' } });
-    await approvedQuotation.save();
+    // Update audit logs asynchronously to not block response
+    setImmediate(async () => {
+      try {
+        approvedQuotation.auditLogs = approvedQuotation.auditLogs || [];
+        approvedQuotation.auditLogs.push({ action: 'approved', by: req.user.id, details: { to: 'approved' } });
+        await approvedQuotation.save();
 
-    try {
-      // Notify creator about approval
-      if (typeof notifyClient === 'function') {
-        notifyClient(approvedQuotation.createdBy, approvedQuotation._id, 'approved');
+        // Notify creator about approval asynchronously
+        if (typeof notifyClient === 'function') {
+          notifyClient(approvedQuotation.createdBy, approvedQuotation._id, 'approved');
+        }
+        
+        // Notify accounts department about the approval update
+        if (typeof notifyRole === 'function') {
+          notifyRole('accounts_department', approvedQuotation._id, 'quotation_update');
+        }
+      } catch (error) {
+        console.error('Error in async audit/notification:', error);
       }
-    } catch (_) {}
+    });
+
+    // Also send immediate notification to accounts for real-time update
+    try {
+      if (typeof notifyRole === 'function') {
+        notifyRole('accounts_department', approvedQuotation._id, 'approval_update');
+      }
+    } catch (error) {
+      console.error('Error sending immediate approval notification:', error);
+    }
 
     res.json({
       success: true,
@@ -1105,12 +1126,15 @@ const approveQuotation = async (quotationInstance) => {
         throw new AppError('Critical: Lead contact information (phone or email) missing in quotation for approval.', 500);
     }
 
-    let user = null;
-    if (lead.phone) {
-      user = await User.findOne({ phone: lead.phone, role: 'customer' });
-    } else if (lead.email) {
-      user = await User.findOne({ email: lead.email, role: 'customer' });
-    }
+    // Find existing user and customer in parallel to optimize performance
+    const [existingUser, existingCustomer] = await Promise.all([
+      lead.phone ? User.findOne({ phone: lead.phone, role: 'customer' }) : 
+      lead.email ? User.findOne({ email: lead.email, role: 'customer' }) : null,
+      lead.phone ? Customer.findOne({ phone: lead.phone }) :
+      lead.email ? Customer.findOne({ email: lead.email }) : null
+    ]);
+    
+    let user = existingUser;
     let leadUserId; // Renamed variable for clarity to avoid confusion with req.user.id if used elsewhere
     
     if (user) {
@@ -1128,29 +1152,25 @@ const approveQuotation = async (quotationInstance) => {
       await user.save();
       leadUserId = user._id;
       console.log(`New user created: ${leadUserId} for phone ${lead.phone}`);
-      try {
-        // Send welcome notification via available channels with lead's contact preferences
-        await sendWelcomeNotification(user, password, {
-          preferredContactMethod: lead.preferredContactMethod,
-          hasWhatsapp: lead.hasWhatsapp,
-          whatsappSameAsPhone: lead.whatsappSameAsPhone,
-          whatsapp: lead.whatsapp,
-          countryCode: lead.countryCode
-        });
-        console.log(`Welcome notification sent to ${user.phone}`);
-      } catch (notificationError) {
-        console.error(`Failed to send welcome notification to ${user.phone}:`, notificationError.message);
-      }
+      // Send welcome notification asynchronously to avoid blocking the approval
+      setImmediate(async () => {
+        try {
+          await sendWelcomeNotification(user, password, {
+            preferredContactMethod: lead.preferredContactMethod,
+            hasWhatsapp: lead.hasWhatsapp,
+            whatsappSameAsPhone: lead.whatsappSameAsPhone,
+            whatsapp: lead.whatsapp,
+            countryCode: lead.countryCode
+          });
+          console.log(`Welcome notification sent to ${user.phone}`);
+        } catch (notificationError) {
+          console.error(`Failed to send welcome notification to ${user.phone}:`, notificationError.message);
+        }
+      });
     }
     
     // Find existing customer by phone (primary) or email (fallback)
-    let customer = null;
-    if (lead.phone) {
-      customer = await Customer.findOne({ phone: lead.phone });
-    }
-    if (!customer && lead.email) {
-      customer = await Customer.findOne({ email: lead.email });
-    }
+    let customer = existingCustomer;
     
     if (!customer) {
       console.log(`Creating new customer record for phone: ${lead.phone} (email: ${lead.email || 'N/A'}) with user ID: ${leadUserId}`);
@@ -1192,13 +1212,18 @@ const approveQuotation = async (quotationInstance) => {
     const remainingAmount = Number((purchaseTotalAmount - advanceAmount).toFixed(2));
     const actualAdvancePercentage = purchaseTotalAmount > 0 ? Math.round((advanceAmount / purchaseTotalAmount) * 100) : 0;
     
-    let customerPurchase = await CustomerPurchase.findOne({ 
-      customerId: customer._id,
-      quotationId: quotationInstance._id
-    });
+    // Check for existing customer purchase and get count in parallel
+    const [existingCustomerPurchase, purchaseCount] = await Promise.all([
+      CustomerPurchase.findOne({ 
+        customerId: customer._id,
+        quotationId: quotationInstance._id
+      }),
+      CustomerPurchase.countDocuments()
+    ]);
+    
+    let customerPurchase = existingCustomerPurchase;
     
     if (!customerPurchase) {
-      const purchaseCount = await CustomerPurchase.countDocuments();
       const purchaseID = `PO-${String(purchaseCount + 1).padStart(5, '0')}`;
       
       console.log(`Creating CustomerPurchase for quotation ${quotationInstance._id}, customer ${customer._id}. Advance: ₹${advanceAmount}, Total: ₹${purchaseTotalAmount}`);
@@ -1216,29 +1241,46 @@ const approveQuotation = async (quotationInstance) => {
         purchaseDate: quotationInstance.advancePaymentConfirmedAt || new Date(), 
         advancePaymentPercentage: actualAdvancePercentage 
       });
-      await customerPurchase.save();
-      console.log(`Created CustomerPurchase with ID: ${customerPurchase._id}`);
       
-      // Update customer status since they now have an active purchase order
-      try {
-        const { updateCustomerStatus } = require('./customerPurchaseController');
-        await updateCustomerStatus(customer._id);
-      } catch (statusError) {
-        console.error('Error updating customer status:', statusError);
-        // Don't fail the main operation if status update fails
+      // Generate unique transaction ID, ensuring it's never empty or duplicate
+      let transactionId;
+      if (quotationInstance.razorpayPaymentId) {
+        transactionId = quotationInstance.razorpayPaymentId;
+      } else if (quotationInstance.offlineTransactionNo) {
+        transactionId = quotationInstance.offlineTransactionNo;
+      } else {
+        // Generate a unique fallback transaction ID
+        transactionId = `ADV-${purchaseID}-${Date.now()}`;
       }
       
       const paymentRecord = new Payment({ 
         customerPurchaseId: customerPurchase._id,
         amountPaid: advanceAmount,
         paymentMethod: quotationInstance.paymentMethod || 'cash', 
-        transactionId: quotationInstance.razorpayPaymentId || quotationInstance.offlineTransactionNo || `ADV-${purchaseID}`,
+        transactionId: transactionId,
         isAdvancePayment: true,
         paymentDate: quotationInstance.advancePaymentConfirmedAt || new Date(), 
         createdBy: quotationInstance.createdBy 
       });
-      await paymentRecord.save();
+      
+      // Save customer purchase and payment record in parallel, then update quotation status
+      await Promise.all([
+        customerPurchase.save(),
+        paymentRecord.save()
+      ]);
+      
+      console.log(`Created CustomerPurchase with ID: ${customerPurchase._id}`);
       console.log(`Created Payment record for advance: ${paymentRecord._id}`);
+
+      // Update customer status asynchronously to avoid blocking
+      setImmediate(async () => {
+        try {
+          const { updateCustomerStatus } = require('./customerPurchaseController');
+          await updateCustomerStatus(customer._id);
+        } catch (statusError) {
+          console.error('Error updating customer status:', statusError);
+        }
+      });
 
     } else {
         console.log(`CustomerPurchase ${customerPurchase._id} already exists for quotation ${quotationInstance._id}. Skipping creation.`);
@@ -1248,55 +1290,57 @@ const approveQuotation = async (quotationInstance) => {
     await quotationInstance.save();
     console.log(`Quotation ${quotationInstance._id} status updated to 'approved'. Approval process complete.`);
 
-    // Create notification for quotation approval
-    try {
-      await NotificationService.createQuotationNotification('quotation_approved', quotationInstance);
-    } catch (notificationError) {
-      console.error('Failed to create quotation approval notification:', notificationError);
-      // Don't fail the main operation if notification fails
-    }
+    // Create notification for quotation approval asynchronously
+    setImmediate(async () => {
+      try {
+        await NotificationService.createQuotationNotification('quotation_approved', quotationInstance);
+      } catch (notificationError) {
+        console.error('Failed to create quotation approval notification:', notificationError);
+      }
+    });
 
     // Generate and send Order Form after successful approval and customer purchase creation
-    try {
-      if (customerPurchase && customerPurchase._id) {
-        console.log(`Generating Order Form for purchase ${customerPurchase._id}`);
-        
-        // Generate Order Form PDF
-        const orderFormPDF = await generateOrderFormPDF(customerPurchase._id);
-        
-        // Send Order Form via both email and WhatsApp using the same system as quotations
-        try {
-          const notificationResult = await sendOrderFormNotification(customerPurchase._id, orderFormPDF);
-          console.log('Order Form notification results:', notificationResult);
+    // Do this asynchronously to not block the approval response
+    setImmediate(async () => {
+      try {
+        if (customerPurchase && customerPurchase._id) {
+          console.log(`Generating Order Form for purchase ${customerPurchase._id}`);
           
-          // Log success/failure for each channel
-          if (notificationResult.email.attempted) {
-            if (notificationResult.email.success) {
-              console.log(`✅ Order Form sent successfully via email`);
-            } else {
-              console.log(`❌ Order Form email failed: ${notificationResult.email.error}`);
+          // Generate Order Form PDF
+          const orderFormPDF = await generateOrderFormPDF(customerPurchase._id);
+          
+          // Send Order Form via both email and WhatsApp using the same system as quotations
+          try {
+            const notificationResult = await sendOrderFormNotification(customerPurchase._id, orderFormPDF);
+            console.log('Order Form notification results:', notificationResult);
+            
+            // Log success/failure for each channel
+            if (notificationResult.email.attempted) {
+              if (notificationResult.email.success) {
+                console.log(`✅ Order Form sent successfully via email`);
+              } else {
+                console.log(`❌ Order Form email failed: ${notificationResult.email.error}`);
+              }
             }
+            
+            if (notificationResult.whatsapp.attempted) {
+              if (notificationResult.whatsapp.success) {
+                console.log(`✅ Order Form notification sent successfully via WhatsApp`);
+              } else {
+                console.log(`❌ Order Form WhatsApp failed: ${notificationResult.whatsapp.error}`);
+              }
+            }
+            
+          } catch (notificationError) {
+            console.error('Failed to send Order Form notifications:', notificationError);
           }
           
-          if (notificationResult.whatsapp.attempted) {
-            if (notificationResult.whatsapp.success) {
-              console.log(`✅ Order Form notification sent successfully via WhatsApp`);
-            } else {
-              console.log(`❌ Order Form WhatsApp failed: ${notificationResult.whatsapp.error}`);
-            }
-          }
-          
-        } catch (notificationError) {
-          console.error('Failed to send Order Form notifications:', notificationError);
-          // Don't fail the main operation if notification fails
+          console.log(`Order Form generated and notifications sent for purchase ${customerPurchase._id}`);
         }
-        
-        console.log(`Order Form generated and notifications sent for purchase ${customerPurchase._id}`);
+      } catch (orderFormError) {
+        console.error('Failed to generate/send Order Form:', orderFormError);
       }
-    } catch (orderFormError) {
-      console.error('Failed to generate/send Order Form:', orderFormError);
-      // Don't fail the main operation if Order Form generation fails
-    }
+    });
 
     return quotationInstance; 
   } catch (error) {
@@ -1360,8 +1404,16 @@ exports.confirmOfflinePayment = async (req, res) => {
     quotation.advancePaymentStatus = 'CONFIRMED';
     quotation.advancePaymentAmount = paymentAmount; 
     quotation.advancePaymentConfirmedAt = paymentDate ? new Date(paymentDate) : new Date();
-    // For cash payments, generate a default reference if none provided
-    quotation.offlineTransactionNo = transactionNo || (paymentMethod === 'cash' ? `CASH-${Date.now()}-${quotation.quotationNumber}` : transactionNo);
+    // Generate unique transaction reference for all payment methods
+    if (paymentMethod === 'cash') {
+      // For cash payments, generate a unique reference if none provided
+      quotation.offlineTransactionNo = transactionNo && transactionNo.trim() ? 
+        transactionNo.trim() : 
+        `CASH-${Date.now()}-${quotation.quotationNumber}`;
+    } else {
+      // For non-cash payments, use provided transaction number (validated by frontend)
+      quotation.offlineTransactionNo = transactionNo;
+    }
     
     if (paymentMethod) quotation.paymentMethod = paymentMethod; 
     if (notes) quotation.paymentNotes = notes;

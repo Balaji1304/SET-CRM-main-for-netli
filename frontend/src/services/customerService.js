@@ -78,6 +78,64 @@ export const recordManualPayment = async (purchaseId, data) => {
 };
 
 /**
+ * Get all pending approvals for accounts department (both quotation and remaining payment approvals)
+ * @returns {Promise<Object>} - Response with unified approvals list
+ */
+export const getAllPendingApprovals = async () => {
+  try {
+    const response = await apiRequest('customer-purchases/pending-approvals');
+    return response;
+  } catch (error) {
+    console.error('Error fetching all pending approvals:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verify a remaining payment (accounts department)
+ * @param {string} purchaseId - Purchase ID
+ * @param {string} paymentId - Payment ID
+ * @returns {Promise<Object>} - Response
+ */
+export const verifyRemainingPayment = async (purchaseId, paymentId) => {
+  try {
+    const response = await apiRequest(`customer-purchases/${purchaseId}/payments/${paymentId}/verify`, {
+      method: 'PUT'
+    }, false);
+    
+    // Invalidate cache
+    invalidateCache('customer-purchases');
+    return response;
+  } catch (error) {
+    console.error('Error verifying remaining payment:', error);
+    throw error;
+  }
+};
+
+/**
+ * Reject a remaining payment (accounts department)
+ * @param {string} purchaseId - Purchase ID
+ * @param {string} paymentId - Payment ID
+ * @param {string} reason - Rejection reason
+ * @returns {Promise<Object>} - Response
+ */
+export const rejectRemainingPayment = async (purchaseId, paymentId, reason) => {
+  try {
+    const response = await apiRequest(`customer-purchases/${purchaseId}/payments/${paymentId}/reject`, {
+      method: 'PUT',
+      body: { reason }
+    }, false);
+    
+    // Invalidate cache
+    invalidateCache('customer-purchases');
+    return response;
+  } catch (error) {
+    console.error('Error rejecting remaining payment:', error);
+    throw error;
+  }
+};
+
+/**
  * Create a Razorpay payment link for remaining payment
  * @param {string} purchaseId - Purchase ID
  * @returns {Promise<Object>} - Response with payment link data

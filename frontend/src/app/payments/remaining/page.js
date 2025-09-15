@@ -3,6 +3,50 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AlertCircle, Check, CreditCard, ArrowLeft } from 'lucide-react';
 import { getPurchaseDetails, makePayment, createRazorpayPaymentLink, verifyRazorpayPayment, recordManualPayment } from '../../../services/customerService';
 
+// Helper function to validate transaction reference uniqueness
+const validateTransactionReference = async (reference, paymentMethod) => {
+  if (paymentMethod === 'cash' || !reference || !reference.trim()) {
+    return { isValid: true };
+  }
+
+  try {
+    const trimmedRef = reference.trim();
+    
+    // Basic validation - check for obviously problematic references
+    if (trimmedRef.length < 3) {
+      return { 
+        isValid: false, 
+        error: 'Transaction reference must be at least 3 characters long' 
+      };
+    }
+    
+    // Check for common duplicate patterns that users might accidentally use
+    const commonDuplicatePatterns = ['cash', 'test', '123', 'temp', 'dummy', 'sample'];
+    if (commonDuplicatePatterns.includes(trimmedRef.toLowerCase())) {
+      return {
+        isValid: false,
+        error: 'Please use a unique transaction reference number (avoid generic terms like "test", "123", etc.)'
+      };
+    }
+    
+    // Check for patterns that look like placeholders
+    if (/^[0-9]{1,3}$/.test(trimmedRef) || /^test.*$/i.test(trimmedRef)) {
+      return {
+        isValid: false,
+        error: 'Please enter a real transaction reference number (not a placeholder or test value)'
+      };
+    }
+    
+    return { isValid: true };
+  } catch (error) {
+    console.error('Error validating transaction reference:', error);
+    return { 
+      isValid: false, 
+      error: 'Unable to validate transaction reference. Please try again.' 
+    };
+  }
+};
+
 export default function RemainingPaymentPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -13,7 +57,6 @@ export default function RemainingPaymentPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  const [manualSuccess, setManualSuccess] = useState(false);
   const [processingOnlinePayment, setProcessingOnlinePayment] = useState(false);
   const [paymentData, setPaymentData] = useState({
     amountPaid: '',
@@ -21,9 +64,6 @@ export default function RemainingPaymentPage() {
     transactionId: '',
     notes: ''
   });
-  const [showManual, setShowManual] = useState(false);
-  const [manual, setManual] = useState({ amount: '', method: 'cash', reference: '', date: new Date().toISOString().split('T')[0], notes: '' });
-  const [submittingManual, setSubmittingManual] = useState(false);
 
   useEffect(() => {
     if (purchaseId) {
@@ -88,35 +128,84 @@ export default function RemainingPaymentPage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setPaymentData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setPaymentData(prev => {
+      // Clear transaction ID when payment method is cash to avoid duplicate issues
+      if (name === 'paymentMethod' && value === 'cash') {
+        return {
+          ...prev,
+          [name]: value,
+          transactionId: '' // Clear transaction ID for cash payments
+        };
+      }
+      return {
+        ...prev,
+        [name]: value
+      };
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validate transaction reference for non-cash payments
+    if (paymentData.paymentMethod !== 'cash' && !paymentData.transactionId.trim()) {
+      setError('Transaction reference is required for non-cash payments');
+      return;
+    }
+    
+    // Validate transaction reference uniqueness for non-cash payments
+    if (paymentData.paymentMethod !== 'cash') {
+      const validation = await validateTransactionReference(paymentData.transactionId, paymentData.paymentMethod);
+      if (!validation.isValid) {
+        setError(validation.error || 'Invalid transaction reference');
+        return;
+      }
+    }
+    
     try {
       setLoading(true);
+      setError(null);
       
       const response = await recordManualPayment(purchaseId, {
         amount: parseFloat(paymentData.amountPaid),
         paymentMethod: paymentData.paymentMethod,
-        reference: paymentData.transactionId,
+        reference: paymentData.paymentMethod === 'cash' ? null : paymentData.transactionId, // Don't send reference for cash
         paymentDate: new Date().toISOString().split('T')[0],
         notes: paymentData.notes
       });
       
       if (response.success) {
-        setManualSuccess(true);
-        await fetchPurchaseDetails();
+        // Show success toast notification
+        if (window.showToast) {
+          window.showToast('Manual payment recorded and pending verification by Accounts.', 'success', 5000);
+        }
+        
+        // Redirect to My Orders page after a short delay
+        setTimeout(() => {
+          navigate('/dashboard/my-products');
+        }, 1500);
       } else {
         throw new Error(response.message || 'Payment failed');
       }
     } catch (error) {
       console.error('Payment error:', error);
-      setError(error.message);
+      // Handle duplicate transaction ID error specifically
+      let errorMessage;
+      if (error.message.includes('duplicate') || 
+          error.message.includes('E11000') || 
+          error.message.includes('already used') ||
+          error.message.includes('This reference number is already used')) {
+        errorMessage = 'This transaction reference number is already used. Please enter a unique reference number.';
+      } else {
+        errorMessage = error.message;
+      }
+      
+      // Show error toast notification
+      if (window.showToast) {
+        window.showToast(errorMessage, 'error', 7000);
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -180,31 +269,6 @@ export default function RemainingPaymentPage() {
     }
   };
 
-  const submitManualPayment = async () => {
-    try {
-      setSubmittingManual(true);
-      const amt = Number(manual.amount);
-      if (isNaN(amt) || amt <= 0) throw new Error('Enter valid amount');
-      if (amt > (purchase?.remainingAmount || 0)) throw new Error('Amount exceeds remaining');
-      if (!manual.reference) throw new Error('Reference number required');
-      const res = await recordManualPayment(purchaseId, {
-        amount: amt,
-        paymentMethod: manual.method,
-        reference: manual.reference,
-        paymentDate: manual.date,
-        notes: manual.notes
-      });
-      if (!res.success) throw new Error(res.message || 'Failed to record payment');
-      setShowManual(false);
-      await fetchPurchaseDetails();
-      alert('Payment recorded and pending verification');
-    } catch (err) {
-      alert(err.message || 'Failed to record payment');
-    } finally {
-      setSubmittingManual(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -260,11 +324,6 @@ export default function RemainingPaymentPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm p-6">
-        {manualSuccess && (
-          <div className="mb-4 p-3 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
-            Manual payment recorded and pending verification by Accounts.
-          </div>
-        )}
         <div className="mb-6 p-4 bg-gray-50 rounded border">
           <h3 className="font-medium mb-2">Order Summary</h3>
           <div className="grid grid-cols-2 gap-2 text-sm">
@@ -353,20 +412,24 @@ export default function RemainingPaymentPage() {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Transaction Reference <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="transactionId"
-              value={paymentData.transactionId}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              placeholder="e.g., UTR number, check number"
-              required
-            />
-          </div>
+          {/* Only show transaction reference field for non-cash payments */}
+          {paymentData.paymentMethod !== 'cash' && (
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Transaction Reference <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="transactionId"
+                value={paymentData.transactionId}
+                onChange={handleChange}
+                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="e.g., UTR123456789012, CHQ001234, TXN567890 (must be unique)"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">Enter the actual transaction reference from your bank/payment method. Each reference must be unique.</p>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-1">

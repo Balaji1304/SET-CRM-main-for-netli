@@ -8,6 +8,7 @@ const Product = require('../models/Product');
 const { AppError, errorHandler } = require('../utils/errorHandler');
 const User = require('../models/User');
 const Package = require('../models/Package');
+const { notifyClient, notifyRole } = require('../utils/websocket');
 const OrderTracking = require('../models/OrderTracking');
 const TrackingService = require('../utils/trackingService');
 const { generateOrderFormPDF, getOrderFormData } = require('../utils/generateOrderForm');
@@ -348,18 +349,32 @@ exports.recordManualPayment = async (req, res) => {
 
     const allowedMethods = ['cash', 'check', 'bank_transfer', 'other'];
     if (!allowedMethods.includes(paymentMethod)) throw new AppError('Invalid payment method', 400);
-    if (!reference || typeof reference !== 'string') throw new AppError('Reference number is required', 400);
+    
+    // For cash payments, reference is optional and will be auto-generated if not provided
+    // For other payment methods, reference is required
+    if (paymentMethod !== 'cash' && (!reference || typeof reference !== 'string' || !reference.trim())) {
+      throw new AppError('Reference number is required for non-cash payments', 400);
+    }
 
     const paidAt = paymentDate ? new Date(paymentDate) : new Date();
     if (isNaN(paidAt.getTime())) throw new AppError('Invalid payment date', 400);
     if (paidAt.getTime() > Date.now() + 60 * 1000) throw new AppError('Payment date cannot be in the future', 400);
+
+    // Generate unique transaction ID for cash payments or use provided reference
+    let transactionId;
+    if (paymentMethod === 'cash') {
+      // Generate unique transaction ID for cash payments
+      transactionId = reference && reference.trim() ? reference.trim() : `CASH-${Date.now()}-${purchase.purchaseID}`;
+    } else {
+      transactionId = reference.trim();
+    }
 
     try {
       const payment = await Payment.create({
         customerPurchaseId: purchase._id,
         amountPaid: amt,
         paymentMethod,
-        transactionId: reference,
+        transactionId: transactionId,
         notes: notes || '',
         paidAt,
         isAdvancePayment: false,
@@ -400,6 +415,15 @@ exports.verifyManualPayment = async (req, res) => {
 
     purchase.paymentReviewStatus = 'verified';
     await purchase.save();
+
+    // Send WebSocket notification to accounts department for real-time update
+    try {
+      if (typeof notifyRole === 'function') {
+        notifyRole('accounts_department', purchaseId, 'payment_verification');
+      }
+    } catch (error) {
+      console.error('Error sending payment verification notification:', error);
+    }
 
     return res.json({ success: true, message: 'Payment verified' });
   } catch (error) {
@@ -1334,6 +1358,134 @@ exports.getOrderFormData = async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting Order Form data:', error);
+    errorHandler(res, error);
+  }
+};
+
+// Get all pending approvals for accounts department (both quotation and remaining payment approvals)
+exports.getAllPendingApprovals = async (req, res) => {
+  try {
+    // Only accounts department can access this endpoint
+    if (!req.user || req.user.role !== 'accounts_department') {
+      throw new AppError('Only accounts department can view pending approvals', 403);
+    }
+
+    const approvals = [];
+
+    // 1. Get quotation approvals (advance payment approvals)
+    const Quotation = require('../models/Quotation');
+    const quotationApprovals = await Quotation.find({ 
+      status: 'pending_approval' 
+    })
+    .populate({
+      path: 'lead',
+      select: 'firstName lastName email phone'
+    })
+    .populate({
+      path: 'createdBy',
+      select: 'name email'
+    })
+    .sort({ updatedAt: -1 });
+
+    // Format quotation approvals
+    for (const quotation of quotationApprovals) {
+      approvals.push({
+        _id: quotation._id,
+        type: 'quotation_approval', // Type identifier
+        quotationNumber: quotation.quotationNumber,
+        quotationId: quotation._id,
+        lead: quotation.lead,
+        createdBy: quotation.createdBy,
+        total: quotation.total,
+        advancePaymentAmount: quotation.advancePaymentAmount,
+        advancePaymentStatus: quotation.advancePaymentStatus,
+        advancePaymentConfirmedAt: quotation.advancePaymentConfirmedAt,
+        paymentMethod: quotation.paymentMethod,
+        paymentDate: quotation.paymentDate,
+        offlineTransactionNo: quotation.offlineTransactionNo,
+        razorpayPaymentId: quotation.razorpayPaymentId,
+        paymentNotes: quotation.paymentNotes,
+        createdAt: quotation.createdAt,
+        updatedAt: quotation.updatedAt,
+        // For compatibility with existing frontend
+        status: quotation.status
+      });
+    }
+
+    // 2. Get remaining payment approvals
+    const remainingPaymentApprovals = await CustomerPurchase.find({
+      paymentReviewStatus: 'pending_verification'
+    })
+    .populate({
+      path: 'customerId',
+      select: 'firstName lastName email phone'
+    })
+    .populate({
+      path: 'quotationId',
+      select: 'quotationNumber createdBy',
+      populate: {
+        path: 'createdBy',
+        select: 'name email'
+      }
+    })
+    .sort({ updatedAt: -1 });
+
+    // Get the latest payment for each purchase that's pending verification
+    for (const purchase of remainingPaymentApprovals) {
+      const latestPayment = await Payment.findOne({
+        customerPurchaseId: purchase._id,
+        isAdvancePayment: false
+      })
+      .populate('createdBy', 'name email')
+      .sort({ paidAt: -1 });
+
+      if (latestPayment) {
+        approvals.push({
+          _id: purchase._id,
+          type: 'remaining_payment_approval', // Type identifier
+          quotationNumber: purchase.quotationId?.quotationNumber || 'N/A',
+          quotationId: purchase.quotationId?._id,
+          purchaseId: purchase._id,
+          lead: {
+            firstName: purchase.customerId?.firstName || 'N/A',
+            lastName: purchase.customerId?.lastName || '',
+            email: purchase.customerId?.email || 'N/A',
+            phone: purchase.customerId?.phone || 'N/A'
+          },
+          createdBy: purchase.quotationId?.createdBy || { name: 'N/A' },
+          total: purchase.totalAmount,
+          // For remaining payments, show payment amount instead of advance
+          advancePaymentAmount: latestPayment.amountPaid,
+          advancePaymentStatus: purchase.paymentReviewStatus,
+          advancePaymentConfirmedAt: null,
+          paymentMethod: latestPayment.paymentMethod,
+          paymentDate: latestPayment.paidAt,
+          offlineTransactionNo: latestPayment.transactionId,
+          razorpayPaymentId: null,
+          paymentNotes: latestPayment.notes,
+          createdAt: purchase.createdAt,
+          updatedAt: purchase.updatedAt,
+          // Additional fields for remaining payments
+          remainingAmount: purchase.remainingAmount,
+          paymentId: latestPayment._id,
+          paymentCreatedBy: latestPayment.createdBy,
+          // For compatibility with existing frontend
+          status: 'pending_approval'
+        });
+      }
+    }
+
+    // Sort all approvals by updatedAt descending
+    approvals.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+    res.json({
+      success: true,
+      count: approvals.length,
+      data: approvals
+    });
+
+  } catch (error) {
+    console.error('Error getting pending approvals:', error);
     errorHandler(res, error);
   }
 };

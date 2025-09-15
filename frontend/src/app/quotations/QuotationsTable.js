@@ -78,6 +78,52 @@ const formatDisplayValue = (value) => {
     .join(' ');
 };
 
+// Helper function to validate transaction reference uniqueness
+const validateTransactionReference = async (reference, paymentMethod) => {
+  if (paymentMethod === 'cash' || !reference || !reference.trim()) {
+    return { isValid: true };
+  }
+
+  try {
+    // Basic client-side validation
+    const trimmedRef = reference.trim();
+    
+    // Check minimum length
+    if (trimmedRef.length < 3) {
+      return { 
+        isValid: false, 
+        error: 'Transaction reference must be at least 3 characters long' 
+      };
+    }
+    
+    // Check for common duplicate patterns that users might accidentally use
+    const commonDuplicatePatterns = ['cash', 'test', '123', 'temp', 'dummy', 'sample'];
+    if (commonDuplicatePatterns.includes(trimmedRef.toLowerCase())) {
+      return {
+        isValid: false,
+        error: 'Please use a unique transaction reference number (avoid generic terms like "test", "123", etc.)'
+      };
+    }
+    
+    // Check for patterns that look like placeholders
+    if (/^[0-9]{1,3}$/.test(trimmedRef) || /^test.*$/i.test(trimmedRef)) {
+      return {
+        isValid: false,
+        error: 'Please enter a real transaction reference number (not a placeholder or test value)'
+      };
+    }
+    
+    // Additional validation can be added here
+    return { isValid: true };
+  } catch (error) {
+    console.error('Error validating transaction reference:', error);
+    return { 
+      isValid: false, 
+      error: 'Unable to validate transaction reference. Please try again.' 
+    };
+  }
+};
+
 // Standalone Payment Modal Component
 function StandalonePaymentModal({
   showModal,
@@ -107,7 +153,7 @@ function StandalonePaymentModal({
   const advancePercentage = selectedQuotation.advancePaymentPercentage || 20;
   const minimumAdvance = selectedQuotation.total * (advancePercentage / 100) || 0;
 
-  const internalHandleSubmit = () => {
+  const internalHandleSubmit = async () => {
     onSetPaymentError(''); 
     if (!selectedQuotation._id) {
       onSetPaymentError('No quotation selected');
@@ -128,6 +174,20 @@ function StandalonePaymentModal({
       onSetPaymentError(`Advance payment must be at least ₹${minimumAdvance.toLocaleString('en-IN')} (${advancePercentage}% of total amount)`);
       return;
     }
+
+    // Validate transaction reference for non-cash payments
+    if (paymentDetails.paymentMethod !== 'cash' && paymentDetails.transactionNo) {
+      const validation = await validateTransactionReference(
+        paymentDetails.transactionNo, 
+        paymentDetails.paymentMethod
+      );
+      
+      if (!validation.isValid) {
+        onSetPaymentError(validation.error);
+        return;
+      }
+    }
+
     onSubmit();
   };
 
@@ -213,7 +273,15 @@ function StandalonePaymentModal({
                   <select
                     id="paymentMethod"
                     value={paymentDetails.paymentMethod}
-                    onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                    onChange={(e) => {
+                      const newMethod = e.target.value;
+                      onPaymentDetailsChange(prev => ({
+                        ...prev,
+                        paymentMethod: newMethod,
+                        // Clear transaction number when switching to cash to avoid duplicates
+                        transactionNo: newMethod === 'cash' ? '' : prev.transactionNo
+                      }));
+                    }}
                     className="w-full px-3 py-3 sm:py-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none transition-all duration-200 text-sm sm:text-base bg-gray-50/50 font-medium"
                     required
                   >
@@ -239,21 +307,24 @@ function StandalonePaymentModal({
                 </div>
               </div>
               
-              {/* Transaction Reference */}
-              <div>
-                <label htmlFor="transactionNo" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Transaction Reference {paymentDetails.paymentMethod !== 'cash' && <span className="text-red-500">*</span>}
-                </label>
-                <input
-                  id="transactionNo"
-                  type="text"
-                  value={paymentDetails.transactionNo}
-                  onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, transactionNo: e.target.value }))}
-                  className={`w-full px-4 py-3 sm:py-3.5 border rounded-xl focus:ring-2 focus:border-primary transition-all duration-200 text-sm sm:text-base font-medium placeholder-gray-400 ${paymentError && !paymentDetails.transactionNo && paymentDetails.paymentMethod !== 'cash' ? 'border-red-400 ring-2 ring-red-100 bg-red-50/50' : 'border-gray-300 focus:ring-primary/20 bg-gray-50/50'}`}
-                  placeholder={paymentDetails.paymentMethod === 'cash' ? 'Optional for cash payments' : 'Enter transaction number or reference'}
-                  required={paymentDetails.paymentMethod !== 'cash'}
-                />
-              </div>
+              {/* Transaction Reference - Hidden for cash payments */}
+              {paymentDetails.paymentMethod !== 'cash' && (
+                <div>
+                  <label htmlFor="transactionNo" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Transaction Reference <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="transactionNo"
+                    type="text"
+                    value={paymentDetails.transactionNo}
+                    onChange={(e) => onPaymentDetailsChange(prev => ({ ...prev, transactionNo: e.target.value }))}
+                    className={`w-full px-4 py-3 sm:py-3.5 border rounded-xl focus:ring-2 focus:border-primary transition-all duration-200 text-sm sm:text-base font-medium placeholder-gray-400 ${paymentError && !paymentDetails.transactionNo ? 'border-red-400 ring-2 ring-red-100 bg-red-50/50' : 'border-gray-300 focus:ring-primary/20 bg-gray-50/50'}`}
+                    placeholder="e.g., UTR123456789012, CHQ001234, TXN567890 (must be unique)"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Enter the actual transaction reference from your bank/payment method. Each reference must be unique.</p>
+                </div>
+              )}
               
               {/* Notes */}
               <div>
@@ -528,10 +599,21 @@ export default function QuotationsTable({
       if (response.success && response.message && 
           (response.message.toLowerCase().includes('fail') || 
            response.message.toLowerCase().includes('error') || 
-           response.message.toLowerCase().includes('e11000'))) {
+           response.message.toLowerCase().includes('e11000') ||
+           response.message.toLowerCase().includes('duplicate') ||
+           response.message.toLowerCase().includes('already used'))) {
         // This is a partial success; payment recorded but approval or other steps failed.
-        setPaymentError(response.message); // Show specific error in modal
-        showToast(response.message); // Show a more informative toast (could be styled as warning/error)
+        let errorMessage = response.message;
+        
+        // Handle duplicate transaction ID error specifically
+        if (response.message.includes('This reference number is already used') ||
+            response.message.includes('duplicate') ||
+            response.message.includes('already used')) {
+          errorMessage = 'This transaction reference number is already used. Please enter a unique reference number.';
+        }
+        
+        setPaymentError(errorMessage); // Show specific error in modal
+        showToast(errorMessage); // Show a more informative toast (could be styled as warning/error)
         // Do not close modal, let user see the error.
         // Still refetch to show actual state if backend partially updated quotation.
         fetchQuotationsCallback(); 
@@ -546,8 +628,19 @@ export default function QuotationsTable({
       }
     } catch (err) {
       // Network or other unexpected errors during the API call.
-      setPaymentError(err.message || 'An error occurred during payment confirmation.');
-      showToast(err.message || 'An error occurred during payment confirmation.');
+      let errorMessage = err.message || 'An error occurred during payment confirmation.';
+      
+      // Handle duplicate transaction ID error specifically with enhanced detection
+      if (errorMessage.includes('duplicate') || 
+          errorMessage.includes('E11000') || 
+          errorMessage.includes('transactionId') ||
+          errorMessage.includes('This reference number is already used') ||
+          errorMessage.includes('already used')) {
+        errorMessage = 'This transaction reference number is already used. Please enter a unique reference number.';
+      }
+      
+      setPaymentError(errorMessage);
+      showToast(errorMessage);
     } finally {
       setActionInProgress(false);
     }

@@ -134,11 +134,9 @@ const Dashboard = () => {
 
   const renderProductHeadDashboard = () => (
     <>
-      <TicketStatsWidget userRole={user?.role} />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
         {renderCommonCard('Total Customers', formatNumber(summaryData.totalCustomers), <Users />)}
         {renderCommonCard('Active Purchases', formatNumber(summaryData.activeOrders), <ShoppingCart />)}
-        {renderCommonCard('Open Support Tickets', formatNumber(summaryData.openTickets), <Ticket />)}
         {renderCommonCard('Total Revenue (All Time)', `₹${formatNumber(summaryData.totalRevenue)}`, <IndianRupee />)}
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
@@ -176,8 +174,6 @@ const Dashboard = () => {
             <div className="space-y-2">
             {summaryData.performanceMetrics && renderPerformanceItem('Tasks Completed (Overall)', summaryData.performanceMetrics.tasksCompleted)}
             {summaryData.performanceMetrics && renderPerformanceItem('Customer Satisfaction Score', summaryData.performanceMetrics.customerSatisfaction)}
-            {summaryData.supportTicketsSummary && renderPerformanceItem('Currently Open Support Tickets', formatNumber(summaryData.supportTicketsSummary.openTickets))}
-            {summaryData.supportTicketsSummary && renderPerformanceItem('Avg. Ticket Response Time', summaryData.supportTicketsSummary.avgResponseTime)}
             {summaryData.inventoryStats && renderPerformanceItem('Items Below Reorder Level', summaryData.inventoryStats.itemsBelowReorderLevel)}
           </div>
         )}
