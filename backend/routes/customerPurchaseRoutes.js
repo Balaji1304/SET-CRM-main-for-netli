@@ -25,7 +25,8 @@ const {
   getAllCustomers,
   generateOrderFormPDF,
   getOrderFormData,
-  getAllPendingApprovals
+  getAllPendingApprovals,
+  getAllApprovedPayments
 } = require('../controllers/customerPurchaseController');
 
 // Create quotation from lead
@@ -39,6 +40,9 @@ router.get('/customers', protect, authorize('sales_head', 'sales_person', 'marke
 
 // Get all pending approvals for accounts department (both quotation and remaining payment approvals)
 router.get('/pending-approvals', protect, authorize('accounts_department'), getAllPendingApprovals);
+
+// Get all approved payments for accounts department (both quotation and remaining payment approvals)
+router.get('/approved-payments', protect, authorize('accounts_department'), getAllApprovedPayments);
 
 // This is the new primary route for the PO Management page
 router

@@ -78,6 +78,20 @@ export const recordManualPayment = async (purchaseId, data) => {
 };
 
 /**
+ * Get all approved payments for accounts department (both quotation and remaining payment approvals)
+ * @returns {Promise<Object>} - Response with unified approved payments list
+ */
+export const getAllApprovedPayments = async () => {
+  try {
+    const response = await apiRequest('customer-purchases/approved-payments');
+    return response;
+  } catch (error) {
+    console.error('Error fetching all approved payments:', error);
+    throw error;
+  }
+};
+
+/**
  * Get all pending approvals for accounts department (both quotation and remaining payment approvals)
  * @returns {Promise<Object>} - Response with unified approvals list
  */

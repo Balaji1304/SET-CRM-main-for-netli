@@ -135,6 +135,54 @@ const customStyles = `
       min-width: auto;
     }
   }
+  
+  /* Medium desktop responsiveness */
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .compact-table-cell {
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+    }
+    
+    .compact-font {
+      font-size: 0.75rem;
+    }
+    
+    .compact-badge {
+      padding: 0.125rem 0.375rem;
+      font-size: 0.625rem;
+    }
+    
+    .compact-button {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.625rem;
+    }
+  }
+  
+  /* Responsive table utilities */
+  @media (min-width: 768px) {
+    .responsive-table {
+      font-size: 0.875rem;
+    }
+  }
+  
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .responsive-table {
+      font-size: 0.75rem;
+    }
+    
+    .responsive-table th,
+    .responsive-table td {
+      padding: 0.5rem 0.5rem;
+    }
+    
+    .responsive-table .truncate-sm {
+      max-width: 120px;
+    }
+    
+    .responsive-table .truncate-md {
+      max-width: 150px;
+    }
+  }
 `;
 
 export default function AccountsApprovalsPage() {
@@ -429,81 +477,116 @@ export default function AccountsApprovalsPage() {
               <>
                 {/* Desktop view */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200 responsive-table">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Type</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Reference #</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">Customer/Lead</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Total</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Payment</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-36">Sales Rep</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Payment Date</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-36">Payment Method</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">Action</th>
+                        <th className="px-2 lg:px-3 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20 md:w-24 lg:w-32">Type</th>
+                        <th className="px-2 lg:px-3 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20 md:w-24 lg:w-32">Reference #</th>
+                        <th className="px-2 lg:px-3 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32 md:w-36 lg:w-48">Customer/Lead</th>
+                        <th className="px-2 lg:px-3 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20 md:w-24 lg:w-32">Total</th>
+                        <th className="px-2 lg:px-3 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20 md:w-24 lg:w-32">Payment</th>
+                        <th className="hidden lg:table-cell px-2 lg:px-3 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28 lg:w-36">Sales Rep</th>
+                        <th className="hidden lg:table-cell px-2 lg:px-3 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24 lg:w-32">Payment Date</th>
+                        <th className="hidden lg:table-cell px-2 lg:px-3 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28 lg:w-36">Payment Method</th>
+                        <th className="px-2 lg:px-3 py-2 lg:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32 md:w-36 lg:w-48">Action</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {currentItems.map(row => {
-                        const isProcessing = processingIds.has(row._id);
-                        return (
-                          <tr key={row._id} className={`hover:bg-gray-50 transition-all duration-300 ${
+                      {currentItems.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="md:table-cell lg:hidden px-6 py-12 text-center text-gray-500">
+                            {query ? 'No pending approvals found matching your search criteria.' : 'No pending approvals at this time.'}
+                          </td>
+                          <td colSpan="9" className="hidden lg:table-cell px-6 py-12 text-center text-gray-500">
+                            {query ? 'No pending approvals found matching your search criteria.' : 'No pending approvals at this time.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        currentItems.map(row => {
+                          const isProcessing = processingIds.has(row._id);
+                          return (
+                            <tr key={row._id} className={`hover:bg-gray-50 transition-all duration-300 ${
                             isProcessing ? 'opacity-60 bg-gray-50' : ''
                           }`}>
-                            <td className="px-3 py-4 text-sm text-gray-700 font-medium whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            <td className="px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-700 font-medium whitespace-nowrap">
+                              <span className={`inline-flex items-center px-1.5 lg:px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                 row.type === 'quotation_approval' 
                                   ? 'bg-blue-100 text-blue-800' 
                                   : 'bg-green-100 text-green-800'
                               }`}>
-                                {row.type === 'quotation_approval' ? 'Advance Payment' : 'Remaining Payment'}
+                                <span className="hidden lg:inline">
+                                  {row.type === 'quotation_approval' ? 'Advance Payment' : 'Remaining Payment'}
+                                </span>
+                                <span className="lg:hidden">
+                                  {row.type === 'quotation_approval' ? 'Advance' : 'Remaining'}
+                                </span>
                               </span>
                             </td>
-                          <td className="px-3 py-4 text-sm text-gray-700 font-medium whitespace-nowrap">
-                            {row.quotationNumber || 'N/A'}
+                          <td className="px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-700 font-medium whitespace-nowrap">
+                            <div className="max-w-full truncate" title={row.quotationNumber || 'N/A'}>
+                              {row.quotationNumber || 'N/A'}
+                            </div>
                           </td>
-                          <td className="px-3 py-4 text-sm text-gray-600">
-                            <div className="max-w-xs">
-                              <div className="font-medium truncate">
+                          <td className="px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-600">
+                            <div className="max-w-full">
+                              <div className="font-medium truncate" title={`${row.lead?.firstName || ''} ${row.lead?.lastName || ''}`.trim() || 'N/A'}>
                                 {`${row.lead?.firstName || ''} ${row.lead?.lastName || ''}`.trim() || 'N/A'}
                               </div>
-                              <div className="text-xs text-gray-400 truncate">
+                              <div className="text-xs text-gray-400 truncate" title={row.lead?.phone || 'N/A'}>
                                 {row.lead?.phone || 'N/A'}
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
-                            ₹{Number(row.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <td className="px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-600 whitespace-nowrap">
+                            <span className="hidden lg:inline">₹</span>
+                            <span className="lg:hidden">₹</span>
+                            {Number(row.total || 0).toLocaleString('en-IN', { 
+                              minimumFractionDigits: 0, 
+                              maximumFractionDigits: 0 
+                            })}
                           </td>
-                          <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
+                          <td className="px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-600 whitespace-nowrap">
                             {row.advancePaymentAmount ? (
-                              <div className="text-sm font-semibold text-gray-900">
-                                ₹{Number(row.advancePaymentAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              <div className="text-xs lg:text-sm font-semibold text-gray-900">
+                                <span className="hidden lg:inline">₹</span>
+                                <span className="lg:hidden">₹</span>
+                                {Number(row.advancePaymentAmount).toLocaleString('en-IN', { 
+                                  minimumFractionDigits: 0, 
+                                  maximumFractionDigits: 0 
+                                })}
                               </div>
                             ) : (
                               <span className="text-gray-400">N/A</span>
                             )}
                           </td>
-                          <td className="px-3 py-4 text-sm text-gray-600">
-                            <div className="max-w-xs truncate">{row.createdBy?.name || 'N/A'}</div>
+                          <td className="hidden lg:table-cell px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-600">
+                            <div className="max-w-full truncate" title={row.createdBy?.name || 'N/A'}>
+                              {row.createdBy?.name || 'N/A'}
+                            </div>
                           </td>
-                          <td className="px-3 py-4 text-sm text-gray-600 whitespace-nowrap">
-                            {row.advancePaymentConfirmedAt 
-                              ? new Date(row.advancePaymentConfirmedAt).toLocaleDateString('en-GB')
-                              : (row.paymentDate ? new Date(row.paymentDate).toLocaleDateString('en-GB') : 'N/A')
-                            }
+                          <td className="hidden lg:table-cell px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-600 whitespace-nowrap">
+                            <div className="max-w-full truncate">
+                              {row.advancePaymentConfirmedAt 
+                                ? new Date(row.advancePaymentConfirmedAt).toLocaleDateString('en-GB')
+                                : (row.paymentDate ? new Date(row.paymentDate).toLocaleDateString('en-GB') : 'N/A')
+                              }
+                            </div>
                           </td>
-                          <td className="px-3 py-4 text-sm text-gray-600">
-                            <div className="max-w-xs truncate">{row.paymentMethod || 'N/A'}</div>
+                          <td className="hidden lg:table-cell px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-600">
+                            <div className="max-w-full truncate" title={row.paymentMethod || 'N/A'}>
+                              {row.paymentMethod || 'N/A'}
+                            </div>
                           </td>
-                          <td className="px-3 py-4 text-sm">
-                            <div className="flex items-center space-x-2">
+                          <td className="px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm">
+                            <div className="flex items-center space-x-1 lg:space-x-2">
                               <button
                                 onClick={() => openDrawer(row)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-colors duration-150"
+                                className="inline-flex items-center gap-1 px-1.5 lg:px-2 py-1 rounded-md text-xs font-medium border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-colors duration-150"
                                 disabled={isProcessing}
+                                title="View payment details"
                               >
-                                View details
+                                <span className="hidden lg:inline">View details</span>
+                                <span className="lg:hidden">View</span>
                               </button>
                               <button
                                 onClick={async () => {
@@ -516,17 +599,20 @@ export default function AccountsApprovalsPage() {
                                   }, 5000);
                                 }}
                                 title={row.type === 'quotation_approval' ? 'Approve this advance payment' : 'Verify this remaining payment'}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:border-green-400 transition-colors duration-150"
+                                className="inline-flex items-center gap-1 px-1.5 lg:px-2 py-1 rounded-md text-xs font-medium border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:border-green-400 transition-colors duration-150"
                                 disabled={isProcessing}
                               >
                                 {isProcessing ? (
                                   <>
                                     <div className="w-3 h-3 border-2 border-green-300 border-t-green-600 rounded-full animate-spin"></div>
-                                    Processing...
+                                    <span className="hidden lg:inline">Processing...</span>
+                                    <span className="lg:hidden">...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <Check className="w-3 h-3" /> {row.type === 'quotation_approval' ? 'Approve' : 'Verify'}
+                                    <Check className="w-3 h-3" /> 
+                                    <span className="hidden lg:inline">{row.type === 'quotation_approval' ? 'Approve' : 'Verify'}</span>
+                                    <span className="lg:hidden">{row.type === 'quotation_approval' ? 'OK' : 'OK'}</span>
                                   </>
                                 )}
                               </button>
@@ -534,7 +620,7 @@ export default function AccountsApprovalsPage() {
                           </td>
                         </tr>
                         );
-                      })}
+                      }))}
                     </tbody>
                   </table>
                 </div>
@@ -543,7 +629,9 @@ export default function AccountsApprovalsPage() {
                 <div className="md:hidden p-2 sm:p-4 space-y-2 sm:space-y-3">
                   {currentItems.length === 0 ? (
                     <div className="text-center py-8 sm:py-12">
-                      <p className="text-sm sm:text-base text-gray-500">No pending approvals found matching your criteria.</p>
+                      <p className="text-sm sm:text-base text-gray-500">
+                        {query ? 'No pending approvals found matching your search criteria.' : 'No pending approvals at this time.'}
+                      </p>
                     </div>
                   ) : (
                     currentItems.map(row => {
@@ -681,53 +769,6 @@ export default function AccountsApprovalsPage() {
             )}
           </div>
           
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-2 sm:px-4 lg:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-2 sm:space-y-0">
-              <div className="flex-1 flex justify-between items-center w-full sm:w-auto">
-                <p className="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
-                  Showing{' '}
-                  <span className="font-medium">{Math.min(startIndex + 1, filtered?.length || 0)}</span>
-                  {' '}to{' '}
-                  <span className="font-medium">{Math.min(endIndex, filtered?.length || 0)}</span>
-                  {' '}of{' '}
-                  <span className="font-medium">{filtered?.length || 0}</span> results
-                </p>
-              </div>
-              <nav className="flex items-center space-x-1 sm:space-x-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={adjustedCurrentPage === 1}
-                  className={`inline-flex items-center px-2 sm:px-3 py-1.5 border border-gray-300 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-                    adjustedCurrentPage === 1 
-                      ? 'text-gray-400 bg-gray-50 cursor-not-allowed' 
-                      : 'text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400'
-                  }`}
-                >
-                  <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                  <span className="hidden sm:inline">Previous</span>
-                  <span className="sm:hidden">Prev</span>
-                </button>
-                <span className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-700">
-                  Page {adjustedCurrentPage} of {totalPages || 1}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={adjustedCurrentPage === totalPages}
-                  className={`inline-flex items-center px-2 sm:px-3 py-1.5 border border-gray-300 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-                    adjustedCurrentPage === totalPages 
-                      ? 'text-gray-400 bg-gray-50 cursor-not-allowed' 
-                      : 'text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400'
-                  }`}
-                >
-                  <span className="hidden sm:inline">Next</span>
-                  <span className="sm:hidden">Next</span>
-                  <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 ml-1" />
-                </button>
-              </nav>
-            </div>
-          )}
-
           {/* Payment Details Modal */}
           {drawer.open && createPortal(
             <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -739,7 +780,7 @@ export default function AccountsApprovalsPage() {
                 />
                 
                 {/* Modal panel - improved mobile responsiveness */}
-                <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full w-full mx-4 mobile-modal-content">
+                <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg lg:max-w-xl sm:w-full w-full mx-4 mobile-modal-content">
                   {/* Header - Improved mobile header */}
                   <div className="bg-white px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-200">
                     <div className="flex items-start justify-between">
@@ -946,6 +987,34 @@ export default function AccountsApprovalsPage() {
             document.body
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 0 && (
+          <div className="px-2 lg:px-4 xl:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-3 sm:space-y-0">
+            <div className="text-xs sm:text-sm text-gray-600 order-2 sm:order-1">
+              Showing {Math.min(startIndex + 1, filtered.length)} to {Math.min(endIndex, filtered.length)} of {filtered.length} results
+            </div>
+            <div className="flex items-center gap-2 order-1 sm:order-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={adjustedCurrentPage === 1}
+                className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+              >
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+              <span className="text-xs sm:text-sm text-gray-600 px-3 py-2 min-w-[80px] text-center"> 
+                {adjustedCurrentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={adjustedCurrentPage === totalPages}
+                className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+              >
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         <ConfirmDialog 
           isOpen={showConfirm} 

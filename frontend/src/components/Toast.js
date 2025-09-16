@@ -46,7 +46,7 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
 
   return (
     <div
-      className={`fixed top-4 right-4 left-4 sm:left-auto sm:right-4 z-50 transition-all duration-300 transform ${
+      className={`fixed top-20 md:top-4 right-4 left-4 sm:left-auto sm:right-4 z-50 transition-all duration-300 transform ${
         isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       }`}
     >
@@ -90,7 +90,7 @@ export const ToastContainer = () => {
   }, []);
 
   return (
-    <div className="fixed top-4 left-4 right-4 sm:left-auto sm:right-4 z-50 space-y-2">
+    <div className="fixed top-20 md:top-4 left-4 right-4 sm:left-auto sm:right-4 z-50 space-y-2">
       {toasts.map((toast) => (
         <Toast
           key={toast.id}

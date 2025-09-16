@@ -1489,3 +1489,131 @@ exports.getAllPendingApprovals = async (req, res) => {
     errorHandler(res, error);
   }
 };
+
+// Get all approved payments for accounts department (both quotation and remaining payment approvals)
+exports.getAllApprovedPayments = async (req, res) => {
+  try {
+    // Only accounts department can access this endpoint
+    if (!req.user || req.user.role !== 'accounts_department') {
+      throw new AppError('Only accounts department can view approved payments', 403);
+    }
+
+    const approvedPayments = [];
+
+    // 1. Get approved quotations (advance payment approvals)
+    const Quotation = require('../models/Quotation');
+    const approvedQuotations = await Quotation.find({ 
+      status: 'approved' 
+    })
+    .populate({
+      path: 'lead',
+      select: 'firstName lastName email phone'
+    })
+    .populate({
+      path: 'createdBy',
+      select: 'name email'
+    })
+    .sort({ updatedAt: -1 });
+
+    // Format approved quotations
+    for (const quotation of approvedQuotations) {
+      approvedPayments.push({
+        _id: quotation._id,
+        type: 'quotation_approval', // Type identifier
+        quotationNumber: quotation.quotationNumber,
+        quotationId: quotation._id,
+        lead: quotation.lead,
+        createdBy: quotation.createdBy,
+        total: quotation.total,
+        advancePaymentAmount: quotation.advancePaymentAmount,
+        advancePaymentStatus: quotation.advancePaymentStatus,
+        advancePaymentConfirmedAt: quotation.advancePaymentConfirmedAt,
+        paymentMethod: quotation.paymentMethod,
+        paymentDate: quotation.paymentDate,
+        offlineTransactionNo: quotation.offlineTransactionNo,
+        razorpayPaymentId: quotation.razorpayPaymentId,
+        paymentNotes: quotation.paymentNotes,
+        createdAt: quotation.createdAt,
+        updatedAt: quotation.updatedAt,
+        // For compatibility with existing frontend
+        status: quotation.status
+      });
+    }
+
+    // 2. Get approved remaining payments
+    const approvedRemainingPayments = await CustomerPurchase.find({
+      paymentReviewStatus: 'verified'
+    })
+    .populate({
+      path: 'customerId',
+      select: 'firstName lastName email phone'
+    })
+    .populate({
+      path: 'quotationId',
+      select: 'quotationNumber createdBy',
+      populate: {
+        path: 'createdBy',
+        select: 'name email'
+      }
+    })
+    .sort({ updatedAt: -1 });
+
+    // Get the latest verified payment for each purchase
+    for (const purchase of approvedRemainingPayments) {
+      const latestPayment = await Payment.findOne({
+        customerPurchaseId: purchase._id,
+        isAdvancePayment: false
+      })
+      .populate('createdBy', 'name email')
+      .sort({ paidAt: -1 });
+
+      if (latestPayment) {
+        approvedPayments.push({
+          _id: purchase._id,
+          type: 'remaining_payment_approval', // Type identifier
+          quotationNumber: purchase.quotationId?.quotationNumber || 'N/A',
+          quotationId: purchase.quotationId?._id,
+          purchaseId: purchase._id,
+          lead: {
+            firstName: purchase.customerId?.firstName || 'N/A',
+            lastName: purchase.customerId?.lastName || '',
+            email: purchase.customerId?.email || 'N/A',
+            phone: purchase.customerId?.phone || 'N/A'
+          },
+          createdBy: purchase.quotationId?.createdBy || { name: 'N/A' },
+          total: purchase.totalAmount,
+          // For remaining payments, show payment amount instead of advance
+          advancePaymentAmount: latestPayment.amountPaid,
+          advancePaymentStatus: purchase.paymentReviewStatus,
+          advancePaymentConfirmedAt: null,
+          paymentMethod: latestPayment.paymentMethod,
+          paymentDate: latestPayment.paidAt,
+          offlineTransactionNo: latestPayment.transactionId,
+          razorpayPaymentId: null,
+          paymentNotes: latestPayment.notes,
+          createdAt: purchase.createdAt,
+          updatedAt: purchase.updatedAt,
+          // Additional fields for remaining payments
+          remainingAmount: purchase.remainingAmount,
+          paymentId: latestPayment._id,
+          paymentCreatedBy: latestPayment.createdBy,
+          // For compatibility with existing frontend
+          status: 'approved'
+        });
+      }
+    }
+
+    // Sort all approved payments by updatedAt descending
+    approvedPayments.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+    res.json({
+      success: true,
+      count: approvedPayments.length,
+      data: approvedPayments
+    });
+
+  } catch (error) {
+    console.error('Error getting approved payments:', error);
+    errorHandler(res, error);
+  }
+};
