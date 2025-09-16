@@ -97,6 +97,18 @@ export default function MyProductsPage() {
     return filtered;
   }, [quotations, searchTerm]);
 
+  // useMemo for sorting orders by purchase date (newest first)
+  const sortedOrders = useMemo(() => {
+    return Object.values(filteredOrders).sort((a, b) => {
+      // Convert purchase dates to Date objects for comparison
+      const dateA = new Date(a.purchaseDate);
+      const dateB = new Date(b.purchaseDate);
+      
+      // Sort in descending order (newest first)
+      return dateB - dateA;
+    });
+  }, [filteredOrders]);
+
   const navigateToPayment = (quotationNumber) => {
     // Find the quotation in our data
     const quotation = quotations[quotationNumber];
@@ -116,8 +128,8 @@ export default function MyProductsPage() {
     window.location.href = `/dashboard/payments/remaining?purchase=${purchaseId}`;
   };
 
-  const viewInvoice = (customerPurchaseId) => {
-    // Navigate to the invoice page using customerPurchaseId
+  const viewProformaInvoice = (customerPurchaseId) => {
+    // Navigate to the proforma invoice page using customerPurchaseId
     // Ensure this ID is the MongoDB ObjectId for CustomerPurchase
     window.location.href = `/invoice/${customerPurchaseId}`;
   };
@@ -155,35 +167,38 @@ export default function MyProductsPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 bg-tertiary font-sans">
-      {/* Heading and Search Section */}
+    <div className="flex flex-col h-full">
+      {/* Header Section - Page Title */}
       <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold tracking-tight text-secondary">My Orders</h1>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <div className="relative flex-grow sm:flex-grow-0">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">My Orders</h1>
+          {/* Optional: Subtitle if needed, can be text-gray-500 */}
+          {/* <p className="text-sm text-gray-500 mt-1">View and manage your orders</p> */}
+        </div>
+      </div>
+
+      {/* Main Content Area - Contains search and orders */}
+      <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
+        {/* Search Bar */}
+        <div className="p-4 md:p-6 border-b border-fourth sticky top-0 bg-tertiary z-20">
+          <div className="flex gap-2 items-center">
+            {/* Search Bar */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Search by Order #, Product..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-fourth rounded-lg text-sm text-secondary focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
+                className="pl-9 pr-4 py-2 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400"
               />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             </div>
-            <button
-                 className="px-4 py-2 bg-primary text-tertiary rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2 shrink-0"
-            >
-                 <Search className="h-4 w-4" />
-                 Search Orders
-            </button>
           </div>
         </div>
-      </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 space-y-6">
-        {Object.keys(filteredOrders).length === 0 ? (
+        {/* Orders Content Area */}
+        <div className="flex-1 space-y-6 p-4 md:p-6 overflow-y-auto">
+        {sortedOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 bg-tertiary rounded-lg border border-fourth shadow-sm text-center">
             <ShoppingBag className="h-16 w-16 mb-4 text-primary" />
             <p className="text-xl font-medium text-secondary mb-2">
@@ -194,7 +209,7 @@ export default function MyProductsPage() {
             </p>
           </div>
         ) : (
-          Object.values(filteredOrders).map((quotation) => (
+          sortedOrders.map((quotation) => (
             <div 
               key={quotation.quotationNumber} 
               className={`bg-tertiary rounded-lg border border-fourth shadow-sm overflow-hidden ${
@@ -350,11 +365,11 @@ export default function MyProductsPage() {
                 <div className="flex gap-3">
                 {quotation.paymentStatus === 'FULLY_PAID' ? (
                   <button 
-                    onClick={() => viewInvoice(quotation.purchaseId)}
+                    onClick={() => viewProformaInvoice(quotation.purchaseId)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 text-sm font-medium transition-colors w-full sm:w-auto justify-center"
                   >
                     <FileText className="h-4 w-4" />
-                    View Invoice
+                    View Proforma Invoice
                   </button>
                 ) : (
                   <button 
@@ -370,6 +385,7 @@ export default function MyProductsPage() {
           </div>
           ))
         )}
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Search, Filter, Eye, ChevronLeft, ChevronRight, Calendar, User, Package, MapPin } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getMyAssignments, acceptAssignment, startWork } from '../../services/installationService';
+import { invalidateCache } from '../../services/apiConfig';
 import { toast } from 'react-toastify';
 
 // Custom styles for mobile responsive design
@@ -122,6 +123,7 @@ const InstallationDashboard = () => {
   const [startWorkData, setStartWorkData] = useState({
     notes: ''
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState('');
@@ -142,6 +144,7 @@ const InstallationDashboard = () => {
 
   // Filter assignments based on search and filters
   useEffect(() => {
+    console.log('Filtering assignments, total assignments:', assignments.length);
     let filtered = [...assignments];
 
     // Apply search filter
@@ -162,6 +165,7 @@ const InstallationDashboard = () => {
 
     // Sort filtered results
     const sortedFiltered = sortAssignmentsByTime(filtered);
+    console.log('Filtered assignments:', sortedFiltered.length, 'items');
     setFilteredAssignments(sortedFiltered);
   }, [assignments, searchTerm, statusFilter]);
 
@@ -210,6 +214,22 @@ const InstallationDashboard = () => {
     }
   }, [user]);
 
+  // Add visibility change listener to refresh when user returns to the page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user?.role === 'service_engineer') {
+        // Refresh assignments when user returns to the page
+        fetchAssignments();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user]);
+
   // Prevent background scroll when modals are open
   useEffect(() => {
     if (showAcceptModal || showStartWorkModal) {
@@ -223,20 +243,29 @@ const InstallationDashboard = () => {
     };
   }, [showAcceptModal, showStartWorkModal]);
 
-  const fetchAssignments = async () => {
+  const fetchAssignments = async (showLoadingSpinner = true, useCache = true) => {
     try {
-      setLoading(true);
-      const response = await getMyAssignments();
+      if (showLoadingSpinner) {
+        setLoading(true);
+      }
+      
+      console.log(`Fetching assignments (useCache: ${useCache})...`);
+      const response = await getMyAssignments(useCache);
       const list = Array.isArray(response.data) ? response.data : [];
+      console.log('Fetched assignments:', list.length, 'items');
+      
       // Sort latest to oldest using relevant timestamps
       const sorted = sortAssignmentsByTime(list);
       setAssignments(sorted);
+      console.log('Assignments state updated');
       // filteredAssignments will be set by useEffect
     } catch (error) {
       toast.error('Failed to fetch assignments');
       console.error('Error fetching assignments:', error);
     } finally {
-      setLoading(false);
+      if (showLoadingSpinner) {
+        setLoading(false);
+      }
     }
   };
 
@@ -281,14 +310,40 @@ const InstallationDashboard = () => {
   }, [showAcceptModal, showStartWorkModal]);
 
   const submitAcceptance = async () => {
+    if (isSubmitting) return;
+    
     try {
+      setIsSubmitting(true);
+      console.log('Accepting assignment:', selectedAssignment._id);
+      
       await acceptAssignment(selectedAssignment._id, acceptData);
       toast.success('Assignment accepted successfully!');
+      
+      // Immediately update the local state to show the change
+      setAssignments(prev => prev.map(assignment => 
+        assignment._id === selectedAssignment._id 
+          ? { ...assignment, installationStatus: 'accepted' }
+          : assignment
+      ));
+      
+      // Close modal and reset state first
       setShowAcceptModal(false);
-      await fetchAssignments();
+      setSelectedAssignment(null);
+      setAcceptData({ estimatedArrival: '', notes: '' });
+      
+      // Invalidate cache and force refresh the assignments list after a delay
+      invalidateCache('installations');
+      setTimeout(async () => {
+        console.log('Refreshing assignments from server...');
+        await fetchAssignments(false, false);
+        console.log('Assignments refreshed');
+      }, 200);
+      
     } catch (error) {
       toast.error('Failed to accept assignment');
       console.error('Error accepting assignment:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -301,14 +356,40 @@ const InstallationDashboard = () => {
   };
 
   const submitStartWork = async () => {
+    if (isSubmitting) return;
+    
     try {
+      setIsSubmitting(true);
+      console.log('Starting work on assignment:', selectedAssignment._id);
+      
       await startWork(selectedAssignment._id, startWorkData);
       toast.success('Work started successfully!');
+      
+      // Immediately update the local state to show the change
+      setAssignments(prev => prev.map(assignment => 
+        assignment._id === selectedAssignment._id 
+          ? { ...assignment, installationStatus: 'in_progress' }
+          : assignment
+      ));
+      
+      // Close modal and reset state first
       setShowStartWorkModal(false);
-      await fetchAssignments();
+      setSelectedAssignment(null);
+      setStartWorkData({ notes: '' });
+      
+      // Invalidate cache and force refresh the assignments list after a delay
+      invalidateCache('installations');
+      setTimeout(async () => {
+        console.log('Refreshing assignments from server...');
+        await fetchAssignments(false, false);
+        console.log('Assignments refreshed');
+      }, 200);
+      
     } catch (error) {
       toast.error('Failed to start work');
       console.error('Error starting work:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -735,9 +816,10 @@ const InstallationDashboard = () => {
                 </button>
                 <button
                   onClick={submitAcceptance}
-                  className="flex-1 px-6 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Accept Assignment
+                  {isSubmitting ? 'Processing...' : 'Accept Assignment'}
                 </button>
               </div>
             </div>
@@ -796,9 +878,10 @@ const InstallationDashboard = () => {
                 </button>
                 <button
                   onClick={submitStartWork}
-                  className="flex-1 px-6 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Start Work
+                  {isSubmitting ? 'Processing...' : 'Start Work'}
                 </button>
               </div>
             </div>

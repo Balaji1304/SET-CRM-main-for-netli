@@ -33,7 +33,7 @@ import PaymentSuccessPage from './app/dashboard/payment-success/page';
 import OrdersPage from './app/orders/page';
 import MyProductsPage from './app/my-products/page';
 import Leads from './components/dashboard/Leads';
-import InvoicePage from './app/invoice/[id]/page';
+import ProformaInvoicePage from './app/invoice/[id]/page';
 import PackagesPage from './app/packages/page';
 import BundlesPage from './app/bundles/page';
 import EnquiryPage from './app/enquiry/page';
@@ -61,12 +61,12 @@ function App() {
           {/* Public routes */}
           <Route path="/quotations/:id/payment-status" element={<PaymentStatusPage />} />
           
-          {/* Protected Invoice Route (top level, similar to dashboard but not nested in its layout) */}
+          {/* Protected Proforma Invoice Route (top level, similar to dashboard but not nested in its layout) */}
           <Route 
             path="/invoice/:id" 
             element={ 
               <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'admin', 'sales_head']}>
-                <InvoicePage />
+                <ProformaInvoicePage />
               </ProtectedRoute>
             }
           />

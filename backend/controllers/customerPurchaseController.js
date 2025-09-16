@@ -855,7 +855,7 @@ exports.assignTaskToEngineer = async (req, res) => {
         {
           estimatedDate: new Date(purchase.installationDate),
           description: `Service engineer ${engineer.name} has been assigned for installation on ${new Date(purchase.installationDate).toLocaleDateString()}.`,
-          metadata: { engineerId: engineerId, engineerName: engineer.name }
+          metadata: { engineerId: assignedEngineerId, engineerName: engineer.name }
         }
       );
     } catch (trackingError) {

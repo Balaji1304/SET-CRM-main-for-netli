@@ -251,7 +251,7 @@ const InstallationComplete = () => {
       setLoading(true);
       await reportIssue(id, { description: issuesEncountered.trim() });
       toast.success('Issue reported successfully. Management has been notified.');
-      navigate('/installations');
+      navigate('/dashboard/installations');
     } catch (error) {
       toast.error('Failed to report issue');
       console.error('Error reporting issue:', error);
@@ -287,7 +287,7 @@ const InstallationComplete = () => {
             
             {/* Close Button */}
             <button
-              onClick={() => navigate('/installations')}
+              onClick={() => navigate('/dashboard/installations')}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-150 text-gray-500 hover:text-gray-700"
               aria-label="Close and return to dashboard"
             >
@@ -463,7 +463,7 @@ const InstallationComplete = () => {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-end pt-4 sm:pt-6 border-t border-gray-200">
               <button
-                onClick={() => navigate('/installations')}
+                onClick={() => navigate('/dashboard/installations')}
                 className="w-full sm:w-auto px-6 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-150 border border-gray-200"
               >
                 Back to Dashboard
