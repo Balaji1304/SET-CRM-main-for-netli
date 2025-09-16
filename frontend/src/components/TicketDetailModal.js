@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { updateTicketStatus, addComment, updateTicketMeta, assignTicket } from '../services/ticketService';
 import { getServiceEngineers } from '../services/taskService';
+import ConfirmDialog from './ConfirmDialog';
 
 const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
   const [loading, setLoading] = useState(false);
@@ -17,12 +18,38 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
   const [editMode, setEditMode] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadPreview, setUploadPreview] = useState(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
   const [imagePreviewModal, setImagePreviewModal] = useState({ isOpen: false, imageUrl: '', imageName: '' });
   const [editData, setEditData] = useState({
     priority: ticket?.priority || 'medium',
     category: ticket?.category || '',
     assignedEngineerId: ticket?.assignedEngineerId?._id || ''
   });
+  
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  });
+
+  // Status progression validation
+  const STATUS_ORDER = ['open', 'assigned', 'in_progress', 'awaiting_customer', 'resolved', 'closed'];
+  
+  const getValidNextStatuses = (currentStatus) => {
+    const currentIndex = STATUS_ORDER.indexOf(currentStatus);
+    if (currentIndex === -1) return [];
+    
+    // Can only move forward or stay in same status
+    return STATUS_ORDER.slice(currentIndex);
+  };
+  
+  const isValidStatusTransition = (fromStatus, toStatus) => {
+    const fromIndex = STATUS_ORDER.indexOf(fromStatus);
+    const toIndex = STATUS_ORDER.indexOf(toStatus);
+    return toIndex >= fromIndex;
+  };
 
   useEffect(() => {
     if (isOpen && userRole === 'product_head') {
@@ -46,8 +73,33 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
     }
   };
 
-  const handleStatusUpdate = async (status) => {
+  const handleStatusUpdate = (status) => {
+    // Validate status transition
+    if (!isValidStatusTransition(ticket.status, status)) {
+      setError('Cannot move ticket to an earlier state');
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+
+    // Show confirmation dialog
+    const statusLabels = {
+      'in_progress': 'In Progress',
+      'awaiting_customer': 'Awaiting Customer',
+      'resolved': 'Resolved'
+    };
+
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Confirm Status Change',
+      message: `Are you sure you want to change the ticket status to "${statusLabels[status] || status}"?`,
+      onConfirm: () => confirmStatusUpdate(status)
+    });
+  };
+
+  const confirmStatusUpdate = async (status) => {
+    setConfirmDialog({ ...confirmDialog, isOpen: false });
     setLoading(true);
+    
     try {
       const response = await updateTicketStatus(ticket._id, status);
       setSuccess('Status updated successfully');
@@ -109,7 +161,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
 
   const handleFileUpload = async () => {
     if (!uploadFile) return;
-    setLoading(true);
+    setUploadLoading(true);
     try {
       const formData = new FormData();
       formData.append('file', uploadFile);
@@ -143,7 +195,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
       setError(e.message || 'Failed to upload file');
       setTimeout(() => setError(''), 5000);
     } finally {
-      setLoading(false);
+      setUploadLoading(false);
     }
   };
 
@@ -401,14 +453,20 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                       { value: 'resolved', label: 'Resolved', icon: CheckCircle, color: 'green' }
                     ].map((status) => {
                       const Icon = status.icon;
+                      const isCurrentStatus = ticket.status === status.value;
+                      const isValidTransition = isValidStatusTransition(ticket.status, status.value);
+                      const isDisabled = loading || isCurrentStatus || !isValidTransition;
+                      
                       return (
                         <button
                           key={status.value}
                           onClick={() => handleStatusUpdate(status.value)}
-                          disabled={loading || ticket.status === status.value}
+                          disabled={isDisabled}
                           className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-                            ticket.status === status.value 
+                            isCurrentStatus 
                               ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' 
+                              : !isValidTransition
+                              ? 'bg-gray-50 text-gray-300 cursor-not-allowed border border-gray-100'
                               : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm active:scale-95'
                           }`}
                         >
@@ -680,10 +738,16 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                     </div>
 
                     {/* File Upload Section - Mobile Optimized */}
-                    <div className="border-t border-gray-100 pt-3 sm:pt-4">
+                    <div className={`border-t border-gray-100 pt-3 sm:pt-4 ${uploadLoading ? 'opacity-75' : ''}`}>
                       <h4 className="text-sm font-semibold text-gray-900 mb-2 sm:mb-3 flex items-center gap-2">
                         <Paperclip className="h-4 w-4 text-gray-500" />
                         Attach Files
+                        {uploadLoading && (
+                          <div className="flex items-center gap-1 text-xs text-blue-600">
+                            <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            <span>Processing...</span>
+                          </div>
+                        )}
                       </h4>
                       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-3">
                         <input
@@ -691,29 +755,54 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                           type="file"
                           onChange={handleFileSelect}
                           accept="image/*,.pdf,.doc,.docx,.txt"
+                          disabled={uploadLoading}
                           className="hidden"
                         />
                         <label
                           htmlFor="file-input"
-                          className="cursor-pointer flex items-center justify-center gap-2 px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-sm active:scale-95"
+                          className={`cursor-pointer flex items-center justify-center gap-2 px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded-lg transition-all duration-200 text-sm active:scale-95 ${
+                            uploadLoading 
+                              ? 'opacity-50 cursor-not-allowed bg-gray-50' 
+                              : 'hover:bg-gray-50'
+                          }`}
                         >
                           <Upload className="h-4 w-4 text-gray-600" />
                           <span className="text-gray-700">Choose File</span>
                         </label>
                         
                         {uploadFile && (
-                          <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 w-full sm:w-auto">
+                          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border w-full sm:w-auto ${
+                            uploadLoading 
+                              ? 'bg-blue-50 border-blue-200 animate-pulse' 
+                              : 'bg-blue-50 border-blue-200'
+                          }`}>
                             <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
                             <span className="text-sm text-gray-700 truncate flex-1" title={uploadFile.name}>
                               {uploadFile.name}
                             </span>
+                            {uploadLoading && (
+                              <div className="flex items-center gap-1 text-xs text-blue-600 flex-shrink-0">
+                                <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                <span>Uploading...</span>
+                              </div>
+                            )}
                             <div className="flex gap-1 flex-shrink-0">
                               <button
                                 onClick={handleFileUpload}
-                                disabled={loading}
-                                className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 transition-colors active:scale-95"
+                                disabled={uploadLoading}
+                                className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95 flex items-center gap-1.5"
                               >
-                                Upload
+                                {uploadLoading ? (
+                                  <>
+                                    <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                                    <span>Uploading...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Upload className="h-3 w-3" />
+                                    <span>Upload</span>
+                                  </>
+                                )}
                               </button>
                               <button
                                 onClick={() => {
@@ -721,7 +810,8 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                                   setUploadPreview(null);
                                   document.getElementById('file-input').value = '';
                                 }}
-                                className="px-2 py-1 border border-gray-300 text-xs rounded hover:bg-gray-50 transition-colors active:scale-95"
+                                disabled={uploadLoading}
+                                className="px-2 py-1 border border-gray-300 text-xs rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95"
                               >
                                 Cancel
                               </button>
@@ -762,83 +852,214 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                       const isImage = fileIcon === 'image';
                       
                       return (
-                        <div key={index} className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                          {/* File Preview/Icon */}
-                          <div className="flex-shrink-0">
-                            {isImage && attachment.fileUrl ? (
-                              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden border border-gray-200">
-                                <img 
-                                  src={attachment.fileUrl} 
-                                  alt={attachment.fileName || 'Image'}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    // Fallback to icon if image fails to load
-                                    e.target.style.display = 'none';
-                                    e.target.nextSibling.style.display = 'flex';
-                                  }}
-                                />
-                                <div className="w-full h-full bg-blue-100 rounded-lg hidden items-center justify-center">
-                                  <FileText className="h-6 w-6 text-blue-600" />
-                                </div>
+                        <div key={index} className="border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors overflow-hidden">
+                          {/* Mobile Layout */}
+                          <div className="block sm:hidden">
+                            {/* Header with file icon, name and actions */}
+                            <div className="flex items-center gap-3 p-3 bg-gray-25">
+                              {/* File Preview/Icon */}
+                              <div className="flex-shrink-0">
+                                {isImage && attachment.fileUrl ? (
+                                  <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200">
+                                    <img 
+                                      src={attachment.fileUrl} 
+                                      alt={attachment.fileName || 'Image'}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        // Fallback to icon if image fails to load
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                    <div className="w-full h-full bg-blue-100 rounded-lg hidden items-center justify-center">
+                                      <FileText className="h-5 w-5 text-blue-600" />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                                    fileIcon === 'pdf' ? 'bg-red-100' : 'bg-blue-100'
+                                  }`}>
+                                    <FileText className={`h-5 w-5 ${
+                                      fileIcon === 'pdf' ? 'text-red-600' : 'text-blue-600'
+                                    }`} />
+                                  </div>
+                                )}
                               </div>
-                            ) : (
-                              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-lg flex items-center justify-center ${
-                                fileIcon === 'pdf' ? 'bg-red-100' : 'bg-blue-100'
-                              }`}>
-                                <FileText className={`h-6 w-6 ${
-                                  fileIcon === 'pdf' ? 'text-red-600' : 'text-blue-600'
-                                }`} />
-                              </div>
-                            )}
-                          </div>
 
-                          {/* File Info */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm sm:text-base font-semibold text-gray-900 truncate" title={attachment.fileName}>
-                              {attachment.fileName || `${getFileTypeDisplay(attachment.fileName, attachment.fileType)}`}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-xs text-gray-500">
-                                {attachment.fileSize ? formatFileSize(attachment.fileSize) : 'Size unknown'}
-                              </p>
-                              <span className="text-xs text-gray-300">•</span>
-                              <p className="text-xs text-gray-500">
-                                {getFileTypeDisplay(attachment.fileName, attachment.fileType)}
-                              </p>
+                              {/* File Name */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-900 truncate" title={attachment.fileName}>
+                                  {attachment.fileName || `${getFileTypeDisplay(attachment.fileName, attachment.fileType)}`}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {getFileTypeDisplay(attachment.fileName, attachment.fileType)}
+                                </p>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="flex gap-1">
+                                <button 
+                                  onClick={() => handlePreviewAttachment(attachment)}
+                                  className="p-2 hover:bg-blue-50 rounded-lg transition-colors group active:scale-95"
+                                  title="Preview"
+                                  disabled={!attachment.fileUrl}
+                                >
+                                  <Eye className={`h-4 w-4 ${
+                                    attachment.fileUrl 
+                                      ? 'text-gray-500 group-hover:text-blue-600' 
+                                      : 'text-gray-300 cursor-not-allowed'
+                                  }`} />
+                                </button>
+                                <button 
+                                  onClick={() => handleDownloadAttachment(attachment)}
+                                  className="p-2 hover:bg-green-50 rounded-lg transition-colors group active:scale-95"
+                                  title="Download"
+                                  disabled={!attachment.fileUrl}
+                                >
+                                  <Download className={`h-4 w-4 ${
+                                    attachment.fileUrl 
+                                      ? 'text-gray-500 group-hover:text-green-600' 
+                                      : 'text-gray-300 cursor-not-allowed'
+                                  }`} />
+                                </button>
+                              </div>
                             </div>
-                            {attachment.uploadedAt && (
-                              <p className="text-xs text-gray-400 mt-1">
-                                Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}
-                              </p>
-                            )}
+
+                            {/* File Details */}
+                            <div className="px-3 pb-3 space-y-2">
+                              {/* File Size */}
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span className="font-medium">Size:</span>
+                                <span>{attachment.fileSize ? formatFileSize(attachment.fileSize) : 'Unknown size'}</span>
+                              </div>
+
+                              {/* Upload Date */}
+                              {attachment.uploadedAt && (
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <span className="font-medium">Uploaded:</span>
+                                  <span>{new Date(attachment.uploadedAt).toLocaleDateString()}</span>
+                                </div>
+                              )}
+
+                              {/* Uploader Info */}
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                                <span className="font-medium flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  By:
+                                </span>
+                                <span className="flex items-center gap-2">
+                                  <span>{attachment.uploadedBy?.name || 'Unknown User'}</span>
+                                  {attachment.uploadedBy && (
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      ticket.assignedEngineerId?._id === attachment.uploadedBy._id
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'bg-green-100 text-green-700'
+                                    }`}>
+                                      {ticket.assignedEngineerId?._id === attachment.uploadedBy._id ? 'Engineer' : 'Customer'}
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            </div>
                           </div>
 
-                          {/* Action Buttons */}
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            <button 
-                              onClick={() => handlePreviewAttachment(attachment)}
-                              className="p-1.5 sm:p-2 hover:bg-blue-50 rounded-lg transition-colors group active:scale-95"
-                              title="Preview"
-                              disabled={!attachment.fileUrl}
-                            >
-                              <Eye className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${
-                                attachment.fileUrl 
-                                  ? 'text-gray-500 group-hover:text-blue-600' 
-                                  : 'text-gray-300 cursor-not-allowed'
-                              }`} />
-                            </button>
-                            <button 
-                              onClick={() => handleDownloadAttachment(attachment)}
-                              className="p-1.5 sm:p-2 hover:bg-green-50 rounded-lg transition-colors group active:scale-95"
-                              title="Download"
-                              disabled={!attachment.fileUrl}
-                            >
-                              <Download className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${
-                                attachment.fileUrl 
-                                  ? 'text-gray-500 group-hover:text-green-600' 
-                                  : 'text-gray-300 cursor-not-allowed'
-                              }`} />
-                            </button>
+                          {/* Desktop Layout (unchanged) */}
+                          <div className="hidden sm:flex items-start gap-4 p-4">
+                            {/* File Preview/Icon */}
+                            <div className="flex-shrink-0">
+                              {isImage && attachment.fileUrl ? (
+                                <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200">
+                                  <img 
+                                    src={attachment.fileUrl} 
+                                    alt={attachment.fileName || 'Image'}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      // Fallback to icon if image fails to load
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                  <div className="w-full h-full bg-blue-100 rounded-lg hidden items-center justify-center">
+                                    <FileText className="h-6 w-6 text-blue-600" />
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className={`w-16 h-16 rounded-lg flex items-center justify-center ${
+                                  fileIcon === 'pdf' ? 'bg-red-100' : 'bg-blue-100'
+                                }`}>
+                                  <FileText className={`h-6 w-6 ${
+                                    fileIcon === 'pdf' ? 'text-red-600' : 'text-blue-600'
+                                  }`} />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* File Info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-semibold text-gray-900 truncate" title={attachment.fileName}>
+                                {attachment.fileName || `${getFileTypeDisplay(attachment.fileName, attachment.fileType)}`}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-xs text-gray-500">
+                                  {attachment.fileSize ? formatFileSize(attachment.fileSize) : 'Size unknown'}
+                                </p>
+                                <span className="text-xs text-gray-300">•</span>
+                                <p className="text-xs text-gray-500">
+                                  {getFileTypeDisplay(attachment.fileName, attachment.fileType)}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                {attachment.uploadedAt && (
+                                  <>
+                                    <p className="text-xs text-gray-400">
+                                      Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}
+                                    </p>
+                                    <span className="text-xs text-gray-300">•</span>
+                                  </>
+                                )}
+                                <p className="text-xs text-gray-500 flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  <span>{attachment.uploadedBy?.name || 'Unknown User'}</span>
+                                  {attachment.uploadedBy && (
+                                    <span className={`ml-1 px-1.5 py-0.5 rounded text-xs font-medium ${
+                                      ticket.assignedEngineerId?._id === attachment.uploadedBy._id
+                                        ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                                        : 'bg-green-100 text-green-700 border border-green-200'
+                                    }`}>
+                                      {ticket.assignedEngineerId?._id === attachment.uploadedBy._id ? 'Engineer' : 'Customer'}
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button 
+                                onClick={() => handlePreviewAttachment(attachment)}
+                                className="p-2 hover:bg-blue-50 rounded-lg transition-colors group active:scale-95"
+                                title="Preview"
+                                disabled={!attachment.fileUrl}
+                              >
+                                <Eye className={`h-4 w-4 ${
+                                  attachment.fileUrl 
+                                    ? 'text-gray-500 group-hover:text-blue-600' 
+                                    : 'text-gray-300 cursor-not-allowed'
+                                }`} />
+                              </button>
+                              <button 
+                                onClick={() => handleDownloadAttachment(attachment)}
+                                className="p-2 hover:bg-green-50 rounded-lg transition-colors group active:scale-95"
+                                title="Download"
+                                disabled={!attachment.fileUrl}
+                              >
+                                <Download className={`h-4 w-4 ${
+                                  attachment.fileUrl 
+                                    ? 'text-gray-500 group-hover:text-green-600' 
+                                    : 'text-gray-300 cursor-not-allowed'
+                                }`} />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -865,25 +1086,33 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                       { value: 'in_progress', label: 'In Progress', color: 'purple' },
                       { value: 'awaiting_customer', label: 'Awaiting Customer', color: 'yellow' },
                       { value: 'resolved', label: 'Resolved', color: 'green' }
-                    ].map((status) => (
-                      <button
-                        key={status.value}
-                        onClick={() => handleStatusUpdate(status.value)}
-                        disabled={loading || ticket.status === status.value}
-                        className={`w-full px-4 py-3 text-left rounded-lg transition-all duration-200 text-sm font-medium ${
-                          ticket.status === status.value 
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' 
-                            : `bg-white border border-${status.color}-200 text-${status.color}-700 hover:bg-${status.color}-50 hover:border-${status.color}-300 shadow-sm hover:shadow-md`
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          {status.value === 'in_progress' && <Clock className="h-4 w-4" />}
-                          {status.value === 'awaiting_customer' && <User className="h-4 w-4" />}
-                          {status.value === 'resolved' && <CheckCircle className="h-4 w-4" />}
-                          {status.label}
-                        </div>
-                      </button>
-                    ))}
+                    ].map((status) => {
+                      const isCurrentStatus = ticket.status === status.value;
+                      const isValidTransition = isValidStatusTransition(ticket.status, status.value);
+                      const isDisabled = loading || isCurrentStatus || !isValidTransition;
+                      
+                      return (
+                        <button
+                          key={status.value}
+                          onClick={() => handleStatusUpdate(status.value)}
+                          disabled={isDisabled}
+                          className={`w-full px-4 py-3 text-left rounded-lg transition-all duration-200 text-sm font-medium ${
+                            isCurrentStatus 
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' 
+                              : !isValidTransition
+                              ? 'bg-gray-50 text-gray-300 cursor-not-allowed border border-gray-100'
+                              : `bg-white border border-${status.color}-200 text-${status.color}-700 hover:bg-${status.color}-50 hover:border-${status.color}-300 shadow-sm hover:shadow-md`
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {status.value === 'in_progress' && <Clock className="h-4 w-4" />}
+                            {status.value === 'awaiting_customer' && <User className="h-4 w-4" />}
+                            {status.value === 'resolved' && <CheckCircle className="h-4 w-4" />}
+                            {status.label}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -1034,6 +1263,15 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
         </div>,
         document.body
       )}
+      
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+      />
     </div>,
     document.body
   );

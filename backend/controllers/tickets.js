@@ -12,6 +12,8 @@ exports.getTickets = async (req, res) => {
     const tickets = await Ticket.find({ user: req.user.id })
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: tickets });
   } catch (error) {
@@ -67,7 +69,9 @@ exports.createTicket = async (req, res) => {
     const ticket = await Ticket.create(ticketData);
     
     // Populate user info for response
-    const populatedTicket = await Ticket.findById(ticket._id).populate('user', 'name email phone');
+    const populatedTicket = await Ticket.findById(ticket._id)
+      .populate('user', 'name email phone')
+      .populate('attachments.uploadedBy', 'name email');
     
     // Create notification for new ticket
     try {
@@ -127,6 +131,8 @@ exports.getAllTickets = async (req, res) => {
     const tickets = await Ticket.find()
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: tickets });
   } catch (error) {
@@ -169,7 +175,8 @@ exports.assignTicket = async (req, res) => {
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
-      .populate('comments.author', 'name email');
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email');
     
     res.json({ success: true, data: populatedTicket });
   } catch (error) {
@@ -193,7 +200,8 @@ exports.updateTicketMeta = async (req, res) => {
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
-      .populate('comments.author', 'name email');
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email');
     
     res.json({ success: true, data: populatedTicket });
   } catch (error) {
@@ -207,6 +215,8 @@ exports.getAssignedTickets = async (req, res) => {
     const tickets = await Ticket.find({ assignedEngineerId: req.user.id })
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: tickets });
   } catch (error) {
@@ -231,7 +241,8 @@ exports.updateTicketStatus = async (req, res) => {
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
-      .populate('comments.author', 'name email');
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email');
     
     res.json({ success: true, data: populatedTicket });
   } catch (error) {
@@ -253,7 +264,8 @@ exports.addComment = async (req, res) => {
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
-      .populate('comments.author', 'name email');
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email');
     
     res.status(201).json({ success: true, data: populatedTicket });
   } catch (error) {
@@ -288,7 +300,8 @@ exports.uploadAttachment = async (req, res) => {
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
-      .populate('comments.author', 'name email');
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email');
     
     res.status(201).json({ success: true, data: populatedTicket });
   } catch (error) {

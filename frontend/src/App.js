@@ -16,7 +16,6 @@ import NotificationsPage from './app/notifications/page';
 import CasesPage from './app/cases/page';
 import ReportsPage from './app/reports/page';
 import TicketsPage from './app/tickets/page';
-import ServiceCustomersPage from './app/service-customers/page';
 import PerformancePage from './app/performance/page';
 import MaintenancePage from './app/maintenance/page';
 import KnowledgeBasePage from './app/knowledge-base/page';
@@ -228,11 +227,6 @@ function App() {
             <Route path="installations/:id/signoff" element={
               <ProtectedRoute allowedRoles={['service_engineer']}>
                 <CustomerSignoff />
-              </ProtectedRoute>
-            } />
-            <Route path="service-customers" element={
-              <ProtectedRoute allowedRoles={['service_engineer']}>
-                <ServiceCustomersPage />
               </ProtectedRoute>
             } />
             <Route path="performance" element={

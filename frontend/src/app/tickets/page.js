@@ -294,6 +294,10 @@ const TicketsPage = () => {
 
   const handleTicketUpdate = (updatedTicket) => {
     setTickets(prev => prev.map(t => t._id === updatedTicket._id ? updatedTicket : t));
+    // Also update selectedTicket if it's the same ticket being updated
+    if (selectedTicket && selectedTicket._id === updatedTicket._id) {
+      setSelectedTicket(updatedTicket);
+    }
     if (window.showToast) {
       window.showToast('Ticket updated successfully', 'success');
     }

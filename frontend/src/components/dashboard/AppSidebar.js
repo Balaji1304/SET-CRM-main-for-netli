@@ -136,9 +136,7 @@ const getNavigation = (userRole) => {
     ],
     service_engineer: [
       { name: 'Installations', href: '/dashboard/installations', icon: Settings },
-      { name: 'Service Customers', href: '/dashboard/service-customers', icon: Users },
       { name: 'Cases', href: '/dashboard/cases', icon: Ticket },
-      { name: 'Service', href: '/dashboard/service', icon: Wrench },
       { name: 'Performance', href: '/dashboard/performance', icon: BarChart },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
