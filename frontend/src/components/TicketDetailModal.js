@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { 
   X, Clock, User, Tag, AlertTriangle, MessageCircle, Paperclip, Send, Upload, Eye, Download, 
   Edit3, Save, FileText, Calendar, Phone, Mail, MapPin, Building2, Users, 
-  CheckCircle, XCircle, RotateCcw, Zap, Lock
+  CheckCircle, XCircle, RotateCcw, Zap, Lock, Image
 } from 'lucide-react';
 import { updateTicketStatus, addComment, updateTicketMeta, assignTicket } from '../services/ticketService';
 import { getServiceEngineers } from '../services/taskService';
@@ -17,6 +17,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
   const [editMode, setEditMode] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadPreview, setUploadPreview] = useState(null);
+  const [imagePreviewModal, setImagePreviewModal] = useState({ isOpen: false, imageUrl: '', imageName: '' });
   const [editData, setEditData] = useState({
     priority: ticket?.priority || 'medium',
     category: ticket?.category || '',
@@ -239,6 +240,69 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       default:
         return <Zap className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (!bytes) return 'Unknown size';
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (fileName, fileType) => {
+    if (fileType?.startsWith('image/') || fileName?.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+      return 'image';
+    }
+    if (fileType === 'application/pdf' || fileName?.toLowerCase().endsWith('.pdf')) {
+      return 'pdf';
+    }
+    return 'document';
+  };
+
+  const getFileTypeDisplay = (fileName, fileType) => {
+    const icon = getFileIcon(fileName, fileType);
+    if (icon === 'image') return 'Image';
+    if (icon === 'pdf') return 'PDF Document';
+    return 'Document';
+  };
+
+  const handlePreviewAttachment = (attachment) => {
+    if (attachment.fileUrl) {
+      const fileIcon = getFileIcon(attachment.fileName, attachment.fileType);
+      if (fileIcon === 'image') {
+        // Open image in modal
+        setImagePreviewModal({
+          isOpen: true,
+          imageUrl: attachment.fileUrl,
+          imageName: attachment.fileName || 'Image'
+        });
+      } else {
+        // For other files, open directly in new window
+        window.open(attachment.fileUrl, '_blank');
+      }
+    }
+  };
+
+  const handleDownloadAttachment = async (attachment) => {
+    try {
+      if (attachment.fileUrl) {
+        const response = await fetch(attachment.fileUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = attachment.fileName || `attachment-${Date.now()}`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      setError('Failed to download file');
     }
   };
 
@@ -692,38 +756,93 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                       {ticket.attachments.length}
                     </span>
                   </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    {ticket.attachments.map((attachment, index) => (
-                      <div key={index} className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="h-8 w-8 sm:h-10 sm:w-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4">
+                    {ticket.attachments.map((attachment, index) => {
+                      const fileIcon = getFileIcon(attachment.fileName, attachment.fileType);
+                      const isImage = fileIcon === 'image';
+                      
+                      return (
+                        <div key={index} className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                          {/* File Preview/Icon */}
+                          <div className="flex-shrink-0">
+                            {isImage && attachment.fileUrl ? (
+                              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden border border-gray-200">
+                                <img 
+                                  src={attachment.fileUrl} 
+                                  alt={attachment.fileName || 'Image'}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    // Fallback to icon if image fails to load
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                                <div className="w-full h-full bg-blue-100 rounded-lg hidden items-center justify-center">
+                                  <FileText className="h-6 w-6 text-blue-600" />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-lg flex items-center justify-center ${
+                                fileIcon === 'pdf' ? 'bg-red-100' : 'bg-blue-100'
+                              }`}>
+                                <FileText className={`h-6 w-6 ${
+                                  fileIcon === 'pdf' ? 'text-red-600' : 'text-blue-600'
+                                }`} />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* File Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm sm:text-base font-semibold text-gray-900 truncate" title={attachment.fileName}>
+                              {attachment.fileName || `${getFileTypeDisplay(attachment.fileName, attachment.fileType)}`}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-xs text-gray-500">
+                                {attachment.fileSize ? formatFileSize(attachment.fileSize) : 'Size unknown'}
+                              </p>
+                              <span className="text-xs text-gray-300">•</span>
+                              <p className="text-xs text-gray-500">
+                                {getFileTypeDisplay(attachment.fileName, attachment.fileType)}
+                              </p>
+                            </div>
+                            {attachment.uploadedAt && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button 
+                              onClick={() => handlePreviewAttachment(attachment)}
+                              className="p-1.5 sm:p-2 hover:bg-blue-50 rounded-lg transition-colors group active:scale-95"
+                              title="Preview"
+                              disabled={!attachment.fileUrl}
+                            >
+                              <Eye className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${
+                                attachment.fileUrl 
+                                  ? 'text-gray-500 group-hover:text-blue-600' 
+                                  : 'text-gray-300 cursor-not-allowed'
+                              }`} />
+                            </button>
+                            <button 
+                              onClick={() => handleDownloadAttachment(attachment)}
+                              className="p-1.5 sm:p-2 hover:bg-green-50 rounded-lg transition-colors group active:scale-95"
+                              title="Download"
+                              disabled={!attachment.fileUrl}
+                            >
+                              <Download className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${
+                                attachment.fileUrl 
+                                  ? 'text-gray-500 group-hover:text-green-600' 
+                                  : 'text-gray-300 cursor-not-allowed'
+                              }`} />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">
-                            {attachment.type === 'image' ? 'Image File' : 
-                             attachment.type === 'pdf' ? 'PDF Document' : 
-                             'Document'}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {attachment.size ? `${(attachment.size / 1024).toFixed(1)} KB` : 'Unknown size'}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button 
-                            className="p-1.5 sm:p-2 hover:bg-blue-50 rounded-lg transition-colors group active:scale-95"
-                            title="Preview"
-                          >
-                            <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-500 group-hover:text-blue-600" />
-                          </button>
-                          <button 
-                            className="p-1.5 sm:p-2 hover:bg-green-50 rounded-lg transition-colors group active:scale-95"
-                            title="Download"
-                          >
-                            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-500 group-hover:text-green-600" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -886,6 +1005,35 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
           </div>
         </div>
       </div>
+
+      {/* Image Preview Modal */}
+      {imagePreviewModal.isOpen && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[10000] p-4">
+          <div className="relative max-w-full max-h-full">
+            {/* Close Button */}
+            <button
+              onClick={() => setImagePreviewModal({ isOpen: false, imageUrl: '', imageName: '' })}
+              className="absolute top-4 right-4 z-10 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-full text-white transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            
+            {/* Image */}
+            <img 
+              src={imagePreviewModal.imageUrl} 
+              alt={imagePreviewModal.imageName}
+              className="max-w-full max-h-full object-contain"
+              style={{ maxHeight: 'calc(100vh - 2rem)' }}
+            />
+            
+            {/* Image Name */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-4 py-2 rounded-lg">
+              <p className="text-sm font-medium">{imagePreviewModal.imageName}</p>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>,
     document.body
   );

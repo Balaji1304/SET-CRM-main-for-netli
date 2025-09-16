@@ -53,6 +53,8 @@ exports.createTicket = async (req, res) => {
             fileName: file.originalname,
             fileUrl: result.secure_url,
             fileType: file.mimetype,
+            fileSize: file.size,
+            publicId: result.public_id,
             uploadedBy: req.user.id
           });
         } catch (uploadError) {
@@ -272,9 +274,12 @@ exports.uploadAttachment = async (req, res) => {
     });
 
     ticket.attachments.push({
-      url: uploadResult.secure_url,
+      fileName: req.file.originalname,
+      fileUrl: uploadResult.secure_url,
+      fileType: req.file.mimetype,
+      fileSize: req.file.size,
       publicId: uploadResult.public_id,
-      type: uploadResult.resource_type === 'image' ? 'image' : (uploadResult.format === 'pdf' ? 'pdf' : 'other')
+      uploadedBy: req.user.id
     });
 
     await ticket.save();
