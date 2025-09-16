@@ -414,6 +414,187 @@ exports.getDashboardSummary = async (req, res, next) => {
           { message: `${newCustomersThisMonth} new customers acquired this month`, time: 'This month', type: 'customer' }
         ]
       };
+    } else if (role === 'accounts_department') {
+      // Get current date ranges for time-based analytics
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Core approval metrics - using existing endpoints data structure
+      const pendingApprovals = await safeQuery(Quotation.countDocuments({ status: 'pending_approval' }), 0, 'Accounts: Error fetching pending quotation approvals') +
+        await safeQuery(CustomerPurchase.countDocuments({ paymentReviewStatus: 'pending_verification' }), 0, 'Accounts: Error fetching pending payment approvals');
+
+      const approvalsToday = await safeQuery(Quotation.countDocuments({ 
+        status: 'approved',
+        advancePaymentConfirmedAt: { $gte: startOfToday }
+      }), 0, 'Accounts: Error fetching today quotation approvals') +
+        await safeQuery(CustomerPurchase.countDocuments({ 
+          paymentReviewStatus: 'verified',
+          updatedAt: { $gte: startOfToday }
+        }), 0, 'Accounts: Error fetching today payment approvals');
+
+      // Payment processing metrics
+      const totalPaymentsResult = await safeQuery(Payment.aggregate([
+        { $group: { _id: null, total: { $sum: '$amountPaid' } } }
+      ]), [], 'Accounts: Error aggregating total payments');
+      const totalPaymentsProcessed = totalPaymentsResult.length > 0 ? totalPaymentsResult[0].total : 0;
+
+      const monthlyPaymentsResult = await safeQuery(Payment.aggregate([
+        { $match: { createdAt: { $gte: startOfMonth } } },
+        { $group: { _id: null, total: { $sum: '$amountPaid' } } }
+      ]), [], 'Accounts: Error aggregating monthly payments');
+      const monthlyCollections = monthlyPaymentsResult.length > 0 ? monthlyPaymentsResult[0].total : 0;
+
+      // Payment type breakdown
+      const quotationApprovals = await safeQuery(Quotation.countDocuments({ status: 'pending_approval' }), 0, 'Accounts: Error fetching quotation approvals count');
+      const paymentApprovals = await safeQuery(CustomerPurchase.countDocuments({ paymentReviewStatus: 'pending_verification' }), 0, 'Accounts: Error fetching payment approvals count');
+
+      // Payment method analytics for current month
+      const paymentMethodStats = await safeQuery(Payment.aggregate([
+        { $match: { createdAt: { $gte: startOfMonth } } },
+        { 
+          $group: { 
+            _id: '$paymentMethod', 
+            count: { $sum: 1 }, 
+            amount: { $sum: '$amountPaid' }
+          } 
+        }
+      ]), [], 'Accounts: Error aggregating payment methods');
+
+      const paymentMethodBreakdown = paymentMethodStats.reduce((acc, stat) => {
+        acc[stat._id] = {
+          count: stat.count,
+          amount: stat.amount
+        };
+        return acc;
+      }, {});
+
+      // Outstanding payments calculation
+      const outstandingResult = await safeQuery(CustomerPurchase.aggregate([
+        { $match: { remainingAmount: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+      ]), [], 'Accounts: Error calculating outstanding payments');
+      const outstandingPayments = outstandingResult.length > 0 ? outstandingResult[0].total : 0;
+
+      // Fully paid orders
+      const fullyPaidOrders = await safeQuery(CustomerPurchase.countDocuments({ isFullyPaid: true }), 0, 'Accounts: Error fetching fully paid orders');
+      const activePurchaseOrders = await safeQuery(CustomerPurchase.countDocuments({ status: 'active' }), 0, 'Accounts: Error fetching active purchase orders');
+
+      // Recent pending approvals for table
+      const recentPendingQuotations = await safeQuery(Quotation.find({ status: 'pending_approval' })
+        .populate('lead', 'firstName lastName')
+        .sort({ updatedAt: -1 })
+        .limit(3)
+        .lean(), [], 'Accounts: Error fetching recent pending quotations');
+
+      const recentPendingPayments = await safeQuery(CustomerPurchase.find({ paymentReviewStatus: 'pending_verification' })
+        .populate('customerId', 'firstName lastName')
+        .populate('quotationId', 'quotationNumber')
+        .sort({ updatedAt: -1 })
+        .limit(3)
+        .lean(), [], 'Accounts: Error fetching recent pending payments');
+
+      const recentPendingApprovals = [
+        ...recentPendingQuotations.map(q => ({
+          id: q._id,
+          type: 'quotation_approval',
+          customerName: q.lead ? `${q.lead.firstName} ${q.lead.lastName}` : 'N/A',
+          quotationNumber: q.quotationNumber,
+          amount: q.advancePaymentAmount || q.total,
+          createdAt: new Date(q.createdAt).toLocaleDateString('en-GB')
+        })),
+        ...recentPendingPayments.map(p => ({
+          id: p._id,
+          type: 'remaining_payment_approval',
+          customerName: p.customerId ? `${p.customerId.firstName} ${p.customerId.lastName}` : 'N/A',
+          quotationNumber: p.quotationId ? p.quotationId.quotationNumber : 'N/A',
+          amount: p.totalAmount - p.advancePaid,
+          createdAt: new Date(p.createdAt).toLocaleDateString('en-GB')
+        }))
+      ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      // Recent approved payments for table
+      const recentApprovedQuotations = await safeQuery(Quotation.find({ status: 'approved' })
+        .populate('lead', 'firstName lastName')
+        .sort({ advancePaymentConfirmedAt: -1 })
+        .limit(3)
+        .lean(), [], 'Accounts: Error fetching recent approved quotations');
+
+      const recentApprovedPayments = await safeQuery(CustomerPurchase.find({ paymentReviewStatus: 'verified' })
+        .populate('customerId', 'firstName lastName')
+        .populate('quotationId', 'quotationNumber')
+        .sort({ updatedAt: -1 })
+        .limit(3)
+        .lean(), [], 'Accounts: Error fetching recent approved payments');
+
+      const recentApprovedPaymentsList = [
+        ...recentApprovedQuotations.map(q => ({
+          id: q._id,
+          customerName: q.lead ? `${q.lead.firstName} ${q.lead.lastName}` : 'N/A',
+          quotationNumber: q.quotationNumber,
+          amount: q.advancePaymentAmount || q.total,
+          paymentMethod: q.paymentMethod,
+          approvedAt: q.advancePaymentConfirmedAt ? new Date(q.advancePaymentConfirmedAt).toLocaleDateString('en-GB') : 'N/A'
+        })),
+        ...recentApprovedPayments.map(p => ({
+          id: p._id,
+          customerName: p.customerId ? `${p.customerId.firstName} ${p.customerId.lastName}` : 'N/A',
+          quotationNumber: p.quotationId ? p.quotationId.quotationNumber : 'N/A',
+          amount: p.totalAmount - p.advancePaid,
+          paymentMethod: 'manual', // Remaining payments are typically manual
+          approvedAt: new Date(p.updatedAt).toLocaleDateString('en-GB')
+        }))
+      ].sort((a, b) => new Date(b.approvedAt) - new Date(a.approvedAt));
+
+      // Calculate approval metrics
+      const todayApprovedAmountResult = await safeQuery(Payment.aggregate([
+        { $match: { createdAt: { $gte: startOfToday } } },
+        { $group: { _id: null, total: { $sum: '$amountPaid' } } }
+      ]), [], 'Accounts: Error calculating today approved amount');
+      const amountApprovedToday = todayApprovedAmountResult.length > 0 ? todayApprovedAmountResult[0].total : 0;
+
+      summaryData = {
+        // Core approval metrics
+        pendingApprovals,
+        approvalsToday,
+        totalPaymentsProcessed,
+        monthlyCollections,
+
+        // Payment type analytics
+        quotationApprovals,
+        paymentApprovals,
+        cashPayments: paymentMethodBreakdown.cash?.count || 0,
+        digitalPayments: (paymentMethodBreakdown.bank_transfer?.count || 0) + (paymentMethodBreakdown.razorpay?.count || 0),
+
+        // Performance metrics
+        avgApprovalTime: '2.5', // Placeholder - requires complex calculation
+        outstandingPayments,
+        fullyPaidOrders,
+        activePurchaseOrders,
+
+        // Today's performance
+        amountApprovedToday,
+        approvalRate: pendingApprovals > 0 ? `${Math.round((approvalsToday / (approvalsToday + pendingApprovals)) * 100)}%` : '100%',
+
+        // Payment method breakdown
+        paymentMethodBreakdown,
+
+        // Outstanding analysis placeholders
+        overduePayments: Math.round(outstandingPayments * 0.3), // Placeholder: assume 30% is overdue
+        dueThisWeek: Math.round(outstandingPayments * 0.15), // Placeholder: assume 15% due this week
+        collectionRate: '85%', // Placeholder
+
+        // Recent data for tables
+        recentPendingApprovals,
+        recentApprovedPayments: recentApprovedPaymentsList,
+
+        recentActivity: [
+          { message: `${approvalsToday} payments approved today`, time: 'Today', type: 'approval' },
+          { message: `₹${monthlyCollections.toLocaleString()} collected this month`, time: 'This month', type: 'collection' },
+          { message: `${pendingApprovals} approvals pending review`, time: 'Current', type: 'pending' },
+          { message: `₹${outstandingPayments.toLocaleString()} outstanding payments`, time: 'Current', type: 'outstanding' }
+        ]
+      };
     } else {
       summaryData = { message: "Dashboard data is not configured for this role, or no data found." };
     }

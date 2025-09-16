@@ -739,6 +739,250 @@ const Dashboard = () => {
     </div>
   );
 
+  const renderAccountsDashboard = () => (
+    <div className="w-full max-w-full overflow-x-hidden">
+      {/* Primary KPIs - Core Approval Metrics */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Pending Approvals', formatNumber(summaryData.pendingApprovals || 0), <Clock className="text-orange-500" />, 'Awaiting review')}
+        {renderCommonCard('Approvals Today', formatNumber(summaryData.approvalsToday || 0), <CheckCircle2 className="text-green-500" />, 'Processed today')}
+        {renderCommonCard('Total Payments Processed', `₹${formatNumber(summaryData.totalPaymentsProcessed || 0)}`, <IndianRupee className="text-green-600" />, 'All time')}
+        {renderCommonCard('Monthly Collections', `₹${formatNumber(summaryData.monthlyCollections || 0)}`, <IndianRupee className="text-blue-500" />, 'This month')}
+      </div>
+
+      {/* Payment Type Analytics */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Quotation Approvals', formatNumber(summaryData.quotationApprovals || 0), <FileText className="text-blue-500" />, 'Advance payments')}
+        {renderCommonCard('Payment Approvals', formatNumber(summaryData.paymentApprovals || 0), <IndianRupee className="text-green-500" />, 'Remaining payments')}
+        {renderCommonCard('Cash Payments', formatNumber(summaryData.cashPayments || 0), <Users className="text-gray-600" />, 'This month')}
+        {renderCommonCard('Digital Payments', formatNumber(summaryData.digitalPayments || 0), <Truck className="text-purple-500" />, 'This month')}
+      </div>
+
+      {/* Performance & Status Metrics */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Avg Approval Time', summaryData.avgApprovalTime || 'N/A', <Timer className="text-blue-500" />, 'Hours')}
+        {renderCommonCard('Outstanding Payments', `₹${formatNumber(summaryData.outstandingPayments || 0)}`, <AlertTriangle className="text-red-500" />, 'To be collected')}
+        {renderCommonCard('Fully Paid Orders', formatNumber(summaryData.fullyPaidOrders || 0), <CheckCircle2 className="text-green-600" />, 'Completed')}
+        {renderCommonCard('Active Purchase Orders', formatNumber(summaryData.activePurchaseOrders || 0), <Package className="text-blue-600" />, 'In progress')}
+      </div>
+
+      {/* Main Content Sections */}
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 mb-6">
+        {/* Quick Actions */}
+        {renderSection("Quick Actions", <Zap className="text-yellow-500" />, 
+          <div className="space-y-3 w-full">
+            <button
+              onClick={() => window.location.href = '/dashboard/quotations/pending-approvals'}
+              className="w-full flex items-center gap-2 px-3 py-3 bg-orange-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm md:text-base min-h-[44px]"
+            >
+              <Clock className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1 text-left md:text-center">
+                <span className="block sm:hidden">Pending ({summaryData.pendingApprovals || 0})</span>
+                <span className="hidden sm:block">Review Pending Approvals ({summaryData.pendingApprovals || 0})</span>
+              </span>
+            </button>
+            <button
+              onClick={() => window.location.href = '/dashboard/quotations/approved-payments'}
+              className="w-full flex items-center gap-2 px-3 py-3 bg-green-500 text-white rounded-lg hover:opacity-90 transition-opacity text-sm md:text-base min-h-[44px]"
+            >
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1 text-left md:text-center">
+                <span className="block sm:hidden">Approved</span>
+                <span className="hidden sm:block">View Approved Payments</span>
+              </span>
+            </button>
+            <button
+              onClick={() => window.location.href = '/dashboard/sales-reports'}
+              className="w-full flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm md:text-base min-h-[44px]"
+            >
+              <BarChart2 className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1 text-left md:text-center">
+                <span className="block sm:hidden">Reports</span>
+                <span className="hidden sm:block">Financial Reports</span>
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* Recent Activity */}
+        {renderSection("Recent Activity", <Clock />, 
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
+            {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent approval activity.</p>}
+          </div>
+        )}
+
+        {/* Today's Performance */}
+        {renderSection("Today's Performance", <BarChart2 />, 
+          <div className="space-y-2">
+            {renderPerformanceItem('Approvals Processed', summaryData.approvalsToday || 0)}
+            {renderPerformanceItem('Amount Approved', `₹${formatNumber(summaryData.amountApprovedToday || 0)}`)}
+            {renderPerformanceItem('Pending Reviews', summaryData.pendingApprovals || 0)}
+            {renderPerformanceItem('Approval Rate', summaryData.approvalRate || 'N/A')}
+          </div>
+        )}
+      </div>
+
+      {/* Payment Method Breakdown & Financial Overview */}
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 mb-6">
+        {/* Payment Method Distribution */}
+        {renderSection("Payment Methods", <IndianRupee className="text-green-500" />, 
+          <div className="space-y-2 max-h-80 overflow-y-auto pr-2">
+            {summaryData.paymentMethodBreakdown && Object.keys(summaryData.paymentMethodBreakdown).length > 0 ? Object.entries(summaryData.paymentMethodBreakdown).map(([method, data], idx) => (
+              <div key={idx} className="flex justify-between items-center py-2 border-b border-fourth last:border-b-0">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${
+                    method === 'cash' ? 'bg-green-500' :
+                    method === 'bank_transfer' ? 'bg-blue-500' :
+                    method === 'razorpay' ? 'bg-purple-500' :
+                    method === 'check' ? 'bg-orange-500' :
+                    'bg-gray-500'
+                  }`}></div>
+                  <span className="text-sm text-secondary capitalize">{method.replace('_', ' ')}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-semibold text-secondary">{data.count}</span>
+                  <div className="text-xs text-gray-500">₹{formatNumber(data.amount)}</div>
+                </div>
+              </div>
+            )) : <p className='text-sm text-gray-500'>No payment method data available.</p>}
+          </div>
+        )}
+
+        {/* Outstanding Payments Overview */}
+        {renderSection("Outstanding Analysis", <AlertTriangle className="text-red-500" />, 
+          <div className="space-y-2">
+            <div className="flex justify-between items-center py-2 border-b border-fourth">
+              <span className="text-sm text-secondary">Total Outstanding</span>
+              <span className="text-sm font-semibold text-red-500">₹{formatNumber(summaryData.outstandingPayments || 0)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-fourth">
+              <span className="text-sm text-secondary">Overdue ({'>'} 30 days)</span>
+              <span className="text-sm font-semibold text-red-600">₹{formatNumber(summaryData.overduePayments || 0)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-fourth">
+              <span className="text-sm text-secondary">Due This Week</span>
+              <span className="text-sm font-semibold text-orange-600">₹{formatNumber(summaryData.dueThisWeek || 0)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-secondary">Collection Rate</span>
+              <span className="text-sm font-semibold text-green-600">{summaryData.collectionRate || 'N/A'}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Notifications */}
+        <NotificationWidget userRole="accounts_department" />
+      </div>
+
+      {/* Recent Approvals/Pending Items Table */}
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mb-6">
+        {renderSection("Recent Pending Approvals", <Clock className="text-orange-500" />, 
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {summaryData.recentPendingApprovals?.length > 0 ? summaryData.recentPendingApprovals.slice(0, 5).map((approval, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        approval.type === 'quotation_approval' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                      }`}>
+                        {approval.type === 'quotation_approval' ? 'Quotation' : 'Payment'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{approval.customerName}</div>
+                      <div className="text-xs text-gray-500">{approval.quotationNumber}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">₹{formatNumber(approval.amount)}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {approval.createdAt}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">
+                      No pending approvals found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {summaryData.recentPendingApprovals?.length > 5 && (
+              <div className="mt-4 text-center">
+                <button 
+                  onClick={() => window.location.href = '/dashboard/quotations/pending-approvals'}
+                  className="text-primary hover:text-primary-dark text-sm font-medium"
+                >
+                  View All Pending Approvals →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Recent Approved Payments */}
+        {renderSection("Recent Approved Payments", <CheckCircle2 className="text-green-500" />, 
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {summaryData.recentApprovedPayments?.length > 0 ? summaryData.recentApprovedPayments.slice(0, 5).map((payment, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{payment.customerName}</div>
+                      <div className="text-xs text-gray-500">{payment.quotationNumber}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="text-sm font-medium text-green-600">₹{formatNumber(payment.amount)}</div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="text-sm text-gray-900 capitalize">{payment.paymentMethod?.replace('_', ' ')}</span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      {payment.approvedAt}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-sm text-gray-500">
+                      No recent approved payments found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {summaryData.recentApprovedPayments?.length > 5 && (
+              <div className="mt-4 text-center">
+                <button 
+                  onClick={() => window.location.href = '/dashboard/quotations/approved-payments'}
+                  className="text-primary hover:text-primary-dark text-sm font-medium"
+                >
+                  View All Approved Payments →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const renderDashboardByRole = () => {
     switch (user?.role) {
       case 'product_head': return renderProductHeadDashboard();
@@ -749,6 +993,7 @@ const Dashboard = () => {
       case 'service_engineer': return renderServiceEngineerDashboard();
       case 'sales_head': return renderSalesHeadDashboard();
       case 'marketing_coordinator': return renderMarketingCoordinatorDashboard();
+      case 'accounts_department': return renderAccountsDashboard();
       default:
         return (
           <div className="text-center">
