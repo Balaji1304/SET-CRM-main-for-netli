@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, Eye, MessageCircle, Clock, User, Tag, AlertTriangle, ChevronDown, Plus } from 'lucide-react';
+import { Search, Filter, Eye, MessageCircle, Clock, User, Tag, AlertTriangle, ChevronDown, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAssignedTickets, updateTicketStatus, addComment } from '../../services/ticketService';
 import TicketDetailModal from '../../components/TicketDetailModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
@@ -105,6 +105,9 @@ const CasesPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const itemsPerPage = 10;
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState({
@@ -123,12 +126,25 @@ const CasesPage = () => {
     return toIndex >= fromIndex;
   };
 
+  // Helper function to sort tickets by assignment time
+  const sortTicketsByAssignmentTime = (tickets) => {
+    return tickets.sort((a, b) => {
+      // Use assignedAt if available, otherwise fall back to updatedAt or createdAt
+      const dateA = new Date(a.assignedAt || a.updatedAt || a.createdAt);
+      const dateB = new Date(b.assignedAt || b.updatedAt || b.createdAt);
+      return dateB - dateA; // Latest first (descending order)
+    });
+  };
+
   useEffect(() => {
     (async () => {
       try {
         const res = await getAssignedTickets();
-        setTickets(res.data || []);
-        setFilteredTickets(res.data || []);
+        // Sort tickets by assignedAt timestamp (latest first)
+        const sortedTickets = sortTicketsByAssignmentTime(res.data || []);
+        
+        setTickets(sortedTickets);
+        setFilteredTickets(sortedTickets);
       } catch (e) {
         setError(e.message || 'Failed to load cases');
         if (window.showToast) {
@@ -163,12 +179,24 @@ const CasesPage = () => {
     setFilteredTickets(filtered);
   }, [tickets, searchTerm, statusFilter, priorityFilter]);
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTickets = filteredTickets.slice(startIndex, endIndex);
+
+  // Reset current page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, priorityFilter]);
+
   // Function to reset all filters
   const resetFilters = () => {
     setSearchTerm('');
     setStatusFilter('all');
     setPriorityFilter('all');
     setShowFilters(false);
+    setCurrentPage(1);
   };
 
   // Check if any filters are active
@@ -214,7 +242,11 @@ const CasesPage = () => {
     
     try {
       await updateTicketStatus(id, status);
-      setTickets((prev) => prev.map((t) => (t._id === id ? { ...t, status } : t)));
+      setTickets((prev) => {
+        const updatedTickets = prev.map((t) => (t._id === id ? { ...t, status } : t));
+        // Re-sort tickets to maintain assignment time order
+        return sortTicketsByAssignmentTime(updatedTickets);
+      });
       if (window.showToast) {
         window.showToast('Status updated successfully', 'success');
       }
@@ -232,7 +264,11 @@ const CasesPage = () => {
   };
 
   const handleTicketUpdate = (updatedTicket) => {
-    setTickets(prev => prev.map(t => t._id === updatedTicket._id ? updatedTicket : t));
+    setTickets(prev => {
+      const updatedTickets = prev.map(t => t._id === updatedTicket._id ? updatedTicket : t);
+      // Re-sort tickets to maintain assignment time order
+      return sortTicketsByAssignmentTime(updatedTickets);
+    });
     // Also update selectedTicket if it's the same ticket being updated
     if (selectedTicket && selectedTicket._id === updatedTicket._id) {
       setSelectedTicket(updatedTicket);
@@ -570,7 +606,7 @@ const CasesPage = () => {
                           </div>
                         </td>
                       </tr>
-                    ) : filteredTickets.length === 0 ? (
+                    ) : currentTickets.length === 0 ? (
                       <tr>
                         <td className="px-2 lg:px-4 xl:px-6 py-8 text-center text-sm text-gray-500" colSpan={6}>
                           <div className="flex flex-col items-center">
@@ -589,7 +625,7 @@ const CasesPage = () => {
                         </td>
                       </tr>
                     ) : (
-                      filteredTickets.map((t) => (
+                      currentTickets.map((t) => (
                         <tr 
                           key={t._id} 
                           className="hover:bg-orange-50/50 transition-colors cursor-pointer group" 
@@ -634,8 +670,8 @@ const CasesPage = () => {
                               <span className="text-sm text-gray-500 truncate">{t.user?.name || 'Unknown'}</span>
                             </div>
                           </td>
-                          <td className="px-2 lg:px-4 xl:px-6 py-4 whitespace-nowrap text-right">
-                            <div className="flex flex-wrap gap-1 items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                          <td className="px-2 lg:px-4 xl:px-6 py-4 whitespace-nowrap">
+                            <div className="flex flex-wrap gap-1 items-center justify-start" onClick={(e) => e.stopPropagation()}>
                               {(t.status === 'assigned' || t.status === 'reopened') && (
                                 <button 
                                   className="px-2 lg:px-3 py-1 lg:py-1.5 bg-blue-500 text-white text-xs rounded-md hover:bg-blue-600 transition-colors flex items-center justify-center" 
@@ -670,7 +706,7 @@ const CasesPage = () => {
                               )}
                               <button
                                 onClick={() => handleTicketClick(t)}
-                                className="p-1 lg:p-1.5 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center ml-1"
+                                className="p-1 lg:p-1.5 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center"
                                 title="View Details"
                               >
                                 <Eye className="h-3 w-3 lg:h-4 lg:w-4 text-gray-400" />
@@ -694,7 +730,7 @@ const CasesPage = () => {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   <span className="ml-3 text-sm text-gray-600">Loading cases...</span>
                 </div>
-              ) : filteredTickets.length === 0 ? (
+              ) : currentTickets.length === 0 ? (
                 <div className="text-center py-12">
                   <Tag className="h-12 w-12 text-gray-300 mb-4 mx-auto" />
                   <p className="text-base font-medium text-gray-900 mb-2">
@@ -709,7 +745,7 @@ const CasesPage = () => {
                   </p>
                 </div>
               ) : (
-                filteredTickets.map((ticket) => (
+                currentTickets.map((ticket) => (
                   <div key={ticket._id} className="w-full max-w-full">
                     <TicketCard ticket={ticket} />
                   </div>
@@ -719,6 +755,34 @@ const CasesPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 0 && (
+        <div className="px-2 sm:px-4 lg:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-2 sm:space-y-0">
+          <div className="text-xs sm:text-sm text-gray-600 order-2 sm:order-1">
+            Showing {Math.min(startIndex + 1, filteredTickets.length)} to {Math.min(endIndex, filteredTickets.length)} of {filteredTickets.length} results
+          </div>
+          <div className="flex items-center gap-1 sm:gap-2 order-1 sm:order-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 rounded-lg"
+            >
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+            <span className="text-xs sm:text-sm text-gray-600 px-2 sm:px-3 py-2 min-w-[60px] sm:min-w-[80px] text-center"> 
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-2 border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 rounded-lg"
+            >
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Case Detail Modal */}
       {showModal && selectedTicket && (

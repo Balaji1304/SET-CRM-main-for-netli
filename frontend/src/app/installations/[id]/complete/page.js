@@ -1,8 +1,109 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { X } from 'lucide-react';
 import { useAuth } from '../../../../context/AuthContext';
 import { completeInstallation, reportIssue } from '../../../../services/installationService';
 import { toast } from 'react-toastify';
+
+// Custom styles for mobile responsive design
+const customStyles = `
+  .mobile-action-compact {
+    padding: 6px !important;
+    margin: 0 1px !important;
+  }
+  
+  .mobile-action-buttons {
+    gap: 2px !important;
+  }
+  
+  .mobile-card-compact {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .mobile-card-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .mobile-header-text {
+    font-size: 16px !important;
+    line-height: 1.4 !important;
+  }
+  
+  .mobile-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  
+  /* Improved mobile responsiveness */
+  .mobile-modal-content {
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  
+  /* Extra small screen optimizations */
+  @media (max-width: 375px) {
+    .mobile-card-compact {
+      padding: 8px;
+    }
+    
+    .mobile-header-text {
+      font-size: 14px !important;
+      line-height: 1.3 !important;
+    }
+    
+    .mobile-action-buttons {
+      gap: 1px !important;
+    }
+  }
+  
+  /* Photo grid responsive behavior */
+  @media (min-width: 360px) {
+    .xs\\:grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  
+  /* Touch target improvements for mobile */
+  @media (max-width: 768px) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    /* Better spacing for mobile forms */
+    .mobile-form-spacing {
+      margin-bottom: 1rem;
+    }
+    
+    /* Improved button spacing on mobile */
+    .mobile-button-stack button {
+      margin-bottom: 0.75rem;
+    }
+    
+    .mobile-button-stack button:last-child {
+      margin-bottom: 0;
+    }
+  }
+  
+  /* Loading state improvements */
+  .loading-spinner {
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
 
 const InstallationComplete = () => {
   const { id } = useParams();
@@ -171,219 +272,241 @@ const InstallationComplete = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+    <>
+      <style>{customStyles}</style>
+      <div className="flex flex-col h-full">
+        {/* Header Section - Page Title */}
+        <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Complete Installation</h1>
-              <p className="text-sm text-gray-500 mt-1">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary">Complete Installation</h1>
+              <p className="mt-1 text-sm text-gray-500 hidden sm:block">
                 Upload completion photos and finalize the installation process
               </p>
             </div>
+            
+            {/* Close Button */}
             <button
               onClick={() => navigate('/installations')}
-              className="text-gray-500 hover:text-gray-700"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-150 text-gray-500 hover:text-gray-700"
+              aria-label="Close and return to dashboard"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Completion Photos <span className="text-red-500">*</span>
-            </h2>
-            <p className="text-sm text-gray-600 mb-4">
-              Please upload photos showing the completed installation. These will be shared with the customer for approval.
-            </p>
-            
-            <div
-              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
-              }`}
-              onDrop={onDrop}
-              onDragOver={onDragOver}
-              onDragLeave={onDragLeave}
-            >
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={onInputChange}
-                className="hidden"
-                id="photo-upload"
-                capture="environment"
-                ref={fileInputRef}
-              />
-              <label
-                htmlFor="photo-upload"
-                className="cursor-pointer flex flex-col items-center"
+        {/* Main Content Area */}
+        <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1">
+          <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+            {/* Completion Photos Section */}
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 sm:mb-4">
+                Completion Photos <span className="text-red-500">*</span>
+              </h2>
+              <p className="text-sm text-gray-600 mb-4 sm:mb-6">
+                Please upload photos showing the completed installation. These will be shared with the customer for approval.
+              </p>
+              
+              <div
+                className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center transition-colors ${
+                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
+                }`}
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
               >
-                <div className="w-12 h-12 text-gray-400 mb-2">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium text-gray-900 mb-1">Click or drag images here</p>
-                <p className="text-xs text-gray-500">PNG, JPG up to 5MB each (max 5 photos)</p>
-                {completionPhotos.length > 0 && (
-                  <p className="text-xs text-blue-600 mt-2">{completionPhotos.length} selected</p>
-                )}
-              </label>
-              <div className="mt-2">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={onInputChange}
+                  className="hidden"
+                  id="photo-upload"
+                  capture="environment"
+                  ref={fileInputRef}
+                />
+                <label
+                  htmlFor="photo-upload"
+                  className="cursor-pointer flex flex-col items-center"
                 >
-                  Browse files
-                </button>
-                {completionPhotos.length > 0 && (
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mb-2">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 mb-1">Click or drag images here</p>
+                  <p className="text-xs text-gray-500">PNG, JPG up to 5MB each (max 5 photos)</p>
+                  {completionPhotos.length > 0 && (
+                    <p className="text-xs text-blue-600 mt-2">{completionPhotos.length} selected</p>
+                  )}
+                </label>
+                <div className="mt-3 sm:mt-2 space-y-2 sm:space-y-0 sm:space-x-3 flex flex-col sm:flex-row items-center justify-center">
                   <button
                     type="button"
-                    onClick={() => { setCompletionPhotos([]); setPreviews([]); }}
-                    className="ml-3 text-sm text-gray-600 hover:text-gray-800 underline"
+                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                    className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors duration-150 border border-blue-200"
                   >
-                    Remove all
+                    Browse Files
                   </button>
+                  {completionPhotos.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { setCompletionPhotos([]); setPreviews([]); }}
+                      className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-150 border border-gray-200"
+                    >
+                      Remove All ({completionPhotos.length})
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Photo Preview Section */}
+              <div className="mt-4 sm:mt-6">
+                <h3 className="text-sm font-medium text-gray-900 mb-2 sm:mb-3">
+                  Photo Preview ({previews.length} selected)
+                </h3>
+                {previews.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+                    {previews.map((p, index) => (
+                      <div key={`photo-${index}-${p.name}`} className="relative group">
+                        <div className="aspect-square w-full overflow-hidden rounded-lg border border-gray-200 group-hover:border-gray-300 transition-colors duration-150">
+                          <img
+                            src={p.url}
+                            alt={`Photo ${index + 1}: ${p.name}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <button
+                          onClick={() => removePhoto(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors duration-150 shadow-sm z-10"
+                          title="Remove photo"
+                        >
+                          ×
+                        </button>
+                        <p className="text-xs text-gray-500 mt-1 mobile-truncate" title={p.name}>
+                          {p.name} • {formatFileSize(p.size)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 p-4 sm:p-6 bg-gray-50 rounded-lg text-center">
+                    <div className="text-gray-400 mb-2">
+                      <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <p>No photos selected yet</p>
+                    <p className="text-xs text-gray-400 mt-1">Click the upload area above to select photos</p>
+                  </div>
                 )}
               </div>
             </div>
 
-            <div className="mt-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-2">
-                Photo Preview ({previews.length} selected)
-              </h3>
-              {previews.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {previews.map((p, index) => (
-                    <div key={`photo-${index}-${p.name}`} className="relative">
-                      <img
-                        src={p.url}
-                        alt={`Photo ${index + 1}: ${p.name}`}
-                        className="w-full h-24 object-cover rounded-lg border"
-                      />
-                      <button
-                        onClick={() => removePhoto(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
-                        title="Remove photo"
-                      >
-                        ×
-                      </button>
-                      <p className="text-xs text-gray-500 mt-1 truncate" title={p.name}>
-                        {p.name} • {formatFileSize(p.size)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500 p-4 bg-gray-50 rounded-lg">
-                  No photos selected yet. Click the upload area above to select photos.
+            {/* Completion Notes Section */}
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 sm:mb-4">Completion Notes</h2>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows="4"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-150 text-sm sm:text-base resize-none"
+                placeholder="Add any notes about the installation process, special configurations, or recommendations for the customer..."
+              />
+            </div>
+
+            {/* Issues Encountered Section */}
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-4">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Issues Encountered</h2>
+                <button
+                  onClick={() => setShowIssueForm(!showIssueForm)}
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150 ${
+                    showIssueForm 
+                      ? 'bg-red-100 text-red-800 hover:bg-red-200' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {showIssueForm ? 'Cancel' : 'Report Issues'}
+                </button>
+              </div>
+              
+              {showIssueForm && (
+                <div className="border border-red-200 rounded-lg p-4 sm:p-6 bg-red-50">
+                  <textarea
+                    value={issuesEncountered}
+                    onChange={(e) => setIssuesEncountered(e.target.value)}
+                    rows="3"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-red-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors duration-150 text-sm sm:text-base resize-none"
+                    placeholder="Describe any issues encountered during installation that need management attention..."
+                  />
+                  <div className="mt-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <button
+                      onClick={handleReportIssue}
+                      disabled={loading || !issuesEncountered.trim()}
+                      className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors duration-150 flex items-center justify-center"
+                    >
+                      {loading ? 'Reporting...' : 'Report Issue Only'}
+                    </button>
+                    <button
+                      onClick={() => setShowIssueForm(false)}
+                      className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors duration-150"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Completion Notes</h2>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows="4"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Add any notes about the installation process, special configurations, or recommendations for the customer..."
-            />
-          </div>
-
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Issues Encountered</h2>
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-end pt-4 sm:pt-6 border-t border-gray-200">
               <button
-                onClick={() => setShowIssueForm(!showIssueForm)}
-                className={`px-3 py-1 rounded-md text-sm font-medium ${
-                  showIssueForm 
-                    ? 'bg-red-100 text-red-800' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                onClick={() => navigate('/installations')}
+                className="w-full sm:w-auto px-6 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-150 border border-gray-200"
               >
-                {showIssueForm ? 'Cancel' : 'Report Issues'}
+                Back to Dashboard
+              </button>
+              <button
+                onClick={handleCompleteInstallation}
+                disabled={loading || completionPhotos.length === 0}
+                className="w-full sm:w-auto px-6 py-3 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors duration-150 flex items-center justify-center shadow-lg hover:shadow-xl"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Completing...
+                  </>
+                ) : (
+                  'Complete Installation'
+                )}
               </button>
             </div>
-            
-            {showIssueForm && (
-              <div className="border border-red-200 rounded-lg p-4 bg-red-50">
-                <textarea
-                  value={issuesEncountered}
-                  onChange={(e) => setIssuesEncountered(e.target.value)}
-                  rows="3"
-                  className="w-full px-3 py-2 border border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                  placeholder="Describe any issues encountered during installation that need management attention..."
-                />
-                <div className="mt-3 flex space-x-2">
-                  <button
-                    onClick={handleReportIssue}
-                    disabled={loading || !issuesEncountered.trim()}
-                    className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-md text-sm font-medium"
-                  >
-                    {loading ? 'Reporting...' : 'Report Issue Only'}
-                  </button>
-                  <button
-                    onClick={() => setShowIssueForm(false)}
-                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium"
-                  >
-                    Cancel
-                  </button>
+
+            {/* Information Panel */}
+            <div className="mt-6 sm:mt-8 p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-blue-200 rounded-lg flex items-center justify-center">
+                    <svg className="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end space-x-4">
-            <button
-              onClick={() => navigate('/installations')}
-              className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-            >
-              Back to Dashboard
-            </button>
-            <button
-              onClick={handleCompleteInstallation}
-              disabled={loading || completionPhotos.length === 0}
-              className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 flex items-center"
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Completing...
-                </>
-              ) : (
-                'Complete Installation'
-              )}
-            </button>
-          </div>
-
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">What happens next?</h3>
-                <p className="text-sm text-blue-700 mt-1">
-                  After completing the installation, the customer will receive a notification to review your work and provide feedback. 
-                  Once they approve, the order will be marked as complete.
-                </p>
+                <div className="flex-1">
+                  <h3 className="text-sm sm:text-base font-semibold text-blue-900 mb-2">What happens next?</h3>
+                  <p className="text-sm text-blue-800 leading-relaxed">
+                    After completing the installation, the customer will receive a notification to review your work and provide feedback. 
+                    Once they approve, the order will be marked as complete.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
