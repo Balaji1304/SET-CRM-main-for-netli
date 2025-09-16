@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, CheckCheck, Trash2, Filter, Search, AlertCircle, Clock, User, Package, FileText, DollarSign, X, Settings, Zap, Star, Archive, RefreshCw, Eye, EyeOff, ChevronDown, RotateCcw } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, Filter, Search, AlertCircle, Clock, User, Package, FileText, DollarSign, X, Settings, Zap, Star, Archive, RefreshCw, Eye, EyeOff, ChevronDown, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getNotifications, getNotificationCounts, markAsRead, markAllAsRead, deleteNotification } from '../../services/notificationService';
 import { useAuth } from '../../context/AuthContext';
 
@@ -20,6 +20,8 @@ const NotificationsPage = () => {
   const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'list'
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Function to reset all filters
   const resetFilters = () => {
@@ -245,7 +247,7 @@ const NotificationsPage = () => {
   };
 
   const selectAll = () => {
-    const allIds = filteredAndSortedNotifications.map(n => n._id);
+    const allIds = currentNotifications.map(n => n._id);
     setSelectedNotifications(allIds);
   };
 
@@ -448,6 +450,12 @@ const NotificationsPage = () => {
 
     return filtered;
   }, [notifications, searchTerm, filterType, priorityFilter, showUnreadOnly, sortBy]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredAndSortedNotifications.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentNotifications = filteredAndSortedNotifications.slice(startIndex, endIndex);
 
   return (
     <div className="flex flex-col h-full">
@@ -667,10 +675,10 @@ const NotificationsPage = () => {
                 {/* Selection Controls */}
                 <div className="flex items-center justify-between mb-4">
                   <button
-                    onClick={selectedNotifications.length === filteredAndSortedNotifications.length ? clearSelection : selectAll}
+                    onClick={selectedNotifications.length === currentNotifications.length ? clearSelection : selectAll}
                     className="text-sm text-orange-600 hover:text-orange-800 font-medium"
                   >
-                    {selectedNotifications.length === filteredAndSortedNotifications.length ? 'Deselect All' : 'Select All'}
+                    {selectedNotifications.length === currentNotifications.length ? 'Deselect All' : 'Select All'}
                   </button>
                   {selectedNotifications.length > 0 && (
                     <span className="text-sm text-gray-500">
@@ -681,7 +689,7 @@ const NotificationsPage = () => {
 
                 {/* Notifications Display */}
                 <div className="space-y-2 lg:space-y-3">
-                  {filteredAndSortedNotifications.map((notification) => (
+                  {currentNotifications.map((notification) => (
                     <div
                       key={notification._id}
                       className={`
@@ -940,6 +948,34 @@ const NotificationsPage = () => {
             )}
           </div>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 0 && (
+          <div className="px-2 lg:px-4 xl:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-3 sm:space-y-0">
+            <div className="text-sm text-gray-600 order-2 sm:order-1">
+              Showing {Math.min(startIndex + 1, filteredAndSortedNotifications.length)} to {Math.min(endIndex, filteredAndSortedNotifications.length)} of {filteredAndSortedNotifications.length} results
+            </div>
+            <div className="flex items-center gap-2 order-1 sm:order-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+              >
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+              <span className="text-xs sm:text-sm text-gray-600 px-3 py-2 min-w-[80px] text-center"> 
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+              >
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

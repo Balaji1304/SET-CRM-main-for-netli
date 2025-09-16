@@ -67,12 +67,12 @@ const Dashboard = () => {
   }, [user, token, authLoading, summaryData]);
 
   const renderCommonCard = (title, value, icon, subText = null, cardClassName = '') => (
-    <div className={`rounded-lg border border-fourth bg-tertiary p-6 shadow-sm hover:shadow-md transition-shadow w-full max-w-full overflow-hidden ${cardClassName}`}>
+    <div className={`rounded-lg border border-fourth bg-tertiary p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow w-full max-w-full overflow-hidden ${cardClassName}`}>
       <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-medium text-gray-600 truncate pr-2 flex-1 min-w-0">{title}</p>
-        {React.cloneElement(icon, { className: `h-6 w-6 flex-shrink-0 ${icon.props.className || 'text-primary'}` })}
+        <p className="text-xs sm:text-sm font-medium text-gray-600 truncate pr-2 flex-1 min-w-0">{title}</p>
+        {React.cloneElement(icon, { className: `h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 ${icon.props.className || 'text-primary'}` })}
       </div>
-      <p className="text-3xl font-bold text-secondary truncate">{value === undefined || value === null ? 'N/A' : value}</p>
+      <p className="text-2xl sm:text-3xl font-bold text-secondary truncate">{value === undefined || value === null ? 'N/A' : value}</p>
       {subText && <p className="text-xs text-gray-500 mt-1 truncate">{subText}</p>}
     </div>
   );
@@ -134,18 +134,18 @@ const Dashboard = () => {
 
   const renderProductHeadDashboard = () => (
     <>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-3 mb-6">
         {renderCommonCard('Total Customers', formatNumber(summaryData.totalCustomers), <Users />)}
         {renderCommonCard('Active Purchases', formatNumber(summaryData.activeOrders), <ShoppingCart />)}
         {renderCommonCard('Total Revenue (All Time)', `₹${formatNumber(summaryData.totalRevenue)}`, <IndianRupee />)}
       </div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Quotations (Draft)', formatNumber(summaryData.quotationStats?.draft || 0), <FileText />)}
         {renderCommonCard('Quotations (Sent)', formatNumber(summaryData.quotationStats?.sent || 0), <FileText />)}
         {renderCommonCard('Quotations (Approved)', formatNumber(summaryData.quotationStats?.approved || 0), <FileText />)}
         {renderCommonCard('Low Stock Items', summaryData.lowStockItems, <PackageSearch className="text-red-500" />, 'Count of items below threshold')}
       </div>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-3 mb-6">
         {renderCommonCard('Total Products', formatNumber(summaryData.totalProducts), <Package />)}
         {renderCommonCard('Items Below Reorder Level', summaryData.lowStockItemsCount, <AlertTriangle className="text-red-500" />)}
         {renderCommonCard('Stock Turnover Rate', summaryData.inventoryStats?.stockTurnoverRate || 'N/A', <BarChart2 />)}
@@ -184,7 +184,7 @@ const Dashboard = () => {
   const renderCustomerDashboard = () => (
     <>
       <TicketStatsWidget userRole={user?.role} />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-3 mb-6">
         {renderCommonCard('My Open Tickets', formatNumber(summaryData.myOpenTickets), <Ticket />)}
         {renderCommonCard('My Active Purchases', formatNumber(summaryData.myRecentOrdersCount), <ShoppingCart />)}
         {renderCommonCard('My Active Quotations', formatNumber(summaryData.myActiveQuotations), <FileText />)}
@@ -208,7 +208,7 @@ const Dashboard = () => {
 
   const renderSalesDashboard = () => (
     <>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('My Leads Created', formatNumber(summaryData.myLeadsCreated), <Users2 />)}
         {renderCommonCard('My Quotations (Draft)', formatNumber(summaryData.myQuotationStats?.draft || 0), <FileText />)}
         {renderCommonCard('My Quotations (Approved)', formatNumber(summaryData.myQuotationStats?.approved || 0), <FileText />)}
@@ -234,7 +234,7 @@ const Dashboard = () => {
   const renderServiceEngineerDashboard = () => (
     <>
       <TicketStatsWidget userRole={user?.role} />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-2 mb-6">
         {renderCommonCard('My Active Assigned Tasks', formatNumber(summaryData.myAssignedCustomerTasks), <UserCog />)}
         {renderCommonCard('Avg. Task Resolution Time', summaryData.avgResolutionTime, <CheckCircle2 />)}
               </div>
@@ -256,7 +256,7 @@ const Dashboard = () => {
 
   const renderSalesHeadDashboard = () => (
     <>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-3 mb-6">
         {renderCommonCard('Total Quotations', formatNumber(summaryData.totalQuotations), <FileText />)}
         {renderCommonCard('Total Quotations Value', `₹${formatNumber(summaryData.totalQuotationsValue)}`, <IndianRupee />)}
         {renderCommonCard('Approved Deals', formatNumber(summaryData.approvedDeals), <CheckCircle2 />)}
@@ -291,7 +291,7 @@ const Dashboard = () => {
   const renderFrontOfficeExecutiveDashboard = () => (
     <>
       {/* Main KPIs */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Total Enquiries', formatNumber(summaryData.totalEnquiries || 0), <FileText />, 'All time')}
         {renderCommonCard('Enquiries Today', formatNumber(summaryData.enquiriesToday || 0), <UserPlus />, 'Created today')}
         {renderCommonCard('Pending Assignments', formatNumber(summaryData.pendingAssignments || 0), <Clock className="text-orange-500" />, 'Awaiting assignment')}
@@ -299,7 +299,7 @@ const Dashboard = () => {
       </div>
 
       {/* Lead Source Analytics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('IndiaMART Leads', formatNumber(summaryData.leadSourceStats?.indiamart || 0), <Building2 className="text-blue-500" />)}
         {renderCommonCard('Website Enquiries', formatNumber(summaryData.leadSourceStats?.website || 0), <Globe className="text-green-500" />)}
         {renderCommonCard('Referral Leads', formatNumber(summaryData.leadSourceStats?.referral || 0), <Users className="text-purple-500" />)}
@@ -307,7 +307,7 @@ const Dashboard = () => {
       </div>
 
       {/* Assignment Performance */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-3 mb-6">
         {renderCommonCard('This Week Assignments', formatNumber(summaryData.weeklyAssignments || 0), <Users2 />, 'Leads assigned this week')}
         {renderCommonCard('This Month Total', formatNumber(summaryData.monthlyEnquiries || 0), <Calendar />, 'Enquiries this month')}
         {renderCommonCard('Average Response Time', summaryData.avgResponseTime || 'N/A', <Timer className="text-blue-500" />, 'From enquiry to assignment')}
@@ -491,7 +491,7 @@ const Dashboard = () => {
   const renderMarketingCoordinatorDashboard = () => (
     <div className="w-full max-w-full overflow-x-hidden">
       {/* Primary KPIs - Purchase Order Management */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Total Purchase Orders', formatNumber(summaryData.totalPurchaseOrders || 0), <Package />, 'All active orders')}
         {renderCommonCard('Ready to Dispatch', formatNumber(summaryData.readyToDispatch || 0), <Truck className="text-blue-500" />, 'Awaiting date allocation')}
         {renderCommonCard('Dates Allocated Today', formatNumber(summaryData.dateAllocatedToday || 0), <CalendarDays className="text-green-500" />, 'Installation dates set')}
@@ -499,7 +499,7 @@ const Dashboard = () => {
       </div>
 
       {/* Installation & Service Analytics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('This Week Installations', formatNumber(summaryData.installationsThisWeek || 0), <CalendarDays />)}
         {renderCommonCard('Active Customers', formatNumber(summaryData.totalCustomers || 0), <Users />)}
         {renderCommonCard('New Customers (Month)', formatNumber(summaryData.newCustomersThisMonth || 0), <UserPlus className="text-green-500" />)}
@@ -507,7 +507,7 @@ const Dashboard = () => {
       </div>
 
       {/* Secondary Permissions Analytics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Total Leads', formatNumber(summaryData.totalLeads || 0), <Target />)}
         {renderCommonCard('Active Leads', formatNumber(summaryData.activeLeads || 0), <Target className="text-blue-500" />)}
         {renderCommonCard('Total Quotations', formatNumber(summaryData.totalQuotations || 0), <FileText />)}
@@ -742,7 +742,7 @@ const Dashboard = () => {
   const renderAccountsDashboard = () => (
     <div className="w-full max-w-full overflow-x-hidden">
       {/* Primary KPIs - Core Approval Metrics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Pending Approvals', formatNumber(summaryData.pendingApprovals || 0), <Clock className="text-orange-500" />, 'Awaiting review')}
         {renderCommonCard('Approvals Today', formatNumber(summaryData.approvalsToday || 0), <CheckCircle2 className="text-green-500" />, 'Processed today')}
         {renderCommonCard('Total Payments Processed', `₹${formatNumber(summaryData.totalPaymentsProcessed || 0)}`, <IndianRupee className="text-green-600" />, 'All time')}
@@ -750,7 +750,7 @@ const Dashboard = () => {
       </div>
 
       {/* Payment Type Analytics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Quotation Approvals', formatNumber(summaryData.quotationApprovals || 0), <FileText className="text-blue-500" />, 'Advance payments')}
         {renderCommonCard('Payment Approvals', formatNumber(summaryData.paymentApprovals || 0), <IndianRupee className="text-green-500" />, 'Remaining payments')}
         {renderCommonCard('Cash Payments', formatNumber(summaryData.cashPayments || 0), <Users className="text-gray-600" />, 'This month')}
@@ -758,7 +758,7 @@ const Dashboard = () => {
       </div>
 
       {/* Performance & Status Metrics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Avg Approval Time', summaryData.avgApprovalTime || 'N/A', <Timer className="text-blue-500" />, 'Hours')}
         {renderCommonCard('Outstanding Payments', `₹${formatNumber(summaryData.outstandingPayments || 0)}`, <AlertTriangle className="text-red-500" />, 'To be collected')}
         {renderCommonCard('Fully Paid Orders', formatNumber(summaryData.fullyPaidOrders || 0), <CheckCircle2 className="text-green-600" />, 'Completed')}
@@ -1005,18 +1005,21 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-tertiary font-sans h-full w-full overflow-x-hidden">
+    <div className="flex flex-col h-full">
+      {/* Header Section - Page Title */}
       <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-          <h1 className="text-3xl font-bold tracking-tight text-secondary">Dashboard</h1>
-          <div className="flex items-center space-x-3 text-sm text-gray-600">
-            <Settings className="h-5 w-5 text-secondary" />
-            <span>Role: {user?.role ? user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}</span>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">Dashboard</h1>
+          <div className="flex items-center space-x-3 text-xs sm:text-sm text-gray-600">
+            <Settings className="h-4 w-4 sm:h-5 sm:w-5 text-secondary" />
+            <span className="mobile-truncate">Role: {user?.role ? user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}</span>
           </div>
         </div>
       </div>
 
+      <div className="flex-1 min-h-0 bg-tertiary font-sans overflow-x-hidden">
         {renderDashboardByRole()}
+      </div>
     </div>
   );
 };
