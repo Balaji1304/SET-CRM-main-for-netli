@@ -21,8 +21,103 @@ import { getMyOrderTracking } from '../../services/trackingService';
 import { STATUS_LABELS, PHASE_LABELS, STATUS_COLORS, PHASE_COLORS } from '../../services/trackingService';
 import { formatNumber } from '../../utils/formatNumber';
 import { getMyPurchases, downloadOrderFormPDF } from '../../services/customerService';
+import { useAuth } from '../../context/AuthContext';
 
-const OrderTrackingCard = ({ tracking, onViewDetails }) => {
+// Custom styles for mobile responsive design
+const customStyles = `
+  .mobile-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  
+  .mobile-card-compact {
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .mobile-card-header {
+    padding: 14px;
+  }
+  
+  .mobile-card-content {
+    padding: 12px 14px;
+  }
+  
+  .mobile-action-compact {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .touch-friendly {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .modal-mobile-spacing {
+    padding: 12px;
+  }
+  
+  .timeline-mobile {
+    margin-left: 12px;
+  }
+  
+  @media (max-width: 640px) {
+    .mobile-truncate {
+      max-width: 200px;
+    }
+    
+    .mobile-card-compact {
+      padding: 10px;
+      margin-bottom: 12px;
+    }
+    
+    .mobile-card-header {
+      padding: 12px;
+    }
+    
+    .mobile-card-content {
+      padding: 10px 12px;
+    }
+    
+    .mobile-action-compact {
+      padding: 8px 12px;
+      font-size: 12px;
+      min-height: 44px;
+    }
+    
+    .modal-mobile-spacing {
+      padding: 8px;
+    }
+    
+    .timeline-mobile {
+      margin-left: 8px;
+    }
+  }
+  
+  @media (max-width: 375px) {
+    .mobile-card-compact {
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+    
+    .mobile-card-header {
+      padding: 10px;
+    }
+    
+    .mobile-card-content {
+      padding: 8px 10px;
+    }
+    
+    .mobile-action-compact {
+      padding: 5px 8px;
+      font-size: 11px;
+    }
+  }
+`;
+
+const OrderTrackingCard = ({ tracking, onViewDetails, isAdmin = false }) => {
   const formatDate = (date) => {
     if (!date) return 'TBD';
     return new Date(date).toLocaleDateString('en-US', {
@@ -36,10 +131,26 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
     if (!date) return null;
     return new Date(date).toLocaleString('en-US', {
       day: 'numeric',
-      month: 'long',
+      month: 'short',
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      'order_placed': 'bg-blue-100 text-blue-800',
+      'payment_confirmed': 'bg-green-100 text-green-800',
+      'order_accepted': 'bg-green-100 text-green-800',
+      'order_approved': 'bg-green-100 text-green-800',
+      'ready_to_dispatch': 'bg-yellow-100 text-yellow-800',
+      'dispatched': 'bg-purple-100 text-purple-800',
+      'delivered': 'bg-indigo-100 text-indigo-800',
+      'installation_scheduled': 'bg-orange-100 text-orange-800',
+      'installation_completed': 'bg-emerald-100 text-emerald-800',
+      'order_completed': 'bg-emerald-100 text-emerald-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
   // Get the main product image or use a placeholder
@@ -161,102 +272,120 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
   const timelineSteps = getTimelineSteps();
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all duration-300">
-      {/* Header with Product Image and Status */}
-      <div className="relative">
-        <div className="flex">
-          {/* Product Image */}
-          <div className="w-32 h-24 bg-gray-100 flex-shrink-0">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-200 h-fit">
+      {/* Header Section */}
+      <div className="relative bg-gradient-to-r from-gray-50 to-white mobile-card-header border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center space-x-3 min-w-0 flex-1">
             <img 
               src={getProductImage()} 
               alt="Solar System"
-              className="w-full h-full object-cover"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover border border-gray-200 flex-shrink-0"
             />
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900 mobile-truncate">
+                {tracking.purchaseId?.purchaseID || 'Solar Installation Order'}
+              </h3>
+              <p className="text-xs sm:text-sm text-gray-500 mobile-truncate">#{tracking.trackingNumber}</p>
+            </div>
           </div>
           
-          {/* Status Badge */}
-          <div className="absolute top-3 right-3">
-            <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
-              tracking.currentStatus === 'order_completed' ? 'bg-orange-100 text-orange-800' :
-              tracking.currentStatus === 'installation_completed' ? 'bg-orange-100 text-orange-800' :
-              tracking.currentStatus === 'delivered' ? 'bg-purple-100 text-purple-800' :
-              tracking.currentStatus === 'dispatched' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-orange-100 text-orange-800'
-            }`}>
-              {tracking.currentStatus === 'order_completed' ? '✅' :
-               tracking.currentStatus === 'installation_completed' ? '🔧' :
-               tracking.currentStatus === 'delivered' ? '📍' :
-               tracking.currentStatus === 'dispatched' ? '🚛' :
-               tracking.currentStatus === 'payment_confirmed' ? '💳' :
-               '📦'} {STATUS_LABELS[tracking.currentStatus] || tracking.currentStatus}
-            </div>
+          <div className={`px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs font-semibold ${getStatusColor(tracking.currentStatus)} flex-shrink-0`}>
+            {STATUS_LABELS[tracking.currentStatus] || 'Order Placed'}
+          </div>
+        </div>
+
+        {/* Order Details */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3">
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500 uppercase tracking-wider">Amount</span>
+            <span className="font-bold text-gray-900">₹{formatNumber(tracking.purchaseId?.totalAmount || 0)}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500 uppercase tracking-wider">Progress</span>
+            <span className="text-sm font-medium text-orange-600">{tracking.progressPercentage || 5}%</span>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="p-6">
-        {/* Order Info */}
-        <div className="mb-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-1">
-            {tracking.purchaseId?.purchaseID || 'Solar Installation Order'}
-          </h3>
-          <div className="flex items-center text-sm text-gray-600 space-x-4">
-            <span>₹{formatNumber(tracking.purchaseId?.totalAmount || 0)}</span>
-            <span>•</span>
-            <span>#{tracking.trackingNumber}</span>
-            <span>•</span>
-            <span>{tracking.progressPercentage || 0}% Complete</span>
+      {/* Customer Info - Admin Only */}
+      {isAdmin && tracking.purchaseId?.customerId && (
+        <div className="bg-blue-50 border-b border-blue-100 mobile-card-content">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <div className="flex items-center space-x-2">
+              <User className="h-4 w-4 text-blue-600 flex-shrink-0" />
+              <span className="font-semibold text-blue-900 mobile-truncate">
+                {tracking.purchaseId.customerId.firstName} {tracking.purchaseId.customerId.lastName}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2 text-sm">
+              {tracking.purchaseId.customerId.phone && (
+                <>
+                  <Phone className="h-3 w-3 text-blue-600 flex-shrink-0" />
+                  <span className="text-blue-700 mobile-truncate">{tracking.purchaseId.customerId.phone}</span>
+                </>
+              )}
+            </div>
           </div>
-          <p className="text-sm text-gray-500 mt-1">
-            EXPECTED TOTAL MONTHLY SAVINGS
-          </p>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="mobile-card-content">
+        {/* Current Status & Latest Update */}
+        <div className="mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+            <h4 className="text-sm font-semibold text-gray-900">Current Status</h4>
+            <span className="text-xs text-gray-500 sm:text-right">
+              {formatDateTime(new Date())}
+            </span>
+          </div>
+          
+          {/* Status with progress bar */}
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+              <span className="text-sm font-medium text-gray-900 mobile-truncate">
+                {timelineSteps.find(step => step.completed && step.id === tracking.currentStatus)?.title || 
+                 timelineSteps[timelineSteps.filter(s => s.completed).length - 1]?.title || 'Order Processing'}
+              </span>
+            </div>
+            <div className="bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-orange-400 to-orange-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${tracking.progressPercentage || 5}%` }}
+              ></div>
+            </div>
+            <div className="text-xs text-gray-600 mt-1 text-center">
+              {tracking.progressPercentage || 5}% Complete
+            </div>
+          </div>
         </div>
 
-        {/* Timeline */}
-        <div className="relative mb-6">          
-          <div className="space-y-0">
-            {timelineSteps.map((step, index) => (
-              <div key={step.id} className="relative flex items-center pb-6">
-                {/* Connecting Line - Show before each step except the first */}
-                {index > 0 && (
-                  <div className={`absolute left-3 top-0 w-0.5 h-6 ${
-                    timelineSteps[index - 1]?.completed ? 'bg-orange-500' : 'bg-gray-200'
-                  }`} style={{ transform: 'translateY(-24px)' }}></div>
-                )}
-                
-                {/* Timeline Icon */}
-                <div className={`relative z-10 flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border-2 ${
-                  step.completed 
-                    ? 'border-orange-500 bg-orange-500 shadow-sm' 
-                    : 'border-gray-300 bg-white'
-                }`}>
-                  {step.completed ? (
-                    <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  ) : (
-                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                  )}
-                </div>
-
-                {/* Timeline Content */}
-                <div className="ml-4 min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <h4 className={`text-sm font-semibold ${
-                      step.completed ? 'text-gray-900' : 'text-gray-500'
-                    }`}>
-                      {step.title}
-                    </h4>
-                    <div className="flex flex-col items-end gap-1">
+        {/* Quick Timeline Overview */}
+        <div className="mb-4">
+          <h4 className="text-sm font-semibold text-gray-900 mb-3">Recent Updates</h4>
+          <div className="space-y-3">
+            {timelineSteps.slice(0, 2).map((step, index) => (
+              <div key={step.id} className="bg-gray-50 rounded-lg p-3">
+                <div className="flex items-start space-x-3">
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0 ${
+                    step.completed ? 'bg-orange-500' : 'bg-gray-300'
+                  }`}>
+                    {step.completed && (
+                      <CheckCircle className="w-2.5 h-2.5 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                      <span className={`text-sm font-medium mobile-truncate ${
+                        step.completed ? 'text-gray-900' : 'text-gray-500'
+                      }`}>
+                        {step.title}
+                      </span>
                       {step.timestamp && (
-                        <span className="text-xs text-blue-600 font-medium">
+                        <span className="text-xs text-gray-500 flex-shrink-0">
                           {formatDateTime(step.timestamp)}
-                        </span>
-                      )}
-                      {step.estimatedDate && !step.timestamp && (
-                        <span className="text-xs text-gray-500 font-medium">
-                          Expected: {formatDateTime(step.estimatedDate)}
                         </span>
                       )}
                     </div>
@@ -264,19 +393,31 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
                 </div>
               </div>
             ))}
+            {timelineSteps.length > 2 && (
+              <div className="text-center pt-2">
+                <button 
+                  onClick={() => onViewDetails(tracking)}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full transition-colors"
+                >
+                  View all {timelineSteps.length} steps
+                </button>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Action Buttons */}
-        <div className="flex space-x-3">
+      {/* Action Buttons */}
+      <div className="border-t border-gray-100 mobile-card-content bg-gray-50">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <button
             onClick={() => onViewDetails(tracking)}
-            className="flex-1 bg-blue-50 text-blue-600 py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
+            className="flex items-center justify-center space-x-2 bg-primary text-white mobile-action-compact rounded-lg font-medium hover:opacity-90 transition-all duration-200 touch-friendly"
           >
-            View Details
+            <Eye className="w-4 h-4" />
+            <span>View Details</span>
           </button>
           
-          {/* Order Form Button */}
           <button
             onClick={async () => {
               try {
@@ -294,39 +435,25 @@ const OrderTrackingCard = ({ tracking, onViewDetails }) => {
                 alert('Failed to download Order Form. Please try again.');
               }
             }}
-            className="flex-1 bg-green-50 text-green-600 py-2 px-4 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
+            className="flex items-center justify-center space-x-2 bg-green-600 text-white mobile-action-compact rounded-lg font-medium hover:bg-green-700 transition-all duration-200 touch-friendly"
             title="Download Order Form PDF"
           >
             <FileText className="w-4 h-4" />
-            Order Form
+            <span className="hidden sm:inline">Order Form</span>
+            <span className="sm:hidden">Download</span>
           </button>
-          
-          {/* Additional actions based on status */}
-          {tracking.currentStatus === 'delivered' && (
-            <button className="flex-1 bg-orange-50 text-orange-600 py-2 px-4 rounded-lg text-sm font-medium hover:bg-orange-100 transition-colors">
-              Schedule Installation
-            </button>
-          )}
         </div>
 
-        {/* Support Section */}
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-2 text-gray-500">
-              <Phone className="w-4 h-4" />
-              <span>Need help?</span>
-            </div>
-            <button className="text-blue-600 hover:text-blue-700 font-medium">
-              Contact Support
-            </button>
-          </div>
-        </div>
+        <button className="w-full flex items-center justify-center space-x-2 bg-gray-200 text-gray-700 mobile-action-compact rounded-lg font-medium hover:bg-gray-300 transition-all duration-200 touch-friendly">
+          <Phone className="w-4 h-4" />
+          <span>Contact Support</span>
+        </button>
       </div>
     </div>
   );
 };
 
-const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
+const TrackingDetailModal = ({ tracking, isOpen, onClose, isAdmin = false }) => {
   // Prevent background scroll when modal is open
   useEffect(() => {
     if (isOpen) {
@@ -490,64 +617,98 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
   const progressPercentage = Math.round((completedSteps / timelineSteps.length) * 100);
 
   return createPortal(
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-2 sm:p-4">
+      <div className="bg-white rounded-xl sm:rounded-2xl max-w-full sm:max-w-4xl w-full max-h-[98vh] sm:max-h-[95vh] overflow-hidden shadow-2xl">
         {/* Modern Header with Gradient */}
-        <div className="relative bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold mb-1">
+        <div className="relative bg-gradient-to-r from-orange-500 to-orange-600 text-white p-3 sm:p-6">
+          <div className="flex items-start sm:items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-2xl font-bold mb-1 mobile-truncate">
                 {tracking.purchaseId?.purchaseID || 'Solar Installation Order'}
               </h2>
-              <div className="flex items-center space-x-4 text-orange-100">
-                <span className="text-sm">#{tracking.trackingNumber}</span>
-                <span className="text-sm">•</span>
-                <span className="text-sm">₹{formatNumber(tracking.purchaseId?.totalAmount || 0)}</span>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-orange-100 text-xs sm:text-sm">
+                <span className="mobile-truncate">#{tracking.trackingNumber}</span>
+                <span className="mobile-truncate">₹{formatNumber(tracking.purchaseId?.totalAmount || 0)}</span>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-white hover:bg-opacity-20 rounded-full transition-colors touch-friendly flex-shrink-0"
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
           {/* Progress Overview */}
-          <div className="mt-6 bg-white bg-opacity-20 rounded-xl p-4">
+          <div className="mt-4 sm:mt-6 bg-white bg-opacity-20 rounded-lg sm:rounded-xl p-3 sm:p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Overall Progress</span>
-              <span className="text-sm font-bold">{progressPercentage}%</span>
+              <span className="text-xs sm:text-sm font-medium">Overall Progress</span>
+              <span className="text-sm sm:text-sm font-bold">{progressPercentage}%</span>
             </div>
-            <div className="w-full bg-white bg-opacity-30 rounded-full h-2">
+            <div className="w-full bg-white bg-opacity-30 rounded-full h-1.5 sm:h-2">
               <div 
-                className="h-2 bg-white rounded-full transition-all duration-500"
+                className="h-1.5 sm:h-2 bg-white rounded-full transition-all duration-500"
                 style={{ width: `${progressPercentage}%` }}
               ></div>
             </div>
-            <div className="flex items-center justify-between mt-2 text-xs text-orange-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mt-2 text-xs text-orange-100">
               <span>{completedSteps} of {timelineSteps.length} steps completed</span>
-              <span>{STATUS_LABELS[tracking.currentStatus]}</span>
+              <span className="font-medium">{STATUS_LABELS[tracking.currentStatus]}</span>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(95vh-200px)]">
+        <div className="p-3 sm:p-6 overflow-y-auto max-h-[calc(98vh-120px)] sm:max-h-[calc(95vh-200px)]">
+          {/* Customer Information - Admin Only */}
+          {isAdmin && tracking.purchaseId?.customerId && (
+            <div className="mb-6 sm:mb-8 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-blue-200">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+                <User className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-blue-600" />
+                Customer Information
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                  <span className="text-xs sm:text-sm font-medium text-blue-700">Name:</span>
+                  <span className="text-sm sm:text-base font-semibold text-blue-900 mobile-truncate">
+                    {tracking.purchaseId.customerId.firstName} {tracking.purchaseId.customerId.lastName}
+                  </span>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                  <span className="text-xs sm:text-sm font-medium text-blue-700">Email:</span>
+                  <span className="text-sm sm:text-base text-blue-800 mobile-truncate">
+                    {tracking.purchaseId.customerId.email}
+                  </span>
+                </div>
+                {tracking.purchaseId.customerId.phone && (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                    <span className="text-xs sm:text-sm font-medium text-blue-700">Phone:</span>
+                    <div className="flex items-center space-x-2">
+                      <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 flex-shrink-0" />
+                      <span className="text-sm sm:text-base text-blue-800 mobile-truncate">
+                        {tracking.purchaseId.customerId.phone}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Timeline Section */}
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
-              <Clock className="h-5 w-5 mr-2 text-orange-500" />
+          <div className="mb-6 sm:mb-8">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-500" />
               Order Journey
             </h3>
             
             <div className="relative">
               {/* Timeline Line */}
-              <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+              <div className="absolute left-4 sm:left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
               
-              <div className="space-y-8">
+              <div className="space-y-4 sm:space-y-8">
                 {timelineSteps.map((step, index) => {
                   const Icon = step.icon;
                   const isLast = index === timelineSteps.length - 1;
@@ -555,44 +716,44 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
                   return (
                     <div key={step.id} className="relative flex items-start">
                       {/* Timeline Icon */}
-                      <div className={`relative z-10 flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center border-4 border-white shadow-lg ${
+                      <div className={`relative z-10 flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border-2 sm:border-4 border-white shadow-lg ${
                         step.completed ? step.color : 'bg-gray-300'
                       }`}>
-                        <Icon className="h-5 w-5 text-white" />
+                        <Icon className="h-3 w-3 sm:h-5 sm:w-5 text-white" />
                       </div>
 
                       {/* Connected Line */}
                       {!isLast && step.completed && (
-                        <div className="absolute left-6 top-12 w-0.5 h-8 bg-orange-500"></div>
+                        <div className="absolute left-4 sm:left-6 top-8 sm:top-12 w-0.5 h-4 sm:h-8 bg-orange-500"></div>
                       )}
 
                       {/* Content */}
-                      <div className="ml-6 flex-1">
-                        <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                      <div className="ml-3 sm:ml-6 flex-1 min-w-0">
+                        <div className={`p-3 sm:p-4 rounded-lg sm:rounded-xl border transition-all duration-300 ${
                           step.completed 
                             ? 'bg-orange-50 border-orange-200 shadow-sm' 
                             : 'bg-gray-50 border-gray-200'
                         }`}>
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className={`font-semibold ${
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                            <h4 className={`text-sm sm:text-base font-semibold mobile-truncate ${
                               step.completed ? 'text-gray-900' : 'text-gray-500'
                             }`}>
                               {step.title}
                             </h4>
-                            <div className="flex flex-col items-end gap-1">
+                            <div className="flex flex-col sm:items-end gap-1">
                               {step.timestamp && (
-                                <span className="text-xs text-orange-600 font-medium bg-orange-100 px-2 py-1 rounded-full">
+                                <span className="text-xs text-orange-600 font-medium bg-orange-100 px-2 py-1 rounded-full inline-block">
                                   {formatDateTime(step.timestamp)}
                                 </span>
                               )}
                               {step.estimatedDate && !step.timestamp && (
-                                <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full">
+                                <span className="text-xs text-blue-600 font-medium bg-blue-100 px-2 py-1 rounded-full inline-block">
                                   Expected: {formatDateTime(step.estimatedDate)}
                                 </span>
                               )}
                             </div>
                           </div>
-                          <p className={`text-sm ${
+                          <p className={`text-xs sm:text-sm ${
                             step.completed ? 'text-gray-600' : 'text-gray-400'
                           }`}>
                             {step.description}
@@ -607,48 +768,48 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
           </div>
 
           {/* Key Information Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Delivery Information */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
-              <div className="flex items-center mb-4">
-                <div className="p-2 bg-blue-500 rounded-lg">
-                  <Truck className="h-5 w-5 text-white" />
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg sm:rounded-xl p-4 sm:p-6">
+              <div className="flex items-center mb-3 sm:mb-4">
+                <div className="p-1.5 sm:p-2 bg-blue-500 rounded-lg">
+                  <Truck className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <h4 className="ml-3 font-semibold text-gray-900">Delivery Details</h4>
+                <h4 className="ml-2 sm:ml-3 text-sm sm:text-base font-semibold text-gray-900">Delivery Details</h4>
               </div>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Estimated Delivery</span>
-                  <span className="text-sm font-medium">{formatDateOnly(tracking.estimatedDelivery)}</span>
+              <div className="space-y-2 sm:space-y-3">
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                  <span className="text-xs sm:text-sm text-gray-600 font-medium">Estimated Delivery</span>
+                  <span className="text-xs sm:text-sm font-medium">{formatDateOnly(tracking.estimatedDelivery)}</span>
                 </div>
                 {tracking.actualDelivery && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Actual Delivery</span>
-                    <span className="text-sm font-medium text-green-600">{formatDateOnly(tracking.actualDelivery)}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                    <span className="text-xs sm:text-sm text-gray-600 font-medium">Actual Delivery</span>
+                    <span className="text-xs sm:text-sm font-medium text-green-600">{formatDateOnly(tracking.actualDelivery)}</span>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Installation Information */}
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6">
-              <div className="flex items-center mb-4">
-                <div className="p-2 bg-orange-500 rounded-lg">
-                  <User className="h-5 w-5 text-white" />
+            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg sm:rounded-xl p-4 sm:p-6">
+              <div className="flex items-center mb-3 sm:mb-4">
+                <div className="p-1.5 sm:p-2 bg-orange-500 rounded-lg">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
-                <h4 className="ml-3 font-semibold text-gray-900">Installation Details</h4>
+                <h4 className="ml-2 sm:ml-3 text-sm sm:text-base font-semibold text-gray-900">Installation Details</h4>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {tracking.estimatedInstallation && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Estimated Installation</span>
-                    <span className="text-sm font-medium">{formatDateOnly(tracking.estimatedInstallation)}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                    <span className="text-xs sm:text-sm text-gray-600 font-medium">Estimated Installation</span>
+                    <span className="text-xs sm:text-sm font-medium">{formatDateOnly(tracking.estimatedInstallation)}</span>
                   </div>
                 )}
                 {tracking.actualInstallation && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Completed On</span>
-                    <span className="text-sm font-medium text-green-600">{formatDateOnly(tracking.actualInstallation)}</span>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                    <span className="text-xs sm:text-sm text-gray-600 font-medium">Completed On</span>
+                    <span className="text-xs sm:text-sm font-medium text-green-600">{formatDateOnly(tracking.actualInstallation)}</span>
                   </div>
                 )}
               </div>
@@ -656,13 +817,13 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
           </div>
 
           {/* Action Buttons */}
-          <div className="mt-8 flex flex-col sm:flex-row gap-3">
-            <button className="flex-1 bg-orange-500 text-white py-3 px-6 rounded-xl font-medium hover:bg-orange-600 transition-colors flex items-center justify-center">
+          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3">
+            <button className="flex-1 bg-orange-500 text-white py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium hover:bg-orange-600 transition-colors flex items-center justify-center touch-friendly">
               <Phone className="h-4 w-4 mr-2" />
               Contact Support
             </button>
             {tracking.currentStatus === 'delivered' && (
-              <button className="flex-1 bg-blue-500 text-white py-3 px-6 rounded-xl font-medium hover:bg-blue-600 transition-colors flex items-center justify-center">
+              <button className="flex-1 bg-blue-500 text-white py-3 px-4 sm:px-6 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium hover:bg-blue-600 transition-colors flex items-center justify-center touch-friendly">
                 <Calendar className="h-4 w-4 mr-2" />
                 Schedule Installation
               </button>
@@ -676,6 +837,7 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose }) => {
 };
 
 export default function OrdersPage() {
+  const { user } = useAuth();
   const [trackingData, setTrackingData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -685,6 +847,7 @@ export default function OrdersPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   const navigate = useNavigate();
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     loadTrackingData();
@@ -718,7 +881,10 @@ export default function OrdersPage() {
   const filteredTrackingData = trackingData.filter(tracking => {
     const matchesSearch = !searchTerm || 
       tracking.purchaseId?.purchaseID?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tracking.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      tracking.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (isAdmin && tracking.purchaseId?.customerId?.firstName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (isAdmin && tracking.purchaseId?.customerId?.lastName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (isAdmin && tracking.purchaseId?.customerId?.email?.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === 'all' || tracking.currentPhase === statusFilter;
     
@@ -756,34 +922,64 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="mb-4 sm:mb-0">
-              <h1 className="text-2xl font-bold text-gray-900">Your Orders</h1>
+    <>
+      <style>{customStyles}</style>
+      <div className="flex flex-col h-full">
+      {/* Header Section - Page Title */}
+      <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <Package className="h-6 w-6 text-orange-600" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">
+                {isAdmin ? 'All Customer Orders' : 'Your Orders'}
+              </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Track your solar installation orders and shipments
+                {isAdmin 
+                  ? 'Monitor and manage all customer solar installation orders and shipments'
+                  : 'Track the progress of your solar installation orders and shipments'
+                }
               </p>
             </div>
-            
-            {/* Search and Filter */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="text"
-                  placeholder="Search orders..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[200px]"
-                />
-              </div>
+          </div>
+          <div className="flex items-center space-x-4 text-sm text-gray-500">
+            <span className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>{filteredTrackingData.length} {filteredTrackingData.length === 1 ? 'Order' : 'Orders'}</span>
+            </span>
+            {isAdmin && (
+              <span className="flex items-center space-x-1">
+                <User className="w-3 h-3" />
+                <span>Admin View</span>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Area - Contains filters and orders */}
+      <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
+        {/* Filter and Action Bar */}
+        <div className="p-4 md:p-6 border-b border-fourth sticky top-0 bg-tertiary z-20">
+          {/* Search and Filter Controls */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <input
+                type="text"
+                placeholder={isAdmin ? "Search by order ID, customer name, email..." : "Search by order ID, tracking number..."}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2.5 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400"
+              />
+            </div>
+            <div>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[120px]"
+                className="px-4 py-2.5 border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary min-w-[140px] bg-tertiary text-sm text-secondary"
               >
                 <option value="all">All Status</option>
                 <option value="processing">Processing</option>
@@ -796,52 +992,97 @@ export default function OrdersPage() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {filteredTrackingData.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-              <Package className="h-12 w-12 text-gray-400" />
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          {filteredTrackingData.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                <Package className="h-12 w-12 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Orders Found</h3>
+              <p className="text-gray-600 max-w-md mx-auto">
+                {trackingData.length === 0 
+                  ? (isAdmin ? "No customer orders found in the system yet." : "You haven't placed any orders yet. Start shopping to see your orders here.")
+                  : "No orders match your current search criteria. Try adjusting your filters."
+                }
+              </p>
+              {trackingData.length === 0 && !isAdmin && (
+                <button 
+                  onClick={() => navigate('/dashboard/quotations')}
+                  className="mt-6 bg-primary text-white px-6 py-2 rounded-lg hover:opacity-90 transition-colors"
+                >
+                  Browse Products
+                </button>
+              )}
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Orders Found</h3>
-            <p className="text-gray-600 max-w-md mx-auto">
-              {trackingData.length === 0 
-                ? "You haven't placed any orders yet. Start shopping to see your orders here."
-                : "No orders match your current search criteria. Try adjusting your filters."
-              }
-            </p>
-            {trackingData.length === 0 && (
-              <button 
-                onClick={() => navigate('/dashboard/quotations')}
-                className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Browse Products
-              </button>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Orders Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredTrackingData.map((tracking) => (
-                <OrderTrackingCard
-                  key={tracking._id}
-                  tracking={tracking}
-                  onViewDetails={handleViewDetails}
-                />
-              ))}
-            </div>
-          </>
-        )}
+          ) : (
+            <>
+              {/* Summary Stats */}
+              {trackingData.length > 0 && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                  <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span className="text-xs sm:text-sm font-medium text-gray-600 mobile-truncate">Processing</span>
+                    </div>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                      {trackingData.filter(t => ['order_placed', 'payment_confirmed', 'order_accepted'].includes(t.currentStatus)).length}
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                      <span className="text-xs sm:text-sm font-medium text-gray-600 mobile-truncate">Shipping</span>
+                    </div>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                      {trackingData.filter(t => ['ready_to_dispatch', 'dispatched'].includes(t.currentStatus)).length}
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                      <span className="text-xs sm:text-sm font-medium text-gray-600 mobile-truncate">Installation</span>
+                    </div>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                      {trackingData.filter(t => ['delivered', 'installation_scheduled'].includes(t.currentStatus)).length}
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 sm:p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-xs sm:text-sm font-medium text-gray-600 mobile-truncate">Completed</span>
+                    </div>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                      {trackingData.filter(t => ['installation_completed', 'order_completed'].includes(t.currentStatus)).length}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Orders Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-6">
+                {filteredTrackingData.map((tracking) => (
+                  <OrderTrackingCard
+                    key={tracking._id}
+                    tracking={tracking}
+                    onViewDetails={handleViewDetails}
+                    isAdmin={isAdmin}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <TrackingDetailModal
         tracking={selectedTracking}
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
+        isAdmin={isAdmin}
       />
     </div>
+    </>
   );
 } 

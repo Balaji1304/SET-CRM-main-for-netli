@@ -32,7 +32,7 @@ exports.getQuotations = async (req, res) => {
     let query = {};
     
     // If user is a sales person, only show their quotations
-    // Sales head and marketing coordinator can see all quotations
+    // Sales head, marketing coordinator and admin can see all quotations
     if (req.user.role === 'sales_person') {
       query.createdBy = req.user.id;
     }
@@ -51,6 +51,7 @@ exports.getQuotations = async (req, res) => {
     }
 
     // Accounts department: allow status filter for pending_approval or approved
+    // Admin has access to all quotations without status restrictions
     if (req.user.role === 'accounts_department') {
       const requestedStatus = req.query.status;
       if (requestedStatus === 'approved') {
@@ -111,7 +112,7 @@ exports.getQuotation = async (req, res) => {
     }
 
     // Check access permissions - sales person can only access their own quotations
-    // Sales head and marketing coordinator can access all quotations
+    // Sales head, marketing coordinator and admin can access all quotations
     if (req.user.role === 'sales_person' && quotation.createdBy._id.toString() !== req.user.id) {
       throw new AppError('Not authorized to access this quotation', 403);
     }
@@ -132,7 +133,7 @@ exports.getQuotation = async (req, res) => {
       }
     }
 
-    // Accounts department can only view quotations in pending_approval
+    // Accounts department can only view quotations in pending_approval, admin has full access
     if (req.user.role === 'accounts_department' && quotation.status !== 'pending_approval') {
       throw new AppError('Not authorized to access this quotation', 403);
     }
@@ -192,7 +193,7 @@ exports.getQuotation = async (req, res) => {
 // @route   POST /api/quotations
 exports.createQuotation = async (req, res) => {
   try {
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator' && req.user.role !== 'admin')) {
       throw new AppError('Only sales roles can create quotations', 403);
     }
     const { leadId, quotationItems, terms, notes, advancePaymentPercentage } = req.body;
@@ -327,7 +328,7 @@ exports.createQuotation = async (req, res) => {
 exports.updateQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator' && req.user.role !== 'admin')) {
       throw new AppError('Only sales roles can update quotations', 403);
     }
 
@@ -450,7 +451,7 @@ exports.updateQuotation = async (req, res) => {
 exports.deleteQuotation = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id);
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator' && req.user.role !== 'admin')) {
       return res.status(403).json({ success: false, message: 'Only sales roles can delete quotations' });
     }
 
@@ -488,7 +489,7 @@ exports.deleteQuotation = async (req, res) => {
 exports.sendQuotation = async (req, res) => {
   try {
     // Check if user has permission to send quotations
-    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator')) {
+    if (!req.user || (req.user.role !== 'sales_person' && req.user.role !== 'sales_head' && req.user.role !== 'marketing_coordinator' && req.user.role !== 'admin')) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to send quotations'
@@ -920,9 +921,9 @@ exports.handleApproveQuotation = async (req, res) => {
       throw new AppError('Lead data is incomplete. At least one contact method (email or WhatsApp) is required for approval.', 400);
     }
 
-    // Role and segregation of duties: only accounts can approve and cannot approve their own
-    if (req.user.role !== 'accounts_department') {
-      throw new AppError('Only Accounts Department can approve quotations', 403);
+    // Role and segregation of duties: only accounts and admin can approve and cannot approve their own
+    if (req.user.role !== 'accounts_department' && req.user.role !== 'admin') {
+      throw new AppError('Only Accounts Department and Admin can approve quotations', 403);
     }
     if (quotation.createdBy && quotation.createdBy.toString() === req.user.id) {
       throw new AppError('Segregation of duties: You cannot approve a quotation you created', 403);

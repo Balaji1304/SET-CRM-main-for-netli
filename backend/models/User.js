@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: function() {
-      // Only required for non-customer roles
+      // Only required for non-customer roles (admin requires email too)
       return this.role !== 'customer';
     },
     unique: false, // Not unique for customers
@@ -39,7 +39,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['customer', 'sales_person', 'sales_representative', 'front_office_executive', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department'],
+    enum: ['customer', 'sales_person', 'sales_representative', 'front_office_executive', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department', 'admin'],
     default: 'customer'
   },
   // Contact information for service engineers (field work)

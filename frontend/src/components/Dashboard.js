@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   Clock, CheckCircle2, Ticket, Users, IndianRupee, Package, Briefcase, BarChart2, Settings, AlertTriangle, ShoppingCart, ListChecks, UserCheck, FileText, Users2, PackageSearch, UserCog, TrendingUp, UserPlus, Building2, Globe, MapPin, Calendar, Timer, Zap, Search, PieChart, Truck, CalendarDays, Target, Star, TrendingDown
@@ -11,6 +12,7 @@ import { formatNumber } from '../utils/formatNumber';
 
 const Dashboard = () => {
   const { user, token, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [summaryData, setSummaryData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -983,6 +985,102 @@ const Dashboard = () => {
     </div>
   );
 
+  const renderAdminDashboard = () => (
+    <>
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Total Users', formatNumber(summaryData.totalUsers || 0), <Users />)}
+        {renderCommonCard('Total Customers', formatNumber(summaryData.totalCustomers || 0), <UserCheck />)}
+        {renderCommonCard('Active Leads', formatNumber(summaryData.activeLeads || 0), <FileText />)}
+        {renderCommonCard('Total Revenue', `₹${formatNumber(summaryData.totalRevenue || 0)}`, <IndianRupee />)}
+      </div>
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Active Tickets', formatNumber(summaryData.totalOpenTickets || 0), <Ticket />)}
+        {renderCommonCard('Pending Quotations', formatNumber(summaryData.quotationStats?.sent || 0), <FileText />)}
+        {renderCommonCard('Active Orders', formatNumber(summaryData.activeOrders || 0), <ShoppingCart />)}
+        {renderCommonCard('Low Stock Items', summaryData.lowStockItems || 0, <AlertTriangle className="text-red-500" />)}
+      </div>
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
+        {renderCommonCard('Products', formatNumber(summaryData.totalProducts || 0), <Package />)}
+        {renderCommonCard('Installations', formatNumber(summaryData.totalInstallations || 0), <Settings />)}
+        {renderCommonCard('Enquiries', formatNumber(summaryData.totalEnquiries || 0), <Users />)}
+        {renderCommonCard('Invoices', formatNumber(summaryData.totalInvoices || 0), <FileText />)}
+        {renderCommonCard('Packages', formatNumber(summaryData.totalPackages || 0), <Plus />)}
+      </div>
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+        {renderSection("System Overview", <BarChart2 />, 
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="text-lg font-semibold text-blue-600">{summaryData.quotationStats?.draft || 0}</div>
+                <div className="text-xs text-blue-500">Draft Quotations</div>
+              </div>
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <div className="text-lg font-semibold text-green-600">{summaryData.quotationStats?.approved || 0}</div>
+                <div className="text-xs text-green-500">Approved Quotations</div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-orange-50 rounded-lg">
+                <div className="text-lg font-semibold text-orange-600">{summaryData.pendingApprovals || 0}</div>
+                <div className="text-xs text-orange-500">Pending Approvals</div>
+              </div>
+              <div className="text-center p-3 bg-purple-50 rounded-lg">
+                <div className="text-lg font-semibold text-purple-600">{summaryData.completedInstallations || 0}</div>
+                <div className="text-xs text-purple-500">Completed Installations</div>
+              </div>
+            </div>
+          </div>
+        )}
+        {renderSection("Recent System Activity", <Clock />, 
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
+            {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent system activity.</p>}
+          </div>
+        )}
+      </div>
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mt-6">
+        {renderSection("Quick Actions", <Briefcase />, 
+          <div className="grid grid-cols-2 gap-3">
+            <button 
+              onClick={() => navigate('/dashboard/products')}
+              className="p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left"
+            >
+              <Package className="h-5 w-5 text-blue-600 mb-1" />
+              <div className="text-sm font-medium text-blue-600">Manage Products</div>
+            </button>
+            <button 
+              onClick={() => navigate('/dashboard/customers')}
+              className="p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-left"
+            >
+              <Users className="h-5 w-5 text-green-600 mb-1" />
+              <div className="text-sm font-medium text-green-600">View Customers</div>
+            </button>
+            <button 
+              onClick={() => navigate('/dashboard/quotations')}
+              className="p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors text-left"
+            >
+              <FileText className="h-5 w-5 text-orange-600 mb-1" />
+              <div className="text-sm font-medium text-orange-600">View Quotations</div>
+            </button>
+            <button 
+              onClick={() => navigate('/dashboard/tickets')}
+              className="p-3 bg-red-50 hover:bg-red-100 rounded-lg transition-colors text-left"
+            >
+              <Ticket className="h-5 w-5 text-red-600 mb-1" />
+              <div className="text-sm font-medium text-red-600">Support Tickets</div>
+            </button>
+          </div>
+        )}
+        {renderSection("System Health", <TrendingUp />, 
+          <div className="space-y-2">
+            {renderPerformanceItem('System Uptime', '99.9%')}
+            {renderPerformanceItem('Active Users', formatNumber(summaryData.activeUsers || 0))}
+            {renderPerformanceItem('Database Size', summaryData.dbSize || 'N/A')}
+          </div>
+        )}
+      </div>
+    </>
+  );
+
   const renderDashboardByRole = () => {
     switch (user?.role) {
       case 'product_head': return renderProductHeadDashboard();
@@ -994,6 +1092,7 @@ const Dashboard = () => {
       case 'sales_head': return renderSalesHeadDashboard();
       case 'marketing_coordinator': return renderMarketingCoordinatorDashboard();
       case 'accounts_department': return renderAccountsDashboard();
+      case 'admin': return renderAdminDashboard();
       default:
         return (
           <div className="text-center">

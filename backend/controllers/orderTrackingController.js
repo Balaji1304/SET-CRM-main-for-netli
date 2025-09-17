@@ -339,14 +339,21 @@ exports.getTrackingSummary = async (req, res) => {
   }
 };
 
-// @desc    Get customer's order tracking list
+  // @desc    Get customer's order tracking list (or all orders for admin)
 // @route   GET /api/tracking/my-orders
-// @access  Private (Customer only)
+// @access  Private (Customer, Admin)
 exports.getMyOrderTracking = async (req, res) => {
   try {
     let customerId;
-    
-    if (req.user.role === 'customer') {
+    let purchases;
+
+    if (req.user.role === 'admin') {
+      // Admin can see ALL orders from ALL customers
+      purchases = await CustomerPurchase.find({})
+        .populate('customerId', 'firstName lastName email phone')
+        .select('_id purchaseID totalAmount createdAt customerId')
+        .sort({ createdAt: -1 });
+    } else if (req.user.role === 'customer') {
       // For customer users, find the Customer record associated with this user
       const Customer = require('../models/Customer');
       const customer = await Customer.findOne({ user: req.user._id });
@@ -357,13 +364,14 @@ exports.getMyOrderTracking = async (req, res) => {
         });
       }
       customerId = customer._id;
+      
+      // Get customer purchases
+      purchases = await CustomerPurchase.find({ customerId }).select('_id purchaseID totalAmount createdAt');
     } else {
       // For other roles, use the user ID directly (shouldn't reach here due to auth)
       customerId = req.user._id;
+      purchases = await CustomerPurchase.find({ customerId }).select('_id purchaseID totalAmount createdAt');
     }
-
-    // Get customer purchases
-    const purchases = await CustomerPurchase.find({ customerId }).select('_id purchaseID totalAmount createdAt');
     const purchaseIds = purchases.map(p => p._id);
 
     // Ensure tracking records exist for all purchases (auto-backfill)
@@ -395,9 +403,16 @@ exports.getMyOrderTracking = async (req, res) => {
       // Optionally log count; avoided to keep logs clean
     }
 
-    // Get tracking records for customer purchases (after backfill)
+    // Get tracking records for purchases (after backfill)
     const trackingRecords = await OrderTracking.find({ purchaseId: { $in: purchaseIds } })
-      .populate('purchaseId', 'purchaseID totalAmount createdAt')
+      .populate({
+        path: 'purchaseId',
+        select: 'purchaseID totalAmount createdAt customerId',
+        populate: req.user.role === 'admin' ? {
+          path: 'customerId',
+          select: 'firstName lastName email phone'
+        } : null
+      })
       .select('purchaseId trackingNumber currentStatus currentPhase progressPercentage estimatedDelivery estimatedInstallation milestones createdAt updatedAt')
       .sort({ createdAt: -1 });
 

@@ -125,7 +125,7 @@ exports.deleteTicket = async (req, res) => {
   }
 };
 
-// Front Office Executive: list all tickets
+// Front Office Executive and Admin: list all tickets
 exports.getAllTickets = async (req, res) => {
   try {
     const tickets = await Ticket.find()
@@ -140,7 +140,7 @@ exports.getAllTickets = async (req, res) => {
   }
 };
 
-// Front Office Executive: assign/unassign engineer
+// Front Office Executive and Admin: assign/unassign engineer
 exports.assignTicket = async (req, res) => {
   try {
     const { engineerId } = req.body;
@@ -184,7 +184,7 @@ exports.assignTicket = async (req, res) => {
   }
 };
 
-// Product Head: update ticket meta and reopen/close
+// Product Head and Admin: update ticket meta and reopen/close
 exports.updateTicketMeta = async (req, res) => {
   try {
     const { priority, category, action } = req.body;

@@ -75,3 +75,13 @@ export const assignTask = async (purchaseId, data) => {
     throw err;
   }
 };
+
+// Get customer purchases for current user (or all purchases for admin)
+export const getCustomerPurchasesByUser = async () => {
+  try {
+    const res = await apiRequest('customer-purchases/my-purchases', { method: 'GET' });
+    return res;
+  } catch (err) {
+    throw err;
+  }
+};

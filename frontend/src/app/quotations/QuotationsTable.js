@@ -419,7 +419,7 @@ export default function QuotationsTable({
   const [successToast, setSuccessToast] = useState({ show: false, message: '' });
   const [salesPersons, setSalesPersons] = useState([]); // For creator filter options
 
-  const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator';
+  const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator' || user?.role === 'admin';
 
 
   const fetchQuotationsCallback = useCallback(async () => {

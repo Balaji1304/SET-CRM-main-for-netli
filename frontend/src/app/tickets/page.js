@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Filter, Plus, Eye, Calendar, User, Tag, AlertTriangle, Clock, CheckCircle, XCircle, MessageCircle, Paperclip, X, Upload, FileText, Image, ChevronDown } from 'lucide-react';
-import { getMyTickets, createTicket } from '../../services/ticketService';
+import { getMyTickets, createTicket, getAllTickets } from '../../services/ticketService';
 import TicketDetailModal from '../../components/TicketDetailModal';
 import { useAuth } from '../../context/AuthContext';
 
@@ -83,7 +83,8 @@ const TicketsPage = () => {
   useEffect(() => {
     (async () => {
       try {
-        const res = await getMyTickets();
+        // Admin can see all tickets, other users see only their tickets
+        const res = user?.role === 'admin' ? await getAllTickets() : await getMyTickets();
         setTickets(res.data || []);
         setFilteredTickets(res.data || []);
       } catch (e) {
@@ -95,7 +96,7 @@ const TicketsPage = () => {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [user?.role]);
 
   // Prevent background scroll when modal is open
   useEffect(() => {
@@ -115,11 +116,14 @@ const TicketsPage = () => {
     let filtered = tickets;
 
     if (searchTerm) {
-      filtered = filtered.filter(ticket =>
-        ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ticket.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ticket.category.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(ticket => {
+        const matchesTitle = ticket.title.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesDescription = ticket.description.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = ticket.category.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCustomer = user?.role === 'admin' && ticket.user?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        return matchesTitle || matchesDescription || matchesCategory || matchesCustomer;
+      });
     }
 
     if (statusFilter !== 'all') {
@@ -378,7 +382,9 @@ const TicketsPage = () => {
         {/* Header Section - Page Title */}
         <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">My Support Tickets</h1>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">
+              {user?.role === 'admin' ? 'All Support Tickets' : 'My Support Tickets'}
+            </h1>
             {/* Optional: Subtitle if needed, can be text-gray-500 */}
             {/* <p className="text-sm text-gray-500 mt-1">Track and manage your support requests</p> */}
           </div>
@@ -415,7 +421,7 @@ const TicketsPage = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input
                     type="text"
-                    placeholder="Search tickets..."
+                    placeholder={user?.role === 'admin' ? "Search tickets, customers..." : "Search tickets..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9 pr-4 py-2 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400"
@@ -590,6 +596,12 @@ const TicketsPage = () => {
                           <Calendar className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
                           <span className="mobile-truncate">Created {getTimeAgo(ticket.createdAt)}</span>
                         </div>
+                        {user?.role === 'admin' && ticket.user && (
+                          <div className="flex items-center space-x-2 text-sm text-gray-500">
+                            <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <span className="mobile-truncate">Customer: {ticket.user.name}</span>
+                          </div>
+                        )}
                         {ticket.assignedEngineerId && (
                           <div className="flex items-center space-x-2 text-sm text-gray-500">
                             <User className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />

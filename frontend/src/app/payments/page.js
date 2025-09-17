@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, AlertCircle, ExternalLink, FileText, Clock, ArrowRight, Loader2, AlertTriangle, ShoppingBag, IndianRupee, Calendar, User } from 'lucide-react';
+import { CreditCard, AlertCircle, ExternalLink, FileText, Clock, ArrowRight, Loader2, AlertTriangle, ShoppingBag, IndianRupee, Calendar, User, ChevronDown, Search } from 'lucide-react';
 import { getMyPurchases, getPaymentHistory } from '../../services/customerService';
+import { useAuth } from '../../context/AuthContext';
 
 // Custom styles for mobile responsive design
 const customStyles = `
@@ -101,8 +102,32 @@ const customStyles = `
 `;
 
 // Mobile Card Component for Pending Payments
-const PendingPaymentCard = ({ purchase, onPayNow }) => (
+const PendingPaymentCard = ({ purchase, onPayNow, isAdmin }) => (
   <div className="mobile-card-compact mobile-card-container bg-white rounded-xl border border-gray-200 space-y-3 shadow-sm hover:shadow-md transition-shadow duration-200">
+    {/* Customer Info - Admin Only */}
+    {isAdmin && (purchase.customer || purchase.customerId) && (
+      <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 -mx-1">
+        <div className="flex items-center space-x-2 mb-2">
+          <User className="h-3 w-3 text-blue-600 flex-shrink-0" />
+          <span className="font-medium text-blue-900 text-xs">Customer</span>
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-blue-700">Name:</span>
+            <span className="text-xs font-medium text-blue-900 truncate ml-2">
+              {(purchase.customer?.firstName || purchase.customerId?.firstName) || 'N/A'} {(purchase.customer?.lastName || purchase.customerId?.lastName) || ''}
+            </span>
+          </div>
+          {(purchase.customer?.phone || purchase.customerId?.phone) && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-blue-700">Phone:</span>
+              <span className="text-xs text-blue-800 truncate ml-2">{purchase.customer?.phone || purchase.customerId?.phone}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
     {/* Header */}
     <div className="flex items-start justify-between gap-2">
       <div className="flex-1 min-w-0">
@@ -152,7 +177,8 @@ const PendingPaymentCard = ({ purchase, onPayNow }) => (
       </div>
     )}
 
-    {/* Action Button */}
+  {/* Action Button - hidden for admin */}
+  {!isAdmin && (
     <div className="pt-2 border-t border-gray-100">
       <button
         onClick={() => onPayNow(purchase._id)}
@@ -163,11 +189,12 @@ const PendingPaymentCard = ({ purchase, onPayNow }) => (
         <ArrowRight className="w-4 h-4" />
       </button>
     </div>
+  )}
   </div>
 );
 
 // Mobile Card Component for Payment History
-const PaymentHistoryCard = ({ payment, onViewProformaInvoice }) => {
+const PaymentHistoryCard = ({ payment, onViewProformaInvoice, isAdmin }) => {
   const getStatusBadge = () => {
     if (!payment.isFullyPaid) {
       return <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700 border border-yellow-300">Pending Balance</span>;
@@ -200,6 +227,30 @@ const PaymentHistoryCard = ({ payment, onViewProformaInvoice }) => {
 
   return (
     <div className="mobile-card-compact mobile-card-container bg-white rounded-xl border border-gray-200 space-y-3 shadow-sm hover:shadow-md transition-shadow duration-200">
+      {/* Customer Info - Admin Only */}
+      {isAdmin && payment.customer && (
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 -mx-1">
+          <div className="flex items-center space-x-2 mb-2">
+            <User className="h-3 w-3 text-blue-600 flex-shrink-0" />
+            <span className="font-medium text-blue-900 text-xs">Customer</span>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-blue-700">Name:</span>
+              <span className="text-xs font-medium text-blue-900 truncate ml-2">
+                {payment.customer.firstName} {payment.customer.lastName}
+              </span>
+            </div>
+            {payment.customer.phone && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-blue-700">Phone:</span>
+                <span className="text-xs text-blue-800 truncate ml-2">{payment.customer.phone}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
@@ -249,7 +300,14 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showPending, setShowPending] = useState(true);
+  const [showHistory, setShowHistory] = useState(true);
+  const [pendingSearch, setPendingSearch] = useState('');
+  const [historySearch, setHistorySearch] = useState('');
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     fetchPaymentData();
@@ -360,7 +418,20 @@ export default function PaymentsPage() {
         {/* Header Section - Page Title */}
         <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">Payment & Billing</h1>
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">
+                {isAdmin ? 'All Customer Payments & Billing' : 'Payment & Billing'}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                {isAdmin ? 'Monitor and manage all customer payment activities' : 'Manage your payments and billing information'}
+              </p>
+            </div>
+            {isAdmin && (
+              <div className="flex items-center space-x-2 text-sm text-gray-500">
+                <User className="w-4 h-4" />
+                <span>Admin View</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -370,11 +441,39 @@ export default function PaymentsPage() {
           <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
             {/* Section Header */}
             <div className="p-4 md:p-6 border-b border-fourth">
-              <h3 className="text-lg sm:text-xl font-semibold text-secondary">Pending Payments</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h3 className="text-lg sm:text-xl font-semibold text-secondary">
+                  {isAdmin ? 'All Customer Pending Payments' : 'Pending Payments'}
+                </h3>
+                <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                  {showPending && (
+                    <div className="relative min-w-0 flex-1 sm:flex-none">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
+                        placeholder={isAdmin ? 'Search order, customer...' : 'Search order...'}
+                        value={pendingSearch}
+                        onChange={(e) => setPendingSearch(e.target.value)}
+                        className="pl-9 pr-3 py-2 w-full sm:w-56 md:w-64 border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary text-sm text-secondary placeholder-gray-400"
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowPending(!showPending)}
+                    className="flex-shrink-0 self-start sm:self-auto"
+                    aria-expanded={showPending}
+                    aria-controls="pending-section"
+                  >
+                    <ChevronDown className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${showPending ? '' : '-rotate-90'}`} />
+                  </button>
+                </div>
+              </div>
             </div>
             
             {/* Content */}
-            <div className="flex-1 overflow-hidden">
+            {showPending && (
+            <div id="pending-section" className="flex-1 overflow-hidden">
               {purchases.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center text-secondary p-4">
                   <Clock className="h-12 w-12 sm:h-16 sm:w-16 mb-4 text-primary" />
@@ -386,48 +485,87 @@ export default function PaymentsPage() {
                   {/* Desktop/Tablet View */}
                   <div className="hidden md:block p-4 md:p-6">
                     <div className="space-y-4 sm:space-y-6">
-                      {purchases.map((purchase) => (
+                      {purchases.filter((purchase) => {
+                        if (!pendingSearch.trim()) return true;
+                        const q = pendingSearch.toLowerCase();
+                        const id = (purchase.purchaseID || purchase.quotationId?.quotationNumber || '').toLowerCase();
+                        const name = `${purchase.customer?.firstName || purchase.customerId?.firstName || ''} ${purchase.customer?.lastName || purchase.customerId?.lastName || ''}`.toLowerCase();
+                        const phone = (purchase.customer?.phone || purchase.customerId?.phone || '').toLowerCase();
+                        return id.includes(q) || name.includes(q) || phone.includes(q);
+                      }).map((purchase) => (
                         <div
                           key={purchase._id}
                           className="border border-fourth rounded-lg p-4 hover:shadow-lg transition-shadow duration-200 ease-in-out bg-white"
-                        >
-                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-lg text-secondary line-clamp-1">Order #{purchase.purchaseID || purchase.quotationId?.quotationNumber || 'N/A'}</h4>
-                              <p className="text-sm text-gray-500 mt-1">
-                                Purchase Date: {formatDate(purchase.purchaseDate)}
-                              </p>
-                              <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-                                <p className="text-gray-500">Total Amount:</p>
-                                <p className="font-medium text-secondary">{formatCurrency(purchase.totalAmount)}</p>
-                                
-                                <p className="text-gray-500">Advance Paid:</p>
-                                <p className="font-medium text-secondary">{formatCurrency(purchase.advancePaid)}</p>
-                                
-                                <p className="text-gray-500">Remaining:</p>
-                                <p className="font-medium text-primary">{formatCurrency(purchase.remainingAmount)}</p>
+                        > 
+                          {/* Customer Info - Admin Only */}
+                          {isAdmin && (purchase.customer || purchase.customerId) && (
+                            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <User className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                <span className="font-semibold text-blue-900 text-sm">Customer Information</span>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                                <div>
+                                  <span className="text-blue-700">Name: </span>
+                                  <span className="text-blue-900 font-medium">
+                                    {(purchase.customer?.firstName || purchase.customerId?.firstName) || 'N/A'} {(purchase.customer?.lastName || purchase.customerId?.lastName) || ''}
+                                  </span>
+                                </div>
+                                {(purchase.customer?.phone || purchase.customerId?.phone) && (
+                                  <div>
+                                    <span className="text-blue-700">Phone: </span>
+                                    <span className="text-blue-800">{purchase.customer?.phone || purchase.customerId?.phone}</span>
+                                  </div>
+                                )}
+                                {(purchase.customer?.email || purchase.customerId?.email) && (
+                                  <div>
+                                    <span className="text-blue-700">Email: </span>
+                                    <span className="text-blue-800 truncate">{purchase.customer?.email || purchase.customerId?.email}</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            <button
-                              onClick={() => handleMakePayment(purchase._id)}
-                              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-tertiary rounded-md text-sm font-medium hover:opacity-90 transition-opacity w-full sm:w-auto justify-center touch-target"
-                            >
-                              Pay Now
-                              <ArrowRight className="h-4 w-4" />
-                            </button>
+                          )}
+
+                          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-base md:text-lg text-secondary line-clamp-1">Order #{purchase.purchaseID || purchase.quotationId?.quotationNumber || 'N/A'}</h4>
+                              <p className="text-xs md:text-sm text-gray-500 mt-1">
+                                Purchase Date: {formatDate(purchase.purchaseDate)}
+                              </p>
+                              <div className="mt-2 md:mt-3 grid grid-cols-2 gap-x-4 md:gap-x-6 gap-y-1 text-xs md:text-sm">
+                                <p className="text-gray-500 truncate">Total Amount:</p>
+                                <p className="font-medium text-secondary truncate">{formatCurrency(purchase.totalAmount)}</p>
+                                
+                                <p className="text-gray-500 truncate">Advance Paid:</p>
+                                <p className="font-medium text-secondary truncate">{formatCurrency(purchase.advancePaid)}</p>
+                                
+                                <p className="text-gray-500 truncate">Remaining:</p>
+                                <p className="font-medium text-primary truncate">{formatCurrency(purchase.remainingAmount)}</p>
+                              </div>
+                            </div>
+                            {!isAdmin && (
+                              <button
+                                onClick={() => handleMakePayment(purchase._id)}
+                                className="flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 bg-primary text-tertiary rounded-md text-sm font-medium hover:opacity-90 transition-opacity w-full sm:w-auto justify-center touch-target"
+                              >
+                                Pay Now
+                                <ArrowRight className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                           
                           {(purchase.totalAmount && purchase.totalAmount > 0) && (
-                          <div className="mt-4">
+                          <div className="mt-3 md:mt-4">
                             <div className="flex justify-between items-center mb-1">
                                 <span className="text-xs font-medium text-gray-500">Payment Progress</span>
                                 <span className="text-xs font-medium text-gray-500">
                                 {Math.round((purchase.advancePaid / purchase.totalAmount) * 100)}%
                               </span>
                             </div>
-                              <div className="w-full bg-fourth rounded-full h-2.5">
+                              <div className="w-full bg-fourth rounded-full h-2 md:h-2.5">
                               <div 
-                                  className="bg-primary h-2.5 rounded-full transition-all duration-500 ease-out"
+                                  className="bg-primary h-2 md:h-2.5 rounded-full transition-all duration-500 ease-out"
                                 style={{ width: `${Math.round((purchase.advancePaid / purchase.totalAmount) * 100)}%` }}
                               ></div>
                             </div>
@@ -441,25 +579,61 @@ export default function PaymentsPage() {
                   {/* Mobile Card View */}
                   <div className="md:hidden flex-1 overflow-y-auto">
                     <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-                      {purchases.map((purchase) => (
-                        <PendingPaymentCard key={purchase._id} purchase={purchase} onPayNow={handleMakePayment} />
+                      {purchases.filter((purchase) => {
+                        if (!pendingSearch.trim()) return true;
+                        const q = pendingSearch.toLowerCase();
+                        const id = (purchase.purchaseID || purchase.quotationId?.quotationNumber || '').toLowerCase();
+                        const name = `${purchase.customer?.firstName || purchase.customerId?.firstName || ''} ${purchase.customer?.lastName || purchase.customerId?.lastName || ''}`.toLowerCase();
+                        const phone = (purchase.customer?.phone || purchase.customerId?.phone || '').toLowerCase();
+                        return id.includes(q) || name.includes(q) || phone.includes(q);
+                      }).map((purchase) => (
+                        <PendingPaymentCard key={purchase._id} purchase={purchase} onPayNow={handleMakePayment} isAdmin={isAdmin} />
                       ))}
                     </div>
                   </div>
                 </>
               )}
             </div>
+            )}
           </div>
 
           {/* Payment History Section */}
           <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
             {/* Section Header */}
             <div className="p-4 md:p-6 border-b border-fourth">
-              <h3 className="text-lg sm:text-xl font-semibold text-secondary">Payment History</h3>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <h3 className="text-lg sm:text-xl font-semibold text-secondary">
+                  {isAdmin ? 'All Customer Payment History' : 'Payment History'}
+                </h3>
+                <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                  {showHistory && (
+                    <div className="relative min-w-0 flex-1 sm:flex-none">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
+                        placeholder={isAdmin ? 'Search customer, purchase...' : 'Search purchase...'}
+                        value={historySearch}
+                        onChange={(e) => setHistorySearch(e.target.value)}
+                        className="pl-9 pr-3 py-2 w-full sm:w-56 md:w-64 border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary text-sm text-secondary placeholder-gray-400"
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="flex-shrink-0 self-start sm:self-auto"
+                    aria-expanded={showHistory}
+                    aria-controls="history-section"
+                  >
+                    <ChevronDown className={`h-5 w-5 text-gray-500 transition-transform duration-200 ${showHistory ? '' : '-rotate-90'}`} />
+                  </button>
+                </div>
+              </div>
             </div>
             
             {/* Content */}
-            <div className="flex-1 overflow-hidden">
+            {showHistory && (
+            <div id="history-section" className="flex-1 overflow-hidden">
               {payments.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center text-secondary p-4">
                   <CreditCard className="h-12 w-12 sm:h-16 sm:w-16 mb-4 text-primary" />
@@ -475,39 +649,66 @@ export default function PaymentsPage() {
                         <table className="min-w-full divide-y divide-fourth">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase ID</th>
-                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quotation #</th>
-                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Date</th>
-                              <th className="hidden lg:table-cell px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Date</th>
-                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                              <th className="hidden xl:table-cell px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transaction ID</th>
-                              <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Proforma Invoice</th>
+                              {isAdmin && (
+                                <>
+                                  <th className="px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32 lg:w-40">Customer Name</th>
+                                  <th className="hidden lg:table-cell px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Phone</th>
+                                </>
+                              )}
+                              <th className="px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28 lg:w-36">Purchase ID</th>
+                              <th className="hidden lg:table-cell px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Quotation #</th>
+                              <th className="px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Payment Date</th>
+                              {/* Purchase Date removed on desktop to save space */}
+                              <th className="hidden md:table-cell px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24 lg:w-28">Amount</th>
+                              <th className="hidden lg:table-cell px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Method</th>
+                              <th className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">Transaction ID</th>
+                              <th className="hidden lg:table-cell px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-36">Proforma Invoice</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-fourth">
-                            {payments.map((payment) => (
+                            {payments.filter((payment) => {
+                              if (!historySearch.trim()) return true;
+                              const q = historySearch.toLowerCase();
+                              const purchaseId = (payment.purchaseID || '').toLowerCase();
+                              const quotation = (payment.quotationNumber || '').toLowerCase();
+                              const name = `${payment.customer?.firstName || ''} ${payment.customer?.lastName || ''}`.toLowerCase();
+                              const phone = (payment.customer?.phone || '').toLowerCase();
+                              return purchaseId.includes(q) || quotation.includes(q) || name.includes(q) || phone.includes(q);
+                            }).map((payment) => (
                               <tr key={payment._id} className="hover:bg-gray-50 transition-colors duration-150">
+                                {isAdmin && (
+                                  <>
+                                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                      <div className="truncate max-w-32">
+                                        {payment.customer ? 
+                                          `${payment.customer.firstName} ${payment.customer.lastName}` : 
+                                          'N/A'
+                                        }
+                                      </div>
+                                    </td>
+                                    <td className="hidden lg:table-cell px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                      <div className="truncate max-w-32">{payment.customer?.phone || 'N/A'}</div>
+                                    </td>
+                                  </>
+                                )}
                                 <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                   <div className="truncate max-w-32">{payment.purchaseID || 'N/A'}</div>
                                 </td>
-                                <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                <td className="hidden lg:table-cell px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                   <div className="truncate max-w-32">{payment.quotationNumber || 'N/A'}</div>
                                 </td>
                                 <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                   {formatDate(payment.paidAt || payment.paymentDate)}
                                 </td>
+                                {/* Purchase Date cell removed on desktop */}
+                                <td className="hidden md:table-cell px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">{formatCurrency(payment.amountPaid)}</td>
                                 <td className="hidden lg:table-cell px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                  {formatDate(payment.purchaseDate)} 
-                                </td>
-                                <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">{formatCurrency(payment.amountPaid)}</td>
-                                <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                   <span className="capitalize truncate max-w-24 inline-block">{payment.paymentMethod?.replace('_', ' ') || 'N/A'}</span>
                                 </td>
                                 <td className="hidden xl:table-cell px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
                                   <div className="truncate max-w-32">{payment.transactionId || 'N/A'}</div>
                                 </td>
-                                <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm">
+                                <td className="hidden lg:table-cell px-4 lg:px-6 py-4 whitespace-nowrap text-sm">
                                   {(() => {
                                     if (!payment.isFullyPaid) {
                                       return <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700 border border-yellow-300">Pending Balance</span>;
@@ -549,14 +750,23 @@ export default function PaymentsPage() {
                   {/* Mobile Card View */}
                   <div className="md:hidden flex-1 overflow-y-auto">
                     <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-                      {payments.map((payment) => (
-                        <PaymentHistoryCard key={payment._id} payment={payment} onViewProformaInvoice={(id) => navigate(`/invoice/${id}`)} />
+                      {payments.filter((payment) => {
+                        if (!historySearch.trim()) return true;
+                        const q = historySearch.toLowerCase();
+                        const purchaseId = (payment.purchaseID || '').toLowerCase();
+                        const quotation = (payment.quotationNumber || '').toLowerCase();
+                        const name = `${payment.customer?.firstName || ''} ${payment.customer?.lastName || ''}`.toLowerCase();
+                        const phone = (payment.customer?.phone || '').toLowerCase();
+                        return purchaseId.includes(q) || quotation.includes(q) || name.includes(q) || phone.includes(q);
+                      }).map((payment) => (
+                        <PaymentHistoryCard key={payment._id} payment={payment} onViewProformaInvoice={(id) => navigate(`/invoice/${id}`)} isAdmin={isAdmin} />
                       ))}
                     </div>
                   </div>
                 </>
               )}
             </div>
+            )}
           </div>
         </div>
       </div>

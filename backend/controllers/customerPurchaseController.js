@@ -203,26 +203,42 @@ exports.getCustomerPurchases = async (req, res) => {
   }
 };
 
-// Get purchases for the current logged-in user
+// Get purchases for the current logged-in user (or all purchases for admin)
 exports.getCustomerPurchasesByUser = async (req, res) => {
   try {
-    // Find customer record for current user
-    const customer = await Customer.findOne({ user: req.user._id });
+    let purchases;
     
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        error: 'Customer record not found'
-      });
-    }
+    if (req.user.role === 'admin') {
+      // Admin can see ALL purchases from ALL customers
+      purchases = await CustomerPurchase.find({})
+        .populate({
+          path: 'quotationId',
+          select: 'quotationNumber total validUntil advancePaymentPercentage'
+        })
+        .populate({
+          path: 'customerId',
+          select: 'firstName lastName email phone businessName'
+        })
+        .sort({ purchaseDate: -1 }); // Newest first
+    } else {
+      // For regular customers, find their customer record
+      const customer = await Customer.findOne({ user: req.user._id });
+      
+      if (!customer) {
+        return res.status(404).json({
+          success: false,
+          error: 'Customer record not found'
+        });
+      }
 
-    // Find all purchases for this customer
-    const purchases = await CustomerPurchase.find({ customerId: customer._id })
-      .populate({
-        path: 'quotationId',
-        select: 'quotationNumber total validUntil advancePaymentPercentage'
-      })
-      .sort({ purchaseDate: -1 }); // Newest first
+      // Find all purchases for this customer
+      purchases = await CustomerPurchase.find({ customerId: customer._id })
+        .populate({
+          path: 'quotationId',
+          select: 'quotationNumber total validUntil advancePaymentPercentage'
+        })
+        .sort({ purchaseDate: -1 }); // Newest first
+    }
 
     // For each purchase, get the quotation items
     const purchasesWithItems = await Promise.all(
@@ -483,21 +499,33 @@ exports.getPaymentHistory = async (req, res) => {
   }
 };
 
-// Get all payment history for the current customer
+// Get all payment history for the current customer (or all payments for admin)
 exports.getAllPaymentHistory = async (req, res) => {
   try {
-    // Find customer record for current user
-    const customer = await Customer.findOne({ user: req.user._id });
-    
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        error: 'Customer record not found'
-      });
-    }
+    let purchases;
 
-    // Find all purchases for this customer
-    const purchases = await CustomerPurchase.find({ customerId: customer._id });
+    if (req.user.role === 'admin') {
+      // Admin can see ALL payments from ALL customers
+      purchases = await CustomerPurchase.find({})
+        .populate({
+          path: 'customerId',
+          select: 'firstName lastName email phone businessName'
+        })
+        .sort({ createdAt: -1 });
+    } else {
+      // For regular customers, find their customer record
+      const customer = await Customer.findOne({ user: req.user._id });
+      
+      if (!customer) {
+        return res.status(404).json({
+          success: false,
+          error: 'Customer record not found'
+        });
+      }
+
+      // Find all purchases for this customer
+      purchases = await CustomerPurchase.find({ customerId: customer._id });
+    }
     
     if (!purchases.length) {
       return res.json({
@@ -520,7 +548,7 @@ exports.getAllPaymentHistory = async (req, res) => {
       select: 'name email'
     });
     
-    // Enhance payment data with quotation information
+    // Enhance payment data with quotation and customer information
     const enhancedPayments = await Promise.all(payments.map(async (payment) => {
       const purchase = purchases.find(p => p._id.toString() === payment.customerPurchaseId.toString());
       if (!purchase) return payment;
@@ -531,6 +559,17 @@ exports.getAllPaymentHistory = async (req, res) => {
       // Add purchase and quotation info to payment record for display
       if (purchase) {
         paymentObj.purchaseID = purchase.purchaseID;
+        
+        // Add customer details for admin users
+        if (req.user.role === 'admin' && purchase.customerId) {
+          paymentObj.customer = {
+            firstName: purchase.customerId.firstName,
+            lastName: purchase.customerId.lastName,
+            email: purchase.customerId.email,
+            phone: purchase.customerId.phone,
+            businessName: purchase.customerId.businessName
+          };
+        }
       }
       
       if (quotation) {

@@ -29,16 +29,16 @@ router.route('/:id')
   .delete(protect, checkRolePermission, deleteTicket);
 
 // Front Office Executive: list all tickets
-router.get('/admin/all', protect, authorize('front_office_executive'), getAllTickets);
+router.get('/admin/all', protect, authorize('front_office_executive', 'admin'), getAllTickets);
 
 // Front Office Executive: assign/unassign and update meta
-router.put('/admin/:id/assign', protect, authorize('front_office_executive'), assignTicket);
-router.put('/admin/:id/meta', protect, authorize('front_office_executive'), updateTicketMeta);
+router.put('/admin/:id/assign', protect, authorize('front_office_executive', 'admin'), assignTicket);
+router.put('/admin/:id/meta', protect, authorize('front_office_executive', 'admin'), updateTicketMeta);
 
 // Service Engineer: my assigned, update status, add comment
-router.get('/engineer/my', protect, authorize('service_engineer'), getAssignedTickets);
-router.put('/engineer/:id/status', protect, authorize('service_engineer'), updateTicketStatus);
-router.post('/engineer/:id/comments', protect, authorize('service_engineer'), addComment);
-router.post('/engineer/:id/attachments', protect, authorize('service_engineer'), upload.single('file'), uploadAttachment);
+router.get('/engineer/my', protect, authorize('service_engineer', 'admin'), getAssignedTickets);
+router.put('/engineer/:id/status', protect, authorize('service_engineer', 'admin'), updateTicketStatus);
+router.post('/engineer/:id/comments', protect, authorize('service_engineer', 'admin'), addComment);
+router.post('/engineer/:id/attachments', protect, authorize('service_engineer', 'admin'), upload.single('file'), uploadAttachment);
 
 module.exports = router;

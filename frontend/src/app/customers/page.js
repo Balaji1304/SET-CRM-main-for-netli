@@ -15,7 +15,7 @@ export default function CustomersPage() {
   const { user } = useAuth();
 
   // Check if user is sales head or marketing coordinator
-  const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator';
+  const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator' || user?.role === 'admin';
 
   // Fetch sales persons for creator filter
   useEffect(() => {

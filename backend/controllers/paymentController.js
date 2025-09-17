@@ -86,7 +86,7 @@ exports.getCustomerProducts = async (req, res) => {
   }
 };
 
-// Get customer's pending payments
+// Get customer's pending payments (or all pending payments for admin)
 exports.getPendingPayments = async (req, res) => {
   try {
     // Verify user exists
@@ -98,34 +98,62 @@ exports.getPendingPayments = async (req, res) => {
       });
     }
 
-    // Find customer record
-    const customer = await Customer.findOne({ email: user.email });
-    if (!customer) {
-      return res.json({
-        success: true,
-        data: []
+    let pendingPurchases;
+
+    if (req.user.role === 'admin') {
+      // Admin can see ALL pending payments from ALL customers
+      pendingPurchases = await CustomerPurchase.find({
+        isFullyPaid: false
+      })
+      .populate({
+        path: 'quotationId',
+        select: 'quotationNumber total advancePaymentAmount advancePaymentConfirmedAt razorpayPaymentLink razorpayPaymentId'
+      })
+      .populate({
+        path: 'customerId',
+        select: 'firstName lastName email phone businessName'
+      })
+      .sort({ createdAt: -1 });
+    } else {
+      // Find customer record for regular customers
+      const customer = await Customer.findOne({ email: user.email });
+      if (!customer) {
+        return res.json({
+          success: true,
+          data: []
+        });
+      }
+
+      // Get all purchases that aren't fully paid
+      pendingPurchases = await CustomerPurchase.find({
+        customerId: customer._id,
+        isFullyPaid: false
+      }).populate({
+        path: 'quotationId',
+        select: 'quotationNumber total advancePaymentAmount advancePaymentConfirmedAt razorpayPaymentLink razorpayPaymentId'
       });
     }
-
-    // Get all purchases that aren't fully paid
-    const pendingPurchases = await CustomerPurchase.find({
-      customerId: customer._id,
-      isFullyPaid: false
-    }).populate({
-      path: 'quotationId',
-      select: 'quotationNumber total advancePaymentAmount advancePaymentConfirmedAt razorpayPaymentLink razorpayPaymentId'
-    });
 
     // Format the response
     const formattedPurchases = pendingPurchases.map(purchase => ({
       _id: purchase._id,
-      quotationNumber: purchase.quotationId.quotationNumber,
+      quotationNumber: purchase.quotationId?.quotationNumber || 'N/A',
       total: purchase.totalAmount,
       advancePaid: purchase.advancePaid,
       remainingAmount: purchase.remainingAmount,
       purchaseDate: purchase.purchaseDate,
-      razorpayPaymentLink: purchase.quotationId.razorpayPaymentLink,
-      razorpayPaymentId: purchase.quotationId.razorpayPaymentId
+      razorpayPaymentLink: purchase.quotationId?.razorpayPaymentLink,
+      razorpayPaymentId: purchase.quotationId?.razorpayPaymentId,
+      // Add customer details for admin users
+      ...(req.user.role === 'admin' && purchase.customerId && {
+        customer: {
+          firstName: purchase.customerId.firstName,
+          lastName: purchase.customerId.lastName,
+          email: purchase.customerId.email,
+          phone: purchase.customerId.phone,
+          businessName: purchase.customerId.businessName
+        }
+      })
     }));
 
     res.json({

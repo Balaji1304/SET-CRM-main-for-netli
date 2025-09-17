@@ -1,16 +1,37 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Package, AlertCircle, ChevronDown, ExternalLink, ShoppingBag, FileText, Loader2, AlertTriangle, Search } from 'lucide-react';
-import { getCustomerProducts } from '../../services/quotationService';
+import { Package, AlertCircle, ChevronDown, ExternalLink, ShoppingBag, FileText, Loader2, AlertTriangle, Search, User, Filter, Calendar, RotateCcw } from 'lucide-react';
+import { getCustomerPurchasesByUser } from '../../services/purchaseOrderService';
+import { useAuth } from '../../context/AuthContext';
 
 export default function MyProductsPage() {
   const [quotations, setQuotations] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [showFilters, setShowFilters] = useState(false);
+  const { user } = useAuth();
+  
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // Function to reset all filters
+  const resetFilters = () => {
+    setSearchTerm('');
+    setPaymentStatusFilter('');
+    setSortOrder('newest');
+    setShowFilters(false);
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = searchTerm || paymentStatusFilter || sortOrder !== 'newest';
+
+  // Count active filters (excluding sort order and search term for display)
+  const activeFilterCount = [paymentStatusFilter].filter(Boolean).length;
 
   const fetchProducts = async () => {
     try {
@@ -19,95 +40,121 @@ export default function MyProductsPage() {
         throw new Error('No authentication token found');
       }
 
-      console.log('Fetching customer products with token');
+      console.log('Fetching customer purchases with token');
 
-      const response = await getCustomerProducts();
+      const response = await getCustomerPurchasesByUser();
 
       console.log('Response received from service');
 
       if (response.success) {
-        console.log('Received products:', response.data);
+        console.log('Received purchases:', response.data);
         
-        // Group products by quotation number
+        // Group purchases by quotation number or purchase ID
         const quotationGroups = {};
-        response.data.forEach(item => {
-          if (!quotationGroups[item.quotationNumber]) {
-            quotationGroups[item.quotationNumber] = {
-              quotationNumber: item.quotationNumber,
-              purchaseId: item.purchaseId,
-              purchaseID: item.purchaseID,
-              purchaseDate: item.purchaseDate,
-              quotationItems: [],
-              totalAmount: item.totalAmount || 0,
-              paymentStatus: item.paymentStatus || 'ADVANCE_PAID', // Use the status from the response
-              advancePaymentAmount: item.advancePaymentAmount || 0,
-              advancePaymentPercentage: item.advancePaymentPercentage || 20,
-              remainingAmount: item.remainingAmount || 0
+        response.data.forEach(purchase => {
+          const quotationNumber = purchase.quotationId?.quotationNumber || purchase.purchaseID;
+          if (!quotationGroups[quotationNumber]) {
+            quotationGroups[quotationNumber] = {
+              quotationNumber: purchase.quotationId?.quotationNumber || '',
+              purchaseId: purchase._id,
+              purchaseID: purchase.purchaseID,
+              purchaseDate: purchase.purchaseDate,
+              quotationItems: purchase.quotationItems || [],
+              totalAmount: purchase.totalAmount || 0,
+              paymentStatus: purchase.isFullyPaid ? 'FULLY_PAID' : 'ADVANCE_PAID',
+              advancePaymentAmount: purchase.advancePaid || 0,
+              advancePaymentPercentage: purchase.quotationId?.advancePaymentPercentage || 20,
+              remainingAmount: purchase.remainingAmount || 0,
+              // Add customer details for admin
+              customer: isAdmin && purchase.customerId ? {
+                firstName: purchase.customerId.firstName,
+                lastName: purchase.customerId.lastName,
+                email: purchase.customerId.email,
+                phone: purchase.customerId.phone,
+                businessName: purchase.customerId.businessName
+              } : null
             };
           }
-          
-          // Add the product to quotationItems
-          quotationGroups[item.quotationNumber].quotationItems.push(item);
         });
         
         setQuotations(quotationGroups);
       } else {
-        throw new Error(response.message || 'Failed to fetch products');
+        throw new Error(response.message || 'Failed to fetch purchases');
       }
     } catch (error) {
-      console.error('Error fetching products:', error);
+      console.error('Error fetching purchases:', error);
       setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  // useMemo for derived state based on search term
+  // useMemo for derived state based on search term and filters
   const filteredOrders = useMemo(() => {
     if (Object.keys(quotations).length === 0) return {};
-    if (!searchTerm.trim()) return quotations;
 
-    const lowerSearchTerm = searchTerm.toLowerCase();
     const filtered = {};
 
     Object.entries(quotations).forEach(([key, orderData]) => {
-      // Search in order-level fields
-      if (
-        orderData.quotationNumber?.toLowerCase().includes(lowerSearchTerm) ||
-        orderData.purchaseID?.toLowerCase().includes(lowerSearchTerm)
-      ) {
-        filtered[key] = orderData;
-        return; // Order matches, no need to check items
+      // Apply search filter
+      let matchesSearch = true;
+      if (searchTerm.trim()) {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        matchesSearch = 
+          orderData.quotationNumber?.toLowerCase().includes(lowerSearchTerm) ||
+          orderData.purchaseID?.toLowerCase().includes(lowerSearchTerm) ||
+          // Search in customer details for admin
+          (isAdmin && orderData.customer && (
+            orderData.customer.firstName?.toLowerCase().includes(lowerSearchTerm) ||
+            orderData.customer.lastName?.toLowerCase().includes(lowerSearchTerm) ||
+            orderData.customer.email?.toLowerCase().includes(lowerSearchTerm) ||
+            orderData.customer.phone?.toLowerCase().includes(lowerSearchTerm) ||
+            orderData.customer.businessName?.toLowerCase().includes(lowerSearchTerm)
+          )) ||
+          // Search in product-level fields within this order
+          orderData.quotationItems.some(item => {
+            const product = item.productId || item.product;
+            return product && (
+              product.name?.toLowerCase().includes(lowerSearchTerm) ||
+              product.description?.toLowerCase().includes(lowerSearchTerm) ||
+              product.category?.toLowerCase().includes(lowerSearchTerm)
+            );
+          });
       }
 
-      // Search in product-level fields within this order
-      const hasMatchingProduct = orderData.quotationItems.some(item => {
-        const product = item.product;
-        return product && (
-          product.name?.toLowerCase().includes(lowerSearchTerm) ||
-          product.description?.toLowerCase().includes(lowerSearchTerm) ||
-          product.category?.toLowerCase().includes(lowerSearchTerm)
-        );
-      });
+      // Apply payment status filter
+      let matchesPaymentStatus = true;
+      if (paymentStatusFilter) {
+        if (paymentStatusFilter === 'fully_paid') {
+          matchesPaymentStatus = orderData.paymentStatus === 'FULLY_PAID';
+        } else if (paymentStatusFilter === 'advance_paid') {
+          matchesPaymentStatus = orderData.paymentStatus === 'ADVANCE_PAID';
+        }
+      }
 
-      if (hasMatchingProduct) {
+      // Include if matches all filters
+      if (matchesSearch && matchesPaymentStatus) {
         filtered[key] = orderData;
       }
     });
     return filtered;
-  }, [quotations, searchTerm]);
+  }, [quotations, searchTerm, paymentStatusFilter, isAdmin]);
 
-  // useMemo for sorting orders by purchase date (newest first)
+  // useMemo for sorting orders by purchase date
   const sortedOrders = useMemo(() => {
     return Object.values(filteredOrders).sort((a, b) => {
       // Convert purchase dates to Date objects for comparison
       const dateA = new Date(a.purchaseDate);
       const dateB = new Date(b.purchaseDate);
       
-      // Sort in descending order (newest first)
-      return dateB - dateA;
+      // Sort based on sortOrder state
+      if (sortOrder === 'oldest') {
+        return dateA - dateB; // Ascending order (oldest first)
+      } else {
+        return dateB - dateA; // Descending order (newest first)
+      }
     });
-  }, [filteredOrders]);
+  }, [filteredOrders, sortOrder]);
 
   const navigateToPayment = (quotationNumber) => {
     // Find the quotation in our data
@@ -171,28 +218,115 @@ export default function MyProductsPage() {
       {/* Header Section - Page Title */}
       <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">My Orders</h1>
-          {/* Optional: Subtitle if needed, can be text-gray-500 */}
-          {/* <p className="text-sm text-gray-500 mt-1">View and manage your orders</p> */}
+          <div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">
+              {isAdmin ? 'All Customer Orders' : 'My Orders'}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {isAdmin ? 'View and manage all customer orders' : 'View and manage your orders'}
+            </p>
+          </div>
+          {isAdmin && (
+            <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <User className="w-4 h-4" />
+              <span>Admin View</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Main Content Area - Contains search and orders */}
+      {/* Main Content Area - Contains filters and orders */}
       <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
-        {/* Search Bar */}
+        {/* Filter and Search Bar */}
         <div className="p-4 md:p-6 border-b border-fourth sticky top-0 bg-tertiary z-20">
-          <div className="flex gap-2 items-center">
-            {/* Search Bar */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search by Order #, Product..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400"
-              />
+          {/* Filter Status Indicator */}
+          {activeFilterCount > 0 && (
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 mb-3">
+              <div className="flex items-center space-x-2">
+                <Filter className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">
+                  {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
+                </span>
+              </div>
+              <button
+                onClick={resetFilters}
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors duration-150"
+              >
+                Clear all
+              </button>
             </div>
+          )}
+
+          {/* Main Controls Row */}
+          <div className="flex flex-col gap-3">
+            {/* Search and Filter Toggle Row */}
+            <div className="flex gap-2 items-center">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder={isAdmin ? "Search by Order #, Customer, Product..." : "Search by Order #, Product..."}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-2 w-full border border-fourth rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-secondary placeholder-gray-400"
+                />
+              </div>
+              
+              {/* Filter Toggle Button */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`inline-flex items-center justify-center p-2 border rounded-md transition-colors duration-150 ease-in-out ${
+                  showFilters || activeFilterCount > 0
+                    ? 'border-primary bg-primary text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+                title="Toggle filters"
+              >
+                <Filter className="w-4 h-4" />
+                {activeFilterCount > 0 && (
+                  <span className="ml-1 text-xs font-medium">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Filters Section - Collapsible */}
+            {showFilters && (
+              <div className="border-t border-gray-200 pt-3 space-y-3">
+                {/* Filter Row */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {/* Sort Order */}
+                  <div className="relative">
+                    <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value)}
+                      className="pl-6 pr-6 py-1.5 w-full border border-fourth rounded text-xs text-secondary bg-tertiary focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
+                    >
+                      <option value="newest">Newest</option>
+                      <option value="oldest">Oldest</option>
+                    </select>
+                    <ChevronDown className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                  </div>
+
+                  {/* Payment Status Filter */}
+                  <div className="relative">
+                    <select
+                      value={paymentStatusFilter}
+                      onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                      className="pl-2 pr-6 py-1.5 w-full border border-fourth rounded text-xs text-secondary bg-tertiary focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
+                    >
+                      <option value="">All Payments</option>
+                      <option value="advance_paid">Advance Paid</option>
+                      <option value="fully_paid">Fully Paid</option>
+                    </select>
+                    <ChevronDown className="absolute right-1 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -202,10 +336,10 @@ export default function MyProductsPage() {
           <div className="flex flex-col items-center justify-center py-16 bg-tertiary rounded-lg border border-fourth shadow-sm text-center">
             <ShoppingBag className="h-16 w-16 mb-4 text-primary" />
             <p className="text-xl font-medium text-secondary mb-2">
-              {searchTerm ? 'No orders match your search.' : 'No products found'}
+              {hasActiveFilters ? 'No orders match your filters.' : (isAdmin ? 'No customer orders found' : 'No orders found')}
             </p>
             <p className="text-gray-600">
-              {searchTerm ? 'Try adjusting your search terms.' : 'Your purchased products will appear here.'}
+              {hasActiveFilters ? 'Try adjusting your search terms or filters.' : (isAdmin ? 'Customer orders will appear here when available.' : 'Your purchased products will appear here.')}
             </p>
           </div>
         ) : (
@@ -216,6 +350,40 @@ export default function MyProductsPage() {
                 quotation.paymentStatus === 'FULLY_PAID' ? 'border-l-4 border-green-500' : 'border-l-4 border-orange-500'
               }`}
             >
+              {/* Customer Info - Admin Only */}
+              {isAdmin && quotation.customer && (
+                <div className="bg-blue-50 border-b border-blue-100 p-3">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <User className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                    <span className="font-semibold text-blue-900 text-sm">Customer Information</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-1 text-sm">
+                    <div className="flex flex-wrap items-center">
+                      <span className="text-blue-700 mr-1">Name:</span>
+                      <span className="text-blue-900 font-medium">
+                        {quotation.customer.firstName} {quotation.customer.lastName}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center">
+                      <span className="text-blue-700 mr-1">Email:</span>
+                      <span className="text-blue-900 truncate">{quotation.customer.email}</span>
+                    </div>
+                    {quotation.customer.phone && (
+                      <div className="flex flex-wrap items-center">
+                        <span className="text-blue-700 mr-1">Phone:</span>
+                        <span className="text-blue-900">{quotation.customer.phone}</span>
+                      </div>
+                    )}
+                    {quotation.customer.businessName && (
+                      <div className="flex flex-wrap items-center">
+                        <span className="text-blue-700 mr-1">Business:</span>
+                        <span className="text-blue-900 truncate">{quotation.customer.businessName}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Order header */}
               <div 
                 className={`p-4 border-b border-fourth grid grid-cols-1 md:grid-cols-3 gap-4 ${
@@ -285,14 +453,15 @@ export default function MyProductsPage() {
                 <h3 className="text-lg font-semibold text-secondary my-4">Products in this Order</h3>
                 <div className="space-y-4">
                   {quotation.quotationItems.map((item, index) => {
-                    const productObj = item.product;
+                    const productObj = item.productId || item.product;
 
                     if (!productObj) {
                       console.warn('Product object missing for item:', item);
                       return <div key={`missing-${index}`} className='text-sm text-red-500'>Product information unavailable.</div>;
                     }
 
-                    const imageUrl = productObj.imageUrl;
+                    // Handle different image URL structures
+                    const imageUrl = productObj.imageUrl || (productObj.imageUrls && productObj.imageUrls[0]);
                     
                     return (
                     <div key={productObj._id || index} className="border-b border-fourth pb-4 last:border-b-0 last:pb-0">
@@ -362,23 +531,55 @@ export default function MyProductsPage() {
                     </p>
                 </div>
                 
-                <div className="flex gap-3">
-                {quotation.paymentStatus === 'FULLY_PAID' ? (
-                  <button 
-                    onClick={() => viewProformaInvoice(quotation.purchaseId)}
+                <div className="flex gap-3 flex-wrap items-center">
+                {isAdmin ? (
+                  // Admin View - Payment Status Indicator + Invoice Button (if paid)
+                  <>
+                    {/* Payment Status Indicator - Always shown for admin */}
+                    {quotation.paymentStatus === 'FULLY_PAID' ? (
+                      <div className="flex items-center gap-2 text-green-700 bg-green-50 px-3 py-2 rounded-md border border-green-200">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm font-medium">Payment Complete</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-orange-700 bg-orange-50 px-3 py-2 rounded-md border border-orange-200">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                        <span className="text-sm font-medium">Payment Pending</span>
+                      </div>
+                    )}
+                    
+                    {/* Invoice Button - Only shown for admin when payment is complete */}
+                    {quotation.paymentStatus === 'FULLY_PAID' && (
+                      <button 
+                        onClick={() => viewProformaInvoice(quotation.purchaseId)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 text-sm font-medium transition-colors w-full sm:w-auto justify-center"
-                  >
-                    <FileText className="h-4 w-4" />
-                    View Proforma Invoice
-                  </button>
+                      >
+                        <FileText className="h-4 w-4" />
+                        View Proforma Invoice
+                      </button>
+                    )}
+                  </>
                 ) : (
-                  <button 
-                    onClick={() => navigateToPayment(quotation.quotationNumber)}
-                        className="px-4 py-2 bg-primary hover:bg-primary/90 text-tertiary rounded-md flex items-center gap-2 text-sm font-medium transition-colors w-full sm:w-auto justify-center"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Complete Payment
-                  </button>
+                  // Customer View - Action Buttons
+                  <>
+                    {quotation.paymentStatus === 'FULLY_PAID' ? (
+                      <button 
+                        onClick={() => viewProformaInvoice(quotation.purchaseId)}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 text-sm font-medium transition-colors w-full sm:w-auto justify-center"
+                      >
+                        <FileText className="h-4 w-4" />
+                        View Proforma Invoice
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => navigateToPayment(quotation.quotationNumber)}
+                            className="px-4 py-2 bg-primary hover:bg-primary/90 text-tertiary rounded-md flex items-center gap-2 text-sm font-medium transition-colors w-full sm:w-auto justify-center"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Complete Payment
+                      </button>
+                    )}
+                  </>
                 )}
                 </div>
               </div>

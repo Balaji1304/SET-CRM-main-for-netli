@@ -26,7 +26,7 @@ const {
 // @access  Private (sales_person, sales_head, marketing_coordinator)
 router.get('/dashboard', 
   protect, 
-  authorize('sales_person', 'sales_head', 'marketing_coordinator'),
+  authorize('sales_person', 'sales_head', 'marketing_coordinator', 'admin'),
   checkRolePermission,
   getSalesDashboard
 );
@@ -36,7 +36,7 @@ router.get('/dashboard',
 // @access  Private (sales_person, sales_head, marketing_coordinator)
 router.post('/performance', 
   protect, 
-  authorize('sales_person', 'sales_head', 'marketing_coordinator'),
+  authorize('sales_person', 'sales_head', 'marketing_coordinator', 'admin'),
   checkRolePermission,
   generateSalesPerformanceReport
 );
@@ -46,7 +46,7 @@ router.post('/performance',
 // @access  Private (sales_person, sales_head, marketing_coordinator)
 router.post('/leads', 
   protect, 
-  authorize('sales_person', 'sales_head', 'marketing_coordinator'),
+  authorize('sales_person', 'sales_head', 'marketing_coordinator', 'admin'),
   checkRolePermission,
   generateLeadAnalysisReport
 );
@@ -56,7 +56,7 @@ router.post('/leads',
 // @access  Private (sales_person, sales_head, marketing_coordinator)
 router.get('/my-reports', 
   protect, 
-  authorize('sales_person', 'sales_head', 'marketing_coordinator'),
+  authorize('sales_person', 'sales_head', 'marketing_coordinator', 'admin'),
   checkRolePermission,
   getMyReports
 );
@@ -66,7 +66,7 @@ router.get('/my-reports',
 // @access  Private (sales_person, sales_head, marketing_coordinator)
 router.get('/:reportId', 
   protect, 
-  authorize('sales_person', 'sales_head', 'marketing_coordinator'),
+  authorize('sales_person', 'sales_head', 'marketing_coordinator', 'admin'),
   checkRolePermission,
   getReportDetails
 );
@@ -76,7 +76,7 @@ router.get('/:reportId',
 // @access  Private (sales_person, sales_head, marketing_coordinator)
 router.get('/:reportId/export/pdf', 
   protect, 
-  authorize('sales_person', 'sales_head', 'marketing_coordinator'),
+  authorize('sales_person', 'sales_head', 'marketing_coordinator', 'admin'),
   checkRolePermission,
   exportReportToPDF
 );
@@ -86,7 +86,7 @@ router.get('/:reportId/export/pdf',
 // @access  Private (sales_person, sales_head, marketing_coordinator)
 router.get('/:reportId/export/excel', 
   protect, 
-  authorize('sales_person', 'sales_head', 'marketing_coordinator'),
+  authorize('sales_person', 'sales_head', 'marketing_coordinator', 'admin'),
   checkRolePermission,
   exportReportToExcel
 );
@@ -96,7 +96,7 @@ router.get('/:reportId/export/excel',
 // @access  Private (sales_person, sales_head, marketing_coordinator)
 router.delete('/:reportId', 
   protect, 
-  authorize('sales_person', 'sales_head', 'marketing_coordinator'),
+  authorize('sales_person', 'sales_head', 'marketing_coordinator', 'admin'),
   checkRolePermission,
   deleteReport
 );
