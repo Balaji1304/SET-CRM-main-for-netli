@@ -1404,9 +1404,9 @@ exports.getOrderFormData = async (req, res) => {
 // Get all pending approvals for accounts department (both quotation and remaining payment approvals)
 exports.getAllPendingApprovals = async (req, res) => {
   try {
-    // Only accounts department can access this endpoint
-    if (!req.user || req.user.role !== 'accounts_department') {
-      throw new AppError('Only accounts department can view pending approvals', 403);
+    // Only accounts department and admin can access this endpoint
+    if (!req.user || (req.user.role !== 'accounts_department' && req.user.role !== 'admin')) {
+      throw new AppError('Only accounts department and admin can view pending approvals', 403);
     }
 
     const approvals = [];
@@ -1532,9 +1532,9 @@ exports.getAllPendingApprovals = async (req, res) => {
 // Get all approved payments for accounts department (both quotation and remaining payment approvals)
 exports.getAllApprovedPayments = async (req, res) => {
   try {
-    // Only accounts department can access this endpoint
-    if (!req.user || req.user.role !== 'accounts_department') {
-      throw new AppError('Only accounts department can view approved payments', 403);
+    // Only accounts department and admin can access this endpoint
+    if (!req.user || (req.user.role !== 'accounts_department' && req.user.role !== 'admin')) {
+      throw new AppError('Only accounts department and admin can view approved payments', 403);
     }
 
     const approvedPayments = [];

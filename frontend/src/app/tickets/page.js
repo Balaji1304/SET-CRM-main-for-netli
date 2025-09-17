@@ -63,6 +63,7 @@ const customStyles = `
 
 const TicketsPage = () => {
   const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [tickets, setTickets] = useState([]);
   const [filteredTickets, setFilteredTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -449,7 +450,12 @@ const TicketsPage = () => {
                 {/* Create Ticket Button - Desktop Position */}
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="hidden sm:inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-tertiary bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap"
+                  disabled={isAdmin}
+                  className={`hidden sm:inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md whitespace-nowrap transition-opacity duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                    isAdmin
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'text-tertiary bg-primary hover:opacity-90 focus:ring-primary'
+                  }`}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Ticket
@@ -460,7 +466,12 @@ const TicketsPage = () => {
               <div className="w-full sm:hidden">
                 <button
                   onClick={() => setShowCreateModal(true)}
-                  className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-tertiary bg-primary hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-opacity duration-150 ease-in-out whitespace-nowrap w-full"
+                  disabled={isAdmin}
+                  className={`inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md transition-opacity duration-150 ease-in-out whitespace-nowrap w-full focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                    isAdmin
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'text-tertiary bg-primary hover:opacity-90 focus:ring-primary'
+                  }`}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Ticket
@@ -540,7 +551,10 @@ const TicketsPage = () => {
                 {!(searchTerm || statusFilter !== 'all' || priorityFilter !== 'all') && (
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="inline-flex items-center space-x-2 px-4 lg:px-6 py-2.5 lg:py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors min-h-[44px]"
+                    disabled={isAdmin}
+                    className={`inline-flex items-center space-x-2 px-4 lg:px-6 py-2.5 lg:py-3 rounded-lg transition-colors min-h-[44px] ${
+                      isAdmin ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-orange-500 text-white hover:bg-orange-600'
+                    }`}
                   >
                     <Plus className="h-4 w-4 lg:h-5 lg:w-5" />
                     <span>Create Your First Ticket</span>

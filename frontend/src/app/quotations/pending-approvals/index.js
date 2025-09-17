@@ -186,7 +186,8 @@ const customStyles = `
 `;
 
 export default function AccountsApprovalsPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -579,7 +580,7 @@ export default function AccountsApprovalsPage() {
                           </td>
                           <td className="px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm">
                             <div className="flex items-center space-x-1 lg:space-x-2">
-                              <button
+                            <button
                                 onClick={() => openDrawer(row)}
                                 className="inline-flex items-center gap-1 px-1.5 lg:px-2 py-1 rounded-md text-xs font-medium border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400 transition-colors duration-150"
                                 disabled={isProcessing}
@@ -588,7 +589,7 @@ export default function AccountsApprovalsPage() {
                                 <span className="hidden lg:inline">View details</span>
                                 <span className="lg:hidden">View</span>
                               </button>
-                              <button
+                            <button
                                 onClick={async () => {
                                   openApprove(row._id, row.type);
                                   // Force a refresh after a short delay to catch any missed updates
@@ -598,9 +599,13 @@ export default function AccountsApprovalsPage() {
                                     }
                                   }, 5000);
                                 }}
-                                title={row.type === 'quotation_approval' ? 'Approve this advance payment' : 'Verify this remaining payment'}
-                                className="inline-flex items-center gap-1 px-1.5 lg:px-2 py-1 rounded-md text-xs font-medium border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:border-green-400 transition-colors duration-150"
-                                disabled={isProcessing}
+                              title={isAdmin ? 'Admins cannot perform this action' : (row.type === 'quotation_approval' ? 'Approve this advance payment' : 'Verify this remaining payment')}
+                              className={`inline-flex items-center gap-1 px-1.5 lg:px-2 py-1 rounded-md text-xs font-medium border transition-colors duration-150 ${
+                                isAdmin
+                                  ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
+                                  : 'border-green-200 text-green-700 bg-green-50 hover:bg-green-100 hover:border-green-400'
+                              }`}
+                              disabled={isAdmin || isProcessing}
                               >
                                 {isProcessing ? (
                                   <>
@@ -611,8 +616,8 @@ export default function AccountsApprovalsPage() {
                                 ) : (
                                   <>
                                     <Check className="w-3 h-3" /> 
-                                    <span className="hidden lg:inline">{row.type === 'quotation_approval' ? 'Approve' : 'Verify'}</span>
-                                    <span className="lg:hidden">{row.type === 'quotation_approval' ? 'OK' : 'OK'}</span>
+                                  <span className="hidden lg:inline">{row.type === 'quotation_approval' ? 'Approve' : 'Verify'}</span>
+                                  <span className="lg:hidden">{row.type === 'quotation_approval' ? 'OK' : 'OK'}</span>
                                   </>
                                 )}
                               </button>
@@ -745,8 +750,12 @@ export default function AccountsApprovalsPage() {
                                 }
                               }, 5000);
                             }}
-                            className="flex-1 inline-flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 transition-colors duration-150"
-                            disabled={isProcessing}
+                            className={`flex-1 inline-flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium border transition-colors duration-150 ${
+                              isAdmin
+                                ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
+                                : 'border-green-200 text-green-700 bg-green-50 hover:bg-green-100'
+                            }`}
+                            disabled={isAdmin || isProcessing}
                           >
                             {isProcessing ? (
                               <>
@@ -960,11 +969,13 @@ export default function AccountsApprovalsPage() {
                             }
                           }, 5000);
                         }}
-                        disabled={processingIds.has(drawer.row._id)}
+                        disabled={isAdmin || processingIds.has(drawer.row._id)}
                         className={`w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent shadow-sm text-xs sm:text-sm font-medium rounded-md text-white transition-colors duration-150 ${
-                          processingIds.has(drawer.row._id) 
-                            ? 'bg-gray-400 cursor-not-allowed' 
-                            : 'bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500'
+                          isAdmin
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : (processingIds.has(drawer.row._id) 
+                              ? 'bg-gray-400 cursor-not-allowed' 
+                              : 'bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500')
                         }`}
                       >
                         {processingIds.has(drawer.row._id) ? (

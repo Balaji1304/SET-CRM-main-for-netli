@@ -158,7 +158,6 @@ const getNavigation = (userRole) => {
       { name: 'Packages', href: '/dashboard/packages', icon: Plus },
       { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
       // Service & Support
-      { name: 'Installations', href: '/dashboard/installations', icon: Settings },
       { name: 'Tickets', href: '/dashboard/tickets', icon: Ticket },
       { name: 'Tickets Queue', href: '/dashboard/ticket-queue', icon: Ticket },
       { name: 'Performance', href: '/dashboard/performance', icon: BarChart },
