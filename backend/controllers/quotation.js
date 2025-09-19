@@ -2050,11 +2050,11 @@ exports.closeQuotation = async (req, res) => {
       });
     }
 
-    // Only allow closing sent quotations
-    if (quotation.status !== 'sent') {
+    // Only allow closing sent quotations or pending approval quotations
+    if (quotation.status !== 'sent' && quotation.status !== 'pending_approval') {
       return res.status(400).json({
         success: false,
-        message: 'Can only close quotations that have been sent'
+        message: 'Can only close quotations that have been sent or are pending approval'
       });
     }
 

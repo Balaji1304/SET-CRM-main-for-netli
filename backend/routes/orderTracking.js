@@ -21,12 +21,12 @@ router.post('/:purchaseId/notes', protect, authorize(['customer', 'product_head'
 
 // Staff routes
 router.post('/create', protect, authorize(['product_head', 'sales_head', 'marketing_coordinator', 'admin']), createTrackingRecord);
-router.get('/internal/:purchaseId', protect, authorize(['product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'inventory_manager', 'admin']), getInternalTracking);
+router.get('/internal/:purchaseId', protect, authorize(['product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'admin']), getInternalTracking);
 router.get('/summary', protect, authorize(['product_head', 'sales_head', 'marketing_coordinator', 'admin']), getTrackingSummary);
 
 // Status update routes
-router.put('/:purchaseId/status', protect, authorize(['product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'inventory_manager', 'admin']), updateTrackingStatus);
-router.put('/:purchaseId/shipping', protect, authorize(['product_head', 'marketing_coordinator', 'inventory_manager', 'admin']), updateShippingDetails);
+router.put('/:purchaseId/status', protect, authorize(['product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'admin']), updateTrackingStatus);
+router.put('/:purchaseId/shipping', protect, authorize(['product_head', 'marketing_coordinator', 'admin']), updateShippingDetails);
 router.put('/:purchaseId/installation', protect, authorize(['product_head', 'service_engineer', 'admin']), updateInstallationDetails);
 router.put('/:purchaseId/estimates', protect, authorize(['product_head', 'marketing_coordinator', 'admin']), updateEstimatedDates);
 

@@ -380,10 +380,6 @@ const NotificationsPage = () => {
         { value: 'quotation_approved', label: 'Approved Quotes' },
         { value: 'purchase_order_created', label: 'Purchase Orders' }
       ],
-      inventory_manager: [
-        { value: 'purchase_order_created', label: 'New Purchase Orders' },
-        { value: 'purchase_order_updated', label: 'Order Updates' }
-      ],
       marketing_coordinator: [
         { value: 'quotation_created', label: 'New Quotations' },
         { value: 'quotation_updated', label: 'Quotation Updates' },

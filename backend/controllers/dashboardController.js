@@ -100,7 +100,7 @@ exports.getDashboardSummary = async (req, res, next) => {
         }
       }
 
-    } else if (role === 'sales_person' || role === 'sales_representative') {
+    } else if (role === 'sales_person') {
       const salesUserId = userId; // Alias for clarity
 
       const quotationAggregation = await safeQuery(Quotation.aggregate([

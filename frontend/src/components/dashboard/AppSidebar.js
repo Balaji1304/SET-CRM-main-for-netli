@@ -164,7 +164,8 @@ const getNavigation = (userRole) => {
       // Financial Management
       { name: 'Pending Approvals', href: '/dashboard/quotations/pending-approvals', icon: FileText },
       { name: 'Approved Payments', href: '/dashboard/quotations/approved-payments', icon: CreditCard },
-      // System
+      // System Administration
+      { name: 'User Management', href: '/dashboard/user-management', icon: Users },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     // NOTE: accounts_department is defined above to include both pages

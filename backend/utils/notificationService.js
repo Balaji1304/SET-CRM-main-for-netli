@@ -194,7 +194,7 @@ class NotificationService {
         case 'purchase_order_created':
           // Notify inventory managers, sales heads, marketing coordinators, and accounts department
           const relevantUsers = await User.find({ 
-            role: { $in: ['inventory_manager', 'sales_head', 'marketing_coordinator', 'accounts_department'] }
+            role: { $in: ['sales_head', 'marketing_coordinator', 'accounts_department'] }
           });
           recipients = relevantUsers.filter(user => user._id).map(user => user._id);
           title = 'New Purchase Order Created';
@@ -205,7 +205,7 @@ class NotificationService {
         case 'purchase_order_updated':
           // Notify relevant stakeholders
           const stakeholders = await User.find({ 
-            role: { $in: ['inventory_manager', 'sales_head', 'marketing_coordinator'] }
+            role: { $in: ['sales_head', 'marketing_coordinator'] }
           });
           recipients = stakeholders.filter(user => user._id).map(user => user._id);
           title = 'Purchase Order Updated';

@@ -1085,8 +1085,7 @@ const Dashboard = () => {
     switch (user?.role) {
       case 'product_head': return renderProductHeadDashboard();
       case 'customer': return renderCustomerDashboard();
-      case 'sales_person':
-      case 'sales_representative': return renderSalesDashboard();
+      case 'sales_person': return renderSalesDashboard();
       case 'front_office_executive': return renderFrontOfficeExecutiveDashboard();
       case 'service_engineer': return renderServiceEngineerDashboard();
       case 'sales_head': return renderSalesHeadDashboard();

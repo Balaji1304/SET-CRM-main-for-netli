@@ -15,7 +15,8 @@ const {
   getPendingPayments,
   checkPaymentStatus,
   checkPublicPaymentStatus,
-  manualConfirmPayment
+  manualConfirmPayment,
+  closeQuotation
 } = require('../controllers/quotation');
 
 // Webhook route (unprotected)
@@ -49,6 +50,7 @@ router.route('/:id')
 
 router.post('/:id/send', sendQuotation);
 router.put('/:id/approve', handleApproveQuotation);
+router.put('/:id/close', closeQuotation);
 router.post('/:id/offline-payment', confirmOfflinePayment);
 router.get('/:id/payment-status', checkPaymentStatus);
 

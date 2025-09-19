@@ -46,6 +46,7 @@ import InstallationDashboard from './app/installations/page';
 import InstallationComplete from './app/installations/[id]/complete/page';
 import InstallationCompletedSummary from './app/installations/[id]/completed/page';
 import CustomerSignoff from './app/installations/[id]/signoff/page';
+import UserManagementPage from './app/user-management/page';
 
 
 function App() {
@@ -109,7 +110,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="notifications" element={
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'inventory_manager', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department', 'admin']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department', 'admin']}>
                 <NotificationsPage />
               </ProtectedRoute>
             } />
@@ -277,6 +278,11 @@ function App() {
             <Route path="packages" element={
               <ProtectedRoute allowedRoles={['sales_head', 'admin']}>
                 <PackagesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="user-management" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <UserManagementPage />
               </ProtectedRoute>
             } />
           </Route>

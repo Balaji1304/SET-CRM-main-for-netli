@@ -776,14 +776,16 @@ export default function QuotationsTable({
                   <Check className="w-3 h-3 sm:w-4 sm:h-4" />
                 </button>
               )}
-              <button
-                onClick={() => handleCloseQuotation(quotation._id)}
-                className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
-                title="Close Quotation"
-                disabled={loadingAction[quotation._id]}
-              >
-                <X className="w-3 h-3 sm:w-4 sm:h-4" />
-              </button>
+              {quotation.status === 'sent' && (
+                <button
+                  onClick={() => handleCloseQuotation(quotation._id)}
+                  className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+                  title="Close Quotation"
+                  disabled={loadingAction[quotation._id]}
+                >
+                  <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                </button>
+              )}
             </>
           )}
         </div>
@@ -1097,14 +1099,16 @@ export default function QuotationsTable({
                                   <Check className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
                                 </button>
                               )}
-                              <button
-                                onClick={() => handleCloseQuotation(quotation._id)}
-                                className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-red-200"
-                                title="Close Quotation"
-                                disabled={loadingAction[quotation._id]}
-                              >
-                                <X className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
-                              </button>
+                              {quotation.status === 'sent' && (
+                                <button
+                                  onClick={() => handleCloseQuotation(quotation._id)}
+                                  className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-red-200"
+                                  title="Close Quotation"
+                                  disabled={loadingAction[quotation._id]}
+                                >
+                                  <X className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                </button>
+                              )}
                             </>
                           )}
                         </div>

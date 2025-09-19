@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Filter, Check, AlertTriangle, Calendar, CreditCard, ChevronLeft, ChevronRight, X, User } from 'lucide-react';
-import { getQuotations, approveQuotation } from '../../../services/quotationService';
+import { getQuotations, approveQuotation, closeQuotation } from '../../../services/quotationService';
 import { getAllPendingApprovals, verifyRemainingPayment } from '../../../services/customerService';
 import { API_URL } from '../../../services/apiConfig';
 import ConfirmDialog from '../../../components/ConfirmDialog';
@@ -195,6 +195,8 @@ export default function AccountsApprovalsPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [toApproveId, setToApproveId] = useState(null);
   const [toApproveType, setToApproveType] = useState(null);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [toCloseId, setToCloseId] = useState(null);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [drawer, setDrawer] = useState({ open: false, row: null });
   const [currentPage, setCurrentPage] = useState(1);
@@ -222,9 +224,7 @@ export default function AccountsApprovalsPage() {
         ws.onmessage = (e) => {
           try {
             const data = JSON.parse(e.data);
-            console.log('WebSocket message received:', data);
             if (data.type === 'quotation_update' || data.type === 'approval_update' || data.type === 'payment_verification') {
-              console.log('WebSocket update received:', data.type, 'fetching fresh data...');
               fetchRows(true);
             }
           } catch (error) {
@@ -232,16 +232,8 @@ export default function AccountsApprovalsPage() {
           }
         };
         
-        ws.onopen = () => {
-          console.log('WebSocket connected');
-        };
-        
         ws.onerror = (error) => {
           console.error('WebSocket error:', error);
-        };
-        
-        ws.onclose = (event) => {
-          console.log('WebSocket closed:', event.code, event.reason);
         };
         
       } catch (error) {
@@ -264,7 +256,6 @@ export default function AccountsApprovalsPage() {
       const pollInterval = setInterval(() => {
         // Only poll if we have processing items and it's been more than 2 seconds since last update
         if (processingIds.size > 0 && Date.now() - lastUpdateTime > 2000) {
-          console.log('Polling for updates due to processing items');
           fetchRows(true);
         }
       }, 3000); // Poll every 3 seconds when items are processing
@@ -281,8 +272,6 @@ export default function AccountsApprovalsPage() {
         setLoading(true);
       }
       
-      console.log(`Fetching rows... (noCache: ${noCache})`);
-      
       // Get both quotation and remaining payment approvals
       const response = await getAllPendingApprovals(noCache);
       // Handle the API response structure: {success: true, data: [...]}
@@ -290,13 +279,10 @@ export default function AccountsApprovalsPage() {
       // Ensure data is always an array
       const safeData = Array.isArray(data) ? data : [];
       
-      console.log(`Received ${safeData.length} items from API`);
-      
       setRows(safeData);
       
       // If this is an update and we have items being processed, remove them from processing
       if (noCache && safeData.length !== rows.length) {
-        console.log(`Row count changed from ${rows.length} to ${safeData.length}`);
         setProcessingIds(prev => {
           const newSet = new Set();
           // Only keep processing IDs that still exist in the data
@@ -336,7 +322,7 @@ export default function AccountsApprovalsPage() {
 
   // Prevent background scroll when confirm modal is open
   useEffect(() => {
-    if (showConfirm) {
+    if (showConfirm || showCloseConfirm) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -345,7 +331,7 @@ export default function AccountsApprovalsPage() {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showConfirm]);
+  }, [showConfirm, showCloseConfirm]);
 
   const filtered = useMemo(() => {
     // Ensure rows is always an array
@@ -375,6 +361,11 @@ export default function AccountsApprovalsPage() {
     setShowConfirm(true);
   };
 
+  const openClose = (id) => {
+    setToCloseId(id);
+    setShowCloseConfirm(true);
+  };
+
   const openDrawer = (row) => {
     setDrawer({ open: true, row });
   };
@@ -382,11 +373,8 @@ export default function AccountsApprovalsPage() {
 
   // Offline payment entry is handled by Sales
 
-  const doApprove = async () => {
-    const currentId = toApproveId;
-    const currentType = toApproveType;
-    
-    console.log(`Starting approval process for ${currentId} (${currentType})`);
+  const doClose = async () => {
+    const currentId = toCloseId;
     
     // Add the item to processing set
     setProcessingIds(prev => new Set(prev).add(currentId));
@@ -394,28 +382,75 @@ export default function AccountsApprovalsPage() {
     // Optimistically remove the item from the list for immediate feedback
     setRows(prevRows => {
       const filteredRows = prevRows.filter(row => row._id !== currentId);
-      console.log(`Optimistically removed item. Rows: ${prevRows.length} -> ${filteredRows.length}`);
+      return filteredRows;
+    });
+    
+    try {
+      await closeQuotation(currentId);
+      setToast({ show: true, msg: 'Quotation closed successfully', type: 'success' });
+      
+      // Close the confirmation dialog
+      setShowCloseConfirm(false);
+      setToCloseId(null);
+      
+      // Fetch fresh data to ensure consistency
+      setTimeout(async () => {
+        await fetchRows(true);
+        setLastUpdateTime(Date.now());
+      }, 1000);
+      
+      // Remove from processing set after successful update
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(currentId);
+        return newSet;
+      });
+      
+    } catch (err) {
+      console.error('Close failed:', err);
+      
+      // On error, restore the item to the list and remove from processing
+      await fetchRows(true);
+      
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(currentId);
+        return newSet;
+      });
+      
+      setToast({ show: true, msg: err.message || 'Failed to close quotation', type: 'error' });
+      setShowCloseConfirm(false);
+      setToCloseId(null);
+    }
+  };
+
+  const doApprove = async () => {
+    const currentId = toApproveId;
+    const currentType = toApproveType;
+    
+    // Add the item to processing set
+    setProcessingIds(prev => new Set(prev).add(currentId));
+    
+    // Optimistically remove the item from the list for immediate feedback
+    setRows(prevRows => {
+      const filteredRows = prevRows.filter(row => row._id !== currentId);
       return filteredRows;
     });
     
     try {
       if (currentType === 'quotation_approval') {
-        console.log('Approving quotation...');
         await approveQuotation(currentId);
         setToast({ show: true, msg: 'Quotation approved successfully', type: 'success' });
       } else if (currentType === 'remaining_payment_approval') {
         // For remaining payments, we need purchaseId and paymentId
         const row = rows.find(r => r._id === currentId);
         if (row && row.paymentId) {
-          console.log('Verifying remaining payment...');
           await verifyRemainingPayment(currentId, row.paymentId);
           setToast({ show: true, msg: 'Payment verified successfully', type: 'success' });
         } else {
           throw new Error('Payment information not found');
         }
       }
-      
-      console.log('Approval successful, closing dialog...');
       
       // Close the confirmation dialog
       setShowConfirm(false);
@@ -424,7 +459,6 @@ export default function AccountsApprovalsPage() {
       
       // Fetch fresh data to ensure consistency
       setTimeout(async () => {
-        console.log('Fetching fresh data after approval...');
         await fetchRows(true);
         setLastUpdateTime(Date.now());
       }, 1000);
@@ -621,6 +655,30 @@ export default function AccountsApprovalsPage() {
                                   </>
                                 )}
                               </button>
+                              <button
+                                onClick={() => openClose(row._id)}
+                                title={isAdmin ? 'Admins cannot perform this action' : 'Close/Disapprove this quotation'}
+                                className={`inline-flex items-center gap-1 px-1.5 lg:px-2 py-1 rounded-md text-xs font-medium border transition-colors duration-150 ${
+                                  isAdmin
+                                    ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
+                                    : 'border-red-200 text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-400'
+                                }`}
+                                disabled={isAdmin || isProcessing}
+                              >
+                                {isProcessing && processingIds.has(row._id) ? (
+                                  <>
+                                    <div className="w-3 h-3 border-2 border-red-300 border-t-red-600 rounded-full animate-spin"></div>
+                                    <span className="hidden lg:inline">Processing...</span>
+                                    <span className="lg:hidden">...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <X className="w-3 h-3" /> 
+                                    <span className="hidden lg:inline">Close</span>
+                                    <span className="lg:hidden">✕</span>
+                                  </>
+                                )}
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -765,6 +823,26 @@ export default function AccountsApprovalsPage() {
                             ) : (
                               <>
                                 <Check className="w-3 h-3 sm:w-4 sm:h-4" /> {row.type === 'quotation_approval' ? 'Approve' : 'Verify'}
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => openClose(row._id)}
+                            className={`flex-1 inline-flex items-center justify-center gap-1 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium border transition-colors duration-150 ${
+                              isAdmin
+                                ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed'
+                                : 'border-red-200 text-red-700 bg-red-50 hover:bg-red-100'
+                            }`}
+                            disabled={isAdmin || isProcessing}
+                          >
+                            {isProcessing && processingIds.has(row._id) ? (
+                              <>
+                                <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin"></div>
+                                <span className="hidden sm:inline">Processing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <X className="w-3 h-3 sm:w-4 sm:h-4" /> Close
                               </>
                             )}
                           </button>
@@ -951,45 +1029,64 @@ export default function AccountsApprovalsPage() {
 
                   {/* Footer - Mobile-optimized buttons */}
                   <div className="bg-gray-50 px-4 sm:px-6 py-3 border-t border-gray-200 sticky bottom-0">
-                    <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2 sm:gap-0">
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                       <button
                         onClick={closeDrawer}
                         className="w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-gray-300 shadow-sm text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors duration-150"
                       >
                         Close
                       </button>
-                      <button
-                        onClick={async () => {
-                          openApprove(drawer.row._id, drawer.row.type);
-                          closeDrawer();
-                          // Force a refresh after a short delay to catch any missed updates
-                          setTimeout(() => {
-                            if (!processingIds.has(drawer.row._id)) {
-                              fetchRows(true);
-                            }
-                          }, 5000);
-                        }}
-                        disabled={isAdmin || processingIds.has(drawer.row._id)}
-                        className={`w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent shadow-sm text-xs sm:text-sm font-medium rounded-md text-white transition-colors duration-150 ${
-                          isAdmin
-                            ? 'bg-gray-400 cursor-not-allowed'
-                            : (processingIds.has(drawer.row._id) 
-                              ? 'bg-gray-400 cursor-not-allowed' 
-                              : 'bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500')
-                        }`}
-                      >
-                        {processingIds.has(drawer.row._id) ? (
-                          <>
-                            <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1 sm:mr-2"></div>
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                            {drawer.row.type === 'quotation_approval' ? 'Approve' : 'Verify'}
-                          </>
-                        )}
-                      </button>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          onClick={async () => {
+                            openClose(drawer.row._id);
+                            closeDrawer();
+                          }}
+                          disabled={isAdmin || processingIds.has(drawer.row._id)}
+                          className={`w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent shadow-sm text-xs sm:text-sm font-medium rounded-md text-white transition-colors duration-150 ${
+                            isAdmin
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : (processingIds.has(drawer.row._id) 
+                                ? 'bg-gray-400 cursor-not-allowed' 
+                                : 'bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500')
+                          }`}
+                        >
+                          <X className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                          Close Quotation
+                        </button>
+                        <button
+                          onClick={async () => {
+                            openApprove(drawer.row._id, drawer.row.type);
+                            closeDrawer();
+                            // Force a refresh after a short delay to catch any missed updates
+                            setTimeout(() => {
+                              if (!processingIds.has(drawer.row._id)) {
+                                fetchRows(true);
+                              }
+                            }, 5000);
+                          }}
+                          disabled={isAdmin || processingIds.has(drawer.row._id)}
+                          className={`w-full sm:w-auto inline-flex items-center justify-center px-3 sm:px-4 py-2 border border-transparent shadow-sm text-xs sm:text-sm font-medium rounded-md text-white transition-colors duration-150 ${
+                            isAdmin
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : (processingIds.has(drawer.row._id) 
+                                ? 'bg-gray-400 cursor-not-allowed' 
+                                : 'bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500')
+                          }`}
+                        >
+                          {processingIds.has(drawer.row._id) ? (
+                            <>
+                              <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-1 sm:mr-2"></div>
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                              {drawer.row.type === 'quotation_approval' ? 'Approve' : 'Verify'}
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1036,6 +1133,13 @@ export default function AccountsApprovalsPage() {
             ? "Are you sure you want to approve this advance payment?" 
             : "Are you sure you want to verify this remaining payment?"
           } 
+        />
+        <ConfirmDialog 
+          isOpen={showCloseConfirm} 
+          onClose={()=>setShowCloseConfirm(false)} 
+          onConfirm={doClose} 
+          title="Close Quotation" 
+          message="Are you sure you want to close/disapprove this quotation? This action cannot be undone and will remove it from pending approvals." 
         />
         {toast.show && (
           <Toast message={toast.msg} type={toast.type === 'error' ? 'error' : 'success'} onClose={()=>setToast({show:false,msg:'',type:'success'})} />
