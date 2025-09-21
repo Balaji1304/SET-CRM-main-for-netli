@@ -6,7 +6,7 @@ const rolePermissions = {
   product_head: ['/api/maintenance', '/api/notifications', '/api/bundles', '/api/tracking', '/api/reports/service'],
   service_engineer: ['/api/service-customers', '/api/performance', '/api/tickets', '/api/notifications', '/api/tracking', '/api/installations', '/api/reports/service'],
   sales_head: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders', '/api/notifications', '/api/tracking', '/api/reports/sales'],
-  accounts_department: ['/api/quotations', '/api/customer-purchases', '/api/notifications', '/api/tracking'],
+  accounts_department: ['/api/quotations', '/api/customer-purchases', '/api/notifications', '/api/tracking', '/api/payments'],
   marketing_coordinator: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders', '/api/notifications', '/api/tracking', '/api/reports/sales']
 
 };

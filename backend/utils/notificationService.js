@@ -284,6 +284,9 @@ class NotificationService {
           }
           const salesTeam = await User.find({ role: { $in: ['sales_person', 'sales_head', 'marketing_coordinator'] } });
           recipients.push(...salesTeam.filter(user => user._id).map(user => user._id));
+          // Also notify accounts department
+          const accountsTeam = await User.find({ role: 'accounts_department' });
+          recipients.push(...accountsTeam.filter(user => user._id).map(user => user._id));
           title = 'Quotation Approved';
           message = `Quotation #${quotation.quotationNumber} has been approved`;
           priority = 'high';
@@ -1161,6 +1164,9 @@ class NotificationService {
           if (data.createdBy) {
             recipients.push(data.createdBy);
           }
+          // Also notify accounts department
+          const accountsUsers = await User.find({ role: 'accounts_department' });
+          recipients.push(...accountsUsers.map(u => u._id));
           title = 'Quotation Pending Approval';
           message = `Quotation ${data.quotationNumber} for ${data.customerName} (₹${data.amount}) is waiting for approval`;
           priority = 'high';
@@ -1265,6 +1271,13 @@ class NotificationService {
               invoiceNumber: data.invoiceNumber
             });
           }
+          break;
+
+        case 'payment_failed':
+          title = 'Payment Failed';
+          message = `Payment failed for ${data.customerName}${data.invoiceNumber ? ` (Invoice ${data.invoiceNumber})` : ''}${data.amount ? `, amount ₹${data.amount}` : ''}`;
+          priority = 'high';
+          // Intentionally no WhatsApp send for failures unless configured
           break;
 
         case 'payment_overdue':
