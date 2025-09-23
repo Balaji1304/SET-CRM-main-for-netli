@@ -9,7 +9,8 @@ const {
   getSalespersons,
   assignEnquiryToSalesperson,
   getPendingAssignmentEnquiries,
-  getMyEnquiries
+  getMyEnquiries,
+  exportEnquiries
 } = require('../controllers/enquiry');
 
 const { protect } = require('../middleware/auth');
@@ -27,6 +28,7 @@ router.get('/salespersons', getSalespersons);
 router.get('/pending-assignment', getPendingAssignmentEnquiries);
 router.get('/my-enquiries', getMyEnquiries);
 router.post('/:id/assign', assignEnquiryToSalesperson);
+router.get('/export', exportEnquiries);
 
 // Specific enquiry routes (must come after named routes)
 router.route('/:id')

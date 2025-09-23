@@ -12,6 +12,7 @@ export default function PaymentSuccessPage() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [purchase, setPurchase] = useState(null);
+  const [payment, setPayment] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function PaymentSuccessPage() {
         if (response.success && response.data.verified) {
           setSuccess(true);
           setPurchase(response.data.purchase);
+          setPayment(response.data.payment);
         } else {
           throw new Error(response.message || 'Payment verification failed');
         }
@@ -103,18 +105,28 @@ export default function PaymentSuccessPage() {
           Your payment has been processed and confirmed successfully.
         </p>
         
-        {purchase && (
+        {payment && (
           <div className="bg-gray-50 p-4 rounded mb-6 text-left">
             <h3 className="font-medium mb-2">Payment Details</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-gray-600">Amount:</div>
-              <div className="font-medium">₹{purchase.remainingAmount.toLocaleString('en-IN')}</div>
+              <div className="text-gray-600">Amount Paid:</div>
+              <div className="font-medium">₹{payment.amountPaid.toLocaleString('en-IN')}</div>
               
               <div className="text-gray-600">Payment Method:</div>
               <div className="font-medium">Razorpay</div>
               
               <div className="text-gray-600">Status:</div>
               <div className="font-medium text-green-600">Paid</div>
+              
+              <div className="text-gray-600">Payment Reference:</div>
+              <div className="font-medium text-xs break-all">{payment.transactionId || 'N/A'}</div>
+              
+              {purchase && (
+                <>
+                  <div className="text-gray-600">Order ID:</div>
+                  <div className="font-medium">#{purchase.purchaseID || 'N/A'}</div>
+                </>
+              )}
             </div>
           </div>
         )}

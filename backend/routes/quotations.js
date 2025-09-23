@@ -8,35 +8,38 @@ const {
   getQuotation,
   updateQuotation,
   deleteQuotation,
-  approveQuotation,
   sendQuotation,
-  confirmOfflinePayment,
-  closeQuotation,
   handleApproveQuotation,
+  closeQuotation,
+  confirmOfflinePayment,
   checkPublicPaymentStatus,
-  manualConfirmPayment
+  manualConfirmPayment,
+  exportQuotations
 } = require('../controllers/quotation');
 
 // Public routes (no auth needed)
 router.get('/public/payment-status', checkPublicPaymentStatus);
 router.post('/manual-confirm', manualConfirmPayment);
 
-// Protect all subsequent routes
-router.use(protect);
-router.use(checkRolePermission);
+// --- All routes below are protected ---
 
+// Specific routes first
+router.get('/export', protect, checkRolePermission, exportQuotations);
+
+// General routes
 router.route('/')
-  .get(getQuotations)
-  .post(createQuotation);
+  .get(protect, checkRolePermission, getQuotations)
+  .post(protect, checkRolePermission, createQuotation);
 
+// Routes with dynamic IDs must come last
 router.route('/:id')
-  .get(getQuotation)
-  .put(updateQuotation)
-  .delete(deleteQuotation);
+  .get(protect, checkRolePermission, getQuotation)
+  .put(protect, checkRolePermission, updateQuotation)
+  .delete(protect, checkRolePermission, deleteQuotation);
 
-router.post('/:id/send', sendQuotation);
-router.put('/:id/approve', handleApproveQuotation);
-router.put('/:id/close', closeQuotation);
-router.post('/:id/offline-payment', confirmOfflinePayment);
+router.post('/:id/send', protect, checkRolePermission, sendQuotation);
+router.put('/:id/approve', protect, checkRolePermission, handleApproveQuotation);
+router.put('/:id/close', protect, checkRolePermission, closeQuotation);
+router.post('/:id/offline-payment', protect, checkRolePermission, confirmOfflinePayment);
 
 module.exports = router; 

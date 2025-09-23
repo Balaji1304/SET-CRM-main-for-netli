@@ -11,23 +11,25 @@ const {
   addCustomerNote,
   getTrackingSummary,
   getMyOrderTracking,
-  updateEstimatedDates
+  updateEstimatedDates,
+  exportOrders
 } = require('../controllers/orderTrackingController');
 
 // Customer routes
-router.get('/my-orders', protect, authorize(['customer']), getMyOrderTracking);
-router.get('/customer/:purchaseId', protect, authorize(['customer']), getCustomerTracking);
-router.post('/:purchaseId/notes', protect, authorize(['customer', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator']), addCustomerNote);
+router.get('/my-orders', protect, authorize(['customer', 'admin']), getMyOrderTracking);
+router.get('/customer/:purchaseId', protect, authorize(['customer', 'admin']), getCustomerTracking);
+router.post('/:purchaseId/notes', protect, authorize(['customer', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'admin']), addCustomerNote);
 
 // Staff routes
-router.post('/create', protect, authorize(['product_head', 'sales_head', 'marketing_coordinator']), createTrackingRecord);
-router.get('/internal/:purchaseId', protect, authorize(['product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'inventory_manager']), getInternalTracking);
-router.get('/summary', protect, authorize(['product_head', 'sales_head', 'marketing_coordinator']), getTrackingSummary);
+router.post('/create', protect, authorize(['product_head', 'sales_head', 'marketing_coordinator', 'admin']), createTrackingRecord);
+router.get('/internal/:purchaseId', protect, authorize(['product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'admin']), getInternalTracking);
+router.get('/summary', protect, authorize(['product_head', 'sales_head', 'marketing_coordinator', 'admin']), getTrackingSummary);
+router.get('/export', protect, authorize(['admin']), exportOrders);
 
 // Status update routes
-router.put('/:purchaseId/status', protect, authorize(['product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'inventory_manager']), updateTrackingStatus);
-router.put('/:purchaseId/shipping', protect, authorize(['product_head', 'marketing_coordinator', 'inventory_manager']), updateShippingDetails);
-router.put('/:purchaseId/installation', protect, authorize(['product_head', 'service_engineer']), updateInstallationDetails);
-router.put('/:purchaseId/estimates', protect, authorize(['product_head', 'marketing_coordinator']), updateEstimatedDates);
+router.put('/:purchaseId/status', protect, authorize(['product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'admin']), updateTrackingStatus);
+router.put('/:purchaseId/shipping', protect, authorize(['product_head', 'marketing_coordinator', 'admin']), updateShippingDetails);
+router.put('/:purchaseId/installation', protect, authorize(['product_head', 'service_engineer', 'admin']), updateInstallationDetails);
+router.put('/:purchaseId/estimates', protect, authorize(['product_head', 'marketing_coordinator', 'admin']), updateEstimatedDates);
 
 module.exports = router;

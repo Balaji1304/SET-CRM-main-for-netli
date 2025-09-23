@@ -86,9 +86,9 @@ export const getInvoiceByPurchaseId = async (customerPurchaseId) => {
   }
 };
 
-export const sendInvoiceEmail = async (invoiceId) => {
+export const sendInvoiceEmail = async (proformaInvoiceId) => {
   try {
-    const response = await fetch(`${API_URL}/invoices/${invoiceId}/send-email`, {
+    const response = await fetch(`${API_URL}/invoices/${proformaInvoiceId}/send-email`, {
       method: 'POST',
       headers: getAuthHeaders(), // Ensure this provides the auth token
     });
@@ -100,8 +100,8 @@ export const sendInvoiceEmail = async (invoiceId) => {
     }
     return responseData; // Should be { success: true, message: '...' }
   } catch (error) {
-    console.error('Error sending invoice email in service:', error);
-    return { success: false, message: error.message || 'An unexpected error occurred while sending invoice email.' };
+    console.error('Error sending proforma invoice email in service:', error);
+    return { success: false, message: error.message || 'An unexpected error occurred while sending proforma invoice email.' };
   }
 };
 

@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getEnquiries, getSalespersons, assignEnquiryToSalesperson } from '../../services/enquiryService';
+import { getEnquiries, getSalespersons, assignEnquiryToSalesperson, exportEnquiries } from '../../services/enquiryService';
 import { Loader2, AlertTriangle, Search, Filter, Eye, UserPlus, ChevronLeft, ChevronRight, ChevronDown, Phone, MapPin, User, X, Calendar, FileText, ArrowLeft, Plus, Info, Edit2, Trash2, Building2, Clock, Users, RotateCcw, Mail } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import ExportButton from '../../components/ExportButton';
+import { downloadCSV } from '../../utils/csv';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -733,6 +736,9 @@ export default function LeadAssignmentPage() {
   const [showFilters, setShowFilters] = useState(false);
   const itemsPerPage = 10;
 
+  const { user } = useAuth();
+  const [exportLoading, setExportLoading] = useState(false);
+
   // Function to reset all filters
   const resetFilters = () => {
     setSearchTerm('');
@@ -801,6 +807,22 @@ export default function LeadAssignmentPage() {
       window.history.replaceState({}, document.title);
     }
   }, [location.state]);
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      const response = await exportEnquiries();
+      if (response.success) {
+        downloadCSV(response.data, 'enquiries');
+      } else {
+        console.error('Failed to export enquiries:', response.message);
+      }
+    } catch (error) {
+      console.error('Error exporting enquiries:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const handleOpenAssignModal = (enquiry) => {
     setSelectedEnquiryForAssignment(enquiry);
@@ -917,6 +939,9 @@ export default function LeadAssignmentPage() {
       <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8">
         <div className="flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">Enquiries</h1>
+          {user?.role === 'admin' && (
+            <ExportButton onExport={handleExport} loading={exportLoading} />
+          )}
         </div>
       </div>
 

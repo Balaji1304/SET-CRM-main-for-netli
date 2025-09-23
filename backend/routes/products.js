@@ -10,7 +10,8 @@ const {
   deleteProduct,
   uploadBrochure,
   getDefaultTerms,
-  getAllTerms
+  getAllTerms,
+  exportProducts
 } = require('../controllers/products');
 
 // Configure multer for file uploads
@@ -38,6 +39,8 @@ router.get('/', getProducts);
 // Terms and conditions routes (must come before /:id route)
 router.get('/terms/default', getDefaultTerms);
 router.get('/terms/all', getAllTerms);
+
+router.get('/export', protect, authorize('admin'), exportProducts);
 
 router.get('/:id', getProduct);
 

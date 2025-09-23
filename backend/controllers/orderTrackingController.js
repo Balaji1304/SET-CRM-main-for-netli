@@ -339,14 +339,21 @@ exports.getTrackingSummary = async (req, res) => {
   }
 };
 
-// @desc    Get customer's order tracking list
+  // @desc    Get customer's order tracking list (or all orders for admin)
 // @route   GET /api/tracking/my-orders
-// @access  Private (Customer only)
+// @access  Private (Customer, Admin)
 exports.getMyOrderTracking = async (req, res) => {
   try {
     let customerId;
-    
-    if (req.user.role === 'customer') {
+    let purchases;
+
+    if (req.user.role === 'admin') {
+      // Admin can see ALL orders from ALL customers
+      purchases = await CustomerPurchase.find({})
+        .populate('customerId', 'firstName lastName email phone')
+        .select('_id purchaseID totalAmount createdAt customerId')
+        .sort({ createdAt: -1 });
+    } else if (req.user.role === 'customer') {
       // For customer users, find the Customer record associated with this user
       const Customer = require('../models/Customer');
       const customer = await Customer.findOne({ user: req.user._id });
@@ -357,13 +364,14 @@ exports.getMyOrderTracking = async (req, res) => {
         });
       }
       customerId = customer._id;
+      
+      // Get customer purchases
+      purchases = await CustomerPurchase.find({ customerId }).select('_id purchaseID totalAmount createdAt');
     } else {
       // For other roles, use the user ID directly (shouldn't reach here due to auth)
       customerId = req.user._id;
+      purchases = await CustomerPurchase.find({ customerId }).select('_id purchaseID totalAmount createdAt');
     }
-
-    // Get customer purchases
-    const purchases = await CustomerPurchase.find({ customerId }).select('_id purchaseID totalAmount createdAt');
     const purchaseIds = purchases.map(p => p._id);
 
     // Ensure tracking records exist for all purchases (auto-backfill)
@@ -395,9 +403,16 @@ exports.getMyOrderTracking = async (req, res) => {
       // Optionally log count; avoided to keep logs clean
     }
 
-    // Get tracking records for customer purchases (after backfill)
+    // Get tracking records for purchases (after backfill)
     const trackingRecords = await OrderTracking.find({ purchaseId: { $in: purchaseIds } })
-      .populate('purchaseId', 'purchaseID totalAmount createdAt')
+      .populate({
+        path: 'purchaseId',
+        select: 'purchaseID totalAmount createdAt customerId',
+        populate: req.user.role === 'admin' ? {
+          path: 'customerId',
+          select: 'firstName lastName email phone'
+        } : null
+      })
       .select('purchaseId trackingNumber currentStatus currentPhase progressPercentage estimatedDelivery estimatedInstallation milestones createdAt updatedAt')
       .sort({ createdAt: -1 });
 
@@ -437,6 +452,63 @@ exports.updateEstimatedDates = async (req, res) => {
   }
 };
 
+// @desc    Export all orders
+// @route   GET /api/tracking/export
+// @access  Private (Admin)
+exports.exportOrders = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let purchaseQuery = {};
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      purchaseQuery.createdAt = { $gte: start, $lte: end };
+    }
+
+    const purchases = await CustomerPurchase.find(purchaseQuery)
+      .populate('customerId', 'firstName lastName email phone');
+
+    const purchaseIds = purchases.map(p => p._id);
+    const trackingRecords = await OrderTracking.find({ purchaseId: { $in: purchaseIds } });
+    
+    const trackingMap = trackingRecords.reduce((map, tracking) => {
+      map[tracking.purchaseId.toString()] = tracking;
+      return map;
+    }, {});
+
+    const formattedData = purchases.map(p => {
+      const tracking = trackingMap[p._id.toString()] || {};
+      const customer = p.customerId || {};
+      return {
+        purchaseID: p.purchaseID,
+        customerName: `${customer.firstName || ''} ${customer.lastName || ''}`.trim(),
+        customerEmail: customer.email,
+        customerPhone: customer.phone,
+        totalAmount: p.totalAmount,
+        advancePaid: p.advancePaid,
+        remainingAmount: p.remainingAmount,
+        paymentStatus: p.isFullyPaid ? 'Paid' : 'Pending',
+        purchaseDate: p.purchaseDate.toISOString().split('T')[0],
+        trackingNumber: tracking.trackingNumber,
+        currentStatus: tracking.currentStatus,
+        currentPhase: tracking.currentPhase,
+        progressPercentage: tracking.progressPercentage,
+        estimatedDelivery: tracking.estimatedDelivery ? tracking.estimatedDelivery.toISOString().split('T')[0] : 'N/A',
+        estimatedInstallation: tracking.estimatedInstallation ? tracking.estimatedInstallation.toISOString().split('T')[0] : 'N/A',
+      };
+    });
+
+    res.json({ success: true, data: formattedData });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
 module.exports = {
   createTrackingRecord: exports.createTrackingRecord,
   getCustomerTracking: exports.getCustomerTracking,
@@ -447,5 +519,6 @@ module.exports = {
   addCustomerNote: exports.addCustomerNote,
   getTrackingSummary: exports.getTrackingSummary,
   getMyOrderTracking: exports.getMyOrderTracking,
-  updateEstimatedDates: exports.updateEstimatedDates
+  updateEstimatedDates: exports.updateEstimatedDates,
+  exportOrders: exports.exportOrders,
 };

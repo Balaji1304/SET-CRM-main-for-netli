@@ -360,3 +360,50 @@ exports.getAllTerms = async (req, res) => {
     });
   }
 };
+
+// @desc    Export products
+// @route   GET /api/products/export
+// @access  Private (Admin)
+exports.exportProducts = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let query = {};
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    const products = await Product.find(query).sort({ createdAt: -1 });
+
+    const formattedData = products.map(product => ({
+      name: product.name,
+      modelNumber: product.modelNumber,
+      category: product.category,
+      brand: product.brand,
+      price: product.price,
+      quantity: product.quantity,
+      reorderLevel: product.reorderLevel,
+      description: product.description,
+      isBundleCompatible: product.isBundleCompatible,
+      specifications: product.specifications,
+      createdAt: product.createdAt.toISOString().split('T')[0],
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedData,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error exporting products'
+    });
+  }
+};

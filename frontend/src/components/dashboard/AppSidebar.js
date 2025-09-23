@@ -137,11 +137,37 @@ const getNavigation = (userRole) => {
     ],
     service_engineer: [
       { name: 'Installations', href: '/dashboard/installations', icon: Settings },
-      { name: 'Service Customers', href: '/dashboard/service-customers', icon: Users },
       { name: 'Cases', href: '/dashboard/cases', icon: Ticket },
-      { name: 'Service', href: '/dashboard/service', icon: Wrench },
       { name: 'Performance', href: '/dashboard/performance', icon: BarChart },
       { name: 'Service Reports', href: '/dashboard/service-reports', icon: BarChart2 },
+      { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+    ],
+    admin: [
+      // Customer Management
+      { name: 'Payment & Billing', href: '/dashboard/payments', icon: CreditCard },
+      { name: 'Track Orders', href: '/dashboard/orders', icon: Package },
+      { name: 'All Orders', href: '/dashboard/my-products', icon: ShoppingBag },
+      { name: 'Customers', href: '/dashboard/customers', icon: UserCheck },
+      // Sales & Marketing
+      { name: 'Leads', href: '/dashboard/leads', icon: Users },
+      { name: 'Enquiries', href: '/dashboard/enquiries', icon: Users },
+      { name: 'Quotations', href: '/dashboard/quotations', icon: FileText },
+      { name: 'Sales Reports', href: '/dashboard/sales-reports', icon: BarChart },
+      // Product Management  
+      { name: 'Products', href: '/dashboard/products', icon: Box },
+      { name: 'Solar Power Plant Systems', href: '/dashboard/bundles', icon: Package },
+      { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
+      { name: 'Packages', href: '/dashboard/packages', icon: Plus },
+      { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
+      // Service & Support
+      { name: 'Tickets', href: '/dashboard/tickets', icon: Ticket },
+      { name: 'Tickets Queue', href: '/dashboard/ticket-queue', icon: Ticket },
+      { name: 'Performance', href: '/dashboard/performance', icon: BarChart },
+      // Financial Management
+      { name: 'Pending Approvals', href: '/dashboard/quotations/pending-approvals', icon: FileText },
+      { name: 'Approved Payments', href: '/dashboard/quotations/approved-payments', icon: CreditCard },
+      // System Administration
+      { name: 'User Management', href: '/dashboard/user-management', icon: Users },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     // NOTE: accounts_department is defined above to include both pages

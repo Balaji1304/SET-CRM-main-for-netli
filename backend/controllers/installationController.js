@@ -208,7 +208,7 @@ exports.completeInstallation = async (req, res) => {
     const purchase = await CustomerPurchase.findOne({
       _id: req.params.purchaseId,
       assignedEngineerId: req.user._id
-    });
+    }).populate('customerId', 'firstName lastName email phone address businessName');
 
     if (!purchase) {
       throw new AppError('Assignment not found or not assigned to you', 404);
@@ -324,12 +324,16 @@ exports.completeInstallation = async (req, res) => {
         purchaseID: purchase.purchaseID,
         installationStatus: purchase.installationStatus,
         completionPhotos: purchase.completionPhotos,
-        completedAt: purchase.installationEndTime,
+        completedAt: purchase.workCompletedAt,
         serviceNotes: purchase.serviceAssignmentNotes || '',
+        notes: notes || '',
+        issuesEncountered: issuesEncountered || '',
         customer: purchase.customerId ? {
           name: `${purchase.customerId.firstName || ''} ${purchase.customerId.lastName || ''}`.trim(),
           email: purchase.customerId.email || '',
-          phone: purchase.customerId.phone || ''
+          phone: purchase.customerId.phone || '',
+          address: purchase.customerId.address || '',
+          businessName: purchase.customerId.businessName || ''
         } : null,
         engineer: req.user ? { name: req.user.name, email: req.user.email } : null,
         products

@@ -60,4 +60,22 @@ export const checkWhatsappExists = async (whatsapp, excludeId = null) => {
     method: 'POST',
     body: { whatsapp, excludeId }
   }, false); // Don't cache WhatsApp checks
+};
+
+/**
+ * Export leads data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with leads data for export
+ */
+export const exportLeads = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `leads/export?${query}`;
+    // Use apiRequest and specify no caching for this request
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting leads:', error);
+    throw error;
+  }
 }; 

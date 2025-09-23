@@ -12,6 +12,8 @@ exports.getTickets = async (req, res) => {
     const tickets = await Ticket.find({ user: req.user.id })
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: tickets });
   } catch (error) {
@@ -53,6 +55,8 @@ exports.createTicket = async (req, res) => {
             fileName: file.originalname,
             fileUrl: result.secure_url,
             fileType: file.mimetype,
+            fileSize: file.size,
+            publicId: result.public_id,
             uploadedBy: req.user.id
           });
         } catch (uploadError) {
@@ -65,7 +69,9 @@ exports.createTicket = async (req, res) => {
     const ticket = await Ticket.create(ticketData);
     
     // Populate user info for response
-    const populatedTicket = await Ticket.findById(ticket._id).populate('user', 'name email phone');
+    const populatedTicket = await Ticket.findById(ticket._id)
+      .populate('user', 'name email phone')
+      .populate('attachments.uploadedBy', 'name email');
     
     // Create notification for new ticket
     try {
@@ -119,12 +125,14 @@ exports.deleteTicket = async (req, res) => {
   }
 };
 
-// Front Office Executive: list all tickets
+// Front Office Executive and Admin: list all tickets
 exports.getAllTickets = async (req, res) => {
   try {
     const tickets = await Ticket.find()
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: tickets });
   } catch (error) {
@@ -132,7 +140,7 @@ exports.getAllTickets = async (req, res) => {
   }
 };
 
-// Front Office Executive: assign/unassign engineer
+// Front Office Executive and Admin: assign/unassign engineer
 exports.assignTicket = async (req, res) => {
   try {
     const { engineerId } = req.body;
@@ -167,7 +175,8 @@ exports.assignTicket = async (req, res) => {
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
-      .populate('comments.author', 'name email');
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email');
     
     res.json({ success: true, data: populatedTicket });
   } catch (error) {
@@ -175,7 +184,7 @@ exports.assignTicket = async (req, res) => {
   }
 };
 
-// Product Head: update ticket meta and reopen/close
+// Product Head and Admin: update ticket meta and reopen/close
 exports.updateTicketMeta = async (req, res) => {
   try {
     const { priority, category, action } = req.body;
@@ -191,7 +200,8 @@ exports.updateTicketMeta = async (req, res) => {
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
-      .populate('comments.author', 'name email');
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email');
     
     res.json({ success: true, data: populatedTicket });
   } catch (error) {
@@ -205,6 +215,8 @@ exports.getAssignedTickets = async (req, res) => {
     const tickets = await Ticket.find({ assignedEngineerId: req.user.id })
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email')
       .sort({ createdAt: -1 });
     res.json({ success: true, data: tickets });
   } catch (error) {
@@ -229,7 +241,8 @@ exports.updateTicketStatus = async (req, res) => {
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
-      .populate('comments.author', 'name email');
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email');
     
     res.json({ success: true, data: populatedTicket });
   } catch (error) {
@@ -251,7 +264,8 @@ exports.addComment = async (req, res) => {
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
-      .populate('comments.author', 'name email');
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email');
     
     res.status(201).json({ success: true, data: populatedTicket });
   } catch (error) {
@@ -272,9 +286,12 @@ exports.uploadAttachment = async (req, res) => {
     });
 
     ticket.attachments.push({
-      url: uploadResult.secure_url,
+      fileName: req.file.originalname,
+      fileUrl: uploadResult.secure_url,
+      fileType: req.file.mimetype,
+      fileSize: req.file.size,
       publicId: uploadResult.public_id,
-      type: uploadResult.resource_type === 'image' ? 'image' : (uploadResult.format === 'pdf' ? 'pdf' : 'other')
+      uploadedBy: req.user.id
     });
 
     await ticket.save();
@@ -283,9 +300,64 @@ exports.uploadAttachment = async (req, res) => {
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
       .populate('assignedEngineerId', 'name email')
-      .populate('comments.author', 'name email');
+      .populate('comments.author', 'name email')
+      .populate('attachments.uploadedBy', 'name email');
     
     res.status(201).json({ success: true, data: populatedTicket });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Export tickets
+// @route   GET /api/tickets/export
+// @access  Private (Admin)
+exports.exportTickets = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let query = {};
+    if (req.user.role !== 'admin') {
+      // For non-admins, they can only export tickets they created or are assigned to
+      const userTickets = await Ticket.find({
+        $or: [{ user: req.user.id }, { assignedEngineerId: req.user.id }],
+      }).select('_id');
+      const ticketIds = userTickets.map(t => t._id);
+      query._id = { $in: ticketIds };
+    }
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    const tickets = await Ticket.find(query)
+      .populate('user', 'name email phone')
+      .populate('assignedEngineerId', 'name email')
+      .sort({ createdAt: -1 });
+
+    const formattedData = tickets.map(t => ({
+      ticketId: t.ticketId,
+      title: t.title,
+      status: t.status,
+      priority: t.priority,
+      category: t.category,
+      customerName: t.user ? t.user.name : 'N/A',
+      customerEmail: t.user ? t.user.email : 'N/A',
+      assignedEngineer: t.assignedEngineerId ? t.assignedEngineerId.name : 'Unassigned',
+      createdAt: t.createdAt.toISOString().split('T')[0],
+      updatedAt: t.updatedAt.toISOString().split('T')[0],
+      resolvedAt: t.resolvedAt ? t.resolvedAt.toISOString().split('T')[0] : 'N/A',
+      commentCount: t.comments.length,
+      attachmentCount: t.attachments.length,
+    }));
+
+    res.json({ success: true, data: formattedData });
   } catch (error) {
     errorHandler(res, error);
   }

@@ -5,14 +5,17 @@ import {
   allocateInstallationDate,
   getServiceEngineers,
   assignTask,
+  exportPurchaseOrders
 } from '../services/purchaseOrderService';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import AssignTaskModal from './dashboard/AssignTaskModal';
+import ExportButton from './ExportButton';
+import { downloadCSV } from '../utils/csv';
 
 // Icons - Import these from your icon library (e.g., lucide-react)
 // If you don't have these icons available, you can replace with equivalent icons from your project
-import { Calendar, Package, Users, AlertCircle, CheckCircle, Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar, Package, Users, AlertCircle, CheckCircle, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -252,6 +255,7 @@ const PurchaseOrderManagement = () => {
   // State for date selection
   const [selectedDates, setSelectedDates] = useState({});
   const [savingDate, setSavingDate] = useState(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const fetchPurchaseOrders = useCallback(async () => {
     try {
@@ -359,6 +363,23 @@ const PurchaseOrderManagement = () => {
     [selectedOrder, fetchPurchaseOrders]
   );
 
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const response = await exportPurchaseOrders({ startDate, endDate });
+      if (response.success) {
+        downloadCSV(response.data, `purchase-orders-${startDate}-to-${endDate}.csv`);
+      } else {
+        toast.error(response.message || 'Failed to export purchase orders.');
+      }
+    } catch (error) {
+      toast.error('An error occurred during purchase order export.');
+      console.error('Export error:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   // Pagination logic
   const totalPages = Math.ceil(purchaseOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -393,7 +414,12 @@ const PurchaseOrderManagement = () => {
     <>
       <style>{customStyles}</style>
       <div className="container px-3 sm:px-4 mx-auto">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4 sm:mb-6 mobile-header-text">Purchase Order Management</h1>
+        <div className="flex justify-between items-center mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mobile-header-text">Purchase Order Management</h1>
+          {user?.role === 'admin' && (
+            <ExportButton onExport={handleExport} loading={exportLoading} />
+          )}
+        </div>
 
         {/* Desktop view - Table */}
         <div className="hidden lg:block overflow-hidden bg-white rounded-xl shadow">
@@ -550,34 +576,46 @@ const PurchaseOrderManagement = () => {
           </table>
         </div>
 
-        {/* Pagination for desktop */}
+        {/* Desktop pagination */}
         {totalPages > 1 && (
-          <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-medium">{startIndex + 1}</span> to <span className="font-medium">
-                  {Math.min(endIndex, purchaseOrders.length)}</span> of{' '}
+          <div className="px-2 sm:px-4 lg:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-2 sm:space-y-0">
+            <div className="flex-1 flex justify-between items-center w-full sm:w-auto">
+              <p className="text-sm text-gray-700 text-center sm:text-left">
+                Showing{' '}
+                <span className="font-medium">{startIndex + 1}</span>
+                {' '}to{' '}
+                <span className="font-medium">{Math.min(endIndex, purchaseOrders.length)}</span>
+                {' '}of{' '}
                 <span className="font-medium">{purchaseOrders.length}</span> results
               </p>
             </div>
-            <nav className="flex justify-end">
+            <nav className="flex items-center space-x-2">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className={`relative inline-flex items-center px-2 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium ${
-                  currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'
+                className={`inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium transition-colors ${
+                  currentPage === 1 
+                    ? 'text-gray-400 bg-gray-50 cursor-not-allowed' 
+                    : 'text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400'
                 }`}
               >
+                <ChevronLeft className="h-4 w-4 mr-1" />
                 Previous
               </button>
+              <span className="px-3 py-1.5 text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className={`ml-3 relative inline-flex items-center px-2 py-2 rounded-md border border-gray-300 bg-white text-sm font-medium ${
-                  currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'
+                className={`inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium transition-colors ${
+                  currentPage === totalPages 
+                    ? 'text-gray-400 bg-gray-50 cursor-not-allowed' 
+                    : 'text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400'
                 }`}
               >
                 Next
+                <ChevronRight className="h-4 w-4 ml-1" />
               </button>
             </nav>
           </div>
@@ -608,30 +646,48 @@ const PurchaseOrderManagement = () => {
           </div>
         )}
 
-        {/* Pagination for mobile */}
+        {/* Mobile pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between py-3">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className={`flex items-center justify-center px-3 py-2 border rounded-md text-sm font-medium touch-target ${
-                currentPage === 1 ? 'text-gray-300 cursor-not-allowed border-gray-200' : 'text-gray-700 hover:bg-gray-50 border-gray-300'
-              }`}
-            >
-              Previous
-            </button>
-            <span className="text-sm text-gray-700">
-              {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className={`flex items-center justify-center px-3 py-2 border rounded-md text-sm font-medium touch-target ${
-                currentPage === totalPages ? 'text-gray-300 cursor-not-allowed border-gray-200' : 'text-gray-700 hover:bg-gray-50 border-gray-300'
-              }`}
-            >
-              Next
-            </button>
+          <div className="px-2 sm:px-4 lg:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-2 sm:space-y-0">
+            <div className="flex-1 flex justify-between items-center w-full sm:w-auto">
+              <p className="text-sm text-gray-700 text-center sm:text-left">
+                Showing{' '}
+                <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span>
+                {' '}to{' '}
+                <span className="font-medium">{Math.min(currentPage * itemsPerPage, purchaseOrders.length)}</span>
+                {' '}of{' '}
+                <span className="font-medium">{purchaseOrders.length}</span> results
+              </p>
+            </div>
+            <nav className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className={`inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium transition-colors ${
+                  currentPage === 1 
+                    ? 'text-gray-400 bg-gray-50 cursor-not-allowed' 
+                    : 'text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400'
+                }`}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </button>
+              <span className="px-3 py-1.5 text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className={`inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium transition-colors ${
+                  currentPage === totalPages 
+                    ? 'text-gray-400 bg-gray-50 cursor-not-allowed' 
+                    : 'text-gray-700 bg-white hover:bg-gray-50 hover:border-gray-400'
+                }`}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </button>
+            </nav>
           </div>
         )}
       </div>

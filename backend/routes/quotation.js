@@ -15,7 +15,9 @@ const {
   getPendingPayments,
   checkPaymentStatus,
   checkPublicPaymentStatus,
-  manualConfirmPayment
+  manualConfirmPayment,
+  closeQuotation,
+  exportQuotations
 } = require('../controllers/quotation');
 
 // Webhook route (unprotected)
@@ -41,6 +43,9 @@ router.route('/')
   .get(getQuotations)
   .post(createQuotation);
 
+// Export route (must be before /:id routes)
+router.get('/export', exportQuotations);
+
 // Quotation specific routes
 router.route('/:id')
   .get(getQuotation)
@@ -49,6 +54,7 @@ router.route('/:id')
 
 router.post('/:id/send', sendQuotation);
 router.put('/:id/approve', handleApproveQuotation);
+router.put('/:id/close', closeQuotation);
 router.post('/:id/offline-payment', confirmOfflinePayment);
 router.get('/:id/payment-status', checkPaymentStatus);
 
