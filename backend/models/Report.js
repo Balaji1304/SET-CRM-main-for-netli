@@ -29,7 +29,9 @@ const reportSchema = new mongoose.Schema({
         'product_performance',
         'geographic_analysis',
         'time_period_analysis',
-        'custom_report'
+        'custom_report',
+        'installation_performance',
+        'task_efficiency'
       ],
       message: 'Invalid report type'
     }
@@ -38,7 +40,7 @@ const reportSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: {
-      values: ['individual', 'team', 'company', 'comparative'],
+      values: ['individual', 'team', 'company', 'comparative', 'service'],
       message: 'Invalid report category'
     }
   },
@@ -56,12 +58,12 @@ const reportSchema = new mongoose.Schema({
   },
   accessLevel: {
     type: String,
-    enum: ['private', 'team', 'management', 'public'],
+    enum: ['private', 'team', 'management', 'public', 'personal'],
     default: 'private'
   },
   allowedRoles: [{
     type: String,
-    enum: ['sales_person', 'sales_head', 'marketing_coordinator', 'product_head', 'accounts_department']
+    enum: ['sales_person', 'sales_head', 'marketing_coordinator', 'product_head', 'accounts_department', 'service_engineer']
   }],
 
   // Report Configuration

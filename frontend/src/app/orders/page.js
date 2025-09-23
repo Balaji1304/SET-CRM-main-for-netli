@@ -699,7 +699,6 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose, isAdmin = false }) => 
               </div>
             </div>
           )}
-
           {/* Timeline Section */}
           <div className="mb-6 sm:mb-8">
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center">

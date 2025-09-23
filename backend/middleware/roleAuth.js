@@ -3,10 +3,10 @@ const rolePermissions = {
   customer: ['/api/tickets', '/api/payments', '/api/quotations/customer-products', '/api/notifications', '/api/tracking', '/api/installations', '/api/customer-purchases', '/api/invoices'],
   sales_person: ['/api/leads', '/api/quotations', '/api/invoices', '/api/notifications', '/api/tracking', '/api/reports/sales'],
   front_office_executive: ['/api/enquiries', '/api/notifications', '/api/tracking', '/api/tickets', '/api/customer-purchases/tasks'],
-  product_head: ['/api/maintenance', '/api/notifications', '/api/bundles', '/api/tracking'],
-  service_engineer: ['/api/performance', '/api/tickets', '/api/notifications', '/api/tracking', '/api/installations'],
+  product_head: ['/api/maintenance', '/api/notifications', '/api/bundles', '/api/tracking', '/api/reports/service'],
+  service_engineer: ['/api/performance', '/api/tickets', '/api/notifications', '/api/tracking', '/api/installations', '/api/reports/service'],
   sales_head: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders', '/api/notifications', '/api/tracking', '/api/reports/sales'],
-  accounts_department: ['/api/quotations', '/api/customer-purchases', '/api/notifications', '/api/tracking'],
+  accounts_department: ['/api/quotations', '/api/customer-purchases', '/api/notifications', '/api/tracking', '/api/payments'],
   marketing_coordinator: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders', '/api/notifications', '/api/tracking', '/api/reports/sales'],
   admin: ['/api/tickets', '/api/payments', '/api/quotations', '/api/notifications', '/api/tracking', '/api/installations', '/api/customer-purchases', '/api/invoices', '/api/leads', '/api/reports', '/api/enquiries', '/api/maintenance', '/api/bundles', '/api/performance', '/api/purchase-orders', '/api/dashboard', '/api/knowledge-base', '/api/products', '/api/users', '/api/auth']
 
