@@ -16,8 +16,11 @@ import {
   getRoleColor,
   checkEmailExists,
   checkPhoneExists,
-  checkWhatsappExists
+  checkWhatsappExists,
+  exportUsers
 } from '../../services/userManagementService';
+import ExportButton from '../../components/ExportButton';
+import { downloadCSV } from '../../utils/csv';
 
 // User Form Modal Component
 const UserFormModal = ({ isOpen, onClose, user, onSubmit, isLoading }) => {
@@ -1056,6 +1059,7 @@ export default function UserManagementPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [statusToggleData, setStatusToggleData] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const itemsPerPage = 10;
   const roles = getUserRoles();
@@ -1116,6 +1120,22 @@ export default function UserManagementPage() {
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const response = await exportUsers({ startDate, endDate });
+      if (response.success) {
+        downloadCSV(response.data, `users-${startDate}-to-${endDate}.csv`);
+      } else {
+        console.error('Failed to export users:', response.message);
+      }
+    } catch (error) {
+      console.error('An error occurred during user export:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   // Reset filters
   const resetFilters = () => {
@@ -1237,18 +1257,23 @@ export default function UserManagementPage() {
             </h1>
             <p className="text-sm text-gray-500 mt-1">Manage system users and their permissions</p>
           </div>
-          {stats && (
-            <div className="hidden sm:flex items-center space-x-4 text-sm text-gray-600">
-              <div className="flex items-center space-x-1">
-                <Users className="w-4 h-4" />
-                <span>{stats.totalUsers} users</span>
+          <div className="flex items-center space-x-4">
+            {stats && (
+              <div className="hidden sm:flex items-center space-x-4 text-sm text-gray-600">
+                <div className="flex items-center space-x-1">
+                  <Users className="w-4 h-4" />
+                  <span>{stats.totalUsers} users</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Shield className="w-4 h-4" />
+                  <span>{stats.roleStats?.admin || 0} admins</span>
+                </div>
               </div>
-              <div className="flex items-center space-x-1">
-                <Shield className="w-4 h-4" />
-                <span>{stats.roleStats?.admin || 0} admins</span>
-              </div>
-            </div>
-          )}
+            )}
+            {currentUser?.role === 'admin' && (
+              <ExportButton onExport={handleExport} loading={exportLoading} />
+            )}
+          </div>
         </div>
       </div>
 

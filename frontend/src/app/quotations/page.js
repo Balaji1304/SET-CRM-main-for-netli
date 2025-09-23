@@ -4,6 +4,9 @@ import QuotationsTable from './QuotationsTable';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getSalespersons } from '../../services/enquiryService';
+import ExportButton from '../../components/ExportButton';
+import { exportQuotations } from '../../services/quotationService';
+import { downloadCSV } from '../../utils/csv';
 
 export default function QuotationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,6 +21,7 @@ export default function QuotationsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [exportLoading, setExportLoading] = useState(false);
 
   const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator' || user?.role === 'admin';
 
@@ -51,6 +55,22 @@ export default function QuotationsPage() {
     setShowFilters(false);
   };
 
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      const response = await exportQuotations();
+      if (response.success) {
+        downloadCSV(response.data, 'quotations');
+      } else {
+        console.error('Failed to export quotations:', response.message);
+      }
+    } catch (error) {
+      console.error('Error exporting quotations:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   // Count active filters
   const activeFilterCount = [
     statusFilter,
@@ -67,7 +87,7 @@ export default function QuotationsPage() {
       <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
         <div className="flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">Quotations Management</h1>
-          {/* <p className="text-sm text-gray-500 mt-1">Create and manage quotations for leads</p> */}
+          {user?.role === 'admin' && <ExportButton onExport={handleExport} loading={exportLoading} />}
         </div>
       </div>
 

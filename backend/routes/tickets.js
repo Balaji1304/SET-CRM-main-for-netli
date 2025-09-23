@@ -13,7 +13,8 @@ const {
   getAssignedTickets,
   updateTicketStatus,
   addComment,
-  uploadAttachment
+  uploadAttachment,
+  exportTickets
 } = require('../controllers/tickets');
 const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
@@ -27,6 +28,8 @@ router.route('/')
 router.route('/:id')
   .put(protect, checkRolePermission, updateTicket)
   .delete(protect, checkRolePermission, deleteTicket);
+
+router.get('/export', protect, checkRolePermission, exportTickets);
 
 // Front Office Executive: list all tickets
 router.get('/admin/all', protect, authorize('front_office_executive', 'admin'), getAllTickets);

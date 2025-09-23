@@ -3,7 +3,10 @@ import { createPortal } from "react-dom";
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronDown, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Package, Layers, TrendingUp, Calendar, Info, ShoppingCart, Tag, Zap, Users, Building2, FileText, Filter, RotateCcw } from 'lucide-react';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { getProducts, deleteProduct } from '../../services/productService';
+import { getProducts, deleteProduct, exportProducts } from '../../services/productService';
+import ExportButton from '../../components/ExportButton';
+import { downloadCSV } from '../../utils/csv';
+import { useAuth } from '../../context/AuthContext';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -107,6 +110,8 @@ export default function ProductListPage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
+  const [exportLoading, setExportLoading] = useState(false);
+  const { user } = useAuth();
 
   const itemsPerPage = 10;
 
@@ -132,6 +137,22 @@ export default function ProductListPage() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const response = await exportProducts({ startDate, endDate });
+      if (response.success) {
+        downloadCSV(response.data, `products-${startDate}-to-${endDate}.csv`);
+      } else {
+        console.error('Failed to export products:', response.message);
+      }
+    } catch (error) {
+      console.error('An error occurred during product export:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   // Function to fetch products
   const fetchProducts = async () => {
@@ -682,6 +703,9 @@ export default function ProductListPage() {
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">
               Products Management
             </h1>
+            {user?.role === 'admin' && (
+              <ExportButton onExport={handleExport} loading={exportLoading} />
+            )}
           </div>
         </div>
 

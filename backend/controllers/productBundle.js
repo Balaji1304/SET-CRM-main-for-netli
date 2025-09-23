@@ -519,9 +519,52 @@ exports.getBundleWithComponents = async (req, res) => {
         .sort((a, b) => a.sortOrder - b.sortOrder) // Sort by sortOrder
     };
 
-    res.json({
+    res.status(200).json({
       success: true,
       data: bundleWithComponents
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Export bundles
+// @route   GET /api/bundles/export
+// @access  Private (Admin)
+exports.exportBundles = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let query = {};
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    const bundles = await ProductBundle.find(query)
+      .populate('createdBy', 'name')
+      .sort({ createdAt: -1 });
+
+    const formattedData = bundles.map(bundle => ({
+      name: bundle.name,
+      bundleCode: bundle.bundleCode,
+      category: bundle.category,
+      subcategory: bundle.subcategory,
+      price: bundle.price,
+      isActive: bundle.isActive,
+      createdBy: bundle.createdBy ? bundle.createdBy.name : 'N/A',
+      createdAt: bundle.createdAt.toISOString().split('T')[0],
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedData,
     });
   } catch (error) {
     errorHandler(res, error);

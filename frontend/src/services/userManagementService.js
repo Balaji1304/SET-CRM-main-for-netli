@@ -336,3 +336,20 @@ export const checkWhatsappExists = async (whatsapp, excludeId = null) => {
     throw error;
   }
 };
+
+/**
+ * Export users data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with users data for export
+ */
+export const exportUsers = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `users/manage/export?${query}`;
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting users:', error);
+    throw error;
+  }
+};

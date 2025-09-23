@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, CreditCard, Check, X, ChevronLeft, ChevronRight, Calendar, User, AlertTriangle } from 'lucide-react';
-import { getAllApprovedPayments } from '../../../services/customerService';
+import { getAllApprovedPayments, exportApprovedPayments } from '../../../services/customerService';
 import { apiRequest } from '../../../services/apiConfig';
+import ExportButton from '../../../components/ExportButton';
+import { downloadCSV } from '../../../utils/csv';
+import { useAuth } from '../../../context/AuthContext';
 
 // Custom styles for consistent modal design and mobile cards
 const customStyles = `
@@ -179,12 +182,30 @@ export default function ApprovedPaymentsPage() {
   const [actionMessage, setActionMessage] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [drawer, setDrawer] = useState({ open: false, row: null });
+  const [exportLoading, setExportLoading] = useState(false);
+  const { user } = useAuth();
   
   const itemsPerPage = 10;
 
   useEffect(() => {
     fetchRows();
   }, []);
+
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const response = await exportApprovedPayments({ startDate, endDate });
+      if (response.success) {
+        downloadCSV(response.data, `approved-payments-${startDate}-to-${endDate}.csv`);
+      } else {
+        console.error('Failed to export approved payments:', response.message);
+      }
+    } catch (error) {
+      console.error('An error occurred during approved payments export:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const fetchRows = async () => {
     setLoading(true);
@@ -258,8 +279,11 @@ export default function ApprovedPaymentsPage() {
     <>
       <style>{customStyles}</style>
       <div className="flex flex-col h-full">
-        <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
+        <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8 flex justify-between items-center">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary">Approved Payments</h1>
+          {user?.role === 'admin' && (
+            <ExportButton onExport={handleExport} loading={exportLoading} />
+          )}
         </div>
         <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
           <div className="p-4 md:p-6 border-b border-fourth flex items-center gap-3">

@@ -224,7 +224,9 @@ export default function AccountsApprovalsPage() {
         ws.onmessage = (e) => {
           try {
             const data = JSON.parse(e.data);
+            console.log('WebSocket message received:', data);
             if (data.type === 'quotation_update' || data.type === 'approval_update' || data.type === 'payment_verification') {
+              console.log('WebSocket update received:', data.type, 'fetching fresh data...');
               fetchRows(true);
             }
           } catch (error) {
@@ -232,8 +234,16 @@ export default function AccountsApprovalsPage() {
           }
         };
         
+        ws.onopen = () => {
+          console.log('WebSocket connected');
+        };
+        
         ws.onerror = (error) => {
           console.error('WebSocket error:', error);
+        };
+        
+        ws.onclose = (event) => {
+          console.log('WebSocket closed:', event.code, event.reason);
         };
         
       } catch (error) {
@@ -256,6 +266,7 @@ export default function AccountsApprovalsPage() {
       const pollInterval = setInterval(() => {
         // Only poll if we have processing items and it's been more than 2 seconds since last update
         if (processingIds.size > 0 && Date.now() - lastUpdateTime > 2000) {
+          console.log('Polling for updates due to processing items');
           fetchRows(true);
         }
       }, 3000); // Poll every 3 seconds when items are processing
@@ -272,6 +283,8 @@ export default function AccountsApprovalsPage() {
         setLoading(true);
       }
       
+      console.log(`Fetching rows... (noCache: ${noCache})`);
+      
       // Get both quotation and remaining payment approvals
       const response = await getAllPendingApprovals(noCache);
       // Handle the API response structure: {success: true, data: [...]}
@@ -279,10 +292,13 @@ export default function AccountsApprovalsPage() {
       // Ensure data is always an array
       const safeData = Array.isArray(data) ? data : [];
       
+      console.log(`Received ${safeData.length} items from API`);
+      
       setRows(safeData);
       
       // If this is an update and we have items being processed, remove them from processing
       if (noCache && safeData.length !== rows.length) {
+        console.log(`Row count changed from ${rows.length} to ${safeData.length}`);
         setProcessingIds(prev => {
           const newSet = new Set();
           // Only keep processing IDs that still exist in the data
@@ -376,18 +392,24 @@ export default function AccountsApprovalsPage() {
   const doClose = async () => {
     const currentId = toCloseId;
     
+    console.log(`Starting close process for quotation ${currentId}`);
+    
     // Add the item to processing set
     setProcessingIds(prev => new Set(prev).add(currentId));
     
     // Optimistically remove the item from the list for immediate feedback
     setRows(prevRows => {
       const filteredRows = prevRows.filter(row => row._id !== currentId);
+      console.log(`Optimistically removed item. Rows: ${prevRows.length} -> ${filteredRows.length}`);
       return filteredRows;
     });
     
     try {
+      console.log('Closing quotation...');
       await closeQuotation(currentId);
       setToast({ show: true, msg: 'Quotation closed successfully', type: 'success' });
+      
+      console.log('Close successful, closing dialog...');
       
       // Close the confirmation dialog
       setShowCloseConfirm(false);
@@ -395,6 +417,7 @@ export default function AccountsApprovalsPage() {
       
       // Fetch fresh data to ensure consistency
       setTimeout(async () => {
+        console.log('Fetching fresh data after closing...');
         await fetchRows(true);
         setLastUpdateTime(Date.now());
       }, 1000);
@@ -428,29 +451,36 @@ export default function AccountsApprovalsPage() {
     const currentId = toApproveId;
     const currentType = toApproveType;
     
+    console.log(`Starting approval process for ${currentId} (${currentType})`);
+    
     // Add the item to processing set
     setProcessingIds(prev => new Set(prev).add(currentId));
     
     // Optimistically remove the item from the list for immediate feedback
     setRows(prevRows => {
       const filteredRows = prevRows.filter(row => row._id !== currentId);
+      console.log(`Optimistically removed item. Rows: ${prevRows.length} -> ${filteredRows.length}`);
       return filteredRows;
     });
     
     try {
       if (currentType === 'quotation_approval') {
+        console.log('Approving quotation...');
         await approveQuotation(currentId);
         setToast({ show: true, msg: 'Quotation approved successfully', type: 'success' });
       } else if (currentType === 'remaining_payment_approval') {
         // For remaining payments, we need purchaseId and paymentId
         const row = rows.find(r => r._id === currentId);
         if (row && row.paymentId) {
+          console.log('Verifying remaining payment...');
           await verifyRemainingPayment(currentId, row.paymentId);
           setToast({ show: true, msg: 'Payment verified successfully', type: 'success' });
         } else {
           throw new Error('Payment information not found');
         }
       }
+      
+      console.log('Approval successful, closing dialog...');
       
       // Close the confirmation dialog
       setShowConfirm(false);
@@ -459,6 +489,7 @@ export default function AccountsApprovalsPage() {
       
       // Fetch fresh data to ensure consistency
       setTimeout(async () => {
+        console.log('Fetching fresh data after approval...');
         await fetchRows(true);
         setLastUpdateTime(Date.now());
       }, 1000);

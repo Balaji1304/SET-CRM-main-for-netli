@@ -5,10 +5,13 @@ import {
   allocateInstallationDate,
   getServiceEngineers,
   assignTask,
+  exportPurchaseOrders
 } from '../services/purchaseOrderService';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import AssignTaskModal from './dashboard/AssignTaskModal';
+import ExportButton from './ExportButton';
+import { downloadCSV } from '../utils/csv';
 
 // Icons - Import these from your icon library (e.g., lucide-react)
 // If you don't have these icons available, you can replace with equivalent icons from your project
@@ -252,6 +255,7 @@ const PurchaseOrderManagement = () => {
   // State for date selection
   const [selectedDates, setSelectedDates] = useState({});
   const [savingDate, setSavingDate] = useState(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const fetchPurchaseOrders = useCallback(async () => {
     try {
@@ -359,6 +363,23 @@ const PurchaseOrderManagement = () => {
     [selectedOrder, fetchPurchaseOrders]
   );
 
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const response = await exportPurchaseOrders({ startDate, endDate });
+      if (response.success) {
+        downloadCSV(response.data, `purchase-orders-${startDate}-to-${endDate}.csv`);
+      } else {
+        toast.error(response.message || 'Failed to export purchase orders.');
+      }
+    } catch (error) {
+      toast.error('An error occurred during purchase order export.');
+      console.error('Export error:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   // Pagination logic
   const totalPages = Math.ceil(purchaseOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -393,7 +414,12 @@ const PurchaseOrderManagement = () => {
     <>
       <style>{customStyles}</style>
       <div className="container px-3 sm:px-4 mx-auto">
-        <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4 sm:mb-6 mobile-header-text">Purchase Order Management</h1>
+        <div className="flex justify-between items-center mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mobile-header-text">Purchase Order Management</h1>
+          {user?.role === 'admin' && (
+            <ExportButton onExport={handleExport} loading={exportLoading} />
+          )}
+        </div>
 
         {/* Desktop view - Table */}
         <div className="hidden lg:block overflow-hidden bg-white rounded-xl shadow">

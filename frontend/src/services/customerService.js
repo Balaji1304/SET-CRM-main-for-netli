@@ -287,3 +287,54 @@ export const getOrderFormData = async (purchaseId) => {
     throw error;
   }
 };
+
+/**
+ * Export customers data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with customers data for export
+ */
+export const exportCustomers = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `customers/export?${query}`;
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting customers:', error);
+    throw error;
+  }
+};
+
+/**
+ * Export purchase orders data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with purchase orders data for export
+ */
+export const exportPurchaseOrders = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `customer-purchases/export?${query}`;
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting purchase orders:', error);
+    throw error;
+  }
+};
+
+/**
+ * Export approved payments data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with approved payments data for export
+ */
+export const exportApprovedPayments = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `customer-purchases/export-approved-payments?${query}`;
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting approved payments:', error);
+    throw error;
+  }
+};

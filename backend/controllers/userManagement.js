@@ -515,6 +515,46 @@ exports.getUserStats = async (req, res) => {
   }
 };
 
+// @desc    Export users
+// @route   GET /api/users/manage/export
+// @access  Private (Admin)
+exports.exportUsers = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let query = {};
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    const users = await User.find(query).select('-password').sort({ createdAt: -1 });
+
+    const formattedData = users.map(user => ({
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      whatsapp: user.whatsapp,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt.toISOString().split('T')[0],
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedData,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
 module.exports = {
   checkEmailExists: exports.checkEmailExists,
   checkPhoneExists: exports.checkPhoneExists,
@@ -526,5 +566,6 @@ module.exports = {
   resetUserPassword: exports.resetUserPassword,
   toggleUserStatus: exports.toggleUserStatus,
   deleteUser: exports.deleteUser,
-  getUserStats: exports.getUserStats
+  getUserStats: exports.getUserStats,
+  exportUsers: exports.exportUsers
 };

@@ -307,4 +307,58 @@ exports.uploadAttachment = async (req, res) => {
   } catch (error) {
     errorHandler(res, error);
   }
+};
+
+// @desc    Export tickets
+// @route   GET /api/tickets/export
+// @access  Private (Admin)
+exports.exportTickets = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let query = {};
+    if (req.user.role !== 'admin') {
+      // For non-admins, they can only export tickets they created or are assigned to
+      const userTickets = await Ticket.find({
+        $or: [{ user: req.user.id }, { assignedEngineerId: req.user.id }],
+      }).select('_id');
+      const ticketIds = userTickets.map(t => t._id);
+      query._id = { $in: ticketIds };
+    }
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    const tickets = await Ticket.find(query)
+      .populate('user', 'name email phone')
+      .populate('assignedEngineerId', 'name email')
+      .sort({ createdAt: -1 });
+
+    const formattedData = tickets.map(t => ({
+      ticketId: t.ticketId,
+      title: t.title,
+      status: t.status,
+      priority: t.priority,
+      category: t.category,
+      customerName: t.user ? t.user.name : 'N/A',
+      customerEmail: t.user ? t.user.email : 'N/A',
+      assignedEngineer: t.assignedEngineerId ? t.assignedEngineerId.name : 'Unassigned',
+      createdAt: t.createdAt.toISOString().split('T')[0],
+      updatedAt: t.updatedAt.toISOString().split('T')[0],
+      resolvedAt: t.resolvedAt ? t.resolvedAt.toISOString().split('T')[0] : 'N/A',
+      commentCount: t.comments.length,
+      attachmentCount: t.attachments.length,
+    }));
+
+    res.json({ success: true, data: formattedData });
+  } catch (error) {
+    errorHandler(res, error);
+  }
 }; 

@@ -11,7 +11,8 @@ const {
   deleteUser,
   resetUserPassword,
   toggleUserStatus,
-  getUserStats
+  getUserStats,
+  exportUsers
 } = require('../controllers/userManagement');
 
 const router = express.Router();
@@ -26,6 +27,9 @@ router.post('/check-whatsapp', checkWhatsappExists);
 
 // Stats route
 router.get('/stats', getUserStats);
+
+// Export route
+router.get('/export', exportUsers);
 
 // CRUD routes
 router.route('/')

@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Package, Plus, Edit2, Trash2, Eye, Filter, Search, Loader2, AlertTriangle, ArrowLeft, Save, Upload, X, Info, ShoppingCart, Tag, Layers, TrendingUp, Calendar, Users, Building2, Zap, Settings, FileText, ChevronDown, RotateCcw } from 'lucide-react';
-import { getBundles, deleteBundle, createBundle, getBundle, updateBundle, getCompatibleProducts, getDefaultBundleTerms } from '../../services/bundleService';
+import { getBundles, deleteBundle, createBundle, getBundle, updateBundle, getCompatibleProducts, getDefaultBundleTerms, exportBundles } from '../../services/bundleService';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import ExportButton from '../../components/ExportButton';
+import { downloadCSV } from '../../utils/csv';
+import { useAuth } from '../../context/AuthContext';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -148,7 +151,7 @@ export default function BundlesPage() {
   // Determine the current mode based on the URL
   const isCreateMode = location.pathname.includes('/create');
   const isEditMode = location.pathname.includes('/edit');
-  const isListMode = !isCreateMode && !isEditMode;
+  const [isListMode, setIsListMode] = useState(true);
 
   const [bundles, setBundles] = useState([]);
   const [filteredBundles, setFilteredBundles] = useState([]);
@@ -199,6 +202,8 @@ export default function BundlesPage() {
   
   // Custom KVA state
   const [customKvaValue, setCustomKvaValue] = useState('');
+  const [exportLoading, setExportLoading] = useState(false);
+  const { user } = useAuth();
 
   // Function to reset all filters
   const resetFilters = () => {
@@ -1081,6 +1086,22 @@ export default function BundlesPage() {
     );
   };
 
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const response = await exportBundles({ startDate, endDate });
+      if (response.success) {
+        downloadCSV(response.data, `bundles-${startDate}-to-${endDate}.csv`);
+      } else {
+        console.error('Failed to export bundles:', response.message);
+      }
+    } catch (error) {
+      console.error('An error occurred during bundle export:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col flex-1 items-center justify-center min-h-[400px] p-6">
@@ -1595,6 +1616,9 @@ export default function BundlesPage() {
                 Solar Power Plant Systems
               </h1>
             </div>
+            {user?.role === 'admin' && (
+              <ExportButton onExport={handleExport} loading={exportLoading} />
+            )}
           </div>
         </div>
 

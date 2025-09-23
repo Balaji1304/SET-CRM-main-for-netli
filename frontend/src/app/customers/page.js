@@ -3,6 +3,9 @@ import { Search, ChevronDown, Filter, RotateCcw, Calendar } from 'lucide-react';
 import CustomersTable from './CustomersTable';
 import { useAuth } from '../../context/AuthContext';
 import { getSalespersons } from '../../services/enquiryService';
+import ExportButton from '../../components/ExportButton';
+import { exportCustomers } from '../../services/customerService';
+import { downloadCSV } from '../../utils/csv';
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -13,6 +16,7 @@ export default function CustomersPage() {
   const [salesPersons, setSalesPersons] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const { user } = useAuth();
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Check if user is sales head or marketing coordinator
   const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator' || user?.role === 'admin';
@@ -33,6 +37,22 @@ export default function CustomersPage() {
       fetchSalesPersons();
     }
   }, [isSalesHead]);
+
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const response = await exportCustomers({ startDate, endDate });
+      if (response.success) {
+        downloadCSV(response.data, `customers-${startDate}-to-${endDate}.csv`);
+      } else {
+        console.error('Failed to export customers:', response.message);
+      }
+    } catch (error) {
+      console.error('An error occurred during customer export:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   // Function to reset all filters
   const resetFilters = () => {
@@ -63,6 +83,9 @@ export default function CustomersPage() {
       <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
         <div className="flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary">Customers</h1>
+          {user?.role === 'admin' && (
+            <ExportButton onExport={handleExport} loading={exportLoading} />
+          )}
           {/* Optional: Subtitle if needed, can be text-gray-500 */}
           {/* <p className="text-sm text-gray-500 mt-1">Manage and view all customer records.</p> */}
         </div>

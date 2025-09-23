@@ -126,4 +126,21 @@ export const getAllBundleTerms = async () => {
  */
 export const getBundleWithComponents = async (id) => {
   return await apiRequest(`bundles/${id}/components`);
+};
+
+/**
+ * Export bundles data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with bundles data for export
+ */
+export const exportBundles = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `bundles/export?${query}`;
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting bundles:', error);
+    throw error;
+  }
 }; 

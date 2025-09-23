@@ -71,4 +71,21 @@ export const getPendingAssignmentEnquiries = async () => {
 // Get enquiries created by current user (for front office executives)
 export const getMyEnquiries = async () => {
   return await apiRequest('enquiries/my-enquiries');
+};
+
+/**
+ * Export enquiries data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with enquiries data for export
+ */
+export const exportEnquiries = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `enquiries/export?${query}`;
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting enquiries:', error);
+    throw error;
+  }
 }; 

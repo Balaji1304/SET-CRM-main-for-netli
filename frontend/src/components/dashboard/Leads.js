@@ -4,6 +4,9 @@ import LeadsTable from './LeadsTable';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getSalespersons } from '../../services/enquiryService';
+import ExportButton from '../ExportButton';
+import { exportLeads } from '../../services/leadService';
+import { downloadCSV } from '../../utils/csv';
 
 export default function Leads() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,6 +19,7 @@ export default function Leads() {
   const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Check if user is sales head or marketing coordinator
   const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator' || user?.role === 'admin';
@@ -36,6 +40,29 @@ export default function Leads() {
       fetchSalesPersons();
     }
   }, [isSalesHead]);
+
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const params = {};
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      const response = await exportLeads(params);
+      if (response.success && response.data.length > 0) {
+        downloadCSV(response.data, `leads_${new Date().toISOString().split('T')[0]}.csv`);
+      } else if (response.success && response.data.length === 0) {
+        alert('No data to export for the selected date range.');
+      } else {
+        throw new Error(response.message || 'Failed to export leads');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      alert(`Error exporting data: ${error.message}`);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   // Function to reset all filters
   const resetFilters = () => {
@@ -68,8 +95,7 @@ export default function Leads() {
       <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
         <div className="flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">Leads Management</h1>
-          {/* Optional: Subtitle if needed, can be text-gray-500 */}
-          {/* <p className="text-sm text-gray-500 mt-1">View and manage all your leads in one place.</p> */}
+          {user?.role === 'admin' && <ExportButton onExport={handleExport} loading={exportLoading} />}
         </div>
       </div>
 

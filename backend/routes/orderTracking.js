@@ -11,7 +11,8 @@ const {
   addCustomerNote,
   getTrackingSummary,
   getMyOrderTracking,
-  updateEstimatedDates
+  updateEstimatedDates,
+  exportOrders
 } = require('../controllers/orderTrackingController');
 
 // Customer routes
@@ -23,6 +24,7 @@ router.post('/:purchaseId/notes', protect, authorize(['customer', 'product_head'
 router.post('/create', protect, authorize(['product_head', 'sales_head', 'marketing_coordinator', 'admin']), createTrackingRecord);
 router.get('/internal/:purchaseId', protect, authorize(['product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'admin']), getInternalTracking);
 router.get('/summary', protect, authorize(['product_head', 'sales_head', 'marketing_coordinator', 'admin']), getTrackingSummary);
+router.get('/export', protect, authorize(['admin']), exportOrders);
 
 // Status update routes
 router.put('/:purchaseId/status', protect, authorize(['product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'admin']), updateTrackingStatus);

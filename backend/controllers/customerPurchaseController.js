@@ -1656,3 +1656,160 @@ exports.getAllApprovedPayments = async (req, res) => {
     errorHandler(res, error);
   }
 };
+
+// @desc    Export Purchase Orders
+// @route   GET /api/customer-purchases/export
+// @access  Private (Admin)
+exports.exportPurchaseOrders = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let query = {};
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    const purchases = await CustomerPurchase.find(query)
+      .populate('customerId', 'firstName lastName email phone')
+      .populate('assignedEngineerId', 'name')
+      .sort({ createdAt: -1 });
+
+    const formattedData = purchases.map(po => ({
+      purchaseID: po.purchaseID,
+      customerName: po.customerId ? `${po.customerId.firstName} ${po.customerId.lastName}` : 'N/A',
+      customerEmail: po.customerId ? po.customerId.email : 'N/A',
+      totalAmount: po.totalAmount,
+      remainingAmount: po.remainingAmount,
+      status: po.status,
+      serviceTaskStatus: po.serviceTaskStatus,
+      installationDate: po.installationDate ? new Date(po.installationDate).toLocaleDateString() : 'Not set',
+      assignedEngineer: po.assignedEngineerId ? po.assignedEngineerId.name : 'Not assigned',
+      createdAt: po.createdAt.toISOString().split('T')[0],
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedData,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Export Approved Payments
+// @route   GET /api/customer-purchases/export-approved-payments
+// @access  Private (Admin)
+exports.exportApprovedPayments = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    // We'll reuse the logic from getAllApprovedPayments and then filter by date
+    // This is not the most efficient way for very large datasets, but it's consistent with the existing logic
+    const allApprovedPayments = await getAllApprovedPaymentsLogic(req.user);
+
+    let filteredPayments = allApprovedPayments;
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      filteredPayments = allApprovedPayments.filter(payment => {
+        const paymentDate = new Date(payment.paymentDate || payment.updatedAt);
+        return paymentDate >= start && paymentDate <= end;
+      });
+    }
+
+    const formattedData = filteredPayments.map(p => ({
+      type: p.type,
+      quotationNumber: p.quotationNumber,
+      customerName: p.lead ? `${p.lead.firstName} ${p.lead.lastName}` : 'N/A',
+      amount: p.advancePaymentAmount,
+      paymentMethod: p.paymentMethod,
+      paymentDate: p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : 'N/A',
+      status: p.status,
+      salesPerson: p.createdBy ? p.createdBy.name : 'N/A',
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedData,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// Helper function to contain the logic of getAllApprovedPayments
+const getAllApprovedPaymentsLogic = async (user) => {
+  if (!user || (user.role !== 'accounts_department' && user.role !== 'admin')) {
+    throw new AppError('Only accounts department and admin can view approved payments', 403);
+  }
+
+  const approvedPayments = [];
+
+  // 1. Get approved quotations
+  const approvedQuotations = await Quotation.find({ status: 'approved' })
+    .populate({ path: 'lead', select: 'firstName lastName email phone' })
+    .populate({ path: 'createdBy', select: 'name email' })
+    .sort({ updatedAt: -1 });
+
+  for (const quotation of approvedQuotations) {
+    approvedPayments.push({
+      _id: quotation._id,
+      type: 'quotation_approval',
+      quotationNumber: quotation.quotationNumber,
+      lead: quotation.lead,
+      createdBy: quotation.createdBy,
+      total: quotation.total,
+      advancePaymentAmount: quotation.advancePaymentAmount,
+      paymentMethod: quotation.paymentMethod,
+      paymentDate: quotation.paymentDate,
+      status: quotation.status,
+      updatedAt: quotation.updatedAt,
+    });
+  }
+
+  // 2. Get approved remaining payments
+  const approvedRemainingPayments = await CustomerPurchase.find({ paymentReviewStatus: 'verified' })
+    .populate({ path: 'customerId', select: 'firstName lastName email phone' })
+    .populate({ path: 'quotationId', select: 'quotationNumber createdBy', populate: { path: 'createdBy', select: 'name email' }})
+    .sort({ updatedAt: -1 });
+
+  for (const purchase of approvedRemainingPayments) {
+    const latestPayment = await Payment.findOne({ customerPurchaseId: purchase._id, isAdvancePayment: false })
+      .populate('createdBy', 'name email')
+      .sort({ paidAt: -1 });
+
+    if (latestPayment) {
+      approvedPayments.push({
+        _id: purchase._id,
+        type: 'remaining_payment_approval',
+        quotationNumber: purchase.quotationId?.quotationNumber || 'N/A',
+        lead: {
+          firstName: purchase.customerId?.firstName || 'N/A',
+          lastName: purchase.customerId?.lastName || '',
+        },
+        createdBy: purchase.quotationId?.createdBy || { name: 'N/A' },
+        total: purchase.totalAmount,
+        advancePaymentAmount: latestPayment.amountPaid,
+        paymentMethod: latestPayment.paymentMethod,
+        paymentDate: latestPayment.paidAt,
+        status: 'approved',
+        updatedAt: purchase.updatedAt,
+      });
+    }
+  }
+
+  approvedPayments.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  return approvedPayments;
+};

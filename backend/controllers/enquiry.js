@@ -403,4 +403,54 @@ exports.getMyEnquiries = async (req, res) => {
       message: 'Server Error'
     });
   }
+};
+
+// @desc    Export enquiries
+// @route   GET /api/enquiries/export
+// @access  Private (Admin)
+exports.exportEnquiries = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let query = {};
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    const enquiries = await Enquiry.find(query)
+      .populate('createdBy', 'name email role')
+      .populate('assignedTo', 'name email role')
+      .sort({ createdAt: -1 });
+
+    const formattedData = enquiries.map(e => ({
+      firstName: e.firstName,
+      lastName: e.lastName,
+      email: e.email,
+      phone: e.phone,
+      leadSource: e.leadSource,
+      customLeadSource: e.customLeadSource,
+      leadType: e.leadType,
+      customLeadType: e.customLeadType,
+      assignmentStatus: e.assignmentStatus,
+      createdBy: e.createdBy ? e.createdBy.name : 'N/A',
+      assignedTo: e.assignedTo ? e.assignedTo.name : 'N/A',
+      createdAt: e.createdAt.toISOString().split('T')[0],
+      assignedAt: e.assignedAt ? e.assignedAt.toISOString().split('T')[0] : 'N/A',
+      convertedAt: e.convertedAt ? e.convertedAt.toISOString().split('T')[0] : 'N/A',
+    }));
+
+    res.json({ success: true, data: formattedData });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server Error: ' + error.message
+    });
+  }
 }; 

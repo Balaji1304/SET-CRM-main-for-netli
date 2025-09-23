@@ -4,6 +4,9 @@ import { Search, Filter, Plus, Eye, Calendar, User, Tag, AlertTriangle, Clock, C
 import { getMyTickets, createTicket, getAllTickets } from '../../services/ticketService';
 import TicketDetailModal from '../../components/TicketDetailModal';
 import { useAuth } from '../../context/AuthContext';
+import ExportButton from '../../components/ExportButton';
+import { exportTickets } from '../../services/ticketService';
+import { downloadCSV } from '../../utils/csv';
 
 // Custom styles for mobile responsive design
 const customStyles = `
@@ -80,6 +83,7 @@ const TicketsPage = () => {
   const [formErrors, setFormErrors] = useState({});
   const [attachments, setAttachments] = useState([]);
   const [uploadPreview, setUploadPreview] = useState([]);
+  const [exportLoading, setExportLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -137,6 +141,29 @@ const TicketsPage = () => {
 
     setFilteredTickets(filtered);
   }, [tickets, searchTerm, statusFilter, priorityFilter]);
+
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const params = {};
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      const response = await exportTickets(params);
+      if (response.success && response.data.length > 0) {
+        downloadCSV(response.data, `tickets_${new Date().toISOString().split('T')[0]}.csv`);
+      } else if (response.success && response.data.length === 0) {
+        alert('No data to export for the selected date range.');
+      } else {
+        throw new Error(response.message || 'Failed to export tickets');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      alert(`Error exporting data: ${error.message}`);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   // Function to reset all filters
   const resetFilters = () => {
@@ -386,8 +413,7 @@ const TicketsPage = () => {
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">
               {user?.role === 'admin' ? 'All Support Tickets' : 'My Support Tickets'}
             </h1>
-            {/* Optional: Subtitle if needed, can be text-gray-500 */}
-            {/* <p className="text-sm text-gray-500 mt-1">Track and manage your support requests</p> */}
+            {user?.role === 'admin' && <ExportButton onExport={handleExport} loading={exportLoading} />}
           </div>
         </div>
 

@@ -22,6 +22,9 @@ import { STATUS_LABELS, PHASE_LABELS, STATUS_COLORS, PHASE_COLORS } from '../../
 import { formatNumber } from '../../utils/formatNumber';
 import { getMyPurchases, downloadOrderFormPDF } from '../../services/customerService';
 import { useAuth } from '../../context/AuthContext';
+import ExportButton from '../../components/ExportButton';
+import { exportOrders } from '../../services/trackingService';
+import { downloadCSV } from '../../utils/csv';
 
 // Custom styles for mobile responsive design
 const customStyles = `
@@ -845,6 +848,7 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedTracking, setSelectedTracking] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
@@ -870,6 +874,29 @@ export default function OrdersPage() {
       setError('Failed to load tracking information');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const params = {};
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+
+      const response = await exportOrders(params);
+      if (response.success && response.data.length > 0) {
+        downloadCSV(response.data, `orders_${new Date().toISOString().split('T')[0]}.csv`);
+      } else if (response.success && response.data.length === 0) {
+        alert('No data to export for the selected date range.');
+      } else {
+        throw new Error(response.message || 'Failed to export orders');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      alert(`Error exporting data: ${error.message}`);
+    } finally {
+      setExportLoading(false);
     }
   };
 
@@ -944,17 +971,20 @@ export default function OrdersPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-4 text-sm text-gray-500">
-            <span className="flex items-center space-x-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>{filteredTrackingData.length} {filteredTrackingData.length === 1 ? 'Order' : 'Orders'}</span>
-            </span>
-            {isAdmin && (
+          <div className="flex items-center space-x-4">
+            {isAdmin && <ExportButton onExport={handleExport} loading={exportLoading} />}
+            <div className="text-sm text-gray-500">
               <span className="flex items-center space-x-1">
-                <User className="w-3 h-3" />
-                <span>Admin View</span>
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>{filteredTrackingData.length} {filteredTrackingData.length === 1 ? 'Order' : 'Orders'}</span>
               </span>
-            )}
+              {isAdmin && (
+                <span className="flex items-center space-x-1 mt-1">
+                  <User className="w-3 h-3" />
+                  <span>Admin View</span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
