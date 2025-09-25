@@ -5,7 +5,13 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "tunnel": "ngrok http 5000",
-    "import-products": "node scripts/importProducts.js"
+    "import-products": "node scripts/importProducts.js",
+    "test": "jest"
+  },
+  "jest": {
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
   },
   "dependencies": {
     "axios": "^1.10.0",
@@ -33,6 +39,7 @@
     "ws": "^8.16.0"
   },
   "devDependencies": {
+    "jest": "^29.7.0",
     "nodemon": "^2.0.22",
     "socket.io-client": "^4.8.1"
   }

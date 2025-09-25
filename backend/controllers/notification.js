@@ -69,7 +69,8 @@ const getNotificationCounts = async (req, res) => {
       quotationCount,
       leadCount,
       enquiryCount,
-      installationCount
+      installationCount,
+      paymentCount
     ] = await Promise.all([
       Notification.countDocuments({ recipient: userId }),
       Notification.countDocuments({ recipient: userId, read: false }),
@@ -85,7 +86,7 @@ const getNotificationCounts = async (req, res) => {
       }),
       Notification.countDocuments({ 
         recipient: userId, 
-        type: { $in: ['quotation_created', 'quotation_updated', 'quotation_approved', 'quotation_rejected', 'quotation_expired'] }, 
+        type: { $in: ['quotation_created', 'quotation_updated', 'quotation_approved', 'quotation_rejected', 'quotation_expired', 'quotation_pending_approval'] }, 
         read: false 
       }),
       Notification.countDocuments({ 
@@ -102,6 +103,11 @@ const getNotificationCounts = async (req, res) => {
         recipient: userId, 
         type: { $in: ['engineer_assigned', 'assignment_accepted', 'installation_completed', 'installation_scheduled', 'installation_rescheduled', 'installation_started', 'customer_approved', 'customer_rejected', 'issue_reported'] }, 
         read: false 
+      }),
+      Notification.countDocuments({
+        recipient: userId,
+        type: { $in: ['payment_received', 'payment_failed', 'payment_pending', 'payment_overdue', 'invoice_due_soon'] },
+        read: false
       })
     ]);
     
@@ -117,7 +123,8 @@ const getNotificationCounts = async (req, res) => {
           quotations: quotationCount,
           leads: leadCount,
           enquiries: enquiryCount,
-          installations: installationCount
+          installations: installationCount,
+          payments: paymentCount
         }
       }
     });

@@ -125,6 +125,7 @@ const getNavigation = (userRole) => {
       { name: 'Solar Power Plant Systems', href: '/dashboard/bundles', icon: Package },
       { name: 'Purchase Orders', href: '/dashboard/purchase-orders', icon: ShoppingBag },
       { name: 'Maintenance', href: '/dashboard/maintenance', icon: Wrench },
+      { name: 'Service Reports', href: '/dashboard/service-reports', icon: BarChart2 },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     marketing_coordinator: [
@@ -138,6 +139,7 @@ const getNavigation = (userRole) => {
       { name: 'Installations', href: '/dashboard/installations', icon: Settings },
       { name: 'Cases', href: '/dashboard/cases', icon: Ticket },
       { name: 'Performance', href: '/dashboard/performance', icon: BarChart },
+      { name: 'Service Reports', href: '/dashboard/service-reports', icon: BarChart2 },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     admin: [
