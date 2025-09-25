@@ -2,24 +2,68 @@ const User = require('../models/User');
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, phone, countryCode, whatsapp } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    // Validate required fields
+    if (!name || !password || !phone) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists'
+        message: 'Name, password, and phone are required'
       });
     }
 
-    // Create user
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role
+    // Email is required for non-customer roles
+    if (role && role !== 'customer' && !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required for non-customer roles'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({
+      $or: [
+        ...(email ? [{ email }] : []),
+        { phone }
+      ]
     });
+    
+    if (existingUser) {
+      if (existingUser.email === email) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this email already exists'
+        });
+      }
+      if (existingUser.phone === phone) {
+        return res.status(400).json({
+          success: false,
+          message: 'User with this phone number already exists'
+        });
+      }
+    }
+
+    // Create user data
+    const userData = {
+      name,
+      password,
+      phone,
+      role: role || 'customer',
+      countryCode: countryCode || '+91'
+    };
+
+    // Add email if provided
+    if (email) {
+      userData.email = email;
+    }
+
+    // Add whatsapp if provided
+    if (whatsapp) {
+      userData.whatsapp = whatsapp;
+    }
+
+    // Create user
+    const user = await User.create(userData);
 
     sendTokenResponse(user, 200, res);
   } catch (error) {
