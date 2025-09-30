@@ -21,10 +21,12 @@ import Toast from '../../../components/Toast';
 import { getQuotation, sendQuotation, approveQuotation } from '../../../services/quotationService';
 import { sendInvoiceEmail } from '../../../services/invoiceService';
 import { API_URL } from '../../../services/apiConfig';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function QuotationDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [quotation, setQuotation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -371,7 +373,7 @@ export default function QuotationDetailsPage() {
                 </button>
               </>
             )}
-            {quotation.status === 'sent' && !isSendingQuotation && (
+            {quotation.status === 'sent' && !isSendingQuotation && user?.role !== 'sales_person' && (
               <button
                 onClick={() => {
                   setConfirmAction(() => handleApproveQuotation);
