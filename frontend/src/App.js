@@ -27,6 +27,7 @@ import CreateQuotationPage from './app/quotations/create/page';
 import QuotationDetailsPage from './app/quotations/[id]/page';
 import EditQuotationPage from './app/quotations/[id]/edit/page';
 import PaymentStatusPage from './app/quotations/[id]/payment-status';
+import PrivacyPolicyPage from './app/privacy-policy/page';
 import PaymentsPage from './app/payments/page';
 import RemainingPaymentPage from './app/payments/remaining/page';
 import PaymentSuccessPage from './app/dashboard/payment-success/page';
@@ -62,6 +63,7 @@ function App() {
           
           {/* Public routes */}
           <Route path="/quotations/:id/payment-status" element={<PaymentStatusPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           
           {/* Protected Proforma Invoice Route (top level, similar to dashboard but not nested in its layout) */}
           <Route 
