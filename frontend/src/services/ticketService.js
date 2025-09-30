@@ -31,4 +31,21 @@ export default {
   addComment,
 };
 
+/**
+ * Export tickets data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with tickets data for export
+ */
+export const exportTickets = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `tickets/export?${query}`;
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting tickets:', error);
+    throw error;
+  }
+};
+
 

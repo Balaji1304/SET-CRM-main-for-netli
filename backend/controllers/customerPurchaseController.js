@@ -8,6 +8,7 @@ const Product = require('../models/Product');
 const { AppError, errorHandler } = require('../utils/errorHandler');
 const User = require('../models/User');
 const Package = require('../models/Package');
+const { notifyClient, notifyRole } = require('../utils/websocket');
 const OrderTracking = require('../models/OrderTracking');
 const TrackingService = require('../utils/trackingService');
 const { generateOrderFormPDF, getOrderFormData } = require('../utils/generateOrderForm');
@@ -202,26 +203,42 @@ exports.getCustomerPurchases = async (req, res) => {
   }
 };
 
-// Get purchases for the current logged-in user
+// Get purchases for the current logged-in user (or all purchases for admin)
 exports.getCustomerPurchasesByUser = async (req, res) => {
   try {
-    // Find customer record for current user
-    const customer = await Customer.findOne({ user: req.user._id });
+    let purchases;
     
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        error: 'Customer record not found'
-      });
-    }
+    if (req.user.role === 'admin') {
+      // Admin can see ALL purchases from ALL customers
+      purchases = await CustomerPurchase.find({})
+        .populate({
+          path: 'quotationId',
+          select: 'quotationNumber total validUntil advancePaymentPercentage'
+        })
+        .populate({
+          path: 'customerId',
+          select: 'firstName lastName email phone businessName'
+        })
+        .sort({ purchaseDate: -1 }); // Newest first
+    } else {
+      // For regular customers, find their customer record
+      const customer = await Customer.findOne({ user: req.user._id });
+      
+      if (!customer) {
+        return res.status(404).json({
+          success: false,
+          error: 'Customer record not found'
+        });
+      }
 
-    // Find all purchases for this customer
-    const purchases = await CustomerPurchase.find({ customerId: customer._id })
-      .populate({
-        path: 'quotationId',
-        select: 'quotationNumber total validUntil advancePaymentPercentage'
-      })
-      .sort({ purchaseDate: -1 }); // Newest first
+      // Find all purchases for this customer
+      purchases = await CustomerPurchase.find({ customerId: customer._id })
+        .populate({
+          path: 'quotationId',
+          select: 'quotationNumber total validUntil advancePaymentPercentage'
+        })
+        .sort({ purchaseDate: -1 }); // Newest first
+    }
 
     // For each purchase, get the quotation items
     const purchasesWithItems = await Promise.all(
@@ -348,18 +365,32 @@ exports.recordManualPayment = async (req, res) => {
 
     const allowedMethods = ['cash', 'check', 'bank_transfer', 'other'];
     if (!allowedMethods.includes(paymentMethod)) throw new AppError('Invalid payment method', 400);
-    if (!reference || typeof reference !== 'string') throw new AppError('Reference number is required', 400);
+    
+    // For cash payments, reference is optional and will be auto-generated if not provided
+    // For other payment methods, reference is required
+    if (paymentMethod !== 'cash' && (!reference || typeof reference !== 'string' || !reference.trim())) {
+      throw new AppError('Reference number is required for non-cash payments', 400);
+    }
 
     const paidAt = paymentDate ? new Date(paymentDate) : new Date();
     if (isNaN(paidAt.getTime())) throw new AppError('Invalid payment date', 400);
     if (paidAt.getTime() > Date.now() + 60 * 1000) throw new AppError('Payment date cannot be in the future', 400);
+
+    // Generate unique transaction ID for cash payments or use provided reference
+    let transactionId;
+    if (paymentMethod === 'cash') {
+      // Generate unique transaction ID for cash payments
+      transactionId = reference && reference.trim() ? reference.trim() : `CASH-${Date.now()}-${purchase.purchaseID}`;
+    } else {
+      transactionId = reference.trim();
+    }
 
     try {
       const payment = await Payment.create({
         customerPurchaseId: purchase._id,
         amountPaid: amt,
         paymentMethod,
-        transactionId: reference,
+        transactionId: transactionId,
         notes: notes || '',
         paidAt,
         isAdvancePayment: false,
@@ -400,6 +431,15 @@ exports.verifyManualPayment = async (req, res) => {
 
     purchase.paymentReviewStatus = 'verified';
     await purchase.save();
+
+    // Send WebSocket notification to accounts department for real-time update
+    try {
+      if (typeof notifyRole === 'function') {
+        notifyRole('accounts_department', purchaseId, 'payment_verification');
+      }
+    } catch (error) {
+      console.error('Error sending payment verification notification:', error);
+    }
 
     return res.json({ success: true, message: 'Payment verified' });
   } catch (error) {
@@ -459,21 +499,33 @@ exports.getPaymentHistory = async (req, res) => {
   }
 };
 
-// Get all payment history for the current customer
+// Get all payment history for the current customer (or all payments for admin)
 exports.getAllPaymentHistory = async (req, res) => {
   try {
-    // Find customer record for current user
-    const customer = await Customer.findOne({ user: req.user._id });
-    
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        error: 'Customer record not found'
-      });
-    }
+    let purchases;
 
-    // Find all purchases for this customer
-    const purchases = await CustomerPurchase.find({ customerId: customer._id });
+    if (req.user.role === 'admin') {
+      // Admin can see ALL payments from ALL customers
+      purchases = await CustomerPurchase.find({})
+        .populate({
+          path: 'customerId',
+          select: 'firstName lastName email phone businessName'
+        })
+        .sort({ createdAt: -1 });
+    } else {
+      // For regular customers, find their customer record
+      const customer = await Customer.findOne({ user: req.user._id });
+      
+      if (!customer) {
+        return res.status(404).json({
+          success: false,
+          error: 'Customer record not found'
+        });
+      }
+
+      // Find all purchases for this customer
+      purchases = await CustomerPurchase.find({ customerId: customer._id });
+    }
     
     if (!purchases.length) {
       return res.json({
@@ -496,7 +548,7 @@ exports.getAllPaymentHistory = async (req, res) => {
       select: 'name email'
     });
     
-    // Enhance payment data with quotation information
+    // Enhance payment data with quotation and customer information
     const enhancedPayments = await Promise.all(payments.map(async (payment) => {
       const purchase = purchases.find(p => p._id.toString() === payment.customerPurchaseId.toString());
       if (!purchase) return payment;
@@ -507,6 +559,17 @@ exports.getAllPaymentHistory = async (req, res) => {
       // Add purchase and quotation info to payment record for display
       if (purchase) {
         paymentObj.purchaseID = purchase.purchaseID;
+        
+        // Add customer details for admin users
+        if (req.user.role === 'admin' && purchase.customerId) {
+          paymentObj.customer = {
+            firstName: purchase.customerId.firstName,
+            lastName: purchase.customerId.lastName,
+            email: purchase.customerId.email,
+            phone: purchase.customerId.phone,
+            businessName: purchase.customerId.businessName
+          };
+        }
       }
       
       if (quotation) {
@@ -831,7 +894,7 @@ exports.assignTaskToEngineer = async (req, res) => {
         {
           estimatedDate: new Date(purchase.installationDate),
           description: `Service engineer ${engineer.name} has been assigned for installation on ${new Date(purchase.installationDate).toLocaleDateString()}.`,
-          metadata: { engineerId: engineerId, engineerName: engineer.name }
+          metadata: { engineerId: assignedEngineerId, engineerName: engineer.name }
         }
       );
     } catch (trackingError) {
@@ -1336,4 +1399,417 @@ exports.getOrderFormData = async (req, res) => {
     console.error('Error getting Order Form data:', error);
     errorHandler(res, error);
   }
+};
+
+// Get all pending approvals for accounts department (both quotation and remaining payment approvals)
+exports.getAllPendingApprovals = async (req, res) => {
+  try {
+    // Only accounts department and admin can access this endpoint
+    if (!req.user || (req.user.role !== 'accounts_department' && req.user.role !== 'admin')) {
+      throw new AppError('Only accounts department and admin can view pending approvals', 403);
+    }
+
+    const approvals = [];
+
+    // 1. Get quotation approvals (advance payment approvals)
+    const Quotation = require('../models/Quotation');
+    const quotationApprovals = await Quotation.find({ 
+      status: 'pending_approval' 
+    })
+    .populate({
+      path: 'lead',
+      select: 'firstName lastName email phone'
+    })
+    .populate({
+      path: 'createdBy',
+      select: 'name email'
+    })
+    .sort({ updatedAt: -1 });
+
+    // Format quotation approvals
+    for (const quotation of quotationApprovals) {
+      approvals.push({
+        _id: quotation._id,
+        type: 'quotation_approval', // Type identifier
+        quotationNumber: quotation.quotationNumber,
+        quotationId: quotation._id,
+        lead: quotation.lead,
+        createdBy: quotation.createdBy,
+        total: quotation.total,
+        advancePaymentAmount: quotation.advancePaymentAmount,
+        advancePaymentStatus: quotation.advancePaymentStatus,
+        advancePaymentConfirmedAt: quotation.advancePaymentConfirmedAt,
+        paymentMethod: quotation.paymentMethod,
+        paymentDate: quotation.paymentDate,
+        offlineTransactionNo: quotation.offlineTransactionNo,
+        razorpayPaymentId: quotation.razorpayPaymentId,
+        paymentNotes: quotation.paymentNotes,
+        createdAt: quotation.createdAt,
+        updatedAt: quotation.updatedAt,
+        // For compatibility with existing frontend
+        status: quotation.status
+      });
+    }
+
+    // 2. Get remaining payment approvals
+    const remainingPaymentApprovals = await CustomerPurchase.find({
+      paymentReviewStatus: 'pending_verification'
+    })
+    .populate({
+      path: 'customerId',
+      select: 'firstName lastName email phone'
+    })
+    .populate({
+      path: 'quotationId',
+      select: 'quotationNumber createdBy',
+      populate: {
+        path: 'createdBy',
+        select: 'name email'
+      }
+    })
+    .sort({ updatedAt: -1 });
+
+    // Get the latest payment for each purchase that's pending verification
+    for (const purchase of remainingPaymentApprovals) {
+      const latestPayment = await Payment.findOne({
+        customerPurchaseId: purchase._id,
+        isAdvancePayment: false
+      })
+      .populate('createdBy', 'name email')
+      .sort({ paidAt: -1 });
+
+      if (latestPayment) {
+        approvals.push({
+          _id: purchase._id,
+          type: 'remaining_payment_approval', // Type identifier
+          quotationNumber: purchase.quotationId?.quotationNumber || 'N/A',
+          quotationId: purchase.quotationId?._id,
+          purchaseId: purchase._id,
+          lead: {
+            firstName: purchase.customerId?.firstName || 'N/A',
+            lastName: purchase.customerId?.lastName || '',
+            email: purchase.customerId?.email || 'N/A',
+            phone: purchase.customerId?.phone || 'N/A'
+          },
+          createdBy: purchase.quotationId?.createdBy || { name: 'N/A' },
+          total: purchase.totalAmount,
+          // For remaining payments, show payment amount instead of advance
+          advancePaymentAmount: latestPayment.amountPaid,
+          advancePaymentStatus: purchase.paymentReviewStatus,
+          advancePaymentConfirmedAt: null,
+          paymentMethod: latestPayment.paymentMethod,
+          paymentDate: latestPayment.paidAt,
+          offlineTransactionNo: latestPayment.transactionId,
+          razorpayPaymentId: null,
+          paymentNotes: latestPayment.notes,
+          createdAt: purchase.createdAt,
+          updatedAt: purchase.updatedAt,
+          // Additional fields for remaining payments
+          remainingAmount: purchase.remainingAmount,
+          paymentId: latestPayment._id,
+          paymentCreatedBy: latestPayment.createdBy,
+          // For compatibility with existing frontend
+          status: 'pending_approval'
+        });
+      }
+    }
+
+    // Sort all approvals by updatedAt descending
+    approvals.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+    res.json({
+      success: true,
+      count: approvals.length,
+      data: approvals
+    });
+
+  } catch (error) {
+    console.error('Error getting pending approvals:', error);
+    errorHandler(res, error);
+  }
+};
+
+// Get all approved payments for accounts department (both quotation and remaining payment approvals)
+exports.getAllApprovedPayments = async (req, res) => {
+  try {
+    // Only accounts department and admin can access this endpoint
+    if (!req.user || (req.user.role !== 'accounts_department' && req.user.role !== 'admin')) {
+      throw new AppError('Only accounts department and admin can view approved payments', 403);
+    }
+
+    const approvedPayments = [];
+
+    // 1. Get approved quotations (advance payment approvals)
+    const Quotation = require('../models/Quotation');
+    const approvedQuotations = await Quotation.find({ 
+      status: 'approved' 
+    })
+    .populate({
+      path: 'lead',
+      select: 'firstName lastName email phone'
+    })
+    .populate({
+      path: 'createdBy',
+      select: 'name email'
+    })
+    .sort({ updatedAt: -1 });
+
+    // Format approved quotations
+    for (const quotation of approvedQuotations) {
+      approvedPayments.push({
+        _id: quotation._id,
+        type: 'quotation_approval', // Type identifier
+        quotationNumber: quotation.quotationNumber,
+        quotationId: quotation._id,
+        lead: quotation.lead,
+        createdBy: quotation.createdBy,
+        total: quotation.total,
+        advancePaymentAmount: quotation.advancePaymentAmount,
+        advancePaymentStatus: quotation.advancePaymentStatus,
+        advancePaymentConfirmedAt: quotation.advancePaymentConfirmedAt,
+        paymentMethod: quotation.paymentMethod,
+        paymentDate: quotation.paymentDate,
+        offlineTransactionNo: quotation.offlineTransactionNo,
+        razorpayPaymentId: quotation.razorpayPaymentId,
+        paymentNotes: quotation.paymentNotes,
+        createdAt: quotation.createdAt,
+        updatedAt: quotation.updatedAt,
+        // For compatibility with existing frontend
+        status: quotation.status
+      });
+    }
+
+    // 2. Get approved remaining payments
+    const approvedRemainingPayments = await CustomerPurchase.find({
+      paymentReviewStatus: 'verified'
+    })
+    .populate({
+      path: 'customerId',
+      select: 'firstName lastName email phone'
+    })
+    .populate({
+      path: 'quotationId',
+      select: 'quotationNumber createdBy',
+      populate: {
+        path: 'createdBy',
+        select: 'name email'
+      }
+    })
+    .sort({ updatedAt: -1 });
+
+    // Get the latest verified payment for each purchase
+    for (const purchase of approvedRemainingPayments) {
+      const latestPayment = await Payment.findOne({
+        customerPurchaseId: purchase._id,
+        isAdvancePayment: false
+      })
+      .populate('createdBy', 'name email')
+      .sort({ paidAt: -1 });
+
+      if (latestPayment) {
+        approvedPayments.push({
+          _id: purchase._id,
+          type: 'remaining_payment_approval', // Type identifier
+          quotationNumber: purchase.quotationId?.quotationNumber || 'N/A',
+          quotationId: purchase.quotationId?._id,
+          purchaseId: purchase._id,
+          lead: {
+            firstName: purchase.customerId?.firstName || 'N/A',
+            lastName: purchase.customerId?.lastName || '',
+            email: purchase.customerId?.email || 'N/A',
+            phone: purchase.customerId?.phone || 'N/A'
+          },
+          createdBy: purchase.quotationId?.createdBy || { name: 'N/A' },
+          total: purchase.totalAmount,
+          // For remaining payments, show payment amount instead of advance
+          advancePaymentAmount: latestPayment.amountPaid,
+          advancePaymentStatus: purchase.paymentReviewStatus,
+          advancePaymentConfirmedAt: null,
+          paymentMethod: latestPayment.paymentMethod,
+          paymentDate: latestPayment.paidAt,
+          offlineTransactionNo: latestPayment.transactionId,
+          razorpayPaymentId: null,
+          paymentNotes: latestPayment.notes,
+          createdAt: purchase.createdAt,
+          updatedAt: purchase.updatedAt,
+          // Additional fields for remaining payments
+          remainingAmount: purchase.remainingAmount,
+          paymentId: latestPayment._id,
+          paymentCreatedBy: latestPayment.createdBy,
+          // For compatibility with existing frontend
+          status: 'approved'
+        });
+      }
+    }
+
+    // Sort all approved payments by updatedAt descending
+    approvedPayments.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+    res.json({
+      success: true,
+      count: approvedPayments.length,
+      data: approvedPayments
+    });
+
+  } catch (error) {
+    console.error('Error getting approved payments:', error);
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Export Purchase Orders
+// @route   GET /api/customer-purchases/export
+// @access  Private (Admin)
+exports.exportPurchaseOrders = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let query = {};
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    const purchases = await CustomerPurchase.find(query)
+      .populate('customerId', 'firstName lastName email phone')
+      .populate('assignedEngineerId', 'name')
+      .sort({ createdAt: -1 });
+
+    const formattedData = purchases.map(po => ({
+      purchaseID: po.purchaseID,
+      customerName: po.customerId ? `${po.customerId.firstName} ${po.customerId.lastName}` : 'N/A',
+      customerEmail: po.customerId ? po.customerId.email : 'N/A',
+      totalAmount: po.totalAmount,
+      remainingAmount: po.remainingAmount,
+      status: po.status,
+      serviceTaskStatus: po.serviceTaskStatus,
+      installationDate: po.installationDate ? new Date(po.installationDate).toLocaleDateString() : 'Not set',
+      assignedEngineer: po.assignedEngineerId ? po.assignedEngineerId.name : 'Not assigned',
+      createdAt: po.createdAt.toISOString().split('T')[0],
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedData,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// @desc    Export Approved Payments
+// @route   GET /api/customer-purchases/export-approved-payments
+// @access  Private (Admin)
+exports.exportApprovedPayments = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    // We'll reuse the logic from getAllApprovedPayments and then filter by date
+    // This is not the most efficient way for very large datasets, but it's consistent with the existing logic
+    const allApprovedPayments = await getAllApprovedPaymentsLogic(req.user);
+
+    let filteredPayments = allApprovedPayments;
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      filteredPayments = allApprovedPayments.filter(payment => {
+        const paymentDate = new Date(payment.paymentDate || payment.updatedAt);
+        return paymentDate >= start && paymentDate <= end;
+      });
+    }
+
+    const formattedData = filteredPayments.map(p => ({
+      type: p.type,
+      quotationNumber: p.quotationNumber,
+      customerName: p.lead ? `${p.lead.firstName} ${p.lead.lastName}` : 'N/A',
+      amount: p.advancePaymentAmount,
+      paymentMethod: p.paymentMethod,
+      paymentDate: p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : 'N/A',
+      status: p.status,
+      salesPerson: p.createdBy ? p.createdBy.name : 'N/A',
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: formattedData,
+    });
+  } catch (error) {
+    errorHandler(res, error);
+  }
+};
+
+// Helper function to contain the logic of getAllApprovedPayments
+const getAllApprovedPaymentsLogic = async (user) => {
+  if (!user || (user.role !== 'accounts_department' && user.role !== 'admin')) {
+    throw new AppError('Only accounts department and admin can view approved payments', 403);
+  }
+
+  const approvedPayments = [];
+
+  // 1. Get approved quotations
+  const approvedQuotations = await Quotation.find({ status: 'approved' })
+    .populate({ path: 'lead', select: 'firstName lastName email phone' })
+    .populate({ path: 'createdBy', select: 'name email' })
+    .sort({ updatedAt: -1 });
+
+  for (const quotation of approvedQuotations) {
+    approvedPayments.push({
+      _id: quotation._id,
+      type: 'quotation_approval',
+      quotationNumber: quotation.quotationNumber,
+      lead: quotation.lead,
+      createdBy: quotation.createdBy,
+      total: quotation.total,
+      advancePaymentAmount: quotation.advancePaymentAmount,
+      paymentMethod: quotation.paymentMethod,
+      paymentDate: quotation.paymentDate,
+      status: quotation.status,
+      updatedAt: quotation.updatedAt,
+    });
+  }
+
+  // 2. Get approved remaining payments
+  const approvedRemainingPayments = await CustomerPurchase.find({ paymentReviewStatus: 'verified' })
+    .populate({ path: 'customerId', select: 'firstName lastName email phone' })
+    .populate({ path: 'quotationId', select: 'quotationNumber createdBy', populate: { path: 'createdBy', select: 'name email' }})
+    .sort({ updatedAt: -1 });
+
+  for (const purchase of approvedRemainingPayments) {
+    const latestPayment = await Payment.findOne({ customerPurchaseId: purchase._id, isAdvancePayment: false })
+      .populate('createdBy', 'name email')
+      .sort({ paidAt: -1 });
+
+    if (latestPayment) {
+      approvedPayments.push({
+        _id: purchase._id,
+        type: 'remaining_payment_approval',
+        quotationNumber: purchase.quotationId?.quotationNumber || 'N/A',
+        lead: {
+          firstName: purchase.customerId?.firstName || 'N/A',
+          lastName: purchase.customerId?.lastName || '',
+        },
+        createdBy: purchase.quotationId?.createdBy || { name: 'N/A' },
+        total: purchase.totalAmount,
+        advancePaymentAmount: latestPayment.amountPaid,
+        paymentMethod: latestPayment.paymentMethod,
+        paymentDate: latestPayment.paidAt,
+        status: 'approved',
+        updatedAt: purchase.updatedAt,
+      });
+    }
+  }
+
+  approvedPayments.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  return approvedPayments;
 };

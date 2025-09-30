@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Search, Filter, SortAsc, SortDesc, Calendar, User, Tag, AlertTriangle, Clock, CheckCircle, XCircle, MoreVertical, Download, RefreshCw, Users, Zap, Phone, Mail, Building2, Edit2, Trash2, Info, X, RotateCcw, ChevronDown, Lock } from 'lucide-react';
+import { Search, Filter, SortAsc, SortDesc, Calendar, User, Tag, AlertTriangle, Clock, CheckCircle, XCircle, MoreVertical, Download, RefreshCw, Users, Zap, Phone, Mail, Building2, Edit2, Trash2, Info, X, RotateCcw, ChevronDown, Lock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAllTickets, assignTicket, updateTicketMeta } from '../../services/ticketService';
 import { getServiceEngineers } from '../../services/taskService';
 import TicketDetailModal from '../../components/TicketDetailModal';
@@ -174,6 +174,8 @@ const TicketQueuePage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [showAssignConfirm, setShowAssignConfirm] = useState(false);
   const [pendingAssignment, setPendingAssignment] = useState({ ticketId: null, engineerId: null, engineerName: '' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadData();
@@ -424,6 +426,12 @@ const TicketQueuePage = () => {
 
     return filtered;
   }, [tickets, searchTerm, statusFilter, priorityFilter, assigneeFilter, categoryFilter, dateFilter, sortField, sortDirection]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredAndSortedTickets.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTickets = filteredAndSortedTickets.slice(startIndex, endIndex);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -931,7 +939,7 @@ const TicketQueuePage = () => {
             <div className="flex justify-center py-8">
               <div className="text-gray-500">Loading tickets...</div>
             </div>
-          ) : filteredAndSortedTickets.length === 0 ? (
+          ) : currentTickets.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all' || assigneeFilter !== 'all' || categoryFilter !== 'all' || dateFilter !== 'all' 
                 ? 'No tickets match your filters' 
@@ -939,7 +947,7 @@ const TicketQueuePage = () => {
             </div>
           ) : (
             <div className="space-y-3 sm:space-y-4 p-3 sm:p-4">
-              {filteredAndSortedTickets.map(ticket => (
+              {currentTickets.map(ticket => (
                 <TicketCard
                   key={ticket._id}
                   ticket={ticket}
@@ -970,10 +978,10 @@ const TicketQueuePage = () => {
                     <th scope="col" className="px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                       <input
                         type="checkbox"
-                        checked={bulkSelected.length === filteredAndSortedTickets.length && filteredAndSortedTickets.length > 0}
+                        checked={bulkSelected.length === currentTickets.length && currentTickets.length > 0}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setBulkSelected(filteredAndSortedTickets.map(t => t._id));
+                            setBulkSelected(currentTickets.map(t => t._id));
                           } else {
                             setBulkSelected([]);
                           }
@@ -1038,7 +1046,7 @@ const TicketQueuePage = () => {
                         Loading tickets...
                       </td>
                     </tr>
-                  ) : filteredAndSortedTickets.length === 0 ? (
+                  ) : currentTickets.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                         {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all' || assigneeFilter !== 'all' || categoryFilter !== 'all' || dateFilter !== 'all' 
@@ -1047,7 +1055,7 @@ const TicketQueuePage = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredAndSortedTickets.map((ticket) => (
+                    currentTickets.map((ticket) => (
                       <tr
                         key={ticket._id}
                         className="transition-colors duration-150 ease-in-out hover:bg-gray-50 cursor-pointer group"
@@ -1199,6 +1207,34 @@ const TicketQueuePage = () => {
             </div>
           </div>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 0 && (
+          <div className="px-2 lg:px-4 xl:px-6 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row items-center justify-between sticky bottom-0 left-0 right-0 shadow-sm space-y-3 sm:space-y-0">
+            <div className="text-sm text-gray-600 order-2 sm:order-1">
+              Showing {Math.min(startIndex + 1, filteredAndSortedTickets.length)} to {Math.min(endIndex, filteredAndSortedTickets.length)} of {filteredAndSortedTickets.length} results
+            </div>
+            <div className="flex items-center gap-2 order-1 sm:order-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+              >
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+              <span className="text-xs sm:text-sm text-gray-600 px-3 py-2 min-w-[80px] text-center"> 
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-2 border border-gray-300 rounded-md text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors duration-150 touch-target"
+              >
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Ticket Detail Modal */}

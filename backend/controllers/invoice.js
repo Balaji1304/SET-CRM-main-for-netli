@@ -236,7 +236,7 @@ exports.getInvoiceByPurchaseId = async (req, res) => {
     // THIS SHOULD BE IMPLEMENTED CORRECTLY IN PRODUCTION.
     if (user.role !== 'admin' && user.role !== 'sales_person' && user.role !== 'sales_head' && user.role !== 'marketing_coordinator') {
         const customerDoc = await mongoose.model('Customer').findById(invoice.customer);
-        if (!customerDoc || customerDoc.email !== user.email) {
+        if (!customerDoc || customerDoc.user.toString() !== req.user.id) {
              return res.status(403).json({
                 success: false,
                 message: 'You are not authorized to view this invoice.'

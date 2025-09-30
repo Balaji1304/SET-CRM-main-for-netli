@@ -3,7 +3,10 @@ import { createPortal } from "react-dom";
 import { useNavigate } from 'react-router-dom';
 import { Search, ChevronDown, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle, Loader2, X, Package, Layers, TrendingUp, Calendar, Info, ShoppingCart, Tag, Zap, Users, Building2, FileText, Filter, RotateCcw } from 'lucide-react';
 import ConfirmDialog from '../../components/ConfirmDialog';
-import { getProducts, deleteProduct } from '../../services/productService';
+import { getProducts, deleteProduct, exportProducts } from '../../services/productService';
+import ExportButton from '../../components/ExportButton';
+import { downloadCSV } from '../../utils/csv';
+import { useAuth } from '../../context/AuthContext';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -107,6 +110,8 @@ export default function ProductListPage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const navigate = useNavigate();
+  const [exportLoading, setExportLoading] = useState(false);
+  const { user } = useAuth();
 
   const itemsPerPage = 10;
 
@@ -132,6 +137,22 @@ export default function ProductListPage() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  const handleExport = async ({ startDate, endDate }) => {
+    setExportLoading(true);
+    try {
+      const response = await exportProducts({ startDate, endDate });
+      if (response.success) {
+        downloadCSV(response.data, `products-${startDate}-to-${endDate}.csv`);
+      } else {
+        console.error('Failed to export products:', response.message);
+      }
+    } catch (error) {
+      console.error('An error occurred during product export:', error);
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   // Function to fetch products
   const fetchProducts = async () => {
@@ -682,11 +703,14 @@ export default function ProductListPage() {
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">
               Products Management
             </h1>
+            {user?.role === 'admin' && (
+              <ExportButton onExport={handleExport} loading={exportLoading} />
+            )}
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
+        <div className="bg-tertiary rounded-lg border border-fourth shadow-sm flex-1 flex flex-col overflow-hidden">
           {/* Filters */}
           <div className="p-4 md:p-6 border-b border-gray-200 sticky top-0 bg-white z-20">
             {/* Filter Status Indicator */}
@@ -743,7 +767,7 @@ export default function ProductListPage() {
 
                 {/* Add Product Button - Desktop Position */}
                 <button
-                  onClick={() => navigate('/dashboard/products/create')}
+                  onClick={() => navigate('/dashboard/products/add')}
                   className="hidden sm:inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-orange-500 transition-colors duration-150 ease-in-out whitespace-nowrap"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -754,7 +778,7 @@ export default function ProductListPage() {
               {/* Add Product Button - Mobile Only */}
               <div className="w-full sm:hidden">
                 <button
-                  onClick={() => navigate('/dashboard/products/create')}
+                  onClick={() => navigate('/dashboard/products/add')}
                   className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-orange-500 transition-colors duration-150 ease-in-out whitespace-nowrap w-full"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -823,7 +847,7 @@ export default function ProductListPage() {
             <div className="overflow-x-auto flex-1 relative">
               <div className="inline-block min-w-full align-middle">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-[#FF7300] sticky top-0 z-10">
+                  <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
                       {[
                         { key: 'name', label: 'Product Name', width: 'w-32 lg:w-40' },
@@ -838,7 +862,7 @@ export default function ProductListPage() {
                         <th
                           key={header.key}
                           scope="col"
-                          className={`px-2 lg:px-4 xl:px-6 py-4 text-left text-sm font-medium text-white tracking-wider ${header.width} 
+                          className={`px-2 lg:px-4 xl:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${header.width} 
                             ${header.hideOnLg ? 'hidden lg:table-cell' : ''} 
                             ${header.hideOnXl ? 'hidden xl:table-cell' : ''}`}
                         >
@@ -860,7 +884,7 @@ export default function ProductListPage() {
                         return (
                           <tr
                             key={product._id}
-                            className="hover:bg-orange-50/50 transition-colors duration-150 ease-in-out"
+                            className="hover:bg-gray-50 transition-colors duration-150 ease-in-out"
                           >
                             <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium text-gray-900 w-32 lg:w-40">
                               <div 
@@ -899,33 +923,33 @@ export default function ProductListPage() {
                               <div className="flex items-center justify-center space-x-1 lg:space-x-2">
                                 <button
                                   onClick={() => handleViewProduct(product)}
-                                  className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
+                                  className="p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
                                   title="View Details"
                                 >
-                                  <Info className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                  <Info className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </button>
                                 {product.brochureUrl && (
                                   <button
                                     onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
-                                    className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
+                                    className="p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
                                     title="View Brochure"
                                   >
-                                    <Eye className="w-3.5 h-3.5 lg:w-4 lg:h-4" />
+                                    <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                                   </button>
                                 )}
                                 <button
                                   onClick={() => handleEditProduct(product._id)}
-                                  className="mobile-action-btn text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 ease-in-out border border-transparent hover:border-blue-200"
+                                  className="p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors duration-150"
                                   title="Edit Product"
                                 >
-                                  <Edit className="h-4 w-4" />
+                                  <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteClick(product)}
-                                  className="mobile-action-btn text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200 ease-in-out border border-transparent hover:border-red-200"
+                                  className="p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
                                   title="Delete Product"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </button>
                               </div>
                             </td>

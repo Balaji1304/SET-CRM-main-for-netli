@@ -55,9 +55,13 @@ const TicketSchema = new mongoose.Schema({
       createdAt: { type: Date, default: Date.now },
       attachments: [
         {
-          url: String,
-          publicId: String,
-          type: { type: String, enum: ['image', 'pdf', 'other'], default: 'other' }
+          fileName: { type: String, required: true },
+          fileUrl: { type: String, required: true },
+          fileType: { type: String, required: true },
+          fileSize: { type: Number, required: true },
+          uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+          uploadedAt: { type: Date, default: Date.now },
+          publicId: String // Keep for Cloudinary reference
         }
       ]
     }
@@ -65,9 +69,13 @@ const TicketSchema = new mongoose.Schema({
 
   attachments: [
     {
-      url: String,
-      publicId: String,
-      type: { type: String, enum: ['image', 'pdf', 'other'], default: 'other' }
+      fileName: { type: String, required: true },
+      fileUrl: { type: String, required: true },
+      fileType: { type: String, required: true },
+      fileSize: { type: Number, required: true },
+      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+      uploadedAt: { type: Date, default: Date.now },
+      publicId: String // Keep for Cloudinary reference
     }
   ]
 

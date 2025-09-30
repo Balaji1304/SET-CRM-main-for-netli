@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: function() {
-      // Only required for non-customer roles
+      // Only required for non-customer roles (admin requires email too)
       return this.role !== 'customer';
     },
     unique: false, // Not unique for customers
@@ -23,13 +23,10 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: function() {
-      // Required for customer role
-      return this.role === 'customer';
-    },
-    unique: true, // Always unique when present
-    sparse: true, // Only enforce uniqueness when field exists
-    match: [/^[6-9]\d{9}$/, 'Please add a valid 10-digit phone number']
+    required: [true, 'Phone number is required for all roles'],
+    unique: true,
+    match: [/^[6-9]\d{9}$/, 'Please add a valid 10-digit phone number'],
+    trim: true
   },
   password: {
     type: String,
@@ -39,46 +36,69 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['customer', 'sales_person', 'sales_representative', 'front_office_executive', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department'],
+    enum: ['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'sales_head', 'marketing_coordinator', 'accounts_department', 'admin'],
     default: 'customer'
-  },
-  // Contact information for service engineers (field work)
-  phone: {
-    type: String,
-    required: function() {
-      return this.role === 'service_engineer';
-    },
-    trim: true
   },
   whatsapp: {
     type: String,
     trim: true,
-    // Use phone number if whatsapp is not provided for service engineers
-    default: function() {
-      return this.role === 'service_engineer' ? this.phone : undefined;
+    validate: {
+      validator: function(v) {
+        // If whatsapp is provided, validate it
+        if (!v) return true; // Optional field
+        const phoneRegex = /^[6-9]\d{9}$/; // Indian mobile number format
+        const cleanPhone = v.replace(/\D/g, ''); // Remove non-digits
+        // If it has country code, remove it
+        const phoneWithoutCountryCode = cleanPhone.startsWith('91') && cleanPhone.length === 12 
+          ? cleanPhone.substring(2) 
+          : cleanPhone;
+        return phoneRegex.test(phoneWithoutCountryCode);
+      },
+      message: 'Please enter a valid 10-digit WhatsApp number'
     }
   },
   countryCode: {
     type: String,
     default: '+91'
   },
-  // Notification preferences for service engineers
+  // Notification preferences for all users
   notificationPreferences: {
     whatsappEnabled: {
       type: Boolean,
-      default: function() {
-        return this.role === 'service_engineer'; // Auto-enable for engineers
-      }
+      default: false // Will be set dynamically based on role and available contact methods
     },
     emailEnabled: {
       type: Boolean,
-      default: true
+      default: false // Will be set dynamically based on role and available contact methods
     }
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   },
   createdAt: {
     type: Date,
     default: Date.now
   }
+});
+
+// Pre-validation middleware to handle contact method logic
+userSchema.pre('validate', function(next) {
+  // Convert empty email to undefined for customers
+  if (this.role === 'customer' && (this.email === '' || this.email === null)) {
+    this.email = undefined;
+  }
+  
+  // Validate that at least one contact method is provided for customers
+  if (this.role === 'customer') {
+    if (!this.email && !this.whatsapp) {
+      const error = new Error('At least one contact method (email or WhatsApp number) is required for customers');
+      error.name = 'ValidationError';
+      return next(error);
+    }
+  }
+  
+  next();
 });
 
 // Encrypt password using bcrypt
@@ -87,6 +107,31 @@ userSchema.pre('save', async function(next) {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
   }
+  
+  // Set notification preferences defaults based on role and available contact methods
+  // Only set defaults if notification preferences haven't been explicitly set
+  if (this.isNew || !this.notificationPreferences || 
+      (this.notificationPreferences.whatsappEnabled === undefined && this.notificationPreferences.emailEnabled === undefined)) {
+    
+    const hasValidEmail = this.email && this.email.trim() !== '';
+    const hasValidWhatsapp = this.whatsapp && this.whatsapp.trim() !== '';
+    const hasValidPhone = this.phone && this.phone.trim() !== '';
+    
+    if (this.role === 'customer') {
+      // For customers: Enable based on availability of contact methods
+      this.notificationPreferences = {
+        whatsappEnabled: hasValidWhatsapp,
+        emailEnabled: hasValidEmail
+      };
+    } else {
+      // For all other users: Default to WhatsApp only (uses phone as fallback)
+      this.notificationPreferences = {
+        whatsappEnabled: hasValidPhone || hasValidWhatsapp,
+        emailEnabled: false
+      };
+    }
+  }
+  
   next();
 });
 

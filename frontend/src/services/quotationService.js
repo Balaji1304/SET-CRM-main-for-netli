@@ -164,4 +164,22 @@ export const getPendingPayments = async () => {
  */
 export const getCustomerProducts = async () => {
   return await apiRequest('quotations/customer/products', {}, true); // Ensure noCache is true for GET
+};
+
+/**
+ * Export quotations data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with quotations data for export
+ */
+export const exportQuotations = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `quotations/export?${query}`;
+    // Use apiRequest and specify no caching for this request
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting quotations:', error);
+    throw error;
+  }
 }; 

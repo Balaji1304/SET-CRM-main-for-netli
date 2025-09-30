@@ -33,7 +33,7 @@ export default function QuotationDetailsPage() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [confirmActionType, setConfirmActionType] = useState(null); // Add this to track action type
   const [emailSentTime, setEmailSentTime] = useState(null);
-  const [invoiceEmailStatus, setInvoiceEmailStatus] = useState({ sending: false, sent: false, error: null });
+  const [proformaInvoiceEmailStatus, setProformaInvoiceEmailStatus] = useState({ sending: false, sent: false, error: null });
   const [ws, setWs] = useState(null);
   const quotationSendStartTime = useRef(null);
   const [showToast, setShowToast] = useState(false);
@@ -171,25 +171,25 @@ export default function QuotationDetailsPage() {
     }
   };
 
-  const handleSendExistingInvoiceEmail = async () => {
+  const handleSendExistingProformaInvoiceEmail = async () => {
     if (!quotation?.customerPurchaseDetails?.invoiceId) {
-      setToastMessage('Invoice ID not found. Cannot send email.');
+      setToastMessage('Proforma Invoice ID not found. Cannot send email.');
       setShowToast(true);
       return;
     }
-    setInvoiceEmailStatus({ sending: true, sent: false, error: null });
+    setProformaInvoiceEmailStatus({ sending: true, sent: false, error: null });
     try {
       const response = await sendInvoiceEmail(quotation.customerPurchaseDetails.invoiceId);
       if (response.success) {
-        setInvoiceEmailStatus({ sending: false, sent: true, error: null });
-        setToastMessage(response.message || 'Invoice email sent successfully!');
+        setProformaInvoiceEmailStatus({ sending: false, sent: true, error: null });
+        setToastMessage(response.message || 'Proforma Invoice email sent successfully!');
         setShowToast(true);
       } else {
-        throw new Error(response.message || 'Failed to send invoice email');
+        throw new Error(response.message || 'Failed to send proforma invoice email');
       }
     } catch (error) {
-      console.error('Error sending invoice email:', error);
-      setInvoiceEmailStatus({ sending: false, sent: false, error: error.message });
+      console.error('Error sending proforma invoice email:', error);
+      setProformaInvoiceEmailStatus({ sending: false, sent: false, error: error.message });
       setToastMessage(`Error: ${error.message}`);
       setShowToast(true);
     }
@@ -288,7 +288,7 @@ export default function QuotationDetailsPage() {
     );
   }
   
-  const canSendInvoice = quotation.status === 'approved' && 
+  const canSendProformaInvoice = quotation.status === 'approved' && 
                          quotation.customerPurchaseDetails?.isFullyPaid === true && 
                          quotation.customerPurchaseDetails?.hasInvoice === true;
 
@@ -296,7 +296,7 @@ export default function QuotationDetailsPage() {
                                      quotation.customerPurchaseDetails && 
                                      !quotation.customerPurchaseDetails.isFullyPaid;
 
-  const showInvoiceNotGeneratedMessage = quotation.status === 'approved' && 
+  const showProformaInvoiceNotGeneratedMessage = quotation.status === 'approved' && 
                                          quotation.customerPurchaseDetails?.isFullyPaid === true && 
                                          !quotation.customerPurchaseDetails?.hasInvoice;
 
@@ -395,13 +395,13 @@ export default function QuotationDetailsPage() {
             {quotation.status === 'approved' && (
               <div className="flex flex-col space-y-2">
                 <button
-                  onClick={handleSendExistingInvoiceEmail}
+                  onClick={handleSendExistingProformaInvoiceEmail}
                   className={`px-3 sm:px-4 py-2 sm:py-2.5 bg-primary text-tertiary rounded-lg text-xs sm:text-sm font-medium hover:opacity-90 transition-opacity duration-150 ease-in-out flex items-center justify-center min-w-[120px] sm:min-w-[150px] gap-1 sm:gap-2 touch-target ${
-                    (!canSendInvoice || invoiceEmailStatus.sending) ? 'opacity-60 cursor-not-allowed' : ''
+                    (!canSendProformaInvoice || proformaInvoiceEmailStatus.sending) ? 'opacity-60 cursor-not-allowed' : ''
                   }`}
-                  disabled={!canSendInvoice || invoiceEmailStatus.sending}
+                  disabled={!canSendProformaInvoice || proformaInvoiceEmailStatus.sending}
                 >
-                  {invoiceEmailStatus.sending ? (
+                  {proformaInvoiceEmailStatus.sending ? (
                     <>
                       <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" /> 
                       <span className="hidden sm:inline">Sending Email...</span>
@@ -410,8 +410,8 @@ export default function QuotationDetailsPage() {
                   ) : (
                     <>
                       <Mail className="h-3 w-3 sm:h-4 sm:w-4" /> 
-                      <span className="hidden sm:inline">Send Invoice</span>
-                      <span className="sm:hidden">Invoice</span>
+                      <span className="hidden sm:inline">Send Proforma Invoice</span>
+                      <span className="sm:hidden">Proforma Invoice</span>
                     </>
                   )}
                 </button>
@@ -425,11 +425,11 @@ export default function QuotationDetailsPage() {
                       <span className="sm:hidden">Payment pending</span>
                     </span>
                   )}
-                  {showInvoiceNotGeneratedMessage && (
+                  {showProformaInvoiceNotGeneratedMessage && (
                     <span className="text-xs sm:text-sm text-red-600 flex items-center justify-center sm:justify-end gap-1">
                       <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4" /> 
-                      <span className="hidden sm:inline">Invoice not generated</span>
-                      <span className="sm:hidden">No invoice</span>
+                      <span className="hidden sm:inline">Proforma Invoice not generated</span>
+                      <span className="sm:hidden">No proforma invoice</span>
                     </span>
                   )}
                 </div>
@@ -722,11 +722,11 @@ export default function QuotationDetailsPage() {
       {showToast && (
         <Toast
           message={toastMessage}
-          type={toastMessage.toLowerCase().includes('fail') || toastMessage.toLowerCase().includes('error') ? 'error' : (invoiceEmailStatus.sent ? 'success' : 'info')}
+          type={toastMessage.toLowerCase().includes('fail') || toastMessage.toLowerCase().includes('error') ? 'error' : (proformaInvoiceEmailStatus.sent ? 'success' : 'info')}
           onClose={() => {
             setShowToast(false);
-            if (invoiceEmailStatus.error) setInvoiceEmailStatus(prev => ({...prev, error: null}));
-            if (invoiceEmailStatus.sent) setInvoiceEmailStatus(prev => ({...prev, sent: false}));
+            if (proformaInvoiceEmailStatus.error) setProformaInvoiceEmailStatus(prev => ({...prev, error: null}));
+            if (proformaInvoiceEmailStatus.sent) setProformaInvoiceEmailStatus(prev => ({...prev, sent: false}));
           }}
         />
       )}

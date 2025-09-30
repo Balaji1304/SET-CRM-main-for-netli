@@ -10,13 +10,13 @@ const { protect, authorize } = require('../middleware/auth');
 
 router
   .route('/')
-  .get(protect, authorize('sales_head'), getPackages)
-  .post(protect, authorize('sales_head'), createPackage);
+  .get(protect, authorize('sales_head', 'admin'), getPackages)
+  .post(protect, authorize('sales_head', 'admin'), createPackage);
 
 router
   .route('/:id/status')
-  .put(protect, authorize('sales_head'), updatePackageStatus);
+  .put(protect, authorize('sales_head', 'admin'), updatePackageStatus);
 
-router.route('/:id').delete(protect, authorize('sales_head'), deletePackage);
+router.route('/:id').delete(protect, authorize('sales_head', 'admin'), deletePackage);
 
 module.exports = router; 

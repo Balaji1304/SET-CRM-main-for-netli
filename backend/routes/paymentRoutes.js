@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const { 
   getCustomerProducts, 
   getPendingPayments, 
@@ -12,8 +12,8 @@ const {
 // Get customer's products and purchases
 router.get('/customer/products', protect, getCustomerProducts);
 
-// Get customer's pending payments
-router.get('/customer/pending-payments', protect, getPendingPayments);
+// Get customer's pending payments (or all pending payments for admin)
+router.get('/customer/pending-payments', protect, authorize('customer', 'admin'), getPendingPayments);
 
 // Record a new payment
 router.post('/record', protect, recordPayment);

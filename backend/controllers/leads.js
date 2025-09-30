@@ -172,8 +172,8 @@ exports.createLead = async (req, res) => {
 // @access  Private
 exports.getLeads = async (req, res) => {
   try {
-    // Sales head and marketing coordinator can see all leads, others can only see their own leads
-    let query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator') ? {} : { createdBy: req.user.id };
+    // Sales head, marketing coordinator and admin can see all leads, others can only see their own leads
+    let query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator' || req.user.role === 'admin') ? {} : { createdBy: req.user.id };
     
     // If forQuotation=true, only return leads that are complete
     if (req.query.forQuotation === 'true') {
@@ -266,8 +266,8 @@ exports.getLeads = async (req, res) => {
 // @access  Private
 exports.getLead = async (req, res) => {
   try {
-    // Sales head and marketing coordinator can view any lead, others can only view their own leads
-    const query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator')
+    // Sales head, marketing coordinator and admin can view any lead, others can only view their own leads
+    const query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator' || req.user.role === 'admin')
       ? { _id: req.params.id }
       : { _id: req.params.id, createdBy: req.user.id };
     
@@ -347,8 +347,8 @@ exports.updateLead = async (req, res) => {
   try {
     console.log(`Updating lead ${req.params.id} with data:`, req.body);
     
-    // Sales head and marketing coordinator can update any lead, others can only update their own leads
-    const query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator')
+    // Sales head, marketing coordinator and admin can update any lead, others can only update their own leads
+    const query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator' || req.user.role === 'admin')
       ? { _id: req.params.id }
       : { _id: req.params.id, createdBy: req.user.id };
     
@@ -503,13 +503,68 @@ exports.updateLead = async (req, res) => {
   }
 };
 
+// @desc    Export leads
+// @route   GET /api/leads/export
+// @access  Private (Admin)
+exports.exportLeads = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    let query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator' || req.user.role === 'admin') 
+      ? {} 
+      : { createdBy: req.user.id };
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      query.createdAt = { $gte: start, $lte: end };
+    }
+
+    const leads = await Lead.find(query)
+      .populate('createdBy', 'name email role')
+      .sort({ createdAt: -1 });
+
+    const formattedData = leads.map(lead => ({
+      firstName: lead.firstName,
+      lastName: lead.lastName,
+      email: lead.email,
+      phone: lead.phone,
+      businessName: lead.businessName,
+      address: lead.address,
+      status: lead.status,
+      leadSource: lead.leadSource,
+      leadType: lead.leadType,
+      dateCollected: lead.dateCollected.toISOString().split('T')[0],
+      createdBy: lead.createdBy ? lead.createdBy.name : 'N/A',
+      creatorRole: lead.createdBy ? lead.createdBy.role : 'N/A',
+      createdAt: lead.createdAt.toISOString().split('T')[0],
+      updatedAt: lead.updatedAt.toISOString().split('T')[0],
+      productCount: lead.products.length,
+    }));
+
+    res.json({
+      success: true,
+      data: formattedData
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server Error: ' + error.message
+    });
+  }
+};
+
 // @desc    Delete lead
 // @route   DELETE /api/leads/:id
 // @access  Private
 exports.deleteLead = async (req, res) => {
   try {
-    // Sales head and marketing coordinator can delete any lead, others can only delete their own leads
-    const query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator')
+    // Sales head, marketing coordinator and admin can delete any lead, others can only delete their own leads
+    const query = (req.user.role === 'sales_head' || req.user.role === 'marketing_coordinator' || req.user.role === 'admin')
       ? { _id: req.params.id }
       : { _id: req.params.id, createdBy: req.user.id };
       

@@ -12,7 +12,7 @@ const { AppError, errorHandler } = require('../utils/errorHandler');
 // @desc    Test WhatsApp notification for a specific engineer
 // @route   POST /api/whatsapp-test/engineer/:engineerId
 // @access  Private (Product Head)
-router.post('/engineer/:engineerId', protect, authorize('product_head'), async (req, res) => {
+router.post('/engineer/:engineerId', protect, authorize('product_head', 'admin'), async (req, res) => {
   try {
     const { message } = req.body;
     const result = await testEngineerWhatsApp(req.params.engineerId, message);
@@ -30,7 +30,7 @@ router.post('/engineer/:engineerId', protect, authorize('product_head'), async (
 // @desc    Send daily installation reminders manually
 // @route   POST /api/whatsapp-test/daily-reminders
 // @access  Private (Product Head)
-router.post('/daily-reminders', protect, authorize('product_head'), async (req, res) => {
+router.post('/daily-reminders', protect, authorize('product_head', 'admin'), async (req, res) => {
   try {
     const result = await sendDailyInstallationReminders();
     
@@ -47,7 +47,7 @@ router.post('/daily-reminders', protect, authorize('product_head'), async (req, 
 // @desc    Send urgent customer contact notification
 // @route   POST /api/whatsapp-test/urgent-contact/:purchaseId
 // @access  Private (Product Head, Front Office Executive)
-router.post('/urgent-contact/:purchaseId', protect, authorize(['product_head', 'front_office_executive']), async (req, res) => {
+router.post('/urgent-contact/:purchaseId', protect, authorize(['product_head', 'front_office_executive', 'admin']), async (req, res) => {
   try {
     const { customerMessage } = req.body;
     const result = await sendUrgentCustomerContactNotification(req.params.purchaseId, customerMessage);
@@ -65,7 +65,7 @@ router.post('/urgent-contact/:purchaseId', protect, authorize(['product_head', '
 // @desc    Get all service engineers with their WhatsApp status
 // @route   GET /api/whatsapp-test/engineers
 // @access  Private (Product Head)
-router.get('/engineers', protect, authorize('product_head'), async (req, res) => {
+router.get('/engineers', protect, authorize('product_head', 'admin'), async (req, res) => {
   try {
     const engineers = await User.find({ role: 'service_engineer' })
       .select('name email phone whatsapp countryCode notificationPreferences createdAt')
@@ -90,7 +90,7 @@ router.get('/engineers', protect, authorize('product_head'), async (req, res) =>
 // @desc    Update engineer's WhatsApp notification preferences
 // @route   PUT /api/whatsapp-test/engineer/:engineerId/preferences
 // @access  Private (Product Head)
-router.put('/engineer/:engineerId/preferences', protect, authorize('product_head'), async (req, res) => {
+router.put('/engineer/:engineerId/preferences', protect, authorize('product_head', 'admin'), async (req, res) => {
   try {
     const { whatsappEnabled, phone, whatsapp, countryCode } = req.body;
     

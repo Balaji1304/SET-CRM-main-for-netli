@@ -171,6 +171,23 @@ export const createTrackingRecord = async (trackingData) => {
   }
 };
 
+/**
+ * Export orders data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with orders data for export
+ */
+export const exportOrders = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `tracking/export?${query}`;
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting orders:', error);
+    throw error;
+  }
+};
+
 // Status and phase mappings for frontend use
 export const STATUS_LABELS = {
   'order_placed': 'Order Placed',

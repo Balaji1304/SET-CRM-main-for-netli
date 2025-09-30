@@ -13,20 +13,20 @@ const {
 } = require('../controllers/installationController');
 
 // Service Engineer Routes
-router.get('/my-assignments', protect, authorize('service_engineer'), getMyAssignments);
-router.put('/:purchaseId/accept', protect, authorize('service_engineer'), acceptAssignment);
-router.put('/:purchaseId/start-work', protect, authorize('service_engineer'), startWork);
+router.get('/my-assignments', protect, authorize('service_engineer', 'admin'), getMyAssignments);
+router.put('/:purchaseId/accept', protect, authorize('service_engineer', 'admin'), acceptAssignment);
+router.put('/:purchaseId/start-work', protect, authorize('service_engineer', 'admin'), startWork);
 router.post('/:purchaseId/complete', 
   protect, 
-  authorize('service_engineer'), 
+  authorize('service_engineer', 'admin'), 
   uploadCompletionPhotos,
   completeInstallation
 );
-router.post('/:purchaseId/report-issue', protect, authorize('service_engineer'), reportIssue);
+router.post('/:purchaseId/report-issue', protect, authorize('service_engineer', 'admin'), reportIssue);
 
 // Customer Routes
-router.get('/:purchaseId/signoff', protect, authorize('service_engineer'), getInstallationForSignoff);
-router.post('/:purchaseId/signoff', protect, authorize('service_engineer'), customerSignoff);
+router.get('/:purchaseId/signoff', protect, authorize('service_engineer', 'admin'), getInstallationForSignoff);
+router.post('/:purchaseId/signoff', protect, authorize('service_engineer', 'admin'), customerSignoff);
 
 module.exports = router;
 

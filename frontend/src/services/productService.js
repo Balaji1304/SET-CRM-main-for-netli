@@ -113,4 +113,21 @@ export const getDefaultTerms = async (category) => {
  */
 export const getAllTerms = async () => {
   return await apiRequest('products/terms/all');
+};
+
+/**
+ * Export products data
+ * @param {Object} params - { startDate, endDate }
+ * @returns {Promise<Object>} - Response with products data for export
+ */
+export const exportProducts = async (params = {}) => {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = `products/export?${query}`;
+    const response = await apiRequest(endpoint, { method: 'GET' }, false);
+    return response;
+  } catch (error) {
+    console.error('Error exporting products:', error);
+    throw error;
+  }
 }; 

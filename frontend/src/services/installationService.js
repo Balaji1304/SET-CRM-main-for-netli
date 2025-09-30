@@ -1,11 +1,11 @@
 import { apiRequest } from './apiConfig';
 
 // Service Engineer API calls
-export const getMyAssignments = async () => {
+export const getMyAssignments = async (useCache = true) => {
   try {
     const response = await apiRequest('installations/my-assignments', {
       method: 'GET'
-    });
+    }, useCache);
     return response;
   } catch (error) {
     console.error('Error fetching assignments:', error);

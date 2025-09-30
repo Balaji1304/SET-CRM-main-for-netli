@@ -218,26 +218,36 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
       return invoiceResult;
 
     case 'orderform':
-      // Send order confirmation message for Order Form
-      const orderFormMessage = `🎉 *ORDER CONFIRMATION*\n\n` +
-        `Dear ${customer.firstName} ${customer.lastName || ''},\n\n` +
-        `Thank you for your order! Your advance payment has been confirmed.\n\n` +
-        `📋 *Order Details:*\n` +
-        `Order No: ${data.orderNumber}\n` +
-        `Total Amount: ₹${data.totalAmount.toLocaleString('en-IN')}\n` +
-        `Advance Paid: ₹${data.advanceAmount.toLocaleString('en-IN')}\n` +
-        `Remaining: ₹${data.remainingAmount.toLocaleString('en-IN')}\n\n` +
-        `📧 *Your order form has been sent to your email.*\n` +
-        `You can also access it anytime from your customer portal.\n\n` +
-        `🔗 Portal: ${process.env.FRONTEND_URL || 'https://yourapp.com'}/orders\n\n` +
-        `We will contact you soon for installation scheduling.\n\n` +
-        `*Sunlit Solar Team*`;
-
-      const { sendWhatsAppText } = require('./sendWhatsApp');
+      // Send order confirmation template (works with test numbers)
+      const { sendWhatsAppTemplate } = require('./sendWhatsApp');
       
-      const orderFormResult = await sendWhatsAppText({
+      const orderFormResult = await sendWhatsAppTemplate({
         to: whatsappNumber,
-        text: orderFormMessage,
+        templateName: 'order_confirmation',
+        languageCode: 'en_US',
+        components: [
+          {
+            type: "body",
+            parameters: [
+              {
+                type: "text",
+                text: `${customer.firstName} ${customer.lastName || ''}`.trim()
+              },
+              {
+                type: "text",
+                text: data.orderNumber
+              },
+              {
+                type: "text",
+                text: data.totalAmount.toLocaleString('en-IN')
+              },
+              {
+                type: "text",
+                text: data.advanceAmount.toLocaleString('en-IN')
+              }
+            ]
+          }
+        ],
         countryCode
       });
 

@@ -96,7 +96,7 @@ export default function CustomersTable({
   const [loadingPurchases, setLoadingPurchases] = useState(false);
 
   const itemsPerPage = 10;
-  const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator';
+  const isSalesHead = user?.role === 'sales_head' || user?.role === 'marketing_coordinator' || user?.role === 'admin';
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
