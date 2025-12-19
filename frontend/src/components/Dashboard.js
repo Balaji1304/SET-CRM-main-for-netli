@@ -377,7 +377,7 @@ const Dashboard = () => {
                     source.source === 'walk_in' ? 'bg-red-500' :
                     'bg-gray-500'
                   }`}></div>
-                  <span className="text-sm text-secondary capitalize">{source.source.replace('_', ' ')}</span>
+                  <span className="text-sm text-secondary capitalize">{source.source ? source.source.replace('_', ' ') : 'Unknown'}</span>
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-semibold text-secondary">{source.count}</span>
