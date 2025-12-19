@@ -1143,8 +1143,9 @@ const approveQuotation = async (quotationInstance) => {
       console.log(`Existing user found: ${leadUserId} for phone ${lead.phone}`);
     } else {
       const password = Math.random().toString(36).slice(-8);
+     const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'Customer';
       user = new User({ 
-        name: `${lead.firstName} ${lead.lastName}`,
+        name: fullName,
         phone: lead.phone,
         email: lead.email || undefined,
         password, 
@@ -1177,9 +1178,9 @@ const approveQuotation = async (quotationInstance) => {
       console.log(`Creating new customer record for phone: ${lead.phone} (email: ${lead.email || 'N/A'}) with user ID: ${leadUserId}`);
       customer = new Customer({ 
         leadId: lead._id,
-        user: leadUserId, // Changed to use 'user' field as per updated Customer model
-        firstName: lead.firstName,
-        lastName: lead.lastName,
+        user: leadUserId,
+        firstName: lead.firstName || 'Customer',
+        lastName: lead.lastName || 'Name',
         email: lead.email || undefined,
         phone: lead.phone,
         whatsapp: lead.whatsapp || undefined,
