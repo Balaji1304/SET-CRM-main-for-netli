@@ -18,7 +18,7 @@ const customerSchema = new mongoose.Schema({
   },
   lastName: {
     type: String,
-    required: [true, 'Last name is required'],
+    required: false,
     trim: true
   },
   email: {
@@ -137,5 +137,9 @@ customerSchema.pre('save', function(next) {
   
   next();
 });
+
+// Create sparse unique index on email to allow multiple null values
+// but ensure uniqueness when email is present
+customerSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Customer', customerSchema); 

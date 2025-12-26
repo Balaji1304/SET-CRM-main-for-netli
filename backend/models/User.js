@@ -14,8 +14,6 @@ const userSchema = new mongoose.Schema({
       // Only required for non-customer roles (admin requires email too)
       return this.role !== 'customer';
     },
-    unique: false, // Not unique for customers
-    sparse: true,
     match: [
       /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
       'Please add a valid email'
@@ -146,5 +144,9 @@ userSchema.methods.getSignedJwtToken = function() {
 userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+// Create sparse unique index on email to allow multiple null values
+// but ensure uniqueness when email is present
+userSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('User', userSchema); 

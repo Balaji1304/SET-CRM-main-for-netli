@@ -1189,7 +1189,7 @@ const approveQuotation = async (quotationInstance) => {
         leadId: lead._id,
         user: leadUserId,
         firstName: lead.firstName || 'Customer',
-        lastName: lead.lastName || 'Name',
+        lastName: (lead.lastName && lead.lastName.trim()) || undefined,
         email: lead.email || undefined,
         phone: lead.phone,
         whatsapp: lead.whatsapp || undefined,
