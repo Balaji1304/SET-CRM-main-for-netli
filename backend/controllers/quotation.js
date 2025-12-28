@@ -1143,11 +1143,20 @@ const approveQuotation = async (quotationInstance) => {
       console.log(`Existing user found: ${leadUserId} for phone ${lead.phone}`);
     } else {
       const password = Math.random().toString(36).slice(-8);
-     const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'Customer';
+      const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'Customer';
+      
+      // Determine whatsapp number - use whatsapp field or phone if whatsappSameAsPhone is true
+      let whatsappNumber = lead.whatsapp;
+      if (!whatsappNumber && lead.whatsappSameAsPhone && lead.phone) {
+        whatsappNumber = lead.phone;
+      }
+      
       user = new User({ 
         name: fullName,
         phone: lead.phone,
         email: lead.email || undefined,
+        whatsapp: whatsappNumber || undefined,
+        countryCode: lead.countryCode || '+91',
         password, 
         role: 'customer'
       });
@@ -1180,7 +1189,7 @@ const approveQuotation = async (quotationInstance) => {
         leadId: lead._id,
         user: leadUserId,
         firstName: lead.firstName || 'Customer',
-        lastName: lead.lastName || 'Name',
+        lastName: (lead.lastName && lead.lastName.trim()) || undefined,
         email: lead.email || undefined,
         phone: lead.phone,
         whatsapp: lead.whatsapp || undefined,

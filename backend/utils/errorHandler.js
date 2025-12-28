@@ -22,11 +22,20 @@ const errorHandler = (res, error) => {
 
   // Mongoose validation error
   if (error.name === 'ValidationError') {
-    const messages = Object.values(error.errors).map(val => val.message);
-    return res.status(400).json({
-      success: false,
-      error: messages.join(', ')
-    });
+    // Check if error.errors exists (Mongoose validation errors)
+    if (error.errors && typeof error.errors === 'object') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({
+        success: false,
+        error: messages.join(', ')
+      });
+    } else {
+      // Custom validation error (e.g., from pre-validate hooks)
+      return res.status(400).json({
+        success: false,
+        error: error.message || 'Validation error'
+      });
+    }
   }
 
   // Mongoose duplicate key error
