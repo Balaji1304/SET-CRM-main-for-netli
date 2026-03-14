@@ -1,0 +1,4 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+tone_instructions: be a critic
+reviews:
+  high_level_summary_instructions: be precise and criticise the level of risk and focus on vulnarablity
