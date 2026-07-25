@@ -37,12 +37,10 @@ const getAllowedOrigins = () => {
     origins.push('http://localhost:3000');
   }
   
-  // Add production URLs
-  if (process.env.NODE_ENV === 'production') {
-    origins.push('https://blackenginecrm.netlify.app');
-    origins.push('https://set-crm.netlify.app');
-    origins.push('https://set-crm-main-for-netli.netlify.app');
-  }
+  // Always add production URLs
+  origins.push('https://blackenginecrm.netlify.app');
+  origins.push('https://set-crm.netlify.app');
+  origins.push('https://set-crm-main-for-netli.netlify.app');
   
   return [...new Set(origins)]; // Remove duplicates
 };
