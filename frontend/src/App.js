@@ -54,7 +54,7 @@ import UserManagementPage from './app/user-management/page';
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <ToastContainer />
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
