@@ -17,7 +17,8 @@
 
 // Environment-based API URL with fallback for local development
 // For local development, if REACT_APP_API_URL is not defined, use localhost:5000
-export const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const rawApiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+export const API_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/+$/, '')}/api`;
 
 // Cache for API responses
 const apiCache = new Map();
