@@ -527,7 +527,7 @@ class NotificationService {
 
       // Filter out null/undefined recipients and remove duplicates
       recipients = recipients.filter(id => id !== null && id !== undefined);
-      recipients = [...new Set(recipients.map(id => id.toString()))];
+      recipients = [...new Set(recipients.map(id => (id._id || id).toString()))];
       
       if (sender) {
         recipients = recipients.filter(id => id !== sender._id.toString());
@@ -715,7 +715,7 @@ class NotificationService {
         case 'enquiry_assigned':
           // Notify the assigned salesperson
           if (enquiry.assignedTo) {
-            recipients = [enquiry.assignedTo];
+            recipients = [enquiry.assignedTo._id || enquiry.assignedTo];
             title = 'New Lead Assigned to You';
             message = `You have been assigned a new lead: ${enquiry.firstName} ${enquiry.lastName || ''} from enquiry. Please complete the lead information.`;
             priority = 'high';
@@ -734,7 +734,7 @@ class NotificationService {
 
       // Filter out null/undefined recipients and remove duplicates
       recipients = recipients.filter(id => id !== null && id !== undefined);
-      recipients = [...new Set(recipients.map(id => id.toString()))];
+      recipients = [...new Set(recipients.map(id => (id._id || id).toString()))];
       
       if (sender) {
         recipients = recipients.filter(id => id !== sender._id.toString());
@@ -819,7 +819,7 @@ class NotificationService {
 
       // Filter out null/undefined recipients and remove duplicates
       recipients = recipients.filter(id => id !== null && id !== undefined);
-      recipients = [...new Set(recipients.map(id => id.toString()))];
+      recipients = [...new Set(recipients.map(id => (id._id || id).toString()))];
       
       if (sender) {
         recipients = recipients.filter(id => id !== sender._id.toString());
@@ -908,7 +908,7 @@ class NotificationService {
 
       // Filter out null/undefined recipients and remove duplicates
       recipients = recipients.filter(id => id !== null && id !== undefined);
-      recipients = [...new Set(recipients.map(id => id.toString()))];
+      recipients = [...new Set(recipients.map(id => (id._id || id).toString()))];
       
       if (sender) {
         recipients = recipients.filter(id => id !== sender._id.toString());
