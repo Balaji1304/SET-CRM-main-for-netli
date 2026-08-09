@@ -8,6 +8,7 @@ const Payment = require('../models/Payment');
 const { errorHandler, AppError } = require('../utils/errorHandler');
 const razorpay = require('../config/razorpay');
 const shortid = require('shortid');
+const NotificationService = require('../utils/notificationService');
 
 // Get customer's products and purchases
 exports.getCustomerProducts = async (req, res) => {
@@ -219,6 +220,21 @@ exports.recordPayment = async (req, res) => {
       }
     }
 
+    // Notify the accounts team (in-app + WhatsApp) and sales team about the received payment
+    try {
+      await NotificationService.createPaymentNotification(payment, req.user);
+      const customerName = customer ? `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || customer.businessName || customer.name : 'Customer';
+      await NotificationService.createAccountsNotification('payment_received', {
+        customerName,
+        amount,
+        paymentMethod: paymentMethod || 'online',
+        invoiceNumber: ''
+      }, req.user);
+    } catch (notificationError) {
+      console.error('Failed to create payment notification:', notificationError);
+      // Don't break the payment flow if notification fails
+    }
+
     res.json({
       success: true,
       data: {
@@ -413,6 +429,21 @@ exports.verifyRazorpayPayment = async (req, res) => {
               console.error(`Failed to generate invoice for purchase ${purchase._id} after Razorpay verification:`, invoiceError);
               // Log the error, but don't let it break the payment success flow
             }
+          }
+
+          // Notify the accounts team (in-app + WhatsApp) and sales team about the received payment
+          try {
+            await NotificationService.createPaymentNotification(payment, req.user);
+            const customerName = customer ? `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || customer.businessName || customer.name : 'Customer';
+            await NotificationService.createAccountsNotification('payment_received', {
+              customerName,
+              amount: purchase.remainingAmount,
+              paymentMethod: 'razorpay',
+              invoiceNumber: ''
+            }, req.user);
+          } catch (notificationError) {
+            console.error('Failed to create payment notification (Razorpay):', notificationError);
+            // Don't break the payment flow if notification fails
           }
 
           return res.json({

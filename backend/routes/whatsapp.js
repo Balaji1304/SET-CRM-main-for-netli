@@ -1,7 +1,72 @@
 const express = require('express');
 const router = express.Router();
-const { testWhatsAppConfig } = require('../utils/sendWhatsApp');
+const { testWhatsAppConfig, getWhatsAppTemplates, createWhatsAppTemplate } = require('../utils/sendWhatsApp');
 const { protect, authorize } = require('../middleware/auth');
+
+// @desc    List message templates from the WhatsApp template library
+// @route   GET /api/whatsapp/templates
+// @access  Private
+router.get('/templates', protect, authorize('admin'), async (req, res) => {
+  try {
+    const templates = await getWhatsAppTemplates();
+
+    const formatted = templates.map((t) => ({
+      name: t.name,
+      status: t.status,
+      category: t.category,
+      language: t.language,
+      components: t.components
+    }));
+
+    res.json({
+      success: true,
+      count: formatted.length,
+      data: formatted
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch WhatsApp template library',
+      error: error.message
+    });
+  }
+});
+
+// @desc    Create a message template in the WhatsApp template library
+// @route   POST /api/whatsapp/templates
+// @access  Private (admin only)
+router.post('/templates', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { name, language, category, components, allowCategoryChange } = req.body;
+
+    if (!name || !components || !Array.isArray(components) || components.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Template name and components array are required'
+      });
+    }
+
+    const result = await createWhatsAppTemplate({
+      name,
+      language: language || 'en_US',
+      category: category || 'UTILITY',
+      components,
+      allowCategoryChange: allowCategoryChange ?? true
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `WhatsApp template "${name}" submitted for approval`,
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create WhatsApp template',
+      error: error.response?.data?.error?.message || error.message
+    });
+  }
+});
 
 // @desc    Test WhatsApp configuration (Public for development)
 // @route   GET /api/whatsapp/test-config

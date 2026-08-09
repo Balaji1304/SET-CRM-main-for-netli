@@ -61,6 +61,161 @@ const createMockResponse = (to, type, templateName = null) => {
   };
 };
 
+// Fetch message templates directly from the WhatsApp Business API template library
+const getWhatsAppTemplates = async () => {
+  if (skipActualSending || !process.env.WABA_ID) {
+    if (skipActualSending) {
+      console.log('📚 [WHATSAPP DEV] Skipping template library fetch (dev mode)');
+    }
+    return [];
+  }
+
+  const validAccessToken = await tokenManager.getValidAccessToken();
+
+  const response = await axios.get(
+    `${WHATSAPP_BASE_URL}/${process.env.WABA_ID}/message_templates`,
+    {
+      headers: {
+        'Authorization': `Bearer ${validAccessToken}`,
+        'Content-Type': 'application/json'
+      },
+      params: { limit: 1000 },
+      timeout: 30000
+    }
+  );
+
+  const templates = response.data?.data || [];
+  whatsappCache.del('waba_templates');
+  whatsappCache.set('waba_templates', templates, 300);
+  return templates;
+};
+
+// Load the approved template library (cached 5 min)
+const getCachedWhatsAppTemplates = async () => {
+  const cached = whatsappCache.get('waba_templates');
+  if (cached) return cached;
+  return await getWhatsAppTemplates();
+};
+
+// Find an approved template by name from the library
+const findWabaTemplate = async (templateName) => {
+  const templates = await getCachedWhatsAppTemplates();
+  return templates.find(
+    (t) => t.name === templateName && (t.status === 'APPROVED' || t.status === 'ACTIVE' || !t.status)
+  );
+};
+
+// Build a body components payload that matches the template's declared body variables
+const buildWhatsAppComponents = (template, values) => {
+  if (!template) return [];
+
+  const components = [];
+  const body = (template.components || []).find((c) => c.type === 'BODY');
+  if (!body) return components;
+
+  const templateValues = Array.isArray(values) ? values : [];
+  const parameters = [];
+  for (let i = 0; i < templateValues.length; i++) {
+    parameters.push({ type: 'text', text: String(templateValues[i]) });
+  }
+
+  if (parameters.length > 0) {
+    components.push({ type: 'body', parameters });
+  }
+
+  const header = (template.components || []).find((c) => c.type === 'HEADER');
+  if (header && header.format === 'TEXT' && values && values.headerText) {
+    components.push({
+      type: 'header',
+      parameters: [{ type: 'text', text: String(values.headerText) }]
+    });
+  }
+
+  return components;
+};
+
+// Send a template message resolved from the WhatsApp template library.
+// Returns { success, source: 'library' } or throws (caller can fall back to text).
+const sendLibraryTemplate = async (options) => {
+  const { to, templateName, values = [], countryCode = '+91' } = options;
+
+  if (typeof templateName !== 'string' || !templateName) {
+    throw new Error('Template name is required to send from the library');
+  }
+
+  const template = await findWabaTemplate(templateName);
+  if (!template) {
+    throw new Error(`Template "${templateName}" not found in the WhatsApp template library`);
+  }
+
+  const components = buildWhatsAppComponents(template, values);
+
+  const result = await sendWhatsAppTemplate({
+    to,
+    templateName,
+    components,
+    countryCode
+  });
+
+  return { ...result, source: 'library', templateName };
+};
+
+// Create (or re-submit) a message template in the WhatsApp template library via the Cloud API.
+// Example payload:
+//   createWhatsAppTemplate({
+//     name: 'lead_assignment',
+//     language: 'en',
+//     category: 'MARKETING',          // MARKETING | UTILITY | AUTHENTICATION
+//     components: [{
+//       type: 'BODY',
+//       text: 'Hello {{1}},\nYou have a new lead: {{2}}',
+//       example: { body_text: [['Sales Rep', 'Acme Corp']] }
+//     }],
+//     allowCategoryChange: true
+//   })
+const createWhatsAppTemplate = async ({
+  name,
+  language = 'en_US',
+  category = 'UTILITY',
+  components = [],
+  allowCategoryChange = true
+}) => {
+  if (skipActualSending) {
+    console.log(`📚 [WHATSAPP DEV] Skipping template creation (dev mode): ${name}`);
+    return { success: true, isDevelopmentMode: true, name };
+  }
+
+  if (!process.env.WABA_ID) {
+    throw new Error('WABA_ID not configured; cannot create WhatsApp templates');
+  }
+
+  const validAccessToken = await tokenManager.getValidAccessToken();
+
+  const response = await axios.post(
+    `${WHATSAPP_BASE_URL}/${process.env.WABA_ID}/message_templates`,
+    {
+      name,
+      language,
+      category,
+      components
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${validAccessToken}`,
+        'Content-Type': 'application/json'
+      },
+      params: allowCategoryChange ? { 'allow_category_change': 'true' } : {},
+      timeout: 30000
+    }
+  );
+
+  // Invalidate the local template cache so new templates are picked up
+  whatsappCache.del('waba_templates');
+
+  console.log(`✅ WhatsApp template "${name}" submitted:`, response.data.id);
+  return { success: true, id: response.data?.id, name, status: 'SUBMITTED' };
+};
+
 // Send WhatsApp template message
 const sendWhatsAppTemplate = async (options) => {
   try {
@@ -775,6 +930,12 @@ module.exports = {
   sendPaymentReceivedWhatsApp,
   sendPaymentPendingWhatsApp,
   sendInvoiceDueWhatsApp,
+  // Template library support
+  getWhatsAppTemplates,
+  getCachedWhatsAppTemplates,
+  findWabaTemplate,
+  sendLibraryTemplate,
+  createWhatsAppTemplate,
   testWhatsAppConfig,
   formatPhoneNumber
 }; 

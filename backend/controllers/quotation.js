@@ -314,6 +314,21 @@ exports.createQuotation = async (req, res) => {
       // Don't fail the main operation if notification fails
     }
 
+    // Notify sales heads + accounts (in-app + WhatsApp) that a quotation needs approval
+    try {
+      const leadInfo = populatedQuotation.lead;
+      const customerName = leadInfo ? `${leadInfo.firstName || ''} ${leadInfo.lastName || ''}`.trim() : 'Customer';
+      await NotificationService.createSalesNotification('quotation_pending_approval', {
+        quotationNumber: quotation.quotationNumber,
+        customerName,
+        amount: total,
+        createdBy: req.user.id,
+        daysWaiting: 0
+      }, req.user);
+    } catch (notificationError) {
+      console.error('Failed to create quotation pending-approval notification:', notificationError);
+    }
+
     res.status(201).json({
       success: true,
       data: quotationWithItems

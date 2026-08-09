@@ -136,6 +136,11 @@ if (process.env.WHATSAPP_ACCESS_TOKEN) {
   console.log('WhatsApp Token Manager initialized with auto-refresh');
 }
 
+// Initialize reminder scheduler (lead follow-ups, payment overdue checks)
+const reminderScheduler = require('./utils/reminderScheduler');
+reminderScheduler.startReminderScheduler();
+console.log('Reminder scheduler initialized (follow-ups every 6h, overdue checks every 6h)');
+
 // Start the Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

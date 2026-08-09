@@ -339,7 +339,7 @@ class NotificationService {
     }
   }
 
-  // Create payment notification
+// Create payment notification
   static async createPaymentNotification(payment, sender = null) {
     try {
       // Notify accounts department and sales team
@@ -356,6 +356,9 @@ class NotificationService {
         return [];
       }
 
+      const amountPaid = payment?.amountPaid ?? payment?.amount ?? 0;
+      const method = payment?.paymentMethod || payment?.method || 'payment';
+
       const notifications = await Promise.all(
         recipients.map(recipientId => 
           Notification.createNotification({
@@ -363,13 +366,13 @@ class NotificationService {
             sender: sender?._id || null,
             type: 'payment_received',
             title: 'Payment Received',
-            message: `Payment of ₹${payment.amount} has been received`,
+            message: `Payment of ₹${amountPaid} has been received via ${method}`,
             priority: 'medium',
             data: {
               paymentId: payment._id,
-              amount: payment.amount,
-              method: payment.method,
-              status: payment.status,
+              amount: amountPaid,
+              method,
+              status: payment.status || 'COMPLETED',
               redirectUrl: getRedirectUrl('payment_received'),
               entityId: payment._id,
               entityType: 'payment'

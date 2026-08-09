@@ -325,6 +325,16 @@ exports.assignEnquiryToSalesperson = async (req, res) => {
         createdFromEnquiry: true,
         enquiryId: enquiry._id
       });
+
+      // Notify the assigned salesperson with WhatsApp (lead_assigned)
+      await NotificationService.createSalesNotification('lead_assigned', {
+        assignedTo: salespersonId,
+        leadName: `${lead.firstName} ${lead.lastName || ''}`.trim(),
+        leadPhone: lead.phone,
+        leadEmail: lead.email,
+        leadSource: lead.leadSource,
+        priority: 'medium'
+      }, req.user);
     } catch (notificationError) {
       console.error('Failed to create assignment notifications:', notificationError);
       // Don't fail the main operation if notification fails

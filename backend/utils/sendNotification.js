@@ -31,7 +31,9 @@ const {
   // Accounts Department WhatsApp Functions
   sendPaymentReceivedWhatsApp,
   sendPaymentPendingWhatsApp,
-  sendInvoiceDueWhatsApp
+  sendInvoiceDueWhatsApp,
+  // Template library support
+  sendLibraryTemplate
 } = require('./sendWhatsApp');
 
 // Determine available contact methods for a customer using preferredContactMethod
@@ -621,6 +623,31 @@ const sendServiceEngineerWhatsApp = async (type, engineer, data) => {
     const phone = engineer.whatsapp || engineer.phone;
     const countryCode = engineer.countryCode || '+91';
 
+    // First try the approved templates from the WhatsApp template library.
+    // Falls back to free-form text when the template is missing/pending approval.
+    const libraryTemplateMap = {
+      installation_assignment: { name: 'installation_assignment', values: [data.orderNumber, data.customerName, data.customerAddress, data.installationDate] },
+      installation_scheduled: { name: 'installation_scheduled', values: [engineer.name, data.customerName, data.installationDate, data.orderNumber] },
+      installation_reminder: { name: 'installation_reminder', values: [engineer.name, data.customerName, data.customerPhone, data.installationDate, data.orderNumber] },
+      urgent_customer_contact: { name: 'urgent_customer_contact', values: [engineer.name, data.customerName, data.customerPhone, data.message, data.orderNumber] }
+    };
+
+    const libraryEntry = libraryTemplateMap[type];
+    if (libraryEntry) {
+      try {
+        const libraryResult = await sendLibraryTemplate({
+          to: phone,
+          templateName: libraryEntry.name,
+          values: libraryEntry.values,
+          countryCode
+        });
+        console.log(`WhatsApp template (library) sent to engineer ${engineer.name}: ${type}`);
+        return { success: true, result: libraryResult };
+      } catch (libraryError) {
+        console.log(`Template "${libraryEntry.name}" unavailable, falling back to text for engineer ${engineer.name}: ${libraryError.message}`);
+      }
+    }
+
     let result;
     switch (type) {
       case 'installation_assignment':
@@ -737,6 +764,31 @@ const sendSalesTeamWhatsApp = async (type, salesTeamUser, data) => {
     const phone = salesTeamUser.whatsapp || salesTeamUser.phone;
     const countryCode = salesTeamUser.countryCode || '+91';
 
+    // First try the approved templates from the WhatsApp template library.
+    // Falls back to free-form text when the template is missing/pending approval.
+    const libraryTemplateMap = {
+      lead_assignment: { name: 'lead_assignment', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.leadEmail, data.leadSource, data.priority || 'medium'] },
+      follow_up_reminder: { name: 'follow_up_reminder', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.daysSinceLastContact] },
+      quotation_pending: { name: 'quotation_pending', values: [salesTeamUser.name, data.quotationNumber, data.customerName, data.amount, data.daysWaiting || 0] },
+      hot_lead_alert: { name: 'hot_lead_alert', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.reason] }
+    };
+
+    const libraryEntry = libraryTemplateMap[type];
+    if (libraryEntry) {
+      try {
+        const libraryResult = await sendLibraryTemplate({
+          to: phone,
+          templateName: libraryEntry.name,
+          values: libraryEntry.values,
+          countryCode
+        });
+        console.log(`WhatsApp template (library) sent to sales person ${salesTeamUser.name}: ${type}`);
+        return { success: true, result: libraryResult };
+      } catch (libraryError) {
+        console.log(`Template "${libraryEntry.name}" unavailable, falling back to text for sales person ${salesTeamUser.name}: ${libraryError.message}`);
+      }
+    }
+
     let result;
     switch (type) {
       case 'lead_assignment':
@@ -816,6 +868,30 @@ const sendAccountsTeamWhatsApp = async (type, accountsUser, data) => {
 
     const phone = accountsUser.whatsapp || accountsUser.phone;
     const countryCode = accountsUser.countryCode || '+91';
+
+    // First try the approved templates from the WhatsApp template library.
+    // Falls back to free-form text when the template is missing/pending approval.
+    const libraryTemplateMap = {
+      payment_received: { name: 'payment_received', values: [accountsUser.name, data.customerName, data.amount, data.paymentMethod, data.invoiceNumber] },
+      payment_pending: { name: 'payment_pending', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.daysOverdue] },
+      invoice_due: { name: 'invoice_due', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.dueDate, data.daysUntilDue] }
+    };
+
+    const libraryEntry = libraryTemplateMap[type];
+    if (libraryEntry) {
+      try {
+        const libraryResult = await sendLibraryTemplate({
+          to: phone,
+          templateName: libraryEntry.name,
+          values: libraryEntry.values,
+          countryCode
+        });
+        console.log(`WhatsApp template (library) sent to accounts person ${accountsUser.name}: ${type}`);
+        return { success: true, result: libraryResult };
+      } catch (libraryError) {
+        console.log(`Template "${libraryEntry.name}" unavailable, falling back to text for accounts person ${accountsUser.name}: ${libraryError.message}`);
+      }
+    }
 
     let result;
     switch (type) {

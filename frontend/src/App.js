@@ -209,7 +209,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="cases" element={
-              <ProtectedRoute allowedRoles={['service_engineer']}>
+              <ProtectedRoute allowedRoles={['service_engineer', 'admin']}>
                 <CasesPage />
               </ProtectedRoute>
             } />
