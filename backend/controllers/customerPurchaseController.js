@@ -12,6 +12,7 @@ const { notifyClient, notifyRole } = require('../utils/websocket');
 const OrderTracking = require('../models/OrderTracking');
 const TrackingService = require('../utils/trackingService');
 const { generateOrderFormPDF, getOrderFormData } = require('../utils/generateOrderForm');
+const NotificationService = require('../utils/notificationService');
 
 // Convert lead to customer when quotation is approved
 exports.convertLeadToCustomer = async (req, res) => {
@@ -330,6 +331,14 @@ exports.recordPayment = async (req, res) => {
       }
     }
 
+    // Notify the accounts and sales team about the received payment
+    try {
+      await NotificationService.createPaymentNotification(payment, req.user);
+    } catch (notificationError) {
+      console.error('Failed to create payment notification (customerPurchase recordPayment):', notificationError);
+      // Don't break the payment flow if notification fails
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -439,6 +448,13 @@ exports.verifyManualPayment = async (req, res) => {
       }
     } catch (error) {
       console.error('Error sending payment verification notification:', error);
+    }
+
+    // Create in-app payment notification after successful verification
+    try {
+      await NotificationService.createPaymentNotification(payment, req.user);
+    } catch (notificationError) {
+      console.error('Failed to create payment notification (verifyManualPayment):', notificationError);
     }
 
     return res.json({ success: true, message: 'Payment verified' });
