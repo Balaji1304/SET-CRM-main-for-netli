@@ -154,6 +154,7 @@ const sendLibraryTemplate = async (options) => {
     to,
     templateName,
     components,
+    languageCode: template.language || 'en_US',
     countryCode
   });
 
