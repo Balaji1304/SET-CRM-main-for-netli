@@ -9,6 +9,20 @@ services:
         value: "true"
       - key: PUPPETEER_EXECUTABLE_PATH
         value: "/usr/bin/google-chrome-stable"
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_APP_ID
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_SYSTEM_USER_ID
+        sync: false
+      - key: WABA_ID
+        sync: false
+      - key: WHATSAPP_DEV_MODE
+        sync: false
     installPackages:
       - gconf-service
       - libasound2
