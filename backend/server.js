@@ -4,10 +4,20 @@ const http = require('http');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const { initWebSocket } = require('./utils/websocket');
-const path = require('path');
+const { securityHeaders, authLimiter, apiLimiter, sanitizeInput } = require('./middleware/security');
+
+// Refuse to start without a JWT secret: tokens would otherwise be unverifiable or forgeable
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error('FATAL: JWT_SECRET must be set and at least 32 characters long');
+  process.exit(1);
+}
 
 const app = express();
 const server = http.createServer(app);
+
+// Behind Render's proxy: needed so rate limiting sees the real client IP
+app.set('trust proxy', 1);
+app.use(securityHeaders);
 
 // Development debugging middleware - only active in development
 if (process.env.NODE_ENV === 'development') {
@@ -67,15 +77,25 @@ app.use(cors({
 // Pre-flight requests
 app.options('*', cors());
 
-// Middleware - optimized JSON parsing
-app.use(express.json({ limit: '10mb' }));
+// Middleware - JSON parsing. Keep the raw bytes so webhook signatures (WhatsApp) can be verified.
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Strip MongoDB operators ($ne, $gt, ...) from user input
+app.use(sanitizeInput);
+
+// Rate limiting
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter);
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
-  dbName: 'solar-crm',
-  useNewUrlParser: true,
-  useUnifiedTopology: true
+  dbName: 'solar-crm'
 })
 .then(() => console.log('MongoDB Connected'))
 .catch(err => {
@@ -117,13 +137,15 @@ app.use('/api/dashboard', dashboardRoutes);
 const packageRoutes = require('./routes/packageRoutes.js');
 app.use('/api/packages', packageRoutes);
 
-// Production-only error handler
+// Central error handler: client errors (4xx) keep their message, server errors are hidden in production
 app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
-  res.status(statusCode).json({
-    success: false,
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
-  });
+  let statusCode = err.statusCode || err.status || 500;
+  if (err.name === 'MulterError') statusCode = 400; // e.g. file too large
+  const message = statusCode < 500 || process.env.NODE_ENV === 'development'
+    ? err.message
+    : 'Internal Server Error';
+  if (statusCode >= 500) console.error('Unhandled error:', err);
+  res.status(statusCode).json({ success: false, message });
 });
 
 // Initialize WebSocket
@@ -146,6 +168,3 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT} (${process.env.NODE_ENV})`);
 });
-
-// --------------------------deployment------------------------------
-const __dirname1 = path.resolve();

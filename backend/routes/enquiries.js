@@ -13,18 +13,24 @@ const {
   exportEnquiries
 } = require('../controllers/enquiry');
 
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
+const { ROLES } = require('../utils/accessControl');
 
 // All routes require authentication
 router.use(protect);
 
 // General enquiry routes
+
+
+// Assignment related routes (must come before /:id routes)
+// Salesperson list is used by several staff pages; everything else is front office only
+router.get('/salespersons', authorize(ROLES.STAFF), getSalespersons);
+
+router.use(authorize(ROLES.FRONT_OFFICE));
+
 router.route('/')
   .get(getEnquiries)
   .post(createEnquiry);
-
-// Assignment related routes (must come before /:id routes)
-router.get('/salespersons', getSalespersons);
 router.get('/pending-assignment', getPendingAssignmentEnquiries);
 router.get('/my-enquiries', getMyEnquiries);
 router.post('/:id/assign', assignEnquiryToSalesperson);

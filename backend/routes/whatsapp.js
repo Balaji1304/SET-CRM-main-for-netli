@@ -71,7 +71,7 @@ router.post('/templates', protect, authorize('admin'), async (req, res) => {
 // @desc    Test WhatsApp configuration (Public for development)
 // @route   GET /api/whatsapp/test-config
 // @access  Public (in development mode)
-router.get('/test-config', async (req, res) => {
+router.get('/test-config', protect, authorize('admin'), async (req, res) => {
   try {
     const testResult = await testWhatsAppConfig();
     
@@ -92,7 +92,7 @@ router.get('/test-config', async (req, res) => {
 // @desc    Get WhatsApp integration status (Public for development)
 // @route   GET /api/whatsapp/status
 // @access  Public (in development mode)
-router.get('/status', async (req, res) => {
+router.get('/status', protect, authorize('admin'), async (req, res) => {
   try {
     const hasAccessToken = !!process.env.WHATSAPP_ACCESS_TOKEN;
     const hasPhoneNumberId = !!process.env.WHATSAPP_PHONE_NUMBER_ID;
