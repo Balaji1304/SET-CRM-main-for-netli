@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { escapeRegex } = require('../utils/accessControl');
 const { AppError, errorHandler } = require('../utils/errorHandler');
 
 // @desc    Check if email already exists
@@ -143,10 +144,12 @@ exports.getAllUsers = async (req, res) => {
     
     // Search filter
     if (search) {
+      // Escape user input so it is matched literally (prevents ReDoS / regex injection)
+      const safeSearch = escapeRegex(String(search).slice(0, 100));
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
+        { name: { $regex: safeSearch, $options: 'i' } },
+        { email: { $regex: safeSearch, $options: 'i' } },
+        { phone: { $regex: safeSearch, $options: 'i' } }
       ];
     }
     

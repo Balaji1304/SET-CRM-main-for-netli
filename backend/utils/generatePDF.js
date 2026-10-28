@@ -42,8 +42,8 @@ const generatePDF = async (template, data) => {
       timeout: 30000,
       renderDelay: 1000,
       zoomFactor: '1.0',
-      base: `file://${path.resolve(__dirname, '..')}/`,
-      localUrlAccess: true,
+      // Never let rendered HTML read local files (CVE-2020-21056). All template assets are remote https URLs.
+      localUrlAccess: false,
       printBackground: true,
       width: '210mm',
       height: '297mm',

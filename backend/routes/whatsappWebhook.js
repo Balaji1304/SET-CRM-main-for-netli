@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const tokenManager = require('../utils/whatsappTokenManager');
+const { protect, authorize } = require('../middleware/auth');
 
 // @desc    Webhook for WhatsApp Business API
 // @route   POST /api/whatsapp/webhook
@@ -8,18 +10,31 @@ const tokenManager = require('../utils/whatsappTokenManager');
 router.post('/webhook', async (req, res) => {
   try {
     const body = req.body;
-    
-    // Verify webhook signature if configured
+
+    // Verify Meta's X-Hub-Signature-256 (HMAC-SHA256 of the raw body with the app secret)
     const signature = req.headers['x-hub-signature-256'];
     const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
-    
-    // Log the webhook for debugging
-    console.log('WhatsApp webhook received:', JSON.stringify(body, null, 2));
-    
+    const appSecret = process.env.WHATSAPP_APP_SECRET;
+
+    if (!appSecret) {
+      console.error('WhatsApp webhook rejected: WHATSAPP_APP_SECRET is not configured');
+      return res.sendStatus(403);
+    }
+    if (!signature || !req.rawBody) {
+      return res.sendStatus(403);
+    }
+    const expected = 'sha256=' + crypto.createHmac('sha256', appSecret).update(req.rawBody).digest('hex');
+    const receivedBuf = Buffer.from(String(signature), 'utf8');
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    if (receivedBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(receivedBuf, expectedBuf)) {
+      console.warn('WhatsApp webhook rejected: invalid signature');
+      return res.sendStatus(403);
+    }
+
     // Handle webhook verification (Meta sends this during setup)
-    if (req.query['hub.mode'] === 'subscribe' && req.query['hub.verify_token'] === verifyToken) {
+    if (verifyToken && req.query['hub.mode'] === 'subscribe' && req.query['hub.verify_token'] === verifyToken) {
       console.log('WhatsApp webhook verified successfully');
-      return res.status(200).send(req.query['hub.challenge']);
+      return res.status(200).type('text/plain').send(String(req.query['hub.challenge'] || ''));
     }
     
     // Process incoming messages and status updates
@@ -73,9 +88,10 @@ router.get('/webhook', (req, res) => {
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
   
-  if (mode === 'subscribe' && token === verifyToken) {
+  if (verifyToken && mode === 'subscribe' && token === verifyToken) {
     console.log('WhatsApp webhook verified');
-    res.status(200).send(challenge);
+    // Plain text so the echoed challenge can never be rendered as HTML
+    res.status(200).type('text/plain').send(String(challenge || ''));
   } else {
     res.status(403).send('Forbidden');
   }
@@ -84,7 +100,7 @@ router.get('/webhook', (req, res) => {
 // @desc    Test WhatsApp configuration (Public for development)
 // @route   GET /api/whatsapp/test-config
 // @access  Public (in development mode)
-router.get('/test-config', async (req, res) => {
+router.get('/test-config', protect, authorize('admin'), async (req, res) => {
   try {
     // Test token validity
     const validToken = await tokenManager.getValidAccessToken();
@@ -112,7 +128,7 @@ router.get('/test-config', async (req, res) => {
 // @desc    Get WhatsApp integration status (Public for development)
 // @route   GET /api/whatsapp/status
 // @access  Public (in development mode)
-router.get('/status', async (req, res) => {
+router.get('/status', protect, authorize('admin'), async (req, res) => {
   try {
     const hasAccessToken = !!process.env.WHATSAPP_ACCESS_TOKEN;
     const hasPhoneNumberId = !!process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -166,7 +182,7 @@ router.get('/status', async (req, res) => {
 // @desc    Refresh WhatsApp token manually
 // @route   POST /api/whatsapp/refresh-token
 // @access  Private (admin only)
-router.post('/refresh-token', async (req, res) => {
+router.post('/refresh-token', protect, authorize('admin'), async (req, res) => {
   try {
     const newToken = await tokenManager.refreshToken();
     

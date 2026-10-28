@@ -4,7 +4,7 @@ const User = require('../models/User');
 exports.protect = async (req, res, next) => {
   // Extract token from header
   let token;
-  if (req.headers.authorization?.startsWith('Bearer')) {
+  if (req.headers.authorization?.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
   }
 
@@ -16,31 +16,20 @@ exports.protect = async (req, res, next) => {
     });
   }
 
+  if (!process.env.JWT_SECRET) {
+    console.error('JWT_SECRET is not configured; rejecting authenticated request');
+    return res.status(500).json({
+      success: false,
+      message: 'Server authentication is not configured'
+    });
+  }
+
   try {
-    // Verify token
+    // Verify token (jwt.verify also rejects expired tokens)
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Check token expiration
-    if (decoded.exp < Date.now() / 1000) {
-      return res.status(401).json({
-        success: false,
-        message: 'Token has expired'
-      });
-    }
-
-    // Find user 
+    // Find user
     req.user = await User.findById(decoded.id);
-    
-    // --- START DEBUG LOGGING ---
-    console.log('--- PROTECT MIDDLEWARE ---');
-    if (req.user) {
-      console.log('User found:', req.user._id);
-      console.log('User role:', req.user.role);
-    } else {
-      console.log('User not found for token ID:', decoded.id);
-    }
-    console.log('-------------------------');
-    // --- END DEBUG LOGGING ---
 
     if (!req.user) {
       return res.status(401).json({
@@ -48,7 +37,15 @@ exports.protect = async (req, res, next) => {
         message: 'User not found'
       });
     }
-    
+
+    // Deactivated users must not keep using previously issued tokens
+    if (req.user.isActive === false) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is deactivated'
+      });
+    }
+
     next();
   } catch (err) {
     return res.status(401).json({
@@ -66,10 +63,10 @@ exports.authorize = (...rolesOrArray) => {
       ? rolesOrArray[0]
       : rolesOrArray;
 
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: `User role ${req.user.role} is not authorized to access this route`
+        message: `User role ${req.user ? req.user.role : 'unknown'} is not authorized to access this route`
       });
     }
     next();

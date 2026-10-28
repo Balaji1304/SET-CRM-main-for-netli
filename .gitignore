@@ -1,0 +1,9 @@
+# Secrets: never commit real environment files
+.env
+.env.*
+!.env.example
+**/.env.txt
+SET-
+
+# Logs
+*.log

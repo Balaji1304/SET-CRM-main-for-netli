@@ -48,7 +48,9 @@ class PDFReportService {
         },
         timeout: 30000,
         type: 'pdf',
-        quality: '75'
+        quality: '75',
+        // Never let rendered HTML read local files (CVE-2020-21056)
+        localUrlAccess: false
       };
       
       // Generate PDF buffer
