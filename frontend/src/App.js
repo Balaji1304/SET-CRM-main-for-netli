@@ -69,7 +69,7 @@ function App() {
           <Route 
             path="/invoice/:id" 
             element={ 
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'admin', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'admin', 'sales_head', 'marketing_coordinator', 'accounts_department']}>
                 <ProformaInvoicePage />
               </ProtectedRoute>
             }
@@ -279,7 +279,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="service-reports" element={
-              <ProtectedRoute allowedRoles={['service_engineer', 'product_head']}>
+              <ProtectedRoute allowedRoles={['service_engineer', 'product_head', 'admin']}>
                 <ServiceReportsPage />
               </ProtectedRoute>
             } />

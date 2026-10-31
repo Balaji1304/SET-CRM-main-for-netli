@@ -374,7 +374,7 @@ export default function QuotationDetailsPage() {
                 </button>
               </>
             )}
-            {quotation.status === 'sent' && !isSendingQuotation && user?.role !== 'sales_person' && (
+            {quotation.status === 'sent' && !isSendingQuotation && ['accounts_department', 'admin'].includes(user?.role) && (
               <button
                 onClick={() => {
                   setConfirmAction(() => handleApproveQuotation);
