@@ -400,7 +400,7 @@ const TicketsPage = () => {
     if (diffInHours < 24) return `${diffInHours}h ago`;
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays}d ago`;
-    return ticketDate.toLocaleDateString();
+    return ticketDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   return (

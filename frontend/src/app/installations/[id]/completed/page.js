@@ -157,17 +157,10 @@ const InstallationCompletedSummary = () => {
                       <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                         <span className="text-sm font-medium text-gray-500">Submitted At:</span>
                         <span className="text-sm text-gray-900">
-                          {summary.completedAt ? new Date(summary.completedAt).toLocaleString('en-GB', {
+                          {new Date(summary.completedAt || Date.now()).toLocaleString('en-IN', {
                             year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: true
-                          }) : new Date().toLocaleString('en-GB', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
+                            month: 'short',
+                            day: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit',
                             hour12: true

@@ -10,7 +10,7 @@ import {
   assignTask,
 } from '../../services/purchaseOrderService';
 import { useAuth } from '../../context/AuthContext';
-import { toast } from 'react-toastify';
+import { toast } from '../../components/Toast';
 import AssignTaskModal from '../../components/dashboard/AssignTaskModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { useNavigate } from 'react-router-dom';
@@ -35,6 +35,7 @@ import {
   X,
   RotateCcw
 } from 'lucide-react';
+import { formatDate } from '../../utils/formatNumber';
 
 // Helper function to format enum values for display
 const formatDisplayValue = (value) => {
@@ -191,7 +192,7 @@ const PurchaseOrderCard = ({ po, user, handleAcceptOrder, handleEstimatedDispatc
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Created</p>
             <p className="text-sm font-medium text-gray-900">
-              {new Date(po.createdAt).toLocaleDateString()}
+              {formatDate(po.createdAt)}
             </p>
           </div>
         </div>
@@ -201,7 +202,7 @@ const PurchaseOrderCard = ({ po, user, handleAcceptOrder, handleEstimatedDispatc
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Install Date</p>
             <p className="text-sm font-medium text-gray-900 mobile-truncate">
-              {po.installationDate ? new Date(po.installationDate).toLocaleDateString() : 'Not set'}
+              {po.installationDate ? formatDate(po.installationDate) : 'Not set'}
             </p>
           </div>
         </div>
@@ -213,7 +214,7 @@ const PurchaseOrderCard = ({ po, user, handleAcceptOrder, handleEstimatedDispatc
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Est. Dispatch</p>
             <p className="text-sm font-medium text-gray-900">
-              {new Date(po.estimatedDispatchDate).toLocaleDateString()}
+              {formatDate(po.estimatedDispatchDate)}
             </p>
           </div>
         </div>
@@ -505,7 +506,7 @@ export default function PurchaseOrdersPage() {
     }
 
     setConfirmTitle('Accept Order');
-    setConfirmMessage(`Are you sure you want to accept this order with estimated dispatch date: ${new Date(estimatedDate).toLocaleDateString()}?`);
+    setConfirmMessage(`Are you sure you want to accept this order with estimated dispatch date: ${formatDate(estimatedDate)}?`);
     setConfirmAction('acceptOrder');
     setConfirmData({ id, estimatedDate });
     setShowConfirmDialog(true);
@@ -593,7 +594,7 @@ export default function PurchaseOrdersPage() {
     }
 
     setConfirmTitle('Allocate Installation Date');
-    setConfirmMessage(`Are you sure you want to allocate ${new Date(date).toLocaleDateString()} as the installation date?`);
+    setConfirmMessage(`Are you sure you want to allocate ${formatDate(date)} as the installation date?`);
     setConfirmAction('allocateDate');
     setConfirmData({ id, date });
     setShowConfirmDialog(true);
@@ -1049,13 +1050,13 @@ export default function PurchaseOrdersPage() {
                         </span>
                       </td>
                       <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
-                        {new Date(po.createdAt).toLocaleDateString()}
+                        {formatDate(po.createdAt)}
                       </td>
                       <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                         <span className="mobile-truncate">{po.customerId ? `${po.customerId.firstName} ${po.customerId.lastName}`: 'N/A'}</span>
                       </td>
                       <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
-                        <span className="mobile-truncate">{po.installationDate ? new Date(po.installationDate).toLocaleDateString() : 'Not set'}</span>
+                        <span className="mobile-truncate">{po.installationDate ? formatDate(po.installationDate) : 'Not set'}</span>
                       </td>
                       <td className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                         <span className="mobile-truncate">{po.assignedEngineerId ? po.assignedEngineerId.name : 'Not assigned'}</span>
@@ -1325,7 +1326,7 @@ export default function PurchaseOrdersPage() {
           onClose={closeAssignTaskModal}
           onAssign={handleTaskAssignment}
           isAssigning={isAssigning}
-          formatDate={(date) => new Date(date).toLocaleDateString()}
+          formatDate={(date) => formatDate(date)}
         />
       )}
       

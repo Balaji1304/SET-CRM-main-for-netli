@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AlertCircle, Check, CreditCard, ArrowLeft, IndianRupee, Calendar, FileText, Loader2 } from 'lucide-react';
 import { getPurchaseDetails, makePayment, createRazorpayPaymentLink, verifyRazorpayPayment, recordManualPayment } from '../../../services/customerService';
+import { formatCurrency } from '../../../utils/formatNumber';
 
 // Custom styles for mobile responsive design
 const customStyles = `
@@ -470,15 +471,15 @@ export default function RemainingPaymentPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
                   <span className="text-sm text-gray-600">Total Amount:</span>
-                  <span className="text-sm font-semibold text-gray-900">₹{purchase?.totalAmount.toLocaleString('en-IN')}</span>
+                  <span className="text-sm font-semibold text-gray-900">{formatCurrency(purchase?.totalAmount)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
                   <span className="text-sm text-gray-600">Advance Paid:</span>
-                  <span className="text-sm font-semibold text-gray-900">₹{purchase?.advancePaid.toLocaleString('en-IN')}</span>
+                  <span className="text-sm font-semibold text-gray-900">{formatCurrency(purchase?.advancePaid)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2">
                   <span className="text-sm text-gray-600">Remaining Balance:</span>
-                  <span className="text-lg font-bold text-primary">₹{purchase?.remainingAmount.toLocaleString('en-IN')}</span>
+                  <span className="text-lg font-bold text-primary">{formatCurrency(purchase?.remainingAmount)}</span>
                 </div>
               </div>
             </div>
@@ -501,7 +502,7 @@ export default function RemainingPaymentPage() {
                 ) : (
                   <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
                 )}
-                <span className="text-sm">Pay ₹{purchase?.remainingAmount.toLocaleString('en-IN')} Online</span>
+                <span className="text-sm">Pay {formatCurrency(purchase?.remainingAmount)} Online</span>
               </button>
             </div>
           </div>
@@ -543,7 +544,7 @@ export default function RemainingPaymentPage() {
                       max={purchase?.remainingAmount}
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Enter amount to pay (up to ₹{purchase?.remainingAmount.toLocaleString('en-IN')})</p>
+                  <p className="text-xs text-gray-500 mt-1">Enter amount to pay (up to {formatCurrency(purchase?.remainingAmount)})</p>
                 </div>
 
                 <div>

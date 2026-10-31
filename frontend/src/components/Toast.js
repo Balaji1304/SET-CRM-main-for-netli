@@ -104,4 +104,11 @@ export const ToastContainer = () => {
   );
 };
 
+export const toast = {
+  success: (msg, duration) => window.showToast?.(msg, 'success', duration),
+  error: (msg, duration) => window.showToast?.(msg, 'error', duration),
+  info: (msg, duration) => window.showToast?.(msg, 'info', duration),
+  warning: (msg, duration) => window.showToast?.(msg, 'warning', duration),
+};
+
 export default Toast;

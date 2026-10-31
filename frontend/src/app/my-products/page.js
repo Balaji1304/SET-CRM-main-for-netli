@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Package, AlertCircle, ChevronDown, ExternalLink, ShoppingBag, FileText, Loader2, AlertTriangle, Search, User, Filter, Calendar, RotateCcw } from 'lucide-react';
 import { getCustomerPurchasesByUser } from '../../services/purchaseOrderService';
 import { useAuth } from '../../context/AuthContext';
+import { formatDate, formatCurrency } from '../../utils/formatNumber';
 
 export default function MyProductsPage() {
   const [quotations, setQuotations] = useState({});
@@ -181,18 +182,6 @@ export default function MyProductsPage() {
     window.location.href = `/invoice/${customerPurchaseId}`;
   };
 
-  const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-  
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
 
   if (loading) {
     return (

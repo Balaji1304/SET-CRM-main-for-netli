@@ -62,7 +62,7 @@ export default function ProductBrochurePage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight text-[#FF7300]">
+        <h1 className="text-3xl font-bold tracking-tight text-primary">
           {product.name} - Brochure
         </h1>
         <button
@@ -99,7 +99,7 @@ export default function ProductBrochurePage() {
           />
           <button
             onClick={handleUpload}
-            className="px-4 py-2 bg-[#FF7300] text-white rounded-md hover:bg-[#FF8800]"
+            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-orange-600"
           >
             Upload Brochure
           </button>

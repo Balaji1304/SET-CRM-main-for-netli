@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Filter, Plus, Edit, Trash2, Key, UserCheck, UserX, RotateCcw, ChevronDown, Users, Shield, Eye, AlertTriangle, Loader2, X, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import { formatDate } from '../../utils/formatNumber';
 import {
   getAllUsers,
   createUser,
@@ -1494,7 +1495,7 @@ export default function UserManagementPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(user.createdAt).toLocaleDateString('en-GB')}
+                        {formatDate(user.createdAt)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

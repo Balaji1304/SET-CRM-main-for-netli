@@ -3,7 +3,8 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { X, CheckCircle, Clock, FileText, Camera } from 'lucide-react';
 import { useAuth } from '../../../../context/AuthContext';
 import { getInstallationForSignoff, submitCustomerSignoff } from '../../../../services/installationService';
-import { toast } from 'react-toastify';
+import { toast } from '../../../../components/Toast';
+import { formatDate } from '../../../../utils/formatNumber';
 
 // Custom styles for mobile responsive design
 const customStyles = `
@@ -312,11 +313,7 @@ const CustomerSignoff = () => {
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                     <span className="text-sm font-medium text-gray-500">Installation Date:</span>
                     <span className="text-sm text-gray-900">
-                      {installation?.installationDate ? new Date(installation.installationDate).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      }) : '—'}
+                      {formatDate(installation?.installationDate)}
                     </span>
                   </div>
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">

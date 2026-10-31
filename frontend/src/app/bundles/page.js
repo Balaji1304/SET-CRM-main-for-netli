@@ -7,6 +7,7 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import ExportButton from '../../components/ExportButton';
 import { downloadCSV } from '../../utils/csv';
 import { useAuth } from '../../context/AuthContext';
+import { formatDate } from '../../utils/formatNumber';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -714,7 +715,7 @@ export default function BundlesPage() {
           placeholder={placeholder}
           required={required}
           rows={rows}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target resize-vertical"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target resize-vertical"
         />
       ) : (
         <input
@@ -727,7 +728,7 @@ export default function BundlesPage() {
           required={required}
           step={type === 'number' ? '0.01' : undefined}
           min={type === 'number' ? '0' : undefined}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target"
         />
       )}
     </div>
@@ -745,7 +746,7 @@ export default function BundlesPage() {
           value={bundleForm[name] || ''}
           onChange={(e) => handleFormChange(name, e.target.value)}
           required={required}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target appearance-none"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target appearance-none"
         >
           <option value="">Select {label.toLowerCase()}</option>
           {options.map(option => (
@@ -804,7 +805,7 @@ export default function BundlesPage() {
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4">
         <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full mobile-modal-content transform transition-all duration-300 ease-out">
           {/* Modal Header */}
-          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-primary to-orange-500 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
               <div className="bg-white/20 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
                 <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -1039,11 +1040,7 @@ export default function BundlesPage() {
                       <div className="flex justify-between items-center py-1 sm:py-2 border-b border-gray-200 last:border-b-0">
                         <span className="text-xs sm:text-sm font-medium text-gray-600">Created</span>
                         <span className="text-xs sm:text-sm text-gray-900">
-                          {new Date(bundle.createdAt).toLocaleDateString('en-IN', { 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
-                          })}
+                          {formatDate(bundle.createdAt)}
                         </span>
                       </div>
                     )}
@@ -1051,11 +1048,7 @@ export default function BundlesPage() {
                       <div className="flex justify-between items-center py-1 sm:py-2">
                         <span className="text-xs sm:text-sm font-medium text-gray-600">Last Updated</span>
                         <span className="text-xs sm:text-sm text-gray-900">
-                          {new Date(bundle.updatedAt).toLocaleDateString('en-IN', { 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
-                          })}
+                          {formatDate(bundle.updatedAt)}
                         </span>
                       </div>
                     )}
@@ -1071,7 +1064,7 @@ export default function BundlesPage() {
                       onClose();
                       navigate(`/dashboard/bundles/${bundle._id}/edit`);
                     }}
-                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[#FF7300] text-white rounded-lg font-medium hover:bg-[#FF8800] transition-colors duration-150 touch-target text-sm sm:text-base"
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-orange-600 transition-colors duration-150 touch-target text-sm sm:text-base"
                   >
                     <Edit2 className="w-3 h-3 sm:w-4 sm:h-4" />
                     Edit System
@@ -1164,7 +1157,7 @@ export default function BundlesPage() {
                 {renderSectionHeader('System Category')}
                 <div className="bg-orange-50 rounded-lg border border-orange-200 p-4 sm:p-6">
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="flex-shrink-0 w-8 h-8 bg-[#FF7300] rounded-full flex items-center justify-center">
+                    <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                       <span className="text-white text-sm font-bold">1</span>
                     </div>
                     <div>
@@ -1191,7 +1184,7 @@ export default function BundlesPage() {
                           }
                         }}
                         required={true}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target appearance-none"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target appearance-none"
                       >
                         <option value="">Select kva rating</option>
                         <option value="2kva">2 KVA</option>
@@ -1227,7 +1220,7 @@ export default function BundlesPage() {
                             setCustomKvaValue(sanitizedValue);
                           }}
                           placeholder="e.g., 7.5 KVA or 15kva"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target"
                           required={bundleForm.subcategory === 'custom'}
                         />
                         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -1284,7 +1277,7 @@ export default function BundlesPage() {
                           systemDescription: e.target.value
                         }
                       }))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target"
                       placeholder="e.g., Grid Connect Solar PV System"
                       maxLength="100"
                     />
@@ -1311,7 +1304,7 @@ export default function BundlesPage() {
                             installedCapacityKWP: e.target.value
                           }
                         }))}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target"
                         placeholder="e.g., 15"
                       />
                     </div>
@@ -1331,7 +1324,7 @@ export default function BundlesPage() {
                             areaRequired: e.target.value
                           }
                         }))}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target"
                         placeholder="e.g., 1500 Sq.Ft"
                         maxLength="30"
                       />
@@ -1357,7 +1350,7 @@ export default function BundlesPage() {
                             moduleSpecification: e.target.value
                           }
                         }))}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target"
                         placeholder="e.g., Mono Crystalline Silicon"
                         maxLength="50"
                       />
@@ -1381,7 +1374,7 @@ export default function BundlesPage() {
                             inverterSpecification: e.target.value
                           }
                         }))}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target"
                         placeholder="e.g., 15KVA"
                         maxLength="30"
                       />
@@ -1403,7 +1396,7 @@ export default function BundlesPage() {
                   
                   {loadingSolarComponents ? (
                     <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-6 h-6 animate-spin text-[#FF7300]" />
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
                       <span className="ml-2 text-gray-600">Loading solar components...</span>
                     </div>
                   ) : solarComponents.length === 0 ? (
@@ -1467,7 +1460,7 @@ export default function BundlesPage() {
                                   max="9999"
                                   value={quantity}
                                   onChange={(e) => updateComponentQuantity(component._id, parseInt(e.target.value) || 0)}
-                                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target text-center font-medium"
+                                  className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target text-center font-medium"
                                   placeholder="0"
                                 />
                                 <p className="text-xs text-gray-500 mt-1 text-center">
@@ -1489,7 +1482,7 @@ export default function BundlesPage() {
                 <div 
                   className={`relative border-2 border-dashed rounded-lg p-6 sm:p-8 transition-all duration-200 ${
                     isDragging 
-                      ? 'border-[#FF7300] bg-orange-50' 
+                      ? 'border-primary bg-orange-50' 
                       : 'border-gray-300 hover:border-gray-400'
                   }`}
                   onDragEnter={handleDragEnter}
@@ -1576,7 +1569,7 @@ export default function BundlesPage() {
               <button
                 type="submit"
                 onClick={handleFormSubmit}
-                className="w-full sm:w-auto px-6 py-3 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors disabled:opacity-50 flex items-center justify-center min-w-[120px] touch-target"
+                className="w-full sm:w-auto px-6 py-3 bg-primary text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center min-w-[120px] touch-target"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
@@ -1611,7 +1604,7 @@ export default function BundlesPage() {
         <div className="border-b border-gray-200 pb-3 sm:pb-5 mb-4 sm:mb-8">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2 sm:gap-3">
-              <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#FF7300] flex-shrink-0" />
+              <Package className="w-6 h-6 sm:w-8 sm:h-8 text-primary flex-shrink-0" />
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-gray-900 mobile-truncate">
                 Solar Power Plant Systems
               </h1>
@@ -1656,7 +1649,7 @@ export default function BundlesPage() {
                     placeholder="Search systems..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
+                    className="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 
@@ -1665,7 +1658,7 @@ export default function BundlesPage() {
                   onClick={() => setShowFilters(!showFilters)}
                   className={`inline-flex items-center justify-center p-2 border rounded-md transition-colors duration-150 ease-in-out ${
                     showFilters || activeFilterCount > 0
-                      ? 'border-[#FF7300] bg-[#FF7300] text-white'
+                      ? 'border-primary bg-primary text-white'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                   title="Toggle filters"
@@ -1681,7 +1674,7 @@ export default function BundlesPage() {
                 {/* Create System Button - Desktop Position */}
                 <button
                   onClick={() => navigate('/dashboard/bundles/create')}
-                  className="hidden sm:inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#FF7300] hover:bg-[#FF8800] focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#FF7300] transition-colors duration-150 ease-in-out whitespace-nowrap"
+                  className="hidden sm:inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-colors duration-150 ease-in-out whitespace-nowrap"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create System
@@ -1692,7 +1685,7 @@ export default function BundlesPage() {
               <div className="w-full sm:hidden">
                 <button
                   onClick={() => navigate('/dashboard/bundles/create')}
-                  className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-[#FF7300] hover:bg-[#FF8800] focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#FF7300] transition-colors duration-150 ease-in-out whitespace-nowrap w-full"
+                  className="inline-flex items-center justify-center py-2.5 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary transition-colors duration-150 ease-in-out whitespace-nowrap w-full"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create System
@@ -1709,7 +1702,7 @@ export default function BundlesPage() {
                       <select
                         value={subcategoryFilter}
                         onChange={(e) => setSubcategoryFilter(e.target.value)}
-                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
                       >
                         <option value="">All Ratings</option>
                         <option value="2kva">2 KVA</option>
@@ -1726,7 +1719,7 @@ export default function BundlesPage() {
                       <select
                         value={brandFilter}
                         onChange={(e) => setBrandFilter(e.target.value)}
-                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
                       >
                         <option value="">All Brands</option>
                         <option value="Premium">Premium</option>
@@ -1741,7 +1734,7 @@ export default function BundlesPage() {
                       <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
                       >
                         <option value="">All Status</option>
                         <option value="active">Active</option>
@@ -1760,7 +1753,7 @@ export default function BundlesPage() {
           {isListMode && filteredBundles.length === 0 ? (
             <div className="bg-gradient-to-br from-white to-orange-50 rounded-xl border-2 border-dashed border-orange-200 shadow-sm p-6 sm:p-12 text-center">
               <div className="bg-orange-100 rounded-full w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mx-auto mb-4 sm:mb-6">
-                <Package className="w-8 h-8 sm:w-10 sm:h-10 text-[#FF7300]" />
+                <Package className="w-8 h-8 sm:w-10 sm:h-10 text-primary" />
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 sm:mb-3">No systems found</h3>
               <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8 max-w-md mx-auto leading-relaxed">
@@ -1772,7 +1765,7 @@ export default function BundlesPage() {
               {bundles.length === 0 && (
                 <button
                   onClick={() => navigate('/dashboard/bundles/create')}
-                  className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-[#FF7300] text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-[#FF8800] transform hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg touch-target"
+                  className="inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 bg-primary text-white rounded-xl text-sm sm:text-base font-semibold hover:bg-orange-600 transform hover:scale-105 transition-all duration-200 shadow-md hover:shadow-lg touch-target"
                 >
                   <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   Create Your First System
@@ -1836,7 +1829,7 @@ export default function BundlesPage() {
                     <div className="mb-3 sm:mb-4">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-base sm:text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-[#FF7300] transition-colors cursor-pointer mobile-header-text"
+                          <h3 className="text-base sm:text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-primary transition-colors cursor-pointer mobile-header-text"
                               onClick={() => handleViewBundle(bundle)}
                               title="Click to view details">
                             {bundle.name}
@@ -1904,7 +1897,7 @@ export default function BundlesPage() {
                       
                       <div className="text-center p-2 sm:p-3 bg-orange-50 rounded-lg">
                         <div className="text-xs text-orange-600 font-medium">Price</div>
-                        <div className="text-xs sm:text-sm font-bold text-[#FF7300] line-clamp-1">
+                        <div className="text-xs sm:text-sm font-bold text-primary line-clamp-1">
                           {formatCurrency(bundle.price)}
                         </div>
                       </div>
@@ -1921,10 +1914,7 @@ export default function BundlesPage() {
                       
                       {bundle.createdAt && (
                         <span className="text-xs text-gray-500">
-                          {new Date(bundle.createdAt).toLocaleDateString('en-US', { 
-                            month: 'short', 
-                            day: 'numeric' 
-                          })}
+                          {formatDate(bundle.createdAt)}
                         </span>
                       )}
                     </div>
@@ -1934,7 +1924,7 @@ export default function BundlesPage() {
                       <div className="flex items-center space-x-1 mobile-action-buttons">
                         <button
                           onClick={() => handleViewBundle(bundle)}
-                          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-[#FF7300] hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target mobile-action-compact"
+                          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-primary hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target mobile-action-compact"
                           title="View System Details"
                         >
                           <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1942,7 +1932,7 @@ export default function BundlesPage() {
                         </button>
                         <button
                           onClick={() => navigate(`/dashboard/bundles/${bundle._id}/edit`)}
-                          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-[#FF7300] hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target mobile-action-compact"
+                          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-600 hover:text-primary hover:bg-orange-50 rounded-lg transition-all duration-200 touch-target mobile-action-compact"
                           title="Edit System"
                         >
                           <Edit2 className="w-3 h-3 sm:w-4 sm:h-4" />

@@ -303,7 +303,7 @@ const NotificationsPage = () => {
     if (diffInHours < 24) return `${diffInHours}h ago`;
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays}d ago`;
-    return notificationDate.toLocaleDateString();
+    return notificationDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   // Role-specific notification types

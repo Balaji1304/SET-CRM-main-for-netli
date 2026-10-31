@@ -348,7 +348,7 @@ export default function AddProductPage() {
           placeholder={placeholder}
           required={required}
           rows={rows}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target resize-vertical"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target resize-vertical"
         />
       ) : (
         <input
@@ -361,7 +361,7 @@ export default function AddProductPage() {
           required={required}
           step={type === 'number' ? '0.01' : undefined}
           min={type === 'number' ? '0' : undefined}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target"
         />
       )}
     </div>
@@ -379,7 +379,7 @@ export default function AddProductPage() {
           value={formData[name]}
           onChange={handleChange}
           required={required}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target appearance-none"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target appearance-none"
         >
           <option value="">Select {label.toLowerCase()}</option>
           {options.map(option => (
@@ -432,7 +432,7 @@ export default function AddProductPage() {
               {renderSectionHeader('Product Category')}
               <div className="bg-orange-50 rounded-lg border border-orange-200 p-4 sm:p-6">
                 <div className="flex items-start gap-3 mb-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-[#FF7300] rounded-full flex items-center justify-center">
+                  <div className="flex-shrink-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-bold">1</span>
                   </div>
                   <div>
@@ -442,7 +442,7 @@ export default function AddProductPage() {
                 </div>
                 {isLoadingCategories ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-[#FF7300]" />
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
                     <span className="ml-2 text-gray-600">Loading categories...</span>
                   </div>
                 ) : (
@@ -493,7 +493,7 @@ export default function AddProductPage() {
                           value={value}
                           onChange={handleChange}
                           required={['power', 'efficiency', 'warranty', 'dimensions'].includes(field)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target"
                         />
                       </div>
                       {!['power', 'efficiency', 'warranty', 'dimensions'].includes(field) && (
@@ -518,19 +518,19 @@ export default function AddProductPage() {
                       placeholder="Specification Name"
                       value={newSpecField.name}
                       onChange={(e) => setNewSpecField(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full sm:w-auto sm:flex-1 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm touch-target"
+                      className="w-full sm:w-auto sm:flex-1 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm touch-target"
                     />
                     <input
                       type="text"
                       placeholder="Value"
                       value={newSpecField.value}
                       onChange={(e) => setNewSpecField(prev => ({ ...prev, value: e.target.value }))}
-                      className="w-full sm:w-auto sm:flex-1 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm touch-target"
+                      className="w-full sm:w-auto sm:flex-1 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm touch-target"
                     />
                     <button
                       type="button"
                       onClick={handleAddSpecification}
-                      className="w-full sm:w-auto px-4 py-3 bg-[#FF7300] text-white rounded-lg hover:bg-[#FF8800] transition-colors font-medium text-sm touch-target"
+                      className="w-full sm:w-auto px-4 py-3 bg-primary text-white rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm touch-target"
                     >
                       Add Field
                     </button>
@@ -559,7 +559,7 @@ export default function AddProductPage() {
                     className={`flex flex-col items-center justify-center w-full h-32 
                       border-2 border-dashed rounded-lg cursor-pointer transition-colors
                       ${isDragging 
-                        ? 'border-[#FF7300] bg-orange-50' 
+                        ? 'border-primary bg-orange-50' 
                         : 'border-gray-300 bg-white hover:bg-gray-50'
                       }`}
                     onDragEnter={handleDragEnter}
@@ -568,11 +568,11 @@ export default function AddProductPage() {
                     onDrop={handleDrop}
                   >
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className={`w-8 h-8 mb-4 ${isDragging ? 'text-[#FF7300]' : 'text-gray-400'}`} />
-                      <p className={`mb-2 text-sm ${isDragging ? 'text-[#FF7300]' : 'text-gray-500'}`}>
+                      <Upload className={`w-8 h-8 mb-4 ${isDragging ? 'text-primary' : 'text-gray-400'}`} />
+                      <p className={`mb-2 text-sm ${isDragging ? 'text-primary' : 'text-gray-500'}`}>
                         <span className="font-semibold">Click to upload</span> or drag and drop
                       </p>
-                      <p className={`text-xs ${isDragging ? 'text-[#FF7300]' : 'text-gray-500'}`}>
+                      <p className={`text-xs ${isDragging ? 'text-primary' : 'text-gray-500'}`}>
                         PNG, JPG or JPEG (MAX. 5MB) • Up to 5 images
                       </p>
                     </div>
@@ -628,7 +628,7 @@ export default function AddProductPage() {
                     name="brochure"
                     accept=".pdf"
                     onChange={handleBrochureChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-[#FF7300] hover:file:bg-orange-100 touch-target"
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-primary hover:file:bg-orange-100 touch-target"
                   />
                 </div>
                 {brochureFile && (
@@ -652,7 +652,7 @@ export default function AddProductPage() {
             <button
               type="submit"
               onClick={handleSubmit}
-              className="w-full sm:w-auto px-6 py-3 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors disabled:opacity-50 flex items-center justify-center min-w-[120px] touch-target"
+              className="w-full sm:w-auto px-6 py-3 bg-primary text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center min-w-[120px] touch-target"
               disabled={isSubmitting}
             >
               {isSubmitting ? (

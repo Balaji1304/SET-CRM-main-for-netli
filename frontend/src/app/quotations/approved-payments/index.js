@@ -6,6 +6,7 @@ import { apiRequest } from '../../../services/apiConfig';
 import ExportButton from '../../../components/ExportButton';
 import { downloadCSV } from '../../../utils/csv';
 import { useAuth } from '../../../context/AuthContext';
+import { formatDate, formatCurrency } from '../../../utils/formatNumber';
 
 // Custom styles for consistent modal design and mobile cards
 const customStyles = `
@@ -360,22 +361,12 @@ export default function ApprovedPaymentsPage() {
                               </div>
                             </td>
                             <td className="px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-600 whitespace-nowrap">
-                              <span className="hidden lg:inline">₹</span>
-                              <span className="lg:hidden">₹</span>
-                              {Number(row.total || 0).toLocaleString('en-IN', { 
-                                minimumFractionDigits: 0, 
-                                maximumFractionDigits: 0 
-                              })}
+                              {formatCurrency(row.total || 0)}
                             </td>
                             <td className="px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-600 whitespace-nowrap">
                               {row.advancePaymentAmount ? (
                                 <div className="text-xs lg:text-sm font-semibold text-green-600">
-                                  <span className="hidden lg:inline">₹</span>
-                                  <span className="lg:hidden">₹</span>
-                                  {Number(row.advancePaymentAmount).toLocaleString('en-IN', { 
-                                    minimumFractionDigits: 0, 
-                                    maximumFractionDigits: 0 
-                                  })}
+                                  {formatCurrency(row.advancePaymentAmount)}
                                 </div>
                               ) : (
                                 <span className="text-gray-400">N/A</span>
@@ -389,8 +380,8 @@ export default function ApprovedPaymentsPage() {
                             <td className="hidden lg:table-cell px-2 lg:px-3 py-3 lg:py-4 text-xs lg:text-sm text-gray-600 whitespace-nowrap">
                               <div className="max-w-full truncate">
                                 {row.advancePaymentConfirmedAt 
-                                  ? new Date(row.advancePaymentConfirmedAt).toLocaleDateString('en-GB')
-                                  : (row.paymentDate ? new Date(row.paymentDate).toLocaleDateString('en-GB') : 'N/A')
+                                  ? formatDate(row.advancePaymentConfirmedAt)
+                                  : (row.paymentDate ? formatDate(row.paymentDate) : 'N/A')
                                 }
                               </div>
                             </td>
@@ -459,7 +450,7 @@ export default function ApprovedPaymentsPage() {
                           </div>
                           <div className="text-right flex-shrink-0 ml-2">
                             <p className="text-base sm:text-lg font-bold text-gray-900">
-                              ₹{Number(row.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatCurrency(row.total || 0)}
                             </p>
                           </div>
                         </div>
@@ -470,7 +461,7 @@ export default function ApprovedPaymentsPage() {
                             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Payment Amount</p>
                             <p className="text-xs sm:text-sm font-semibold text-green-600 mobile-truncate">
                               {row.advancePaymentAmount ? 
-                                `₹${Number(row.advancePaymentAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                                formatCurrency(row.advancePaymentAmount) 
                                 : 'N/A'
                               }
                             </p>
@@ -506,8 +497,8 @@ export default function ApprovedPaymentsPage() {
                             <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                             <span className="mobile-truncate">
                               {row.advancePaymentConfirmedAt 
-                                ? new Date(row.advancePaymentConfirmedAt).toLocaleDateString('en-GB')
-                                : (row.paymentDate ? new Date(row.paymentDate).toLocaleDateString('en-GB') : 'N/A')
+                                ? formatDate(row.advancePaymentConfirmedAt)
+                                : (row.paymentDate ? formatDate(row.paymentDate) : 'N/A')
                               }
                             </span>
                           </div>
@@ -599,7 +590,7 @@ export default function ApprovedPaymentsPage() {
                           <div className="detail-row">
                             <span className="detail-label text-xs sm:text-sm">Total Amount:</span>
                             <span className="detail-value font-semibold text-gray-900 text-sm sm:text-base">
-                              ₹{Number(drawer.row.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {formatCurrency(drawer.row.total || 0)}
                             </span>
                           </div>
                         </div>
@@ -619,7 +610,7 @@ export default function ApprovedPaymentsPage() {
                             <span className="detail-label text-xs sm:text-sm">Quotation Date:</span>
                             <span className="detail-value text-xs sm:text-sm">
                               {drawer.row.createdAt 
-                                ? new Date(drawer.row.createdAt).toLocaleDateString('en-GB')
+                                ? formatDate(drawer.row.createdAt)
                                 : 'N/A'
                               }
                             </span>
@@ -628,7 +619,7 @@ export default function ApprovedPaymentsPage() {
                             <span className="detail-label text-xs sm:text-sm">Approval Date:</span>
                             <span className="detail-value text-xs sm:text-sm">
                               {drawer.row.advancePaymentConfirmedAt 
-                                ? new Date(drawer.row.advancePaymentConfirmedAt).toLocaleDateString('en-GB')
+                                ? formatDate(drawer.row.advancePaymentConfirmedAt)
                                 : 'N/A'
                               }
                             </span>
@@ -650,7 +641,7 @@ export default function ApprovedPaymentsPage() {
                             <span className="detail-label text-xs sm:text-sm">Amount Paid:</span>
                             <span className="detail-value font-medium text-xs sm:text-sm text-green-600">
                               {drawer.row.advancePaymentAmount ? 
-                                `₹${Number(drawer.row.advancePaymentAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                                formatCurrency(drawer.row.advancePaymentAmount) 
                                 : 'N/A'
                               }
                             </span>
@@ -669,8 +660,8 @@ export default function ApprovedPaymentsPage() {
                             <span className="detail-label text-xs sm:text-sm">Payment Date:</span>
                             <span className="detail-value text-xs sm:text-sm">
                               {drawer.row.advancePaymentConfirmedAt 
-                                ? new Date(drawer.row.advancePaymentConfirmedAt).toLocaleDateString('en-GB')
-                                : (drawer.row.paymentDate ? new Date(drawer.row.paymentDate).toLocaleDateString('en-GB') : 'N/A')
+                                ? formatDate(drawer.row.advancePaymentConfirmedAt)
+                                : (drawer.row.paymentDate ? formatDate(drawer.row.paymentDate) : 'N/A')
                               }
                             </span>
                           </div>

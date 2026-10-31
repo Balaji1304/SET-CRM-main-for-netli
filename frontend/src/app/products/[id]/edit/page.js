@@ -311,7 +311,7 @@ export default function EditProductPage() {
           placeholder={placeholder}
           required={required}
           rows={rows}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target resize-vertical"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target resize-vertical"
         />
       ) : (
         <input
@@ -324,7 +324,7 @@ export default function EditProductPage() {
           required={required}
           step={type === 'number' ? '0.01' : undefined}
           min={type === 'number' ? '0' : undefined}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target"
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 placeholder-gray-400 touch-target"
         />
       )}
     </div>
@@ -335,7 +335,7 @@ export default function EditProductPage() {
       <>
         <style>{customStyles}</style>
         <div className="flex flex-col flex-1 items-center justify-center min-h-[300px] p-6">
-          <Loader2 className="w-12 h-12 text-[#FF7300] animate-spin mb-4" />
+          <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
           <p className="text-lg text-gray-600">Loading product data...</p>
         </div>
       </>
@@ -352,7 +352,7 @@ export default function EditProductPage() {
           <p className="text-sm text-gray-600 mb-4">{error}</p>
           <button 
             onClick={() => { setError(null); fetchProduct(); }}
-            className="px-4 py-2 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors touch-target"
+            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors touch-target"
           >
             Try Again
           </button>
@@ -434,7 +434,7 @@ export default function EditProductPage() {
                     name="brochure"
                     accept=".pdf"
                     onChange={handleBrochureChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-[#FF7300] hover:file:bg-orange-100 touch-target"
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-primary hover:file:bg-orange-100 touch-target"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">Upload a new file to replace the existing one.</p>
@@ -463,7 +463,7 @@ export default function EditProductPage() {
                           value={value}
                           onChange={handleChange}
                           required={['power', 'efficiency', 'warranty', 'dimensions'].includes(field)}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm text-gray-900 touch-target"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm text-gray-900 touch-target"
                         />
                       </div>
                       {!['power', 'efficiency', 'warranty', 'dimensions'].includes(field) && (
@@ -488,19 +488,19 @@ export default function EditProductPage() {
                       placeholder="Specification Name"
                       value={newSpecField.name}
                       onChange={(e) => setNewSpecField(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full sm:w-auto sm:flex-1 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm touch-target"
+                      className="w-full sm:w-auto sm:flex-1 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm touch-target"
                     />
                     <input
                       type="text"
                       placeholder="Value"
                       value={newSpecField.value}
                       onChange={(e) => setNewSpecField(prev => ({ ...prev, value: e.target.value }))}
-                      className="w-full sm:w-auto sm:flex-1 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm touch-target"
+                      className="w-full sm:w-auto sm:flex-1 px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm touch-target"
                     />
                     <button
                       type="button"
                       onClick={handleAddSpecification}
-                      className="w-full sm:w-auto px-4 py-3 bg-[#FF7300] text-white rounded-lg hover:bg-[#FF8800] transition-colors font-medium text-sm touch-target"
+                      className="w-full sm:w-auto px-4 py-3 bg-primary text-white rounded-lg hover:bg-orange-600 transition-colors font-medium text-sm touch-target"
                     >
                       Add Field
                     </button>
@@ -529,7 +529,7 @@ export default function EditProductPage() {
                     className={`flex flex-col items-center justify-center w-full h-32 
                       border-2 border-dashed rounded-lg cursor-pointer transition-colors
                       ${isDragging 
-                        ? 'border-[#FF7300] bg-orange-50' 
+                        ? 'border-primary bg-orange-50' 
                         : 'border-gray-300 bg-white hover:bg-gray-50'
                       }`}
                     onDragEnter={handleDragEnter}
@@ -538,11 +538,11 @@ export default function EditProductPage() {
                     onDrop={handleDrop}
                   >
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className={`w-8 h-8 mb-4 ${isDragging ? 'text-[#FF7300]' : 'text-gray-400'}`} />
-                      <p className={`mb-2 text-sm ${isDragging ? 'text-[#FF7300]' : 'text-gray-500'}`}>
+                      <Upload className={`w-8 h-8 mb-4 ${isDragging ? 'text-primary' : 'text-gray-400'}`} />
+                      <p className={`mb-2 text-sm ${isDragging ? 'text-primary' : 'text-gray-500'}`}>
                         <span className="font-semibold">Click to upload</span> or drag and drop
                       </p>
-                      <p className={`text-xs ${isDragging ? 'text-[#FF7300]' : 'text-gray-500'}`}>
+                      <p className={`text-xs ${isDragging ? 'text-primary' : 'text-gray-500'}`}>
                         PNG, JPG or JPEG (MAX. 5MB) • Up to 5 images
                       </p>
                     </div>
@@ -601,7 +601,7 @@ export default function EditProductPage() {
             <button
               type="submit"
               onClick={handleSubmit}
-              className="w-full sm:w-auto px-6 py-3 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors disabled:opacity-50 flex items-center justify-center min-w-[120px] touch-target"
+              className="w-full sm:w-auto px-6 py-3 bg-primary text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center justify-center min-w-[120px] touch-target"
               disabled={isSubmitting}
             >
               {isSubmitting ? (

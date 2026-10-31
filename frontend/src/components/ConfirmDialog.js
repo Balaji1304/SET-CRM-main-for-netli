@@ -34,7 +34,7 @@ export default function ConfirmDialog({ isOpen, onClose, onConfirm, title, messa
           </button>
           <button
             onClick={onConfirm}
-            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-[#FF7300] hover:bg-[#FF8800] text-white rounded-lg text-sm font-medium transition-colors duration-200 touch-target"
+            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-primary hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition-colors duration-200 touch-target"
             style={{ minHeight: '44px' }}
           >
             Yes

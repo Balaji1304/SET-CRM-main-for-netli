@@ -173,15 +173,14 @@ const getNavigation = (userRole) => {
     // NOTE: accounts_department is defined above to include both pages
   };
 
-  // For customer role, don't include Reports in bottom items
-  if (userRole === 'customer') {
-    bottomItems.pop();
-  }
+  const filteredBottomItems = userRole === 'customer'
+    ? bottomItems.filter(item => item.name !== 'Reports')
+    : bottomItems;
 
   return [
     {
       title: '',
-      items: [...commonItems, ...(roleSpecificItems[userRole] || []), ...bottomItems]
+      items: [...commonItems, ...(roleSpecificItems[userRole] || []), ...filteredBottomItems]
     }
   ];
 };
@@ -239,7 +238,7 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
                     {user?.name || 'User Name'}
                   </h2>
                   <p className="text-orange-100 text-xs font-medium capitalize">
-                    {(user?.role?.replace('_', ' ') || 'User Role').split(' ').map(word => 
+                    {(user?.role?.replace(/_/g, ' ') || 'User Role').split(' ').map(word =>
                       word.charAt(0).toUpperCase() + word.slice(1)
                     ).join(' ')}
                   </p>
@@ -537,9 +536,9 @@ const AppSidebar = ({ onItemClick = () => {}, isMobile = false, onLogout = () =>
             </span>
             <span 
               className="text-xs text-slate-400 leading-tight whitespace-nowrap truncate w-full" 
-              title={(user?.role?.replace('_', ' ') || 'User Role').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+              title={(user?.role?.replace(/_/g, ' ') || 'User Role').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
             >
-              {(user?.role?.replace('_', ' ') || 'User Role').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+              {(user?.role?.replace(/_/g, ' ') || 'User Role').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
             </span>
           </div>
         </div>

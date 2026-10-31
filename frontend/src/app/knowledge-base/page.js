@@ -27,14 +27,14 @@ const KnowledgeBasePage = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-input sticky top-0 bg-white z-20">
+        <div className="p-4 border-b border-fourth sticky top-0 bg-white z-20">
           <div className="flex items-center space-x-2 mb-4">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
               <input
                 type="text"
                 placeholder="Search articles..."
-                className="pl-10 pr-4 py-2 border border-input rounded-lg w-full sm:w-[300px] focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                className="pl-10 pr-4 py-2 border border-fourth rounded-lg w-full sm:w-[300px] focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
             </div>
           </div>
@@ -44,7 +44,7 @@ const KnowledgeBasePage = () => {
           {articles.map((article) => (
             <div
               key={article.id}
-              className="p-4 border border-input rounded-lg hover:border-orange-500 transition-colors cursor-pointer"
+              className="p-4 border border-fourth rounded-lg hover:border-orange-500 transition-colors cursor-pointer"
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">

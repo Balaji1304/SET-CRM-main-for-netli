@@ -6,6 +6,7 @@ import { getEnquiries, getSalespersons, assignEnquiryToSalesperson, exportEnquir
 import { Loader2, AlertTriangle, Search, Filter, Eye, UserPlus, ChevronLeft, ChevronRight, ChevronDown, Phone, MapPin, User, X, Calendar, FileText, ArrowLeft, Plus, Info, Edit2, Trash2, Building2, Clock, Users, RotateCcw, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import ExportButton from '../../components/ExportButton';
+import { formatDate } from '../../utils/formatNumber';
 import { downloadCSV } from '../../utils/csv';
 
 // Custom styles for better mobile experience
@@ -106,14 +107,6 @@ const getStatusBadgeClass = (status) => {
   return classes[status] || 'bg-gray-100 text-gray-700 border-gray-300';
 };
 
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A';
-  try {
-    return new Date(dateString).toLocaleDateString('en-GB');
-  } catch (e) {
-    return dateString;
-  }
-};
 
 // Assignment Modal Component
 const AssignEnquiryModal = ({ 
@@ -286,7 +279,7 @@ const EnquiryDetailsModal = ({ enquiry, onClose, onEdit, onAssign }) => {
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4">
         <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-out">
           {/* Modal Header */}
-          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-6 py-4 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-primary to-orange-500 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="bg-white/20 p-2 rounded-lg">
                 <User className="w-6 h-6 text-white" />
@@ -557,7 +550,7 @@ const EnquiryDetailsModal = ({ enquiry, onClose, onEdit, onAssign }) => {
                           onClose();
                           onAssign(enquiry);
                         }}
-                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF7300] text-white rounded-lg font-medium hover:bg-[#FF8800] transition-colors duration-150 touch-target"
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-orange-600 transition-colors duration-150 touch-target"
                       >
                         <UserPlus className="w-4 h-4" />
                         Assign to Salesperson
@@ -586,7 +579,7 @@ const EnquiryCard = ({ enquiry, onAssign, onView }) => (
     <div className="flex items-start justify-between gap-1 sm:gap-2">
       <div className="flex-1 min-w-0 max-w-[calc(100%-140px)] sm:max-w-[calc(100%-160px)]">
         <div className="flex items-center gap-2 mb-1">
-          <h3 className={`mobile-header-text text-base sm:text-lg font-semibold cursor-pointer hover:text-[#FF7300] transition-colors duration-150 line-clamp-2 leading-tight text-gray-900`}
+          <h3 className={`mobile-header-text text-base sm:text-lg font-semibold cursor-pointer hover:text-primary transition-colors duration-150 line-clamp-2 leading-tight text-gray-900`}
               onClick={() => onView(enquiry)}
               title="Click to view details">
             {`${enquiry.firstName} ${enquiry.lastName}`}
@@ -601,7 +594,7 @@ const EnquiryCard = ({ enquiry, onAssign, onView }) => (
       <div className="mobile-action-buttons flex items-center gap-0.5 sm:gap-1 flex-shrink-0 w-[140px] sm:w-[160px] justify-end">
         <button
           onClick={() => onView(enquiry)}
-          className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+          className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
           title="View Details"
         >
           <Info className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1121,7 +1114,7 @@ export default function LeadAssignmentPage() {
                                   <div className="flex items-center gap-2">
                                     <div 
                                       onClick={() => handleViewEnquiry(enquiry)}
-                                      className="truncate cursor-pointer hover:text-[#FF7300] transition-colors duration-150 text-gray-900"
+                                      className="truncate cursor-pointer hover:text-primary transition-colors duration-150 text-gray-900"
                                       title="Click to view details"
                                     >
                                       {`${enquiry.firstName} ${enquiry.lastName}`}
@@ -1173,7 +1166,7 @@ export default function LeadAssignmentPage() {
                                   <div className="flex items-center justify-center space-x-1 lg:space-x-2">
                                     <button
                                       onClick={() => handleViewEnquiry(enquiry)}
-                                      className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
+                                      className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 touch-target shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
                                       title="View Details"
                                     >
                                       <Info className="w-3.5 h-3.5 lg:w-4 lg:h-4" />

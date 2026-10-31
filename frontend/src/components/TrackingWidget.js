@@ -83,7 +83,7 @@ const TrackingWidget = () => {
           <p className="text-sm text-gray-600">{error}</p>
           <button
             onClick={loadRecentOrders}
-            className="mt-2 text-sm text-blue-600 hover:text-blue-700"
+            className="mt-2 text-sm text-primary hover:text-orange-600"
           >
             Try again
           </button>
@@ -98,7 +98,7 @@ const TrackingWidget = () => {
         <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
         <button
           onClick={() => navigate('/dashboard/orders')}
-          className="text-sm text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+          className="text-sm text-primary hover:text-orange-600 flex items-center space-x-1"
         >
           <span>View All</span>
           <ArrowRight className="h-4 w-4" />

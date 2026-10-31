@@ -8,6 +8,7 @@ import {
 import ServiceMetricsCards from '../../components/service-reports/ServiceMetricsCards';
 import ServiceReportGenerationModal from '../../components/service-reports/ServiceReportGenerationModal';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { formatDate } from '../../utils/formatNumber';
 import * as serviceReportsService from '../../services/serviceReportsService';
 
 const ServiceReportsPage = () => {
@@ -251,7 +252,7 @@ const ServiceReportsPage = () => {
                             <div className="font-medium text-gray-900">{report.reportName}</div>
                             <div className="text-sm text-gray-500">
                               {report.reportPeriod?.startDate && report.reportPeriod?.endDate && (
-                                `${new Date(report.reportPeriod.startDate).toLocaleDateString()} - ${new Date(report.reportPeriod.endDate).toLocaleDateString()}`
+                                `${formatDate(report.reportPeriod.startDate)} - ${formatDate(report.reportPeriod.endDate)}`
                               )}
                             </div>
                           </td>
@@ -266,7 +267,7 @@ const ServiceReportsPage = () => {
                             </span>
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-600">
-                            {new Date(report.createdAt).toLocaleDateString()}
+                            {formatDate(report.createdAt)}
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
@@ -311,7 +312,7 @@ const ServiceReportsPage = () => {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-500">
-                          {new Date(report.createdAt).toLocaleDateString()}
+                          {formatDate(report.createdAt)}
                         </span>
                         <div className="flex items-center gap-2">
                           <button

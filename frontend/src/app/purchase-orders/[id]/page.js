@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPurchaseOrderDetails } from '../../../services/purchaseOrderService';
 import { useAuth } from '../../../context/AuthContext';
-import { toast } from 'react-toastify';
+import { toast } from '../../../components/Toast';
+import { formatDate } from '../../../utils/formatNumber';
 import {
   ArrowLeft,
   Package,
@@ -84,11 +85,6 @@ const customStyles = `
   }
 `;
 
-// Helper function to format date
-const formatDate = (dateString) => {
-  if (!dateString) return 'Not set';
-  return new Date(dateString).toLocaleDateString();
-};
 
 // Helper function to format status values for display
 const formatDisplayValue = (value) => {

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Loader2, X, Phone, Mail, Building2, Calendar, IndianRupee, User, ShoppingBag, Package, CreditCard, Users, MapPin, Clock, Info, FileText, Tag, AlertCircle, ChevronDown, ChevronUp, Eye, Truck } from 'lucide-react';
 import { getAllCustomers } from '../../services/customerService';
+import { formatDate, formatCurrency, formatNumber } from '../../utils/formatNumber';
 import { useAuth } from '../../context/AuthContext';
 
 // Custom styles for mobile responsive design
@@ -247,13 +248,6 @@ export default function CustomersTable({
       return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
     };
 
-    const formatDate = (date) => {
-      return new Date(date).toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
-    };
 
     // Separate active and completed purchases
     const activePurchases = customerPurchases.filter(purchase => purchase.status === 'active');
@@ -300,14 +294,14 @@ export default function CustomersTable({
           </div>
           <div className="text-left sm:text-right mt-2 sm:mt-0 sm:ml-4">
             <p className="text-lg font-bold text-gray-900">
-              ₹{purchase.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(purchase.totalAmount)}
             </p>
             <p className="text-sm text-gray-600">
-              Paid: ₹{purchase.advancePaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              Paid: {formatCurrency(purchase.advancePaid)}
             </p>
             {!purchase.isFullyPaid && (
               <p className="text-sm text-orange-600 font-medium">
-                Pending: ₹{purchase.remainingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                Pending: {formatCurrency(purchase.remainingAmount)}
               </p>
             )}
             {purchase.isFullyPaid && (
@@ -401,7 +395,7 @@ export default function CustomersTable({
                   </div>
                   <div className="text-left sm:text-right">
                     <span className="text-sm text-gray-900 font-medium">
-                      {item.quantity} x ₹{item.unitPrice?.toLocaleString('en-IN') || '0'}
+                      {item.quantity} x {formatCurrency(item.unitPrice)}
                     </span>
                   </div>
                 </div>
@@ -424,7 +418,7 @@ export default function CustomersTable({
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4">
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-2xl md:max-w-4xl lg:max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden transform transition-all duration-300 ease-out mobile-modal-content">
           {/* Modal Header */}
-          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-3 sm:px-4 md:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-primary to-orange-500 px-3 sm:px-4 md:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
               <div className="bg-white/20 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
                 <User className="w-4 h-4 sm:w-5 sm:h-6 md:w-6 md:h-6 text-white" />
@@ -485,7 +479,7 @@ export default function CustomersTable({
                     </div>
                   </div>
                   <div className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
-                    ₹{customer.purchaseStats?.totalValue?.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || '0'}
+                    {formatCurrency(customer.purchaseStats?.totalValue || 0)}
                   </div>
                 </div>
 
@@ -705,7 +699,7 @@ export default function CustomersTable({
         <div className="flex items-start justify-between gap-1 sm:gap-2">
           <div className="flex-1 min-w-0 max-w-[calc(100%-80px)] sm:max-w-[calc(100%-100px)]">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className={`mobile-header-text text-base sm:text-lg font-semibold cursor-pointer hover:text-[#FF7300] transition-colors duration-150 line-clamp-2 leading-tight text-gray-900`}
+              <h3 className={`mobile-header-text text-base sm:text-lg font-semibold cursor-pointer hover:text-primary transition-colors duration-150 line-clamp-2 leading-tight text-gray-900`}
                   onClick={() => handleViewCustomer(customer)}
                   title="Click to view details">
                 {customer.firstName} {customer.lastName}
@@ -720,7 +714,7 @@ export default function CustomersTable({
           <div className="mobile-action-buttons flex items-center gap-0.5 sm:gap-1 flex-shrink-0 w-[80px] sm:w-[100px] justify-end">
             <button
               onClick={() => handleViewCustomer(customer)}
-              className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+              className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
               title="View Details"
             >
               <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -771,9 +765,8 @@ export default function CustomersTable({
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Value</p>
             <div className="flex items-center space-x-1 text-xs sm:text-sm font-medium text-gray-900">
-              <span className="text-gray-600 font-semibold">₹</span>
               <span className="mobile-truncate">
-                {stats.totalValue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                {formatCurrency(stats.totalValue)}
               </span>
             </div>
           </div>
@@ -804,7 +797,7 @@ export default function CustomersTable({
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Customer Since</p>
               <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-600">
                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span className="mobile-truncate">{new Date(customer.createdAt).toLocaleDateString('en-GB')}</span>
+                <span className="mobile-truncate">{formatDate(customer.createdAt)}</span>
               </div>
             </div>
           </div>
@@ -816,7 +809,7 @@ export default function CustomersTable({
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Customer Since</p>
             <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-600">
               <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-              <span className="mobile-truncate">{new Date(customer.createdAt).toLocaleDateString('en-GB')}</span>
+              <span className="mobile-truncate">{formatDate(customer.createdAt)}</span>
             </div>
           </div>
         )}
@@ -901,7 +894,7 @@ export default function CustomersTable({
                         <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium w-32 lg:w-40">
                           <div className="flex items-center gap-2">
                             <div 
-                              className="truncate cursor-pointer hover:text-[#FF7300] transition-colors duration-150 text-gray-900"
+                              className="truncate cursor-pointer hover:text-primary transition-colors duration-150 text-gray-900"
                               title="Customer name"
                             >
                               {customer.firstName} {customer.lastName}
@@ -933,7 +926,7 @@ export default function CustomersTable({
                         </td>
                         <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-24 lg:w-32">
                           <div className="truncate">
-                            ₹{stats.totalValue.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            {formatCurrency(stats.totalValue)}
                           </div>
                         </td>
                         {isSalesHead && (
@@ -945,14 +938,14 @@ export default function CustomersTable({
                         )}
                         <td className="hidden 2xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28">
                           <div className="truncate">
-                            {new Date(customer.createdAt).toLocaleDateString('en-GB')}
+                            {formatDate(customer.createdAt)}
                           </div>
                         </td>
                         <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-32">
                           <div className="flex items-center justify-center space-x-1 lg:space-x-2">
                             <button
                               onClick={() => handleViewCustomer(customer)}
-                              className="mobile-action-btn text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out border border-transparent hover:border-orange-200"
+                              className="mobile-action-btn text-gray-500 hover:text-primary hover:bg-orange-50 transition-all duration-200 ease-in-out border border-transparent hover:border-orange-200"
                               title="View Details"
                             >
                               <Eye className="h-4 w-4" />

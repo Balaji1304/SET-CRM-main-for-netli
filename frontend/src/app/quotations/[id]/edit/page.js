@@ -6,6 +6,7 @@ import { getQuotation, updateQuotation } from '../../../../services/quotationSer
 import { getProducts } from '../../../../services/productService';
 import { getAllCustomizedProducts, updateCustomizedProduct } from '../../../../services/customizedProductService';
 import { getBundles, getBundleWithComponents } from '../../../../services/bundleService';
+import { formatCurrency } from '../../../../utils/formatNumber';
 
 export default function EditQuotationPage() {
   const { id } = useParams();
@@ -1152,7 +1153,7 @@ export default function EditQuotationPage() {
           <div className="flex justify-end items-center border-t border-fourth pt-4 mt-6">
             <span className="text-sm font-medium text-gray-700">Total Amount:</span>
             <span className="text-xl font-bold text-primary ml-2">
-              ₹{calculateTotalAmount().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(calculateTotalAmount())}
             </span>
           </div>
 

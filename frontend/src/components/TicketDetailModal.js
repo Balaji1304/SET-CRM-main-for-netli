@@ -385,7 +385,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-1 sm:p-4">
       <div className="bg-white rounded-lg sm:rounded-xl shadow-2xl w-full h-full sm:h-auto sm:max-w-6xl sm:max-h-[95vh] overflow-hidden border border-gray-200">
         {/* Mobile-optimized Header */}
-        <div className="flex flex-col border-b border-gray-200 bg-gradient-to-r from-[#FF7300]/5 to-orange-50">
+        <div className="flex flex-col border-b border-gray-200 bg-gradient-to-r from-primary/5 to-orange-50">
           {/* Top row with title and close button */}
           <div className="flex items-start justify-between p-3 sm:p-6">
             <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0 pr-2">
@@ -485,7 +485,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                       <button
                         onClick={handleSaveEdit}
                         disabled={loading}
-                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-[#FF7300] text-white rounded-lg hover:bg-[#E6650E] disabled:opacity-50 text-xs font-medium transition-all duration-200 active:scale-95"
+                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 text-xs font-medium transition-all duration-200 active:scale-95"
                       >
                         <Save className="h-3.5 w-3.5" />
                         <span>Save</span>
@@ -588,7 +588,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                       type="text"
                       value={editData.category}
                       onChange={(e) => setEditData({ ...editData, category: e.target.value })}
-                      className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                       placeholder="Enter category"
                     />
                   ) : (
@@ -606,7 +606,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                     <select
                       value={editData.priority}
                       onChange={(e) => setEditData({ ...editData, priority: e.target.value })}
-                      className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                     >
                       <option value="low">Low Priority</option>
                       <option value="medium">Medium Priority</option>
@@ -633,7 +633,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                       <select
                         value={editData.assignedEngineerId}
                         onChange={(e) => setEditData({ ...editData, assignedEngineerId: e.target.value })}
-                        className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF7300] focus:border-transparent text-sm"
+                        className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                       >
                         <option value="">Select Engineer...</option>
                         {engineers.map((eng) => (
@@ -679,7 +679,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                     ticket.comments.map((comment, index) => (
                       <div key={index} className="flex gap-2 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100">
                         <div className="flex-shrink-0">
-                          <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-br from-[#FF7300] to-orange-600 rounded-full flex items-center justify-center shadow-sm">
+                          <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-br from-primary to-orange-600 rounded-full flex items-center justify-center shadow-sm">
                             <span className="text-white text-xs sm:text-sm font-semibold">
                               {comment.author?.name?.[0]?.toUpperCase() || 'U'}
                             </span>
@@ -722,13 +722,13 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                           onChange={(e) => setNewComment(e.target.value)}
                           placeholder="Add a comment or update..."
                           rows={3}
-                          className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF7300] focus:border-transparent resize-none text-sm placeholder-gray-400"
+                          className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none text-sm placeholder-gray-400"
                         />
                         <div className="flex justify-end mt-2 sm:mt-3">
                           <button
                             onClick={handleAddComment}
                             disabled={loading || !newComment.trim()}
-                            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-[#FF7300] text-white rounded-lg hover:bg-[#E6650E] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm active:scale-95"
+                            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2 bg-primary text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm active:scale-95"
                           >
                             <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             <span className="text-xs sm:text-sm font-medium">Post Comment</span>
@@ -1101,7 +1101,11 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                               ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' 
                               : !isValidTransition
                               ? 'bg-gray-50 text-gray-300 cursor-not-allowed border border-gray-100'
-                              : `bg-white border border-${status.color}-200 text-${status.color}-700 hover:bg-${status.color}-50 hover:border-${status.color}-300 shadow-sm hover:shadow-md`
+                              : {
+                                  purple: 'bg-white border border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-300 shadow-sm hover:shadow-md',
+                                  yellow: 'bg-white border border-yellow-200 text-yellow-700 hover:bg-yellow-50 hover:border-yellow-300 shadow-sm hover:shadow-md',
+                                  green: 'bg-white border border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 shadow-sm hover:shadow-md',
+                                }[status.color] || 'bg-white border border-gray-200 text-gray-700 shadow-sm'
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -1130,7 +1134,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, userRole, onUpdate }) => {
                         <button
                           onClick={handleSaveEdit}
                           disabled={loading}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#FF7300] text-white rounded-lg hover:bg-[#E6650E] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
                         >
                           <Save className="h-4 w-4" />
                           <span className="font-medium">Save Changes</span>

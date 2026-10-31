@@ -11,6 +11,7 @@ import {
 } from '../../services/quotationService';
 import { getSalespersons } from '../../services/enquiryService';
 import { useAuth } from '../../context/AuthContext';
+import { formatDate, formatCurrency } from '../../utils/formatNumber';
 
 // Custom styles for mobile responsive design
 const customStyles = `
@@ -171,7 +172,7 @@ function StandalonePaymentModal({
       return;
     }
     if (amount < minimumAdvance) {
-      onSetPaymentError(`Advance payment must be at least ₹${minimumAdvance.toLocaleString('en-IN')} (${advancePercentage}% of total amount)`);
+      onSetPaymentError(`Advance payment must be at least ${formatCurrency(minimumAdvance)} (${advancePercentage}% of total amount)`);
       return;
     }
 
@@ -223,13 +224,13 @@ function StandalonePaymentModal({
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-1">Total Amount</p>
                   <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                    ₹{selectedQuotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(selectedQuotation.total)}
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-primary">Required: {advancePercentage}%</p>
                   <p className="text-sm font-semibold text-primary">
-                    ₹{minimumAdvance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(minimumAdvance)}
                   </p>
                 </div>
               </div>
@@ -722,7 +723,7 @@ export default function QuotationsTable({
         <div className="mobile-action-buttons flex items-center gap-0.5 sm:gap-1 flex-shrink-0 w-[140px] sm:w-[160px] justify-end">
           <button
             onClick={() => navigate(`/dashboard/quotations/${quotation._id}`)}
-            className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+            className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
             title="View Quotation"
           >
             <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -731,7 +732,7 @@ export default function QuotationsTable({
             <>
               <button
                 onClick={() => navigate(`/dashboard/quotations/${quotation._id}/edit`)}
-                className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+                className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
                 title="Edit Quotation"
                 disabled={loadingAction[quotation._id]}
               >
@@ -741,13 +742,13 @@ export default function QuotationsTable({
                 onClick={() => handleSendQuotation(quotation._id)}
                 className={`mobile-action-compact p-1 sm:p-1.5 rounded-md transition-colors duration-150 ${
                   loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' 
-                    ? 'text-[#FF7300] bg-orange-50 cursor-not-allowed' 
-                    : 'text-gray-500 hover:text-[#FF7300] hover:bg-orange-50'
+                    ? 'text-primary bg-orange-50 cursor-not-allowed' 
+                    : 'text-gray-500 hover:text-primary hover:bg-orange-50'
                 }`}
                 title={loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? "Sending..." : "Send Quotation"}
                 disabled={loadingAction[quotation._id]}
               >
-                {loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin text-[#FF7300]" /> : <Send className="w-3 h-3 sm:w-4 sm:h-4" />}
+                {loadingAction[quotation._id] && loadingActionType[quotation._id] === 'send' ? <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin text-primary" /> : <Send className="w-3 h-3 sm:w-4 sm:h-4" />}
               </button>
             </>
           )}
@@ -760,7 +761,7 @@ export default function QuotationsTable({
                     setShowPaymentModal(true);
                     setPaymentError('');
                   }}
-                  className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+                  className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
                   title="Confirm Offline Payment"
                 >
                   <IndianRupee className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -769,7 +770,7 @@ export default function QuotationsTable({
               {user?.role === 'accounts_department' && quotation.status === 'pending_approval' && (
                 <button
                   onClick={() => handleApproveQuotation(quotation._id)}
-                  className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+                  className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
                   title="Approve Quotation"
                   disabled={loadingAction[quotation._id]}
                 >
@@ -779,7 +780,7 @@ export default function QuotationsTable({
               {quotation.status === 'sent' && (
                 <button
                   onClick={() => handleCloseQuotation(quotation._id)}
-                  className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+                  className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
                   title="Close Quotation"
                   disabled={loadingAction[quotation._id]}
                 >
@@ -796,7 +797,7 @@ export default function QuotationsTable({
         <div className="flex items-center justify-between">
           <span className="text-xs sm:text-sm font-medium text-gray-500">Total Amount</span>
           <span className="text-base sm:text-lg font-bold text-gray-900 mobile-truncate ml-2">
-            ₹{(quotation.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatCurrency(quotation.total || 0)}
           </span>
         </div>
       </div>
@@ -821,7 +822,7 @@ export default function QuotationsTable({
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Valid Until</p>
           <div className="flex items-center space-x-1 text-xs sm:text-sm text-gray-600">
             <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-            <span className="mobile-truncate">{quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString('en-GB') : 'N/A'}</span>
+            <span className="mobile-truncate">{quotation.validUntil ? formatDate(quotation.validUntil) : 'N/A'}</span>
           </div>
         </div>
         <div className="min-w-0">
@@ -1011,7 +1012,7 @@ export default function QuotationsTable({
                       </td>
                       <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28 lg:w-32">
                         <div className="truncate">
-                          ₹{(quotation.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                          {formatCurrency(quotation.total || 0)}
                         </div>
                       </td>
                       <td className="px-2 lg:px-4 xl:px-6 py-4 w-24 lg:w-28">
@@ -1026,7 +1027,7 @@ export default function QuotationsTable({
                       </td>
                       <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-28 lg:w-32">
                         <div className="truncate">
-                          {quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString('en-GB') : 'N/A'}
+                          {quotation.validUntil ? formatDate(quotation.validUntil) : 'N/A'}
                         </div>
                       </td>
                       <td className="hidden xl:table-cell px-2 lg:px-4 xl:px-6 py-4 text-sm text-gray-600 w-20 lg:w-24">

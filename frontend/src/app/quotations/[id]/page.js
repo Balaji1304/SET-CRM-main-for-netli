@@ -22,6 +22,7 @@ import { getQuotation, sendQuotation, approveQuotation } from '../../../services
 import { sendInvoiceEmail } from '../../../services/invoiceService';
 import { API_URL } from '../../../services/apiConfig';
 import { useAuth } from '../../../context/AuthContext';
+import { formatDate, formatCurrency } from '../../../utils/formatNumber';
 
 export default function QuotationDetailsPage() {
   const { id } = useParams();
@@ -239,7 +240,7 @@ export default function QuotationDetailsPage() {
           </div>
           <div className="text-right flex-shrink-0">
             <p className="text-base sm:text-lg font-bold text-primary mb-0.5 sm:mb-1">
-              ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(total)}
             </p>
             <p className="text-xs text-gray-500 uppercase tracking-wider">Total</p>
           </div>
@@ -252,7 +253,7 @@ export default function QuotationDetailsPage() {
           </div>
           <div className="text-center">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 sm:mb-2">Unit Price</p>
-            <p className="text-sm sm:text-base font-semibold text-secondary">₹{item.unitPrice.toLocaleString('en-IN')}</p>
+            <p className="text-sm sm:text-base font-semibold text-secondary">{formatCurrency(item.unitPrice)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 sm:mb-2">Discount</p>
@@ -323,7 +324,7 @@ export default function QuotationDetailsPage() {
                 </p>
                 <span className="text-gray-300 hidden sm:inline">•</span>
                 <p className="text-xs sm:text-sm text-gray-600">
-                  {new Date(quotation.createdAt).toLocaleDateString('en-GB')}
+                  {formatDate(quotation.createdAt)}
                 </p>
               </div>
             </div>
@@ -456,7 +457,7 @@ export default function QuotationDetailsPage() {
               <div className="text-xs sm:text-sm text-gray-600 sm:text-right">
                 <p className="font-medium">Valid until:</p>
                 <p className="text-base sm:text-lg font-semibold text-primary">
-                  {new Date(quotation.validUntil).toLocaleDateString('en-GB')}
+                  {formatDate(quotation.validUntil)}
                 </p>
               </div>
             </div>
@@ -578,11 +579,11 @@ export default function QuotationDetailsPage() {
                           </td>
                           <td className="px-6 py-4 text-center text-sm text-gray-700">{item.quantity}</td>
                           <td className="px-6 py-4 text-right text-sm text-gray-700">
-                            ₹{item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(item.unitPrice)}
                           </td>
                           <td className="px-6 py-4 text-center text-sm text-gray-700">{item.discount}%</td>
                           <td className="px-6 py-4 text-right font-semibold text-secondary">
-                            ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(total)}
                           </td>
                         </tr>
                       );
@@ -593,7 +594,7 @@ export default function QuotationDetailsPage() {
                         <span className="text-lg text-secondary">TOTAL AMOUNT</span>
                       </td>
                       <td className="px-6 py-4 text-right text-lg text-primary">
-                        ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(quotation.total)}
                       </td>
                     </tr>
                   </tbody>
@@ -612,7 +613,7 @@ export default function QuotationDetailsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-base sm:text-lg font-semibold text-secondary">Total Amount</span>
                   <span className="text-base sm:text-lg font-bold text-primary">
-                    ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(quotation.total)}
                   </span>
                 </div>
               </div>
@@ -637,7 +638,7 @@ export default function QuotationDetailsPage() {
                         <span className="font-medium">Payment Amount:</span> {quotation.advancePaymentPercentage}% of total amount
                       </p>
                       <p className="text-xl sm:text-2xl font-bold text-primary">
-                        ₹{((quotation.total * quotation.advancePaymentPercentage / 100) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency((quotation.total * quotation.advancePaymentPercentage / 100) || 0)}
                       </p>
                       {quotation.status === 'sent' && (
                         <p className="text-xs sm:text-sm text-orange-700 mt-2 sm:mt-3 p-2 sm:p-3 bg-orange-100 rounded">

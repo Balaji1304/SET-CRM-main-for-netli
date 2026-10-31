@@ -41,7 +41,7 @@ const PerformancePage = () => {
       <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden p-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {performanceMetrics.map((metric) => (
-            <div key={metric.title} className="rounded-lg border border-input bg-white p-4">
+            <div key={metric.title} className="rounded-lg border border-fourth bg-white p-4">
               <div className="flex justify-between items-center mb-2">
                 <p className="text-sm font-medium text-gray-600">{metric.title}</p>
                 <metric.icon className="h-4 w-4 text-gray-400" />
