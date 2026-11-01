@@ -9,6 +9,7 @@ const {
   updateQuotation,
   deleteQuotation,
   sendQuotation,
+  resendQuotation,
   handleApproveQuotation,
   handleRazorpayWebhook,
   confirmOfflinePayment,
@@ -54,6 +55,7 @@ router.route('/:id')
   .delete(deleteQuotation);
 
 router.post('/:id/send', sendQuotation);
+router.post('/:id/resend', resendQuotation);
 router.put('/:id/approve', handleApproveQuotation);
 router.put('/:id/close', authorize([...ROLES.SALES, 'accounts_department']), closeQuotation);
 router.post('/:id/offline-payment', authorize([...ROLES.SALES, 'accounts_department']), confirmOfflinePayment);

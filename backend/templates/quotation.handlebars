@@ -855,10 +855,20 @@
                     <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">{{product.name}}</td>
                     <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">{{quantity}}</td>
                     <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">{{formatCurrency unitPrice}}</td>
-                    <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">{{discount}}%</td>
+                    <td style="padding: 8px; border: 1px solid #000; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">{{discount}}% ({{formatCurrency discountAmount}})</td>
                     <td class="amount-cell" style="padding: 8px; border: 1px solid #000; text-align: right; word-wrap: break-word; overflow-wrap: break-word;">{{formatCurrency total}}</td>
                 </tr>
                 {{/each}}
+                {{#if totalDiscount}}
+                <tr style="background-color: #fafafa;">
+                    <td colspan="4" style="padding: 8px; border: 1px solid #000; text-align: right;">Sub-Total</td>
+                    <td class="amount-cell" style="padding: 8px; border: 1px solid #000; text-align: right;">{{formatCurrency subTotal}}</td>
+                </tr>
+                <tr style="background-color: #fafafa;">
+                    <td colspan="4" style="padding: 8px; border: 1px solid #000; text-align: right;">Total Discount</td>
+                    <td class="amount-cell" style="padding: 8px; border: 1px solid #000; text-align: right; color: #d32f2f;">- {{formatCurrency totalDiscount}}</td>
+                </tr>
+                {{/if}}
                 <tr class="total-row" style="background-color: #f3f3f3; font-weight: bold;">
                     <td colspan="4" style="padding: 8px; border: 1px solid #000; text-align: right; word-wrap: break-word; overflow-wrap: break-word;"><strong>TOTAL AMOUNT</strong></td>
                     <td class="amount-cell" style="padding: 8px; border: 1px solid #000; text-align: right; word-wrap: break-word; overflow-wrap: break-word;">{{formatCurrency total}}</td>

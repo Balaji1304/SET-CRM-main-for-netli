@@ -165,6 +165,9 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     whatsappNumber = customer.phone;
   } else if (customer.whatsapp) {
     whatsappNumber = customer.whatsapp;
+  } else if (customer.phone) {
+    // Fallback: legacy leads may have phone but no explicit whatsapp field
+    whatsappNumber = customer.phone;
   } else {
     throw new Error('No valid WhatsApp number found');
   }

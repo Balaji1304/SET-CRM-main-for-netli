@@ -9,6 +9,7 @@ const {
   updateQuotation,
   deleteQuotation,
   sendQuotation,
+  resendQuotation,
   handleApproveQuotation,
   closeQuotation,
   confirmOfflinePayment,
@@ -47,6 +48,7 @@ router.route('/:id')
   .delete(protect, checkRolePermission, deleteQuotation);
 
 router.post('/:id/send', protect, checkRolePermission, sendQuotation);
+router.post('/:id/resend', protect, checkRolePermission, resendQuotation);
 router.put('/:id/approve', protect, checkRolePermission, handleApproveQuotation);
 router.put('/:id/close', protect, checkRolePermission, closeQuotation);
 router.post('/:id/offline-payment', protect, checkRolePermission, confirmOfflinePayment);

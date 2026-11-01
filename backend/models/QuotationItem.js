@@ -30,10 +30,14 @@ const quotationItemSchema = new mongoose.Schema({
     required: true,
     min: [1, 'Quantity must be at least 1'] 
   },
-  unitPrice: { 
-    type: Number, 
+  basePrice: {
+    type: Number,
+    min: [0, 'Base price cannot be negative']
+  },
+  unitPrice: {
+    type: Number,
     required: true,
-    min: [0, 'Unit price cannot be negative'] 
+    min: [0, 'Unit price cannot be negative']
   },
   discount: {
     type: Number,

@@ -129,6 +129,7 @@ app.use(
 );
 app.use('/api/reports/sales', require('./routes/salesReports.js'));
 app.use('/api/reports/service', require('./routes/serviceReports.js'));
+app.use('/api/settings', require('./routes/systemSettings.js'));
 
 // Route for dashboard summary
 const dashboardRoutes = require('./routes/dashboardRoutes.js');

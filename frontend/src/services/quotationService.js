@@ -1,4 +1,4 @@
-import { apiRequest, invalidateCache } from './apiConfig';
+import { apiRequest, invalidateCache, API_URL } from './apiConfig';
 
 /**
  * Get all quotations
@@ -80,6 +80,17 @@ export const sendQuotation = async (id) => {
   return response;
   } catch (error) {
     console.error('Error sending quotation:', error);
+    throw error;
+  }
+};
+
+export const resendQuotation = async (id) => {
+  try {
+    const response = await apiRequest(`quotations/${id}/resend`, { method: 'POST' }, false);
+    invalidateCache('quotations');
+    return response;
+  } catch (error) {
+    console.error('Error resending quotation:', error);
     throw error;
   }
 };
@@ -174,10 +185,28 @@ export const getCustomerProducts = async () => {
 export const exportQuotations = async (params = {}) => {
   try {
     const query = new URLSearchParams(params).toString();
-    const endpoint = `quotations/export?${query}`;
-    // Use apiRequest and specify no caching for this request
-    const response = await apiRequest(endpoint, { method: 'GET' }, false);
-    return response;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const response = await fetch(`${API_URL}/quotations/export?${query}`, {
+      method: 'GET',
+      headers: { ...(token && { Authorization: `Bearer ${token}` }) }
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: 'Export failed' }));
+      throw new Error(err.message);
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : 'Quotations.xlsx';
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    return { success: true };
   } catch (error) {
     console.error('Error exporting quotations:', error);
     throw error;
