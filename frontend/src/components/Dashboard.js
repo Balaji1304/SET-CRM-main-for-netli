@@ -986,99 +986,125 @@ const Dashboard = () => {
   );
 
   const renderAdminDashboard = () => (
-    <>
+    <div className="w-full max-w-full overflow-x-hidden">
+      {/* Revenue & Business KPIs */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Total Revenue', `₹${formatNumber(summaryData.totalRevenue || 0)}`, <IndianRupee className="text-green-600" />, 'All time')}
+        {renderCommonCard('Monthly Revenue', `₹${formatNumber(summaryData.monthlyRevenue || 0)}`, <IndianRupee className="text-blue-500" />, 'This month')}
+        {renderCommonCard('Outstanding', `₹${formatNumber(summaryData.outstandingPayments || 0)}`, <AlertTriangle className="text-red-500" />, 'To be collected')}
+        {renderCommonCard('Total Customers', formatNumber(summaryData.totalCustomers || 0), <UserCheck />)}
+      </div>
+
+      {/* Operations KPIs */}
       <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderCommonCard('Total Users', formatNumber(summaryData.totalUsers || 0), <Users />)}
-        {renderCommonCard('Total Customers', formatNumber(summaryData.totalCustomers || 0), <UserCheck />)}
-        {renderCommonCard('Active Leads', formatNumber(summaryData.activeLeads || 0), <FileText />)}
-        {renderCommonCard('Total Revenue', `₹${formatNumber(summaryData.totalRevenue || 0)}`, <IndianRupee />)}
-      </div>
-      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        {renderCommonCard('Active Tickets', formatNumber(summaryData.totalOpenTickets || 0), <Ticket />)}
-        {renderCommonCard('Pending Quotations', formatNumber(summaryData.quotationStats?.sent || 0), <FileText />)}
+        {renderCommonCard('Active Leads', formatNumber(summaryData.activeLeads || 0), <Target className="text-blue-500" />)}
+        {renderCommonCard('Open Tickets', formatNumber(summaryData.totalOpenTickets || 0), <Ticket className="text-orange-500" />)}
         {renderCommonCard('Active Orders', formatNumber(summaryData.activeOrders || 0), <ShoppingCart />)}
-        {renderCommonCard('Low Stock Items', summaryData.lowStockItems || 0, <AlertTriangle className="text-red-500" />)}
       </div>
-      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
-        {renderCommonCard('Products', formatNumber(summaryData.totalProducts || 0), <Package />)}
-        {renderCommonCard('Installations', formatNumber(summaryData.totalInstallations || 0), <Settings />)}
-        {renderCommonCard('Enquiries', formatNumber(summaryData.totalEnquiries || 0), <Users />)}
-        {renderCommonCard('Invoices', formatNumber(summaryData.totalInvoices || 0), <FileText />)}
-        {renderCommonCard('Packages', formatNumber(summaryData.totalPackages || 0), <Plus />)}
+
+      {/* Inventory & Enquiries */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {renderCommonCard('Total Products', formatNumber(summaryData.totalProducts || 0), <Package />)}
+        {renderCommonCard('Low Stock Items', summaryData.lowStockItems || 0, <PackageSearch className="text-red-500" />)}
+        {renderCommonCard('Enquiries', formatNumber(summaryData.totalEnquiries || 0), <UserPlus />, `${summaryData.newEnquiriesToday || 0} today`)}
+        {renderCommonCard('Pending Approvals', formatNumber(summaryData.pendingApprovals || 0), <Clock className="text-orange-500" />)}
       </div>
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-        {renderSection("System Overview", <BarChart2 />, 
+
+      {/* Quotation Pipeline + Team + Activity */}
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-3 mb-6">
+        {renderSection("Quotation Pipeline", <FileText />,
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div className="text-center p-3 bg-blue-50 rounded-lg">
                 <div className="text-lg font-semibold text-blue-600">{summaryData.quotationStats?.draft || 0}</div>
-                <div className="text-xs text-blue-500">Draft Quotations</div>
+                <div className="text-xs text-blue-500">Draft</div>
+                <div className="text-xs text-gray-400 mt-0.5">₹{formatNumber(summaryData.quotationStats?.draftValue || 0)}</div>
+              </div>
+              <div className="text-center p-3 bg-orange-50 rounded-lg">
+                <div className="text-lg font-semibold text-orange-600">{summaryData.quotationStats?.sent || 0}</div>
+                <div className="text-xs text-orange-500">Sent</div>
+                <div className="text-xs text-gray-400 mt-0.5">₹{formatNumber(summaryData.quotationStats?.sentValue || 0)}</div>
               </div>
               <div className="text-center p-3 bg-green-50 rounded-lg">
                 <div className="text-lg font-semibold text-green-600">{summaryData.quotationStats?.approved || 0}</div>
-                <div className="text-xs text-green-500">Approved Quotations</div>
+                <div className="text-xs text-green-500">Approved</div>
+                <div className="text-xs text-gray-400 mt-0.5">₹{formatNumber(summaryData.quotationStats?.approvedValue || 0)}</div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-3 bg-orange-50 rounded-lg">
-                <div className="text-lg font-semibold text-orange-600">{summaryData.pendingApprovals || 0}</div>
-                <div className="text-xs text-orange-500">Pending Approvals</div>
-              </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="text-center p-3 bg-purple-50 rounded-lg">
                 <div className="text-lg font-semibold text-purple-600">{summaryData.completedInstallations || 0}</div>
                 <div className="text-xs text-purple-500">Completed Installations</div>
               </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <div className="text-lg font-semibold text-gray-600">{formatNumber(summaryData.totalInvoices || 0)}</div>
+                <div className="text-xs text-gray-500">Invoices Generated</div>
+              </div>
             </div>
           </div>
         )}
-        {renderSection("Recent System Activity", <Clock />, 
+
+        {renderSection("Team by Role", <Users2 />,
           <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
-            {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className='text-sm text-gray-500'>No recent system activity.</p>}
+            {summaryData.usersByRole?.length > 0 ? summaryData.usersByRole.map((r, idx) => (
+              <div key={idx} className={`flex justify-between items-center py-2 ${idx !== summaryData.usersByRole.length - 1 ? 'border-b border-fourth' : ''}`}>
+                <span className="text-sm text-secondary capitalize">{(r.role || 'unknown').replace(/_/g, ' ')}</span>
+                <span className="text-sm font-semibold text-secondary">{r.count}</span>
+              </div>
+            )) : <p className="text-sm text-gray-500">No user data available.</p>}
+          </div>
+        )}
+
+        {renderSection("Recent Activity", <Clock />,
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
+            {summaryData.recentActivity?.length > 0 ? summaryData.recentActivity.map((item, idx, arr) => renderActivityItem(item, idx, arr.length)) : <p className="text-sm text-gray-500">No recent system activity.</p>}
           </div>
         )}
       </div>
-      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mt-6">
-        {renderSection("Quick Actions", <Briefcase />, 
+
+      {/* Low Stock + Quick Actions */}
+      <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 mb-6">
+        {renderSection("Low Stock Items", <AlertTriangle className="text-red-500" />,
+          <div className="space-y-1 max-h-80 overflow-y-auto pr-2">
+            {summaryData.lowStockItemsList?.length > 0 ? summaryData.lowStockItemsList.map((item) => (
+              <div key={item.id} className="flex justify-between items-center py-2 border-b border-fourth">
+                <span className="text-sm text-secondary">{item.name}</span>
+                <span className="text-sm font-semibold text-red-500">{item.quantity} / {item.reorderLevel}</span>
+              </div>
+            )) : <p className="text-sm text-gray-500">All items are well-stocked.</p>}
+          </div>
+        )}
+        {renderSection("Quick Actions", <Zap className="text-yellow-500" />,
           <div className="grid grid-cols-2 gap-3">
-            <button 
-              onClick={() => navigate('/dashboard/products')}
-              className="p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left"
-            >
+            <button onClick={() => navigate('/dashboard/products')} className="p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
               <Package className="h-5 w-5 text-blue-600 mb-1" />
-              <div className="text-sm font-medium text-blue-600">Manage Products</div>
+              <div className="text-sm font-medium text-blue-600">Products</div>
             </button>
-            <button 
-              onClick={() => navigate('/dashboard/customers')}
-              className="p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-left"
-            >
+            <button onClick={() => navigate('/dashboard/customers')} className="p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-left">
               <Users className="h-5 w-5 text-green-600 mb-1" />
-              <div className="text-sm font-medium text-green-600">View Customers</div>
+              <div className="text-sm font-medium text-green-600">Customers</div>
             </button>
-            <button 
-              onClick={() => navigate('/dashboard/quotations')}
-              className="p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors text-left"
-            >
+            <button onClick={() => navigate('/dashboard/quotations')} className="p-3 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors text-left">
               <FileText className="h-5 w-5 text-orange-600 mb-1" />
-              <div className="text-sm font-medium text-orange-600">View Quotations</div>
+              <div className="text-sm font-medium text-orange-600">Quotations</div>
             </button>
-            <button 
-              onClick={() => navigate('/dashboard/tickets')}
-              className="p-3 bg-red-50 hover:bg-red-100 rounded-lg transition-colors text-left"
-            >
+            <button onClick={() => navigate('/dashboard/tickets')} className="p-3 bg-red-50 hover:bg-red-100 rounded-lg transition-colors text-left">
               <Ticket className="h-5 w-5 text-red-600 mb-1" />
-              <div className="text-sm font-medium text-red-600">Support Tickets</div>
+              <div className="text-sm font-medium text-red-600">Tickets</div>
             </button>
-          </div>
-        )}
-        {renderSection("System Health", <TrendingUp />, 
-          <div className="space-y-2">
-            {renderPerformanceItem('System Uptime', '99.9%')}
-            {renderPerformanceItem('Active Users', formatNumber(summaryData.activeUsers || 0))}
-            {renderPerformanceItem('Database Size', summaryData.dbSize || 'N/A')}
+            <button onClick={() => navigate('/dashboard/leads')} className="p-3 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-left">
+              <Target className="h-5 w-5 text-purple-600 mb-1" />
+              <div className="text-sm font-medium text-purple-600">Leads</div>
+            </button>
+            <button onClick={() => navigate('/dashboard/purchase-orders')} className="p-3 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors text-left">
+              <ShoppingCart className="h-5 w-5 text-indigo-600 mb-1" />
+              <div className="text-sm font-medium text-indigo-600">Purchase Orders</div>
+            </button>
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 
   const renderDashboardByRole = () => {

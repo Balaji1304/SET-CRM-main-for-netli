@@ -15,7 +15,7 @@ import {
   Calendar,
   Wrench,
   Home,
-  BookOpen,
+
   BarChart2,
   UserPlus,
   CreditCard,
@@ -82,7 +82,7 @@ const getNavigation = (userRole) => {
   
   // Bottom items common for all roles
   const bottomItems = [
-    { name: 'Knowledge Base', href: '/dashboard/knowledge-base', icon: BookOpen },
+
     { name: 'Reports', href: '/dashboard/reports', icon: BarChart2 }
   ];
    
