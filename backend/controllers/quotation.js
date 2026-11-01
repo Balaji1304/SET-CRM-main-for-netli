@@ -2477,6 +2477,7 @@ module.exports = {
   updateQuotation: exports.updateQuotation,
   deleteQuotation: exports.deleteQuotation,
   sendQuotation: exports.sendQuotation,
+  resendQuotation: exports.resendQuotation,
   handleApproveQuotation: exports.handleApproveQuotation,
   handleRazorpayWebhook: exports.handleRazorpayWebhook,
   confirmOfflinePayment: exports.confirmOfflinePayment,
