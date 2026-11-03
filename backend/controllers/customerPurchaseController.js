@@ -6,6 +6,7 @@ const Payment = require('../models/Payment');
 const QuotationItem = require('../models/QuotationItem');
 const Product = require('../models/Product');
 const { AppError, errorHandler } = require('../utils/errorHandler');
+const { assertCanAccessPurchase } = require('../utils/accessControl');
 const User = require('../models/User');
 const Package = require('../models/Package');
 const { notifyClient, notifyRole } = require('../utils/websocket');
@@ -364,9 +365,8 @@ exports.recordManualPayment = async (req, res) => {
     if (!req.user || req.user.role !== 'customer') {
       throw new AppError('Only customers can record manual payments', 403);
     }
-    if (purchase.customerId && purchase.customerId.email && req.user.email && purchase.customerId.email !== req.user.email) {
-      throw new AppError('Not authorized to record payment for this purchase', 403);
-    }
+    // Customers may only record payments against their own purchases
+    await assertCanAccessPurchase(req.user, purchase);
 
     const amt = Number(amount);
     if (isNaN(amt) || amt <= 0) throw new AppError('Invalid amount', 400);
@@ -497,6 +497,9 @@ exports.getPaymentHistory = async (req, res) => {
     if (!purchase) {
       throw new AppError('Purchase not found', 404);
     }
+
+    // Customers may only see payments for their own purchases
+    await assertCanAccessPurchase(req.user, purchase);
 
     const payments = await Payment.find({ customerPurchaseId: purchaseId })
       .sort({ paidAt: -1 })
@@ -631,6 +634,9 @@ exports.getPurchaseDetails = async (req, res) => {
     if (!purchase) {
       throw new AppError('Purchase not found', 404);
     }
+
+    // Customers may only see their own purchases
+    await assertCanAccessPurchase(req.user, purchase);
 
     const quotationItems = await QuotationItem.find({ quotationId: purchase.quotationId._id })
       .populate({

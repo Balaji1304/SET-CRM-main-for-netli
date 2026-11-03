@@ -2,7 +2,10 @@ const User = require('../models/User');
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role, phone, countryCode, whatsapp } = req.body;
+    // Public self-registration only ever creates customer accounts.
+    // Staff accounts are created by an admin via /api/users/manage.
+    // Any "role" sent in the request body is deliberately ignored.
+    const { name, email, password, phone, countryCode, whatsapp } = req.body;
 
     // Validate required fields
     if (!name || !password || !phone) {
@@ -12,11 +15,10 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Email is required for non-customer roles
-    if (role && role !== 'customer' && !email) {
+    if (typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({
         success: false,
-        message: 'Email is required for non-customer roles'
+        message: 'Password must be at least 8 characters long'
       });
     }
 
@@ -48,7 +50,7 @@ exports.register = async (req, res) => {
       name,
       password,
       phone,
-      role: role || 'customer',
+      role: 'customer',
       countryCode: countryCode || '+91'
     };
 
@@ -79,7 +81,7 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     // Validate email/username & password
-    if (!email || !password) {
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
       return res.status(400).json({
         success: false,
         message: 'Please provide an email/username and password'

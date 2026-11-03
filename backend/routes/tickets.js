@@ -17,7 +17,26 @@ const {
   exportTickets
 } = require('../controllers/tickets');
 const multer = require('multer');
-const upload = multer({ dest: 'uploads/' });
+// Same file types the ticket forms accept; 10 MB per file
+const ALLOWED_ATTACHMENT_TYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain'
+];
+const upload = multer({
+  dest: 'uploads/',
+  limits: { fileSize: 10 * 1024 * 1024, files: 3 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_ATTACHMENT_TYPES.includes(file.mimetype)) {
+      return cb(null, true);
+    }
+    const err = new Error('Unsupported attachment type');
+    err.statusCode = 400;
+    cb(err);
+  }
+});
 
 // Customer: list & create own tickets
 router.route('/')

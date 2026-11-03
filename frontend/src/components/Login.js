@@ -3,8 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, AlertCircle, Loader2, Users, Building2, BarChart3, FileText, ShoppingCart, Zap } from 'lucide-react';
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
 // Custom styles for enhanced desktop and mobile experience
 const customStyles = `
@@ -114,10 +112,14 @@ const customStyles = `
   }
 `;
 
-const formSchema = z.object({
-  email: z.string().min(1, "Please enter your email address or phone number"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
+// Validation rules (react-hook-form built-in; replaces the zod schema)
+const formRules = {
+  email: { required: "Please enter your email address or phone number" },
+  password: {
+    required: "Password must be at least 6 characters",
+    minLength: { value: 6, message: "Password must be at least 6 characters" },
+  },
+};
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -129,10 +131,13 @@ const Login = () => {
 
   // Parse query parameters
   const queryParams = new URLSearchParams(location.search);
-  const returnUrl = queryParams.get('returnUrl') || '/dashboard';
+  // Only allow in-app paths as return targets (no external/open redirects)
+  const requestedReturnUrl = queryParams.get('returnUrl');
+  const returnUrl = requestedReturnUrl && requestedReturnUrl.startsWith('/') && !requestedReturnUrl.startsWith('//')
+    ? requestedReturnUrl
+    : '/dashboard';
 
   const form = useForm({
-    resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
       password: "",
@@ -355,7 +360,7 @@ const Login = () => {
                   Email Address / Phone Number
                 </label>
                 <input
-                  {...form.register("email")}
+                  {...form.register("email", formRules.email)}
                   type="text"
                   placeholder="Enter your email or phone number"
                   onChange={(e) => {
@@ -383,7 +388,7 @@ const Login = () => {
                 </label>
                 <div className="relative">
                   <input
-                    {...form.register("password")}
+                    {...form.register("password", formRules.password)}
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     onChange={(e) => {

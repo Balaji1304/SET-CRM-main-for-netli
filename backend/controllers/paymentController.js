@@ -6,6 +6,7 @@ const Quotation = require('../models/Quotation');
 const QuotationItem = require('../models/QuotationItem');
 const Payment = require('../models/Payment');
 const { errorHandler, AppError } = require('../utils/errorHandler');
+const { assertCanAccessPurchase, findCustomerForUser } = require('../utils/accessControl');
 const razorpay = require('../config/razorpay');
 const shortid = require('shortid');
 const NotificationService = require('../utils/notificationService');
@@ -182,21 +183,21 @@ exports.recordPayment = async (req, res) => {
       throw new AppError('Purchase not found', 404);
     }
 
-    // Verify this purchase belongs to the customer
-    const customer = await Customer.findOne({ email: req.user.email });
-    if (!customer || purchase.customerId.toString() !== customer._id.toString()) {
-      throw new AppError('Not authorized to make payment for this purchase', 403);
+    // Route is restricted to accounts/admin; no customer ownership check needed here.
+    const amountNumber = Number(amount);
+    if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
+      throw new AppError('Invalid payment amount', 400);
     }
 
     // Validate payment amount
-    if (amount > purchase.remainingAmount) {
+    if (amountNumber > purchase.remainingAmount) {
       throw new AppError('Payment amount cannot exceed remaining balance', 400);
     }
 
     // Create payment record
     const payment = await Payment.create({
       customerPurchaseId: purchaseId,
-      amountPaid: amount,
+      amountPaid: amountNumber,
       paymentMethod: paymentMethod || 'online',
       transactionId: transactionId || '',
       notes: notes || '',
@@ -204,7 +205,7 @@ exports.recordPayment = async (req, res) => {
     });
 
     // Update purchase
-    const newRemainingAmount = purchase.remainingAmount - amount;
+    const newRemainingAmount = purchase.remainingAmount - amountNumber;
     purchase.remainingAmount = newRemainingAmount;
     purchase.isFullyPaid = newRemainingAmount <= 0;
     await purchase.save();
@@ -267,10 +268,7 @@ exports.createRemainingPaymentLink = async (req, res) => {
     }
 
     // Verify this purchase belongs to the customer
-    const customer = await Customer.findOne({ email: req.user.email });
-    if (!customer || purchase.customerId.toString() !== customer._id.toString()) {
-      throw new AppError('Not authorized to make payment for this purchase', 403);
-    }
+    await assertCanAccessPurchase(req.user, purchase);
 
     // Verify that there is a remaining amount to pay
     if (purchase.remainingAmount <= 0 || purchase.isFullyPaid) {
@@ -375,9 +373,12 @@ exports.verifyRazorpayPayment = async (req, res) => {
     }
     
     // Verify this purchase belongs to the customer
-    const customer = await Customer.findOne({ email: req.user.email });
-    if (!customer || purchase.customerId.toString() !== customer._id.toString()) {
-      throw new AppError('Not authorized to verify payment for this purchase', 403);
+    await assertCanAccessPurchase(req.user, purchase);
+    const customer = await findCustomerForUser(req.user);
+
+    // Only the payment link we created for this purchase can settle it
+    if (!purchase.razorpayPaymentId || purchase.razorpayPaymentId !== String(paymentLinkId)) {
+      throw new AppError('Payment link does not belong to this purchase', 400);
     }
     
     // Check if payment has already been verified and recorded
@@ -403,6 +404,12 @@ exports.verifyRazorpayPayment = async (req, res) => {
       // Verify payment status with Razorpay
       const verification = await razorpay.verifyPaymentLinkStatus(paymentLinkId);
       
+      // The paid link amount must cover the outstanding balance
+      const paidAmount = Number(verification.paymentLink && verification.paymentLink.amount);
+      if (verification.verified && !(paidAmount + 0.01 >= purchase.remainingAmount)) {
+        throw new AppError('Paid amount does not cover the remaining balance', 400);
+      }
+
       if (verification.verified) {
         // Payment was successful, record it in our database
         try {
@@ -470,7 +477,12 @@ exports.verifyRazorpayPayment = async (req, res) => {
       }
     } catch (error) {
       console.error('Payment verification error:', error);
-      
+
+      // Our own validation errors pass through unchanged
+      if (error instanceof AppError) {
+        throw error;
+      }
+
       // Handle different error scenarios
       if (error.statusCode === 401) {
         throw new AppError('Razorpay authentication failed. Please contact support.', 500);

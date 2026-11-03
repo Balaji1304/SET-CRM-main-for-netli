@@ -1,2 +1,12 @@
 /node_modules
-.env 
+
+# Secrets: never commit real environment files (any name/extension)
+.env
+.env.*
+*.env
+*.env.txt
+!.env.example
+
+# Logs and local uploads
+*.log
+/uploads/brochures/

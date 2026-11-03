@@ -23,6 +23,12 @@ services:
         sync: false
       - key: WHATSAPP_DEV_MODE
         sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        sync: false
     installPackages:
       - gconf-service
       - libasound2

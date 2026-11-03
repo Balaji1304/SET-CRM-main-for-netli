@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
+const { ROLES } = require('../utils/accessControl');
 const {
   getQuotations,
   getQuotation,
@@ -54,8 +55,8 @@ router.route('/:id')
 
 router.post('/:id/send', sendQuotation);
 router.put('/:id/approve', handleApproveQuotation);
-router.put('/:id/close', closeQuotation);
-router.post('/:id/offline-payment', confirmOfflinePayment);
+router.put('/:id/close', authorize([...ROLES.SALES, 'accounts_department']), closeQuotation);
+router.post('/:id/offline-payment', authorize([...ROLES.SALES, 'accounts_department']), confirmOfflinePayment);
 router.get('/:id/payment-status', checkPaymentStatus);
 
 // Simple 404 handler

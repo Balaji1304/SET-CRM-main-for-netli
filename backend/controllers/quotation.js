@@ -351,6 +351,11 @@ exports.updateQuotation = async (req, res) => {
       throw new AppError('Quotation not found', 404);
     }
 
+    // Sales persons may only edit their own quotations
+    if (req.user.role === 'sales_person' && (!quotation.createdBy || quotation.createdBy.toString() !== req.user.id)) {
+      throw new AppError('Not authorized to update this quotation', 403);
+    }
+
     // Only allow updates if quotation is in draft status
     if (quotation.status !== 'draft') {
       throw new AppError('Cannot update quotation that is not in draft status', 400);
@@ -477,6 +482,14 @@ exports.deleteQuotation = async (req, res) => {
       });
     }
 
+    // Sales persons may only delete their own quotations
+    if (req.user.role === 'sales_person' && (!quotation.createdBy || quotation.createdBy.toString() !== req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to delete this quotation'
+      });
+    }
+
     // Only allow deletion of draft quotations
     if (quotation.status !== 'draft') {
       return res.status(400).json({
@@ -485,7 +498,8 @@ exports.deleteQuotation = async (req, res) => {
       });
     }
 
-    await quotation.remove();
+    // Document#remove() no longer exists in Mongoose 7
+    await quotation.deleteOne();
 
     res.json({
       success: true,
@@ -521,6 +535,14 @@ exports.sendQuotation = async (req, res) => {
         message: 'Quotation not found'
       });
       }
+
+    // Sales persons may only send their own quotations
+    if (req.user.role === 'sales_person' && (!quotation.createdBy || quotation.createdBy.toString() !== req.user.id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to send this quotation'
+      });
+    }
 
     // Get quotation items
     const quotationItems = await QuotationItem.find({ quotationId: quotation._id })
@@ -1047,12 +1069,9 @@ exports.handleRazorpayWebhook = async (req, res) => {
     const signature = req.headers['x-razorpay-signature'];
     
     if (!webhookSecret) {
+      // Never process unsigned webhooks: a forged "payment_link.paid" event would approve quotations
       console.error('Webhook verification failed: Missing RAZORPAY_WEBHOOK_SECRET environment variable');
-      // Still process the webhook in development mode without verifying
-      if (process.env.NODE_ENV !== 'development') {
-        return res.status(400).json({ error: 'Webhook secret missing in server configuration' });
-      }
-      console.warn('WARNING: Skipping webhook signature verification in development mode');
+      return res.status(400).json({ error: 'Webhook secret missing in server configuration' });
     } else if (!signature) {
       console.error('Webhook verification failed: Missing x-razorpay-signature header');
       return res.status(400).json({ error: 'Missing signature header' });
@@ -1062,8 +1081,11 @@ exports.handleRazorpayWebhook = async (req, res) => {
       shasum.update(req.body instanceof Buffer ? req.body : JSON.stringify(webhookBody));
       const digest = shasum.digest('hex');
 
-      if (signature !== digest) {
-        console.error('Invalid webhook signature. Received:', signature, 'Expected:', digest);
+      // Constant-time comparison; never log the expected signature
+      const received = Buffer.from(String(signature), 'utf8');
+      const expected = Buffer.from(digest, 'utf8');
+      if (received.length !== expected.length || !crypto.timingSafeEqual(received, expected)) {
+        console.error('Invalid Razorpay webhook signature');
         return res.status(400).json({ error: 'Invalid webhook signature' });
       }
     }
@@ -1897,42 +1919,57 @@ exports.manualConfirmPayment = async (req, res) => {
       });
     }
     
+    // This endpoint is public (customers land here after Razorpay redirects them),
+    // so the payment must be proven to belong to THIS quotation before we trust it.
+    // 1. The payment link must be the one we created for this quotation.
+    if (!quotation.razorpayPaymentLinkId || quotation.razorpayPaymentLinkId !== String(paymentLinkId)) {
+      console.warn(`Manual confirmation rejected for quotation ${quotationId}: payment link does not belong to this quotation`);
+      return res.status(400).json({
+        success: false,
+        message: 'Payment link does not belong to this quotation'
+      });
+    }
+
     // DIRECT VERIFICATION WITH RAZORPAY API
     try {
-      console.log(`Verifying payment with Razorpay API: ${paymentId}`);
-      // Verify payment status directly with Razorpay
-      const paymentVerification = await razorpay.verifyPaymentStatus(paymentId);
-      
+      // 2. The payment itself must be captured/authorized.
+      const paymentVerification = await razorpay.verifyPaymentStatus(String(paymentId));
+
       if (!paymentVerification.verified) {
         console.error(`Payment verification failed for ${paymentId}. Razorpay status: ${paymentVerification.payment.status}`);
         return res.status(400).json({
           success: false,
-          message: `Payment verification failed. Razorpay status: ${paymentVerification.payment.status}`,
-          data: paymentVerification.payment
+          message: `Payment verification failed. Razorpay status: ${paymentVerification.payment.status}`
         });
       }
-      
-      console.log(`Payment verification successful. Status: ${paymentVerification.payment.status}`);
-      
-      // Also verify payment link if possible
-      try {
-        await razorpay.verifyPaymentLinkStatus(paymentLinkId);
-        console.log(`Payment link verification successful: ${paymentLinkId}`);
-      } catch (linkError) {
-        // Non-blocking error, continue
-        console.error('Error verifying payment link (non-blocking):', linkError.message);
+
+      // 3. The payment link must be paid, and this payment must be one of its payments.
+      const linkVerification = await razorpay.verifyPaymentLinkStatus(String(paymentLinkId));
+      const linkPayments = (linkVerification.paymentLink && linkVerification.paymentLink.payments) || [];
+      const paymentBelongsToLink = linkPayments.some(p => p && p.payment_id === String(paymentId));
+      if (!linkVerification.verified || !paymentBelongsToLink) {
+        console.warn(`Manual confirmation rejected for quotation ${quotationId}: payment ${paymentId} is not a completed payment of link ${paymentLinkId}`);
+        return res.status(400).json({
+          success: false,
+          message: 'Payment does not match this quotation\'s payment link'
+        });
       }
-      
+
+      // 4. The amount paid must cover the required advance.
+      const advancePercentage = quotation.advancePaymentPercentage || 20;
+      const minimumAdvance = Number((quotation.total * (advancePercentage / 100)).toFixed(2));
+      if (Number(paymentVerification.payment.amount) + 0.01 < minimumAdvance) {
+        return res.status(400).json({
+          success: false,
+          message: `Payment amount is below the required advance of ₹${minimumAdvance.toFixed(2)}`
+        });
+      }
+
       // Update payment details
       quotation.advancePaymentStatus = 'CONFIRMED';
       quotation.advancePaymentConfirmedAt = new Date();
-      quotation.razorpayPaymentId = paymentId;
-      
-      // If payment link ID doesn't match but we have a new one, update it
-      if (paymentLinkId && quotation.razorpayPaymentLinkId !== paymentLinkId) {
-        quotation.razorpayPaymentLinkId = paymentLinkId;
-      }
-      
+      quotation.razorpayPaymentId = String(paymentId);
+
       await quotation.save();
       console.log(`Quotation ${quotationId} updated with payment details`);
       
@@ -1970,88 +2007,52 @@ exports.manualConfirmPayment = async (req, res) => {
     } catch (verificationError) {
       console.error('Razorpay API verification failed:', verificationError.message);
       
-      // Fallback to signature verification if API verification fails
-      
-      // Check if the payment is already registered but quotation not approved
-      if (quotation.razorpayPaymentId === paymentId || quotation.razorpayPaymentLinkId === paymentLinkId) {
-        console.log(`Using fallback verification: Payment ID/Link matches quotation records`);
-        
-        // Update payment details if not already set
-        if (quotation.advancePaymentStatus !== 'CONFIRMED') {
-          quotation.advancePaymentStatus = 'CONFIRMED';
-          quotation.advancePaymentConfirmedAt = new Date();
-          
-          // Set payment ID if not already set
-          if (!quotation.razorpayPaymentId) {
-            quotation.razorpayPaymentId = paymentId;
-          }
-          
-          await quotation.save();
-          console.log(`Updated payment status using fallback method for quotation ${quotationId}`);
-        }
-        
-        // Approve quotation if not already approved
+      // Razorpay could not be reached or rejected the lookup (e.g. an invalid payment id).
+      // Only trust a payment that was already confirmed by a signature-verified webhook
+      // for this exact payment id. Never confirm a payment on the basis of matching ids alone.
+      if (quotation.advancePaymentStatus === 'CONFIRMED' && quotation.razorpayPaymentId === String(paymentId)) {
         if (quotation.status !== 'approved') {
           try {
-            // Use the helper function to create customer and approve quotation
-            console.log(`Approving quotation ${quotationId} via fallback method`);
             const approvedQuotation = await approveQuotation(quotation);
-            
-            // Notify the sales person if websocket utils are available
             if (typeof notifyClient === 'function') {
-              const userId = quotation.createdBy;
-              notifyClient(userId, quotation._id, 'approved');
+              notifyClient(quotation.createdBy, quotation._id, 'approved');
             }
-            
             return res.json({
               success: true,
-              message: 'Payment confirmed via fallback method and quotation approved',
+              message: 'Payment previously confirmed by Razorpay webhook; quotation approved',
               data: {
                 quotationId: approvedQuotation._id,
                 quotationNumber: approvedQuotation.quotationNumber,
                 paymentStatus: 'CONFIRMED',
                 quotationStatus: 'approved',
-                verificationMethod: 'fallback'
+                verificationMethod: 'webhook'
               }
             });
           } catch (error) {
-            console.error('Error in fallback approval process:', error.message, error.stack);
+            console.error('Error approving webhook-confirmed quotation:', error.message);
             return res.status(500).json({
               success: false,
-              message: 'Payment confirmed but approval failed',
-              error: error.message
+              message: 'Payment confirmed but approval failed'
             });
           }
-        } else {
-          // Already approved, just return success
-          console.log(`Quotation ${quotationId} already approved`);
-          return res.json({
-            success: true,
-            message: 'Payment confirmed via fallback and quotation already approved',
-            data: {
-              quotationId: quotation._id,
-              quotationNumber: quotation.quotationNumber,
-              paymentStatus: 'CONFIRMED',
-              quotationStatus: 'approved',
-              verificationMethod: 'fallback'
-            }
-          });
         }
-      } else {
-        // This is a new payment ID not matching what's in the quotation
-        // In this case, since API verification failed and IDs don't match, we should be cautious
-        console.error(`Payment verification failed and payment details do not match quotation records. 
-          Quotation payment ID: ${quotation.razorpayPaymentId}, 
-          Quotation payment link ID: ${quotation.razorpayPaymentLinkId},
-          Provided payment ID: ${paymentId},
-          Provided payment link ID: ${paymentLinkId}`);
-        
-        return res.status(400).json({
-          success: false,
-          message: 'Payment verification failed and payment details do not match existing records',
-          error: verificationError.message
+        return res.json({
+          success: true,
+          message: 'Payment already confirmed',
+          data: {
+            quotationId: quotation._id,
+            quotationNumber: quotation.quotationNumber,
+            paymentStatus: 'CONFIRMED',
+            quotationStatus: quotation.status,
+            verificationMethod: 'webhook'
+          }
         });
       }
+
+      return res.status(502).json({
+        success: false,
+        message: 'Could not verify the payment with Razorpay. Please try again in a few minutes.'
+      });
     }
   } catch (error) {
     console.error('Manual payment confirmation error:', error.message, error.stack);
