@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useAuth } from '../../../../context/AuthContext';
 import { completeInstallation, reportIssue } from '../../../../services/installationService';
-import { toast } from 'react-toastify';
+import { toast } from '../../../../components/Toast';
 
 // Custom styles for mobile responsive design
 const customStyles = `

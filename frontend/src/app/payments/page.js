@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CreditCard, AlertCircle, ExternalLink, FileText, Clock, ArrowRight, Loader2, AlertTriangle, ShoppingBag, IndianRupee, Calendar, User, ChevronDown, Search } from 'lucide-react';
 import { getMyPurchases, getPaymentHistory } from '../../services/customerService';
 import { useAuth } from '../../context/AuthContext';
+import { formatDate, formatCurrency } from '../../utils/formatNumber';
 
 // Custom styles for mobile responsive design
 const customStyles = `
@@ -136,7 +137,7 @@ const PendingPaymentCard = ({ purchase, onPayNow, isAdmin }) => (
         </h3>
         <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
           <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-          <span className="mobile-truncate">{purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString('en-GB') : 'N/A'}</span>
+          <span className="mobile-truncate">{purchase.purchaseDate ? formatDate(purchase.purchaseDate) : 'N/A'}</span>
         </div>
       </div>
     </div>
@@ -147,13 +148,13 @@ const PendingPaymentCard = ({ purchase, onPayNow, isAdmin }) => (
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Amount</p>
           <p className="text-sm sm:text-base font-bold text-gray-900 mobile-truncate">
-            {purchase.totalAmount !== undefined ? `₹${purchase.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₹0.00'}
+            {formatCurrency(purchase.totalAmount)}
           </p>
         </div>
         <div className="min-w-0">
           <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Remaining</p>
           <p className="text-sm sm:text-base font-bold text-primary mobile-truncate">
-            {purchase.remainingAmount !== undefined ? `₹${purchase.remainingAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₹0.00'}
+            {formatCurrency(purchase.remainingAmount)}
           </p>
         </div>
       </div>
@@ -260,13 +261,13 @@ const PaymentHistoryCard = ({ payment, onViewProformaInvoice, isAdmin }) => {
           <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-600">
             <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
             <span className="mobile-truncate">
-              {payment.paidAt || payment.paymentDate ? new Date(payment.paidAt || payment.paymentDate).toLocaleDateString('en-GB') : 'N/A'}
+              {formatDate(payment.paidAt || payment.paymentDate)}
             </span>
           </div>
         </div>
         <div className="flex-shrink-0">
           <p className="text-sm sm:text-base font-bold text-gray-900">
-            {payment.amountPaid !== undefined ? `₹${payment.amountPaid.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₹0.00'}
+            {formatCurrency(payment.amountPaid)}
           </p>
         </div>
       </div>
@@ -370,22 +371,6 @@ export default function PaymentsPage() {
     navigate(`/dashboard/payments/remaining?purchase=${purchaseId}`);
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString || new Date(dateString).toString() === 'Invalid Date') {
-      return 'N/A';
-    }
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-  
-  const formatCurrency = (amount) => {
-    if (amount === undefined || amount === null) return '₹0.00';
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
 
   if (loading) {
     return (

@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext';
 import { getSalespersons } from '../../services/enquiryService';
 import ExportButton from '../../components/ExportButton';
 import { exportQuotations } from '../../services/quotationService';
-import { downloadCSV } from '../../utils/csv';
 
 export default function QuotationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,12 +57,10 @@ export default function QuotationsPage() {
   const handleExport = async () => {
     setExportLoading(true);
     try {
-      const response = await exportQuotations();
-      if (response.success) {
-        downloadCSV(response.data, 'quotations');
-      } else {
-        console.error('Failed to export quotations:', response.message);
-      }
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      if (paymentStatusFilter) params.paymentStatus = paymentStatusFilter;
+      await exportQuotations(params);
     } catch (error) {
       console.error('Error exporting quotations:', error);
     } finally {
@@ -87,7 +84,7 @@ export default function QuotationsPage() {
       <div className="border-b border-fourth pb-3 sm:pb-5 mb-4 sm:mb-8">
         <div className="flex items-center justify-between">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-secondary mobile-truncate">Quotations Management</h1>
-          {user?.role === 'admin' && <ExportButton onExport={handleExport} loading={exportLoading} />}
+          {['admin', 'sales_head', 'marketing_coordinator', 'sales_person'].includes(user?.role) && <ExportButton onExport={handleExport} loading={exportLoading} />}
         </div>
       </div>
 

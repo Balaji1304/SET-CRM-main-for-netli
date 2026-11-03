@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { getApprovedSalesOrders } from '../../services/customerService';
-import { toast } from 'react-toastify';
+import { toast } from '../../components/Toast';
 import { useAuth } from '../../context/AuthContext';
 
 const CreatePackageModal = ({ isOpen, onClose, onCreatePackage }) => {

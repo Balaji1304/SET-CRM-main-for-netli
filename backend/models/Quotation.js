@@ -96,6 +96,14 @@ const quotationSchema = new mongoose.Schema({
   closeReason: {
     type: String
   },
+  razorpayFee: {
+    type: Number,
+    default: 0
+  },
+  razorpayTax: {
+    type: Number,
+    default: 0
+  },
   auditLogs: [
     {
       action: { type: String, required: true },

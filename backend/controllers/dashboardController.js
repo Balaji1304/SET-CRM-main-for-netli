@@ -7,7 +7,8 @@ const Product = require('../models/Product');
 const Payment = require('../models/Payment');
 const Invoice = require('../models/Invoice');
 const Customer = require('../models/Customer'); // Added Customer model
-const Enquiry = require('../models/Enquiry'); // Added Enquiry model
+const Enquiry = require('../models/Enquiry');
+const Package = require('../models/Package');
 const mongoose = require('mongoose');
 
 // Helper to safely execute promises and return default value on error
@@ -594,6 +595,100 @@ exports.getDashboardSummary = async (req, res, next) => {
           { message: `${pendingApprovals} approvals pending review`, time: 'Current', type: 'pending' },
           { message: `₹${outstandingPayments.toLocaleString()} outstanding payments`, time: 'Current', type: 'outstanding' }
         ]
+      };
+    } else if (role === 'admin') {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Revenue
+      const totalRevenueResult = await safeQuery(Payment.aggregate([
+        { $group: { _id: null, total: { $sum: '$amountPaid' } } }
+      ]), [], 'Admin: total revenue');
+      const totalRevenue = totalRevenueResult.length > 0 ? totalRevenueResult[0].total : 0;
+
+      const monthlyRevenueResult = await safeQuery(Payment.aggregate([
+        { $match: { createdAt: { $gte: startOfMonth } } },
+        { $group: { _id: null, total: { $sum: '$amountPaid' } } }
+      ]), [], 'Admin: monthly revenue');
+      const monthlyRevenue = monthlyRevenueResult.length > 0 ? monthlyRevenueResult[0].total : 0;
+
+      // Outstanding
+      const outstandingResult = await safeQuery(CustomerPurchase.aggregate([
+        { $match: { remainingAmount: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+      ]), [], 'Admin: outstanding');
+      const outstandingPayments = outstandingResult.length > 0 ? outstandingResult[0].total : 0;
+
+      // Quotation pipeline
+      const quotationAgg = await safeQuery(Quotation.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 }, value: { $sum: '$total' } } }
+      ]), [], 'Admin: quotation agg');
+      const quotationStats = quotationAgg.reduce((acc, s) => { acc[s._id] = { count: s.count, value: s.value }; return acc; }, {});
+
+      // Users by role
+      const usersByRole = await safeQuery(User.aggregate([
+        { $group: { _id: '$role', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]), [], 'Admin: users by role');
+
+      // Low stock
+      const lowStockProducts = await safeQuery(Product.find({ $expr: { $lte: ['$quantity', '$reorderLevel'] } }).select('name quantity reorderLevel'), [], 'Admin: low stock');
+
+      // Recent activity from multiple sources
+      const recentQuotations = await safeQuery(Quotation.find().sort({ createdAt: -1 }).limit(3).populate('lead', 'firstName lastName').lean(), [], 'Admin: recent quotations');
+      const recentPayments = await safeQuery(Payment.find().sort({ createdAt: -1 }).limit(3).lean(), [], 'Admin: recent payments');
+
+      const recentActivity = [
+        ...recentQuotations.map(q => ({
+          message: `Quotation ${q.quotationNumber || ''} ${q.status} — ${q.lead ? q.lead.firstName + ' ' + q.lead.lastName : 'N/A'}`,
+          time: q.createdAt ? new Date(q.createdAt).toLocaleDateString('en-GB') : ''
+        })),
+        ...recentPayments.map(p => ({
+          message: `Payment ₹${(p.amountPaid || 0).toLocaleString('en-IN')} received`,
+          time: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-GB') : ''
+        }))
+      ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 6);
+
+      summaryData = {
+        totalUsers: await safeQuery(User.countDocuments(), 0),
+        totalCustomers: await safeQuery(Customer.countDocuments(), 0),
+        totalLeads: await safeQuery(Lead.countDocuments(), 0),
+        activeLeads: await safeQuery(Lead.countDocuments({ status: 'active' }), 0),
+        totalRevenue,
+        monthlyRevenue,
+        outstandingPayments,
+
+        // Quotation pipeline
+        quotationStats: {
+          draft: quotationStats.draft?.count || 0,
+          sent: quotationStats.sent?.count || 0,
+          approved: quotationStats.approved?.count || 0,
+          draftValue: quotationStats.draft?.value || 0,
+          sentValue: quotationStats.sent?.value || 0,
+          approvedValue: quotationStats.approved?.value || 0,
+        },
+        pendingApprovals: await safeQuery(Quotation.countDocuments({ status: 'pending_approval' }), 0),
+
+        // Operations
+        totalOpenTickets: await safeQuery(Ticket.countDocuments({ status: { $in: ['open', 'in_progress'] } }), 0),
+        activeOrders: await safeQuery(CustomerPurchase.countDocuments({ status: 'active' }), 0),
+        completedInstallations: await safeQuery(CustomerPurchase.countDocuments({ serviceTaskStatus: 'completed' }), 0),
+        totalEnquiries: await safeQuery(Enquiry.countDocuments(), 0),
+        newEnquiriesToday: await safeQuery(Enquiry.countDocuments({ createdAt: { $gte: startOfToday } }), 0),
+
+        // Inventory
+        totalProducts: await safeQuery(Product.countDocuments(), 0),
+        lowStockItems: lowStockProducts.length,
+        lowStockItemsList: lowStockProducts.map(p => ({ id: p._id, name: p.name, quantity: p.quantity, reorderLevel: p.reorderLevel })),
+
+        totalPackages: await safeQuery(Package.countDocuments(), 0),
+        totalInvoices: await safeQuery(Invoice.countDocuments(), 0),
+
+        // Team
+        usersByRole: usersByRole.map(r => ({ role: r._id, count: r.count })),
+
+        recentActivity
       };
     } else {
       summaryData = { message: "Dashboard data is not configured for this role, or no data found." };

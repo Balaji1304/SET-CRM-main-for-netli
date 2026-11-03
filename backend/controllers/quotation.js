@@ -254,15 +254,21 @@ exports.createQuotation = async (req, res) => {
 
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
+      const basePrice = Number(item.basePrice || item.unitPrice);
       const discountPercentage = Number(item.discount || 0);
+
+      if (unitPrice < basePrice) {
+        throw new AppError('Unit price cannot be lower than the catalog base price', 400);
+      }
 
       // Calculate total for this specific QuotationItem
       const itemTotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
-      
+
       const quotationItemData = {
         quotationId: quotation._id,
         itemType: itemType,
         quantity: quantity,
+        basePrice: basePrice,
         unitPrice: unitPrice,
         discount: discountPercentage,
         total: itemTotal
@@ -411,7 +417,12 @@ exports.updateQuotation = async (req, res) => {
       
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
-      const discountPercentage = Number(item.discount || 0); // Assuming item.discount is percentage
+      const basePrice = Number(item.basePrice || item.unitPrice);
+      const discountPercentage = Number(item.discount || 0);
+
+      if (unitPrice < basePrice) {
+        throw new AppError('Unit price cannot be lower than the catalog base price', 400);
+      }
 
       // Calculate total for this specific QuotationItem
       const itemTotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
@@ -430,9 +441,10 @@ exports.updateQuotation = async (req, res) => {
         quotationId: quotation._id,
         itemType: itemType,
         quantity: quantity,
+        basePrice: basePrice,
         unitPrice: unitPrice,
-        discount: discountPercentage, // Store discount as percentage
-        total: itemTotal // Store correctly calculated item total
+        discount: discountPercentage,
+        total: itemTotal
       };
 
       // Add productId, customizedProductId, or bundleId
@@ -682,15 +694,20 @@ exports.sendQuotation = async (req, res) => {
           };
         }
         
+        const disc = item.discount || 0;
+        const discAmt = Number((item.quantity * item.unitPrice * disc / 100).toFixed(2));
         return {
           product: product || {},
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          discount: item.discount || 0,
-          total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
+          discount: disc,
+          discountAmount: discAmt,
+          total: Number((item.quantity * item.unitPrice * (1 - disc / 100)).toFixed(2))
         };
       })
     );
+
+      const totalDiscount = formattedItems.reduce((sum, i) => sum + (i.discountAmount || 0), 0);
 
       // Process email data
       const emailData = {
@@ -711,6 +728,8 @@ exports.sendQuotation = async (req, res) => {
         },
       items: formattedItems,
         total: quotation.total,
+        totalDiscount: totalDiscount,
+        subTotal: quotation.total + totalDiscount,
         terms: quotation.terms,
         notes: quotation.notes,
         advanceAmount: advanceAmount,
@@ -873,12 +892,15 @@ exports.sendQuotation = async (req, res) => {
               };
             }
             
+            const disc = item.discount || 0;
+            const discAmt = Number((item.quantity * item.unitPrice * disc / 100).toFixed(2));
             return {
               product: product,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
-              discount: item.discount || 0,
-              total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
+              discount: disc,
+              discountAmount: discAmt,
+              total: Number((item.quantity * item.unitPrice * (1 - disc / 100)).toFixed(2))
             };
           }),
           total: updatedQuotation.total,
@@ -937,6 +959,167 @@ exports.sendQuotation = async (req, res) => {
         success: false,
       message: 'Internal server error'
       });
+  }
+};
+
+// @desc    Resend quotation to lead (same quotation, same payment link if still active)
+// @route   POST /api/quotations/:id/resend
+exports.resendQuotation = async (req, res) => {
+  try {
+    if (!req.user || !['sales_person', 'sales_head', 'marketing_coordinator', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to resend quotations' });
+    }
+
+    const quotation = await Quotation.findById(req.params.id)
+      .populate('lead', 'firstName lastName email whatsapp phone countryCode preferredContactMethod hasWhatsapp whatsappSameAsPhone billingAddress shippingAddress address businessName');
+
+    if (!quotation) {
+      return res.status(404).json({ success: false, message: 'Quotation not found' });
+    }
+
+    // Only resend quotations that have already been sent
+    const resendableStatuses = ['sent', 'pending_approval', 'approved'];
+    if (!resendableStatuses.includes(quotation.status)) {
+      return res.status(400).json({ success: false, message: `Cannot resend a quotation with status "${quotation.status}"` });
+    }
+
+    if (req.user.role === 'sales_person' && (!quotation.createdBy || quotation.createdBy.toString() !== req.user.id)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to resend this quotation' });
+    }
+
+    // Warn if quotation validity has passed
+    if (quotation.validUntil && new Date(quotation.validUntil) < new Date()) {
+      // Still allow resend but include a warning in the response
+      // The frontend can surface this if needed
+    }
+
+    // Reuse existing Razorpay payment link if still active
+    let paymentLinkUrl = quotation.razorpayPaymentLink;
+    const linkExpired = quotation.paymentLinkExpiresAt && new Date(quotation.paymentLinkExpiresAt) < new Date();
+
+    if (!paymentLinkUrl || linkExpired) {
+      // Need a new payment link — cancel old one first if it exists
+      if (quotation.razorpayPaymentLinkId) {
+        try {
+          await razorpay.paymentLink.cancel(quotation.razorpayPaymentLinkId);
+        } catch (e) {
+          // Old link may already be cancelled/expired — continue
+        }
+      }
+
+      const advancePercentage = quotation.advancePaymentPercentage || 20;
+      const advanceAmount = Number((quotation.total * advancePercentage / 100).toFixed(2));
+      const amountPaise = Math.max(Math.round(advanceAmount * 100), 100);
+
+      try {
+        const newLink = await razorpay.paymentLink.create({
+          amount: amountPaise,
+          currency: 'INR',
+          description: `Advance payment for Quotation ${quotation.quotationNumber}`,
+          customer: {
+            name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
+            email: quotation.lead.email || undefined,
+            contact: quotation.lead.phone ? `+91${quotation.lead.phone}` : undefined
+          },
+          notify: { sms: !!quotation.lead.phone, email: !!quotation.lead.email },
+          reminder_enable: true,
+          expire_by: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
+          notes: { quotationId: quotation._id.toString(), quotationNumber: quotation.quotationNumber }
+        });
+
+        paymentLinkUrl = newLink.short_url;
+        quotation.razorpayPaymentLinkId = newLink.id;
+        quotation.razorpayPaymentLink = newLink.short_url;
+        quotation.paymentLinkExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await quotation.save();
+      } catch (err) {
+        console.error('Failed to create new payment link on resend:', err.message);
+        return res.status(400).json({ success: false, message: 'Failed to create payment link' });
+      }
+    }
+
+    // Regenerate PDF and send
+    const quotationItems = await QuotationItem.find({ quotationId: quotation._id })
+      .populate('productId').populate('bundleId').populate('customizedProductId');
+
+    const advancePercentage = quotation.advancePaymentPercentage || 20;
+    const advanceAmount = Number((quotation.total * advancePercentage / 100).toFixed(2));
+
+    // Build formatted items (reuse same structure as sendQuotation)
+    const formattedItems = quotationItems.map(item => {
+      let product = {};
+      if (item.productId) {
+        product = { ...item.productId.toObject(), specifications: Object.entries(item.productId.specifications || {}).map(([k, v]) => ({ name: k, value: v })), images: (item.productId.imageUrls || []).map(url => ({ url })) };
+      } else if (item.customizedProductId) {
+        const cp = item.customizedProductId;
+        const specs = [];
+        if (cp.modelNumber) specs.push({ name: 'Model Number', value: cp.modelNumber });
+        Object.entries(cp.specifications || {}).forEach(([k, v]) => { if (v && v.trim()) specs.push({ name: k.charAt(0).toUpperCase() + k.slice(1), value: v }); });
+        product = { _id: cp._id, name: cp.name || 'Customized Product', description: cp.description || '', specifications: specs, images: (cp.imageUrls || []).map(url => ({ url })) };
+      } else if (item.bundleId) {
+        const bp = item.bundleId;
+        const specs = [];
+        if (bp.specifications && bp.category !== 'power_plants_system') {
+          Object.entries(bp.specifications).forEach(([k, v]) => { if (v && v.toString().trim()) specs.push({ name: k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1'), value: v.toString() }); });
+        }
+        product = { _id: bp._id, name: bp.name || 'Bundle Product', category: bp.category || 'Bundle', description: bp.description || '', specifications: specs, images: (bp.imageUrls || []).map(url => ({ url: url.toString() })), bundleCode: bp.bundleCode, subcategory: bp.subcategory, systemConfiguration: bp.systemConfiguration ? JSON.parse(JSON.stringify(bp.systemConfiguration)) : {}, bundleComponents: (item.bundleComponents || []).map(c => ({ name: c.name || '', quantity: c.quantity || 0, make: c.make || '', componentType: c.componentType || '', warranty: c.warranty || '', sortOrder: c.sortOrder || 0 })) };
+      }
+      const disc = item.discount || 0;
+      const discAmt = Number((item.quantity * item.unitPrice * disc / 100).toFixed(2));
+      return { product, quantity: item.quantity, unitPrice: item.unitPrice, discount: disc, discountAmount: discAmt, total: Number((item.quantity * item.unitPrice * (1 - disc / 100)).toFixed(2)) };
+    });
+
+    const totalDiscount = formattedItems.reduce((s, i) => s + (i.discountAmount || 0), 0);
+
+    const pdfData = {
+      quotationNumber: quotation.quotationNumber,
+      createdDate: new Date(quotation.createdAt).toLocaleDateString(),
+      validUntil: new Date(quotation.validUntil).toLocaleDateString(),
+      status: quotation.status,
+      lead: { firstName: quotation.lead.firstName, lastName: quotation.lead.lastName, businessName: quotation.lead.businessName, billingAddress: quotation.lead.billingAddress, shippingAddress: quotation.lead.shippingAddress, address: quotation.lead.address, email: quotation.lead.email, phone: quotation.lead.phone, countryCode: quotation.lead.countryCode },
+      items: formattedItems,
+      total: quotation.total,
+      totalDiscount,
+      subTotal: quotation.total + totalDiscount,
+      terms: quotation.terms,
+      notes: quotation.notes,
+      advanceAmount,
+      advancePercentage,
+      paymentLink: paymentLinkUrl
+    };
+
+    let pdfBuffer;
+    try {
+      pdfBuffer = await generatePDF('quotation', pdfData);
+    } catch (err) {
+      console.error('PDF generation failed on resend:', err);
+      return res.status(400).json({ success: false, message: 'Failed to generate PDF' });
+    }
+
+    try {
+      await sendSmartNotification(quotation.lead, 'quotation', pdfData, {
+        attachments: [{ filename: `Quotation_${quotation.quotationNumber}.pdf`, content: pdfBuffer }],
+        documentUrl: null
+      });
+    } catch (err) {
+      console.error('Notification failed on resend:', err.message);
+    }
+
+    // Audit log
+    quotation.auditLogs = quotation.auditLogs || [];
+    quotation.auditLogs.push({ action: 'resent', by: req.user.id, details: { paymentLinkReused: !linkExpired && !!quotation.razorpayPaymentLink } });
+    await quotation.save();
+
+    const expired = quotation.validUntil && new Date(quotation.validUntil) < new Date();
+
+    return res.json({
+      success: true,
+      data: { quotationId: quotation._id, quotationNumber: quotation.quotationNumber, resentAt: new Date() },
+      ...(expired && { warning: 'This quotation has passed its validity date. Consider extending it or creating a revised quotation.' })
+    });
+  } catch (error) {
+    console.error('Resend quotation error:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 
@@ -1118,12 +1301,26 @@ exports.handleRazorpayWebhook = async (req, res) => {
         return res.json({ status: 'error', message: 'Quotation not found' });
       }
 
+      // Fetch fee/tax from Razorpay payment (in paise)
+      let razorpayFee = 0;
+      let razorpayTax = 0;
+      try {
+        const paymentDetails = await razorpay.payments.fetch(payment_link.payment_id);
+        razorpayFee = paymentDetails.fee || 0;
+        razorpayTax = paymentDetails.tax || 0;
+        console.log(`Razorpay fee: ${razorpayFee} paise, tax: ${razorpayTax} paise`);
+      } catch (feeError) {
+        console.error('Could not fetch Razorpay fee (continuing):', feeError.message);
+      }
+
       // Update payment status and auto-approve for online payments
       quotation.advancePaymentStatus = 'CONFIRMED';
       quotation.advancePaymentConfirmedAt = new Date();
       quotation.razorpayPaymentId = payment_link.payment_id;
+      quotation.razorpayFee = razorpayFee;
+      quotation.razorpayTax = razorpayTax;
       quotation.auditLogs = quotation.auditLogs || [];
-      quotation.auditLogs.push({ action: 'payment_confirmed', details: { source: 'razorpay_webhook' } });
+      quotation.auditLogs.push({ action: 'payment_confirmed', details: { source: 'razorpay_webhook', razorpayFee, razorpayTax } });
 
       try {
         const approvedQuotation = await approveQuotation(quotation);
@@ -1301,14 +1498,16 @@ const approveQuotation = async (quotationInstance) => {
         transactionId = `ADV-${purchaseID}-${Date.now()}`;
       }
       
-      const paymentRecord = new Payment({ 
+      const paymentRecord = new Payment({
         customerPurchaseId: customerPurchase._id,
         amountPaid: advanceAmount,
-        paymentMethod: quotationInstance.paymentMethod || 'cash', 
+        paymentMethod: quotationInstance.paymentMethod || 'cash',
         transactionId: transactionId,
         isAdvancePayment: true,
-        paymentDate: quotationInstance.advancePaymentConfirmedAt || new Date(), 
-        createdBy: quotationInstance.createdBy 
+        paymentDate: quotationInstance.advancePaymentConfirmedAt || new Date(),
+        razorpayFee: quotationInstance.razorpayFee || 0,
+        razorpayTax: quotationInstance.razorpayTax || 0,
+        createdBy: quotationInstance.createdBy
       });
       
       // Save customer purchase and payment record in parallel, then update quotation status
@@ -1619,6 +1818,7 @@ exports.getCustomerProducts = async (req, res) => {
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             discount: item.discount || 0,
+            discountAmount: Number((item.quantity * item.unitPrice * (item.discount || 0) / 100).toFixed(2)),
             total: item.quantity * item.unitPrice * (1 - (item.discount || 0)/100),
             isFullyPaid: purchaseData.isFullyPaid,
             advancePaymentPercentage: purchaseData.advancePaymentPercentage,
@@ -1711,7 +1911,7 @@ exports.getPendingPayments = async (req, res) => {
 exports.checkPaymentStatus = async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id)
-      .select('quotationNumber advancePaymentStatus razorpayPaymentId status');
+      .select('quotationNumber advancePaymentStatus razorpayPaymentId razorpayFee razorpayTax status');
       
     if (!quotation) {
       return res.status(404).json({
@@ -2068,46 +2268,161 @@ exports.manualConfirmPayment = async (req, res) => {
 // @route   GET /api/quotations/export
 exports.exportQuotations = async (req, res) => {
   try {
-    // Only allow admin users to export
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admin users can export quotations'
-      });
+    const ExcelJS = require('exceljs');
+    const allowedRoles = ['admin', 'sales_head', 'marketing_coordinator', 'sales_person'];
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Not authorized to export quotations' });
     }
 
-    // Get all quotations with related data
-    const quotations = await Quotation.find({})
+    // Build query from filters
+    const query = {};
+    if (req.query.status) query.status = req.query.status;
+    if (req.query.paymentStatus) query.advancePaymentStatus = req.query.paymentStatus;
+    if (req.query.startDate || req.query.endDate) {
+      query.createdAt = {};
+      if (req.query.startDate) query.createdAt.$gte = new Date(req.query.startDate);
+      if (req.query.endDate) query.createdAt.$lte = new Date(req.query.endDate);
+    }
+    // sales_person can only export their own
+    if (req.user.role === 'sales_person') query.createdBy = req.user.id;
+    // Single quotation export
+    if (req.query.quotationId) query._id = req.query.quotationId;
+
+    const quotations = await Quotation.find(query)
       .populate('lead', 'firstName lastName email phone businessName')
       .populate('createdBy', 'name')
       .sort({ createdAt: -1 });
 
-    // Format data for CSV export
-    const exportData = quotations.map(quotation => ({
-      'Quotation Number': quotation.quotationNumber,
-      'Lead Name': quotation.lead ? `${quotation.lead.firstName} ${quotation.lead.lastName}` : 'N/A',
-      'Business Name': quotation.lead?.businessName || 'N/A',
-      'Email': quotation.lead?.email || 'N/A',
-      'Phone': quotation.lead?.phone || 'N/A',
-      'Total Amount': quotation.total,
-      'Status': quotation.status,
-      'Advance Payment Status': quotation.advancePaymentStatus || 'N/A',
-      'Advance Payment Amount': quotation.advancePaymentAmount || 0,
-      'Created By': quotation.createdBy?.name || 'N/A',
-      'Created Date': quotation.createdAt ? new Date(quotation.createdAt).toLocaleDateString() : 'N/A',
-      'Valid Until': quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString() : 'N/A'
-    }));
+    const quotationIds = quotations.map(q => q._id);
+    const allItems = await QuotationItem.find({ quotationId: { $in: quotationIds } })
+      .populate('productId', 'name brand')
+      .populate('bundleId', 'name')
+      .populate('customizedProductId', 'name');
 
-    res.json({
-      success: true,
-      data: exportData
+    // Group items by quotation
+    const itemsByQuotation = {};
+    allItems.forEach(item => {
+      const qId = item.quotationId.toString();
+      if (!itemsByQuotation[qId]) itemsByQuotation[qId] = [];
+      itemsByQuotation[qId].push(item);
     });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Sunlit CRM';
+    workbook.created = new Date();
+
+    const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F3F3' } };
+    const headerFont = { name: 'Arial', size: 11, bold: true };
+    const currencyFmt = '₹#,##0.00';
+
+    // --- Sheet 1: Quotations ---
+    const ws1 = workbook.addWorksheet('Quotations');
+    ws1.columns = [
+      { header: 'Quotation #', key: 'number', width: 16 },
+      { header: 'Date', key: 'date', width: 14 },
+      { header: 'Valid Until', key: 'validUntil', width: 14 },
+      { header: 'Customer', key: 'customer', width: 22 },
+      { header: 'Business', key: 'business', width: 22 },
+      { header: 'Phone', key: 'phone', width: 15 },
+      { header: 'Email', key: 'email', width: 24 },
+      { header: 'Sub-Total', key: 'subTotal', width: 16 },
+      { header: 'Total Discount ₹', key: 'totalDiscount', width: 16 },
+      { header: 'Grand Total', key: 'grandTotal', width: 16 },
+      { header: 'Advance %', key: 'advPct', width: 12 },
+      { header: 'Advance Amount', key: 'advAmt', width: 16 },
+      { header: 'Payment Status', key: 'payStatus', width: 16 },
+      { header: 'Gateway Fee (paise)', key: 'gatewayFee', width: 18 },
+      { header: 'Gateway Tax (paise)', key: 'gatewayTax', width: 18 },
+      { header: 'Status', key: 'status', width: 14 },
+      { header: 'Created By', key: 'createdBy', width: 18 }
+    ];
+    // Style header
+    ws1.getRow(1).eachCell(cell => { cell.fill = headerFill; cell.font = headerFont; cell.alignment = { horizontal: 'center' }; });
+    ws1.views = [{ state: 'frozen', ySplit: 1 }];
+
+    quotations.forEach(q => {
+      const items = itemsByQuotation[q._id.toString()] || [];
+      const totalDisc = items.reduce((s, i) => s + (i.quantity * i.unitPrice * (i.discount || 0) / 100), 0);
+      const row = ws1.addRow({
+        number: q.quotationNumber,
+        date: q.createdAt,
+        validUntil: q.validUntil,
+        customer: q.lead ? `${q.lead.firstName} ${q.lead.lastName}` : 'N/A',
+        business: q.lead?.businessName || '',
+        phone: q.lead?.phone || '',
+        email: q.lead?.email || '',
+        subTotal: q.total + totalDisc,
+        totalDiscount: totalDisc,
+        grandTotal: q.total,
+        advPct: q.advancePaymentPercentage || 0,
+        advAmt: q.advancePaymentAmount || 0,
+        payStatus: q.advancePaymentStatus || 'N/A',
+        gatewayFee: q.razorpayFee || 0,
+        gatewayTax: q.razorpayTax || 0,
+        status: q.status,
+        createdBy: q.createdBy?.name || 'N/A'
+      });
+      // Format dates as dates, currency as currency
+      row.getCell('date').numFmt = 'DD-MMM-YYYY';
+      row.getCell('validUntil').numFmt = 'DD-MMM-YYYY';
+      ['subTotal', 'totalDiscount', 'grandTotal', 'advAmt'].forEach(k => { row.getCell(k).numFmt = currencyFmt; });
+    });
+
+    // --- Sheet 2: Line Items ---
+    const ws2 = workbook.addWorksheet('Line Items');
+    ws2.columns = [
+      { header: 'Quotation #', key: 'qNum', width: 16 },
+      { header: 'Item Type', key: 'type', width: 14 },
+      { header: 'Product/Bundle', key: 'name', width: 30 },
+      { header: 'Brand', key: 'brand', width: 16 },
+      { header: 'Qty', key: 'qty', width: 8 },
+      { header: 'Unit Price', key: 'unitPrice', width: 16 },
+      { header: 'Discount %', key: 'discPct', width: 12 },
+      { header: 'Discount ₹', key: 'discAmt', width: 14 },
+      { header: 'Line Total', key: 'lineTotal', width: 16 }
+    ];
+    ws2.getRow(1).eachCell(cell => { cell.fill = headerFill; cell.font = headerFont; cell.alignment = { horizontal: 'center' }; });
+    ws2.views = [{ state: 'frozen', ySplit: 1 }];
+
+    let lineRow = 2;
+    quotations.forEach(q => {
+      const items = itemsByQuotation[q._id.toString()] || [];
+      items.forEach(item => {
+        let name = 'Unknown';
+        let brand = '';
+        if (item.productId) { name = item.productId.name || 'Product'; brand = item.productId.brand || ''; }
+        else if (item.bundleId) { name = item.bundleId.name || 'Bundle'; }
+        else if (item.customizedProductId) { name = item.customizedProductId.name || 'Customized'; }
+
+        const r = ws2.addRow({
+          qNum: q.quotationNumber,
+          type: item.itemType || 'product',
+          name,
+          brand,
+          qty: item.quantity,
+          unitPrice: item.unitPrice,
+          discPct: item.discount || 0,
+          discAmt: { formula: `E${lineRow}*F${lineRow}*G${lineRow}/100` },
+          lineTotal: { formula: `E${lineRow}*F${lineRow}*(1-G${lineRow}/100)` }
+        });
+        ['unitPrice', 'discAmt', 'lineTotal'].forEach(k => { r.getCell(k).numFmt = currencyFmt; });
+        r.getCell('discPct').numFmt = '0"%"';
+        lineRow++;
+      });
+    });
+
+    // Send as .xlsx
+    const filename = req.query.quotationId
+      ? `Quotation_${quotations[0]?.quotationNumber || 'export'}.xlsx`
+      : `Quotations_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (error) {
     console.error('Export quotations error:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Error exporting quotations'
-    });
+    res.status(500).json({ success: false, message: error.message || 'Error exporting quotations' });
   }
 };
 
@@ -2162,6 +2477,7 @@ module.exports = {
   updateQuotation: exports.updateQuotation,
   deleteQuotation: exports.deleteQuotation,
   sendQuotation: exports.sendQuotation,
+  resendQuotation: exports.resendQuotation,
   handleApproveQuotation: exports.handleApproveQuotation,
   handleRazorpayWebhook: exports.handleRazorpayWebhook,
   confirmOfflinePayment: exports.confirmOfflinePayment,

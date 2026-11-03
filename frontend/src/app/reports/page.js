@@ -18,7 +18,7 @@ export default function ReportsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4 sm:space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight text-[#FF7300]">Reports and Analytics</h1>
+      <h1 className="text-3xl font-bold tracking-tight text-primary">Reports and Analytics</h1>
 
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <select
@@ -81,13 +81,13 @@ export default function ReportsPage() {
             <h2 className="text-lg font-semibold">Reports</h2>
           </div>
           <div className="p-3 sm:p-4 space-y-2 sm:space-y-4">
-            <button className="w-full px-4 py-2 bg-[#FF7300] hover:bg-[#FF8800] text-white rounded-lg transition-colors">
+            <button className="w-full px-4 py-2 bg-primary hover:bg-orange-600 text-white rounded-lg transition-colors">
               Export Inventory Report (PDF)
             </button>
-            <button className="w-full px-4 py-2 bg-[#FF7300] hover:bg-[#FF8800] text-white rounded-lg transition-colors">
+            <button className="w-full px-4 py-2 bg-primary hover:bg-orange-600 text-white rounded-lg transition-colors">
               Export Price Data (Excel)
             </button>
-            <button className="w-full px-4 py-2 bg-[#FF7300] hover:bg-[#FF8800] text-white rounded-lg transition-colors">
+            <button className="w-full px-4 py-2 bg-primary hover:bg-orange-600 text-white rounded-lg transition-colors">
               Generate Custom Report
             </button>
           </div>

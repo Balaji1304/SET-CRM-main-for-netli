@@ -113,7 +113,7 @@ app.use('/api/products', require('./routes/products.js'));
 app.use('/api/bundles', require('./routes/productBundle.js'));
 app.use('/api/solar-bundle-items', require('./routes/solarBundleItem.js'));
 app.use('/api/customized-products', require('./routes/customizedProducts.js'));
-app.use('/api/quotations', require('./routes/quotation.js'));
+app.use('/api/quotations', require('./routes/quotations.js'));
 app.use('/api/payments', require('./routes/paymentRoutes.js'));
 app.use('/api/tickets', require('./routes/tickets.js'));
 app.use('/api/notifications', require('./routes/notifications.js'));
@@ -129,6 +129,7 @@ app.use(
 );
 app.use('/api/reports/sales', require('./routes/salesReports.js'));
 app.use('/api/reports/service', require('./routes/serviceReports.js'));
+app.use('/api/settings', require('./routes/systemSettings.js'));
 
 // Route for dashboard summary
 const dashboardRoutes = require('./routes/dashboardRoutes.js');

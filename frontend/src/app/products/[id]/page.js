@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { getProduct } from '../../../services/productService'
+import { formatCurrency } from '../../../utils/formatNumber'
 
 export default function ProductDetailsPage() {
   const { id } = useParams()
@@ -52,7 +53,7 @@ export default function ProductDetailsPage() {
           className="p-2 hover:bg-orange-50 rounded-full transition-colors"
           title="Back to Products"
         >
-          <ArrowLeft className="h-6 w-6 text-[#FF7300]" />
+          <ArrowLeft className="h-6 w-6 text-primary" />
         </button>
         <h1 className="text-3xl font-bold tracking-tight">Product Details</h1>
       </div>
@@ -83,7 +84,7 @@ export default function ProductDetailsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h3 className="text-sm font-medium text-gray-500">Price</h3>
-              <p className="mt-1 text-lg">₹{product.price.toLocaleString()}</p>
+              <p className="mt-1 text-lg">{formatCurrency(product.price)}</p>
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-500">Category</h3>
@@ -115,7 +116,7 @@ export default function ProductDetailsPage() {
           </div>
         </div>
 
-        <div className="flex justify-end space-x-4 pt-6 border-t border-input">
+        <div className="flex justify-end space-x-4 pt-6 border-t border-fourth">
           <button
             onClick={() => navigate(`/dashboard/products/${id}/edit`)}
             className="px-6 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600"

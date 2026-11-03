@@ -4,7 +4,7 @@ import { Search, Filter, Eye, ChevronLeft, ChevronRight, Calendar, User, Package
 import { useAuth } from '../../context/AuthContext';
 import { getMyAssignments, acceptAssignment, startWork } from '../../services/installationService';
 import { invalidateCache } from '../../services/apiConfig';
-import { toast } from 'react-toastify';
+import { toast } from '../../components/Toast';
 
 // Custom styles for mobile responsive design
 const customStyles = `
@@ -393,8 +393,8 @@ const InstallationDashboard = () => {
     }
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
+  const formatDateTime = (date) => {
+    return new Date(date).toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -422,7 +422,7 @@ const InstallationDashboard = () => {
         </div>
         <div className="mobile-action-buttons flex items-center gap-1 flex-shrink-0">
           <button
-            className="mobile-action-compact p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+            className="mobile-action-compact p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
             title="View Details"
           >
             <Eye className="w-4 h-4" />
@@ -485,7 +485,7 @@ const InstallationDashboard = () => {
           <span className="text-sm font-medium text-gray-700">Scheduled Date</span>
         </div>
         <p className="text-sm text-gray-900">
-          {formatDate(assignment.installationDate)}
+          {formatDateTime(assignment.installationDate)}
         </p>
       </div>
 

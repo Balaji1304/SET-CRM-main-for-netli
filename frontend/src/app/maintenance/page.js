@@ -28,7 +28,7 @@ const MaintenancePage = () => {
           <h2 className="text-3xl font-bold tracking-tight">Maintenance Management</h2>
           <p className="text-muted-foreground mt-1">Schedule and track maintenance tasks</p>
         </div>
-        <button className="px-4 py-2 bg-[#FF7300] text-white rounded-lg hover:bg-orange-600">
+        <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-orange-600">
           Schedule Maintenance
         </button>
       </div>
@@ -36,7 +36,7 @@ const MaintenancePage = () => {
       <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col overflow-hidden">
         <div className="grid gap-4 md:grid-cols-3 p-4">
           {/* Maintenance Calendar */}
-          <div className="md:col-span-2 rounded-lg border border-input p-4">
+          <div className="md:col-span-2 rounded-lg border border-fourth p-4">
             <h3 className="text-lg font-semibold mb-4">Maintenance Schedule</h3>
             <div className="h-[400px] flex items-center justify-center text-gray-500">
               Calendar component will be integrated here

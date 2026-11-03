@@ -5,6 +5,7 @@ import { getServiceEngineers } from '../../services/taskService';
 import TicketDetailModal from '../../components/TicketDetailModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { useAuth } from '../../context/AuthContext';
+import { formatDate } from '../../utils/formatNumber';
 
 // Custom styles for mobile responsive design
 const customStyles = `
@@ -494,7 +495,7 @@ const TicketQueuePage = () => {
         t.category,
         t.user?.name || '',
         t.assignedEngineerId?.name || 'Unassigned',
-        new Date(t.createdAt).toLocaleDateString()
+        formatDate(t.createdAt)
       ])
     ].map(row => row.join(',')).join('\n');
 
@@ -522,7 +523,7 @@ const TicketQueuePage = () => {
               {getPriorityIcon(ticket.priority)}
             </div>
             <h3 
-              className="mobile-header-text text-sm sm:text-base font-semibold cursor-pointer hover:text-[#FF7300] transition-colors duration-150 leading-tight text-gray-900"
+              className="mobile-header-text text-sm sm:text-base font-semibold cursor-pointer hover:text-primary transition-colors duration-150 leading-tight text-gray-900"
               onClick={() => handleTicketClick(ticket)}
               title="Click to view details"
               style={{ 
@@ -557,7 +558,7 @@ const TicketQueuePage = () => {
           />
           <button
             onClick={() => handleTicketClick(ticket)}
-            className="mobile-action-compact p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+            className="mobile-action-compact p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
             title="View Details"
           >
             <Info className="w-3.5 h-3.5" />
@@ -594,7 +595,7 @@ const TicketQueuePage = () => {
           <select 
             value={ticket.priority} 
             onChange={(e) => onUpdateMeta(ticket._id, { priority: e.target.value })}
-            className={`px-2 py-1 sm:px-2 sm:py-1 xs:px-1.5 xs:py-0.5 text-xs font-medium rounded border ${getPriorityColor(ticket.priority)} focus:ring-2 focus:ring-[#FF7300] focus:border-transparent w-full min-w-0`}
+            className={`px-2 py-1 sm:px-2 sm:py-1 xs:px-1.5 xs:py-0.5 text-xs font-medium rounded border ${getPriorityColor(ticket.priority)} focus:ring-2 focus:ring-primary focus:border-transparent w-full min-w-0`}
             onClick={(e) => e.stopPropagation()}
           >
             <option value="low">Low</option>
@@ -610,7 +611,7 @@ const TicketQueuePage = () => {
         <input 
           value={ticket.category || ''} 
           onChange={(e) => onUpdateMeta(ticket._id, { category: e.target.value })}
-          className="text-xs text-gray-600 border border-gray-300 rounded px-2 py-1.5 sm:px-2 sm:py-1.5 xs:px-1.5 xs:py-1 focus:ring-2 focus:ring-[#FF7300] focus:border-transparent w-full"
+          className="text-xs text-gray-600 border border-gray-300 rounded px-2 py-1.5 sm:px-2 sm:py-1.5 xs:px-1.5 xs:py-1 focus:ring-2 focus:ring-primary focus:border-transparent w-full"
           placeholder="Enter category"
           onClick={(e) => e.stopPropagation()}
         />
@@ -635,7 +636,7 @@ const TicketQueuePage = () => {
           <select 
             value="" 
             onChange={(e) => handleAssignmentChange(ticket._id, e.target.value)}
-            className="border border-gray-300 rounded px-2 py-1.5 sm:px-2 sm:py-1.5 xs:px-1.5 xs:py-1 text-xs hover:bg-gray-50 focus:ring-2 focus:ring-[#FF7300] focus:border-transparent w-full"
+            className="border border-gray-300 rounded px-2 py-1.5 sm:px-2 sm:py-1.5 xs:px-1.5 xs:py-1 text-xs hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:border-transparent w-full"
             onClick={(e) => e.stopPropagation()}
           >
             <option value="">Select Engineer</option>
@@ -651,7 +652,7 @@ const TicketQueuePage = () => {
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Created</p>
         <div className="flex items-center space-x-1.5 text-xs text-gray-600">
           <Calendar className="w-3 h-3 flex-shrink-0" />
-          <span>{new Date(ticket.createdAt).toLocaleDateString('en-GB')}</span>
+          <span>{formatDate(ticket.createdAt)}</span>
         </div>
       </div>
 
@@ -689,7 +690,7 @@ const TicketQueuePage = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF7300]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         <p className="text-gray-500 text-sm">Loading tickets...</p>
       </div>
     );
@@ -820,7 +821,7 @@ const TicketQueuePage = () => {
                     placeholder="Search tickets, customers, phone numbers, categories..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
+                    className="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-150 ease-in-out text-sm text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 
@@ -829,7 +830,7 @@ const TicketQueuePage = () => {
                   onClick={() => setShowFilters(!showFilters)}
                   className={`inline-flex items-center justify-center p-2 border rounded-md transition-colors duration-150 ease-in-out ${
                     showFilters || (statusFilter !== 'all' || priorityFilter !== 'all' || assigneeFilter !== 'all' || categoryFilter !== 'all' || dateFilter !== 'all')
-                      ? 'border-[#FF7300] bg-[#FF7300] text-white'
+                      ? 'border-primary bg-primary text-white'
                       : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                   title="Toggle filters"
@@ -853,7 +854,7 @@ const TicketQueuePage = () => {
                       <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
                       >
                         <option value="all">All Status</option>
                         <option value="open">Open</option>
@@ -872,7 +873,7 @@ const TicketQueuePage = () => {
                       <select
                         value={priorityFilter}
                         onChange={(e) => setPriorityFilter(e.target.value)}
-                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
                       >
                         <option value="all">All Priority</option>
                         <option value="high">High</option>
@@ -887,7 +888,7 @@ const TicketQueuePage = () => {
                       <select
                         value={assigneeFilter}
                         onChange={(e) => setAssigneeFilter(e.target.value)}
-                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
                       >
                         <option value="all">All Engineers</option>
                         <option value="unassigned">Unassigned</option>
@@ -903,7 +904,7 @@ const TicketQueuePage = () => {
                       <select
                         value={categoryFilter}
                         onChange={(e) => setCategoryFilter(e.target.value)}
-                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                        className="pl-2 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
                       >
                         <option value="all">All Categories</option>
                         {categories.map(cat => (
@@ -919,7 +920,7 @@ const TicketQueuePage = () => {
                       <select
                         value={dateFilter}
                         onChange={(e) => setDateFilter(e.target.value)}
-                        className="pl-6 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-[#FF7300] focus:border-[#FF7300] appearance-none"
+                        className="pl-6 pr-6 py-1.5 w-full border border-gray-300 rounded text-xs text-gray-900 bg-white focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
                       >
                         <option value="all">All Time</option>
                         <option value="today">Today</option>
@@ -1076,7 +1077,7 @@ const TicketQueuePage = () => {
                             </div>
                             <div className="min-w-0 flex-1">
                               <div 
-                                className="font-medium text-gray-900 hover:text-[#FF7300] transition-colors duration-150 cursor-pointer line-clamp-2 leading-tight"
+                                className="font-medium text-gray-900 hover:text-primary transition-colors duration-150 cursor-pointer line-clamp-2 leading-tight"
                                 onClick={() => handleTicketClick(ticket)}
                                 title={ticket.title}
                               >
@@ -1114,7 +1115,7 @@ const TicketQueuePage = () => {
                           <select 
                             value={ticket.priority} 
                             onChange={(e) => onUpdateMeta(ticket._id, { priority: e.target.value })}
-                            className={`px-2 py-1 text-xs font-medium rounded border focus:ring-2 focus:ring-[#FF7300] focus:border-transparent ${getPriorityColor(ticket.priority)} w-full`}
+                            className={`px-2 py-1 text-xs font-medium rounded border focus:ring-2 focus:ring-primary focus:border-transparent ${getPriorityColor(ticket.priority)} w-full`}
                           >
                             <option value="low">Low</option>
                             <option value="medium">Medium</option>
@@ -1127,7 +1128,7 @@ const TicketQueuePage = () => {
                             <input 
                               value={ticket.category} 
                               onChange={(e) => onUpdateMeta(ticket._id, { category: e.target.value })}
-                              className="text-sm text-gray-500 border-none bg-transparent hover:bg-gray-50 focus:bg-white focus:border focus:border-gray-300 focus:ring-2 focus:ring-[#FF7300] rounded px-2 py-1 flex-1 truncate"
+                              className="text-sm text-gray-500 border-none bg-transparent hover:bg-gray-50 focus:bg-white focus:border focus:border-gray-300 focus:ring-2 focus:ring-primary rounded px-2 py-1 flex-1 truncate"
                               placeholder="Category"
                             />
                           </div>
@@ -1151,7 +1152,7 @@ const TicketQueuePage = () => {
                                 <select 
                                   value="" 
                                   onChange={(e) => handleAssignmentChange(ticket._id, e.target.value)}
-                                  className="border border-gray-300 rounded px-2 py-1 text-xs hover:bg-gray-50 focus:ring-2 focus:ring-[#FF7300] focus:border-transparent w-full"
+                                  className="border border-gray-300 rounded px-2 py-1 text-xs hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:border-transparent w-full"
                                 >
                                   <option value="">Select Engineer</option>
                                   {engineers.map((eng) => (
@@ -1166,7 +1167,7 @@ const TicketQueuePage = () => {
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-3 w-3 text-gray-400" />
                             <span className="text-sm text-gray-500 truncate">
-                              {new Date(ticket.createdAt).toLocaleDateString('en-GB')}
+                              {formatDate(ticket.createdAt)}
                             </span>
                           </div>
                         </td>
@@ -1174,7 +1175,7 @@ const TicketQueuePage = () => {
                           <div className="flex items-center justify-end space-x-1">
                             <button
                               onClick={() => handleTicketClick(ticket)}
-                              className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
+                              className="group flex items-center justify-center p-1.5 lg:p-2 rounded-lg text-gray-500 hover:text-primary hover:bg-orange-50 transition-all duration-200 ease-in-out transform hover:scale-105 shadow-sm hover:shadow-md border border-transparent hover:border-orange-200"
                               title="View Details"
                             >
                               <Info className="w-3.5 h-3.5 lg:w-4 lg:h-4" />

@@ -4,6 +4,7 @@ import { FileText, AlertCircle, Package, User, MapPin, Calendar, CreditCard, Dow
 import { getInvoiceByPurchaseId } from '../../../services/invoiceService';
 import html2pdf from 'html2pdf.js';
 import { useAuth } from '../../../context/AuthContext';
+import { formatDate, formatCurrency } from '../../../utils/formatNumber';
 
 // Custom styles for mobile responsive design - only applies to mobile screens
 const customStyles = `
@@ -413,20 +414,6 @@ export default function ProformaInvoicePage() {
     window.print();
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-  };
-
-  const formatCurrency = (amount) => {
-    if (typeof amount !== 'number') return 'N/A';
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
 
   if (loading) {
     return (

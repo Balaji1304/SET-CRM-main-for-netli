@@ -36,6 +36,14 @@ const paymentSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  razorpayFee: {
+    type: Number,
+    default: 0
+  },
+  razorpayTax: {
+    type: Number,
+    default: 0
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

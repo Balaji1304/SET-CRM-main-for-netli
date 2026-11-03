@@ -18,7 +18,7 @@ import ReportsPage from './app/reports/page';
 import TicketsPage from './app/tickets/page';
 import PerformancePage from './app/performance/page';
 import MaintenancePage from './app/maintenance/page';
-import KnowledgeBasePage from './app/knowledge-base/page';
+
 import QuotationsPage from './app/quotations/page';
 import CustomersPage from './app/customers/page';
 import AccountsApprovalsPage from './app/quotations/pending-approvals';
@@ -69,7 +69,7 @@ function App() {
           <Route 
             path="/invoice/:id" 
             element={ 
-              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'admin', 'sales_head']}>
+              <ProtectedRoute allowedRoles={['customer', 'sales_person', 'front_office_executive', 'product_head', 'service_engineer', 'admin', 'sales_head', 'marketing_coordinator', 'accounts_department']}>
                 <ProformaInvoicePage />
               </ProtectedRoute>
             }
@@ -142,7 +142,6 @@ function App() {
 
             {/* Other routes... */}
             <Route path="reports" element={<ReportsPage />} />
-            <Route path="knowledge-base" element={<KnowledgeBasePage />} />
             <Route path="add-lead" element={
               <ProtectedRoute allowedRoles={['sales_person', 'sales_head', 'marketing_coordinator', 'admin']}>
                 <LeadForm />
@@ -279,7 +278,7 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="service-reports" element={
-              <ProtectedRoute allowedRoles={['service_engineer', 'product_head']}>
+              <ProtectedRoute allowedRoles={['service_engineer', 'product_head', 'admin']}>
                 <ServiceReportsPage />
               </ProtectedRoute>
             } />

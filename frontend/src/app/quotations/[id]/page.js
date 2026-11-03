@@ -18,10 +18,11 @@ import {
 } from 'lucide-react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import Toast from '../../../components/Toast';
-import { getQuotation, sendQuotation, approveQuotation } from '../../../services/quotationService';
+import { getQuotation, sendQuotation, resendQuotation, approveQuotation, exportQuotations } from '../../../services/quotationService';
 import { sendInvoiceEmail } from '../../../services/invoiceService';
 import { API_URL } from '../../../services/apiConfig';
 import { useAuth } from '../../../context/AuthContext';
+import { formatDate, formatCurrency } from '../../../utils/formatNumber';
 
 export default function QuotationDetailsPage() {
   const { id } = useParams();
@@ -153,6 +154,35 @@ export default function QuotationDetailsPage() {
     }
   };
 
+  const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  const handleResendQuotation = async () => {
+    try {
+      setIsResending(true);
+      const response = await resendQuotation(id);
+      if (response.success) {
+        fetchQuotation();
+        setToastMessage(response.warning || 'Quotation resent successfully!');
+        setShowToast(true);
+        setResendCooldown(30);
+        const timer = setInterval(() => {
+          setResendCooldown(prev => {
+            if (prev <= 1) { clearInterval(timer); return 0; }
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        throw new Error(response.message || 'Failed to resend');
+      }
+    } catch (error) {
+      setToastMessage(error.message || 'Failed to resend quotation');
+      setShowToast(true);
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const handleApproveQuotation = async () => {
     try {
       const response = await approveQuotation(id);
@@ -239,7 +269,7 @@ export default function QuotationDetailsPage() {
           </div>
           <div className="text-right flex-shrink-0">
             <p className="text-base sm:text-lg font-bold text-primary mb-0.5 sm:mb-1">
-              ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(total)}
             </p>
             <p className="text-xs text-gray-500 uppercase tracking-wider">Total</p>
           </div>
@@ -252,11 +282,11 @@ export default function QuotationDetailsPage() {
           </div>
           <div className="text-center">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 sm:mb-2">Unit Price</p>
-            <p className="text-sm sm:text-base font-semibold text-secondary">₹{item.unitPrice.toLocaleString('en-IN')}</p>
+            <p className="text-sm sm:text-base font-semibold text-secondary">{formatCurrency(item.unitPrice)}</p>
           </div>
           <div className="text-center">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1 sm:mb-2">Discount</p>
-            <p className="text-sm sm:text-base font-semibold text-secondary">{item.discount}%</p>
+            <p className="text-sm sm:text-base font-semibold text-secondary">{item.discount}% {item.discount > 0 && <span className="text-gray-500">(₹{(item.quantity * item.unitPrice * item.discount / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })})</span>}</p>
           </div>
         </div>
       </div>
@@ -323,7 +353,7 @@ export default function QuotationDetailsPage() {
                 </p>
                 <span className="text-gray-300 hidden sm:inline">•</span>
                 <p className="text-xs sm:text-sm text-gray-600">
-                  {new Date(quotation.createdAt).toLocaleDateString('en-GB')}
+                  {formatDate(quotation.createdAt)}
                 </p>
               </div>
             </div>
@@ -335,7 +365,15 @@ export default function QuotationDetailsPage() {
               {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1)}
               {isSendingQuotation && quotation.status === 'draft' && ' (Sending...)'}
             </span>
-            
+            <button
+              onClick={() => exportQuotations({ quotationId: id })}
+              className="px-3 sm:px-4 py-2 sm:py-2.5 border border-fourth text-secondary rounded-lg text-xs sm:text-sm font-medium hover:bg-fourth transition-colors duration-150 ease-in-out flex items-center justify-center gap-1 sm:gap-2 touch-target"
+            >
+              <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Export Excel</span>
+              <span className="sm:hidden">Excel</span>
+            </button>
+
             {(quotation.status === 'draft' || isSendingQuotation) && (
               <>
                 <button
@@ -373,7 +411,26 @@ export default function QuotationDetailsPage() {
                 </button>
               </>
             )}
-            {quotation.status === 'sent' && !isSendingQuotation && user?.role !== 'sales_person' && (
+            {['sent', 'pending_approval', 'approved'].includes(quotation.status) && (
+              <button
+                onClick={() => {
+                  setConfirmAction(() => handleResendQuotation);
+                  setConfirmActionType('resend');
+                  setShowConfirmDialog(true);
+                }}
+                disabled={isResending || resendCooldown > 0}
+                className={`px-3 sm:px-4 py-2 sm:py-2.5 border rounded-lg text-xs sm:text-sm font-medium flex items-center justify-center gap-1 sm:gap-2 touch-target transition-colors duration-150 ease-in-out ${isResending || resendCooldown > 0 ? 'border-fourth text-gray-400 cursor-not-allowed' : 'border-primary text-primary hover:bg-primary hover:text-tertiary'}`}
+              >
+                {isResending ? (
+                  <><Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" /> Resending...</>
+                ) : resendCooldown > 0 ? (
+                  <>Resend ({resendCooldown}s)</>
+                ) : (
+                  <><Send className="h-3 w-3 sm:h-4 sm:w-4" /> Resend</>
+                )}
+              </button>
+            )}
+            {quotation.status === 'sent' && !isSendingQuotation && ['accounts_department', 'admin'].includes(user?.role) && (
               <button
                 onClick={() => {
                   setConfirmAction(() => handleApproveQuotation);
@@ -456,7 +513,7 @@ export default function QuotationDetailsPage() {
               <div className="text-xs sm:text-sm text-gray-600 sm:text-right">
                 <p className="font-medium">Valid until:</p>
                 <p className="text-base sm:text-lg font-semibold text-primary">
-                  {new Date(quotation.validUntil).toLocaleDateString('en-GB')}
+                  {formatDate(quotation.validUntil)}
                 </p>
               </div>
             </div>
@@ -578,22 +635,38 @@ export default function QuotationDetailsPage() {
                           </td>
                           <td className="px-6 py-4 text-center text-sm text-gray-700">{item.quantity}</td>
                           <td className="px-6 py-4 text-right text-sm text-gray-700">
-                            ₹{item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(item.unitPrice)}
                           </td>
-                          <td className="px-6 py-4 text-center text-sm text-gray-700">{item.discount}%</td>
+                          <td className="px-6 py-4 text-center text-sm text-gray-700">{item.discount}%{item.discount > 0 && ` (₹${(item.quantity * item.unitPrice * item.discount / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })})`}</td>
                           <td className="px-6 py-4 text-right font-semibold text-secondary">
-                            ₹{total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {formatCurrency(total)}
                           </td>
                         </tr>
                       );
                     })}
-                    {/* Total Row */}
+                    {/* Discount & Total Rows */}
+                    {(() => {
+                      const items = quotation.quotationItems || [];
+                      const totalDisc = items.reduce((sum, i) => sum + (i.quantity * i.unitPrice * (i.discount || 0) / 100), 0);
+                      return totalDisc > 0 ? (
+                        <>
+                          <tr className="bg-gray-50">
+                            <td className="px-6 py-3 text-right" colSpan="4"><span className="text-sm text-gray-600">Sub-Total</span></td>
+                            <td className="px-6 py-3 text-right text-sm text-gray-700">{formatCurrency(quotation.total + totalDisc)}</td>
+                          </tr>
+                          <tr className="bg-gray-50">
+                            <td className="px-6 py-3 text-right" colSpan="4"><span className="text-sm text-gray-600">Total Discount</span></td>
+                            <td className="px-6 py-3 text-right text-sm text-red-600">- {formatCurrency(totalDisc)}</td>
+                          </tr>
+                        </>
+                      ) : null;
+                    })()}
                     <tr className="bg-gray-100 font-semibold">
                       <td className="px-6 py-4 text-right" colSpan="4">
                         <span className="text-lg text-secondary">TOTAL AMOUNT</span>
                       </td>
                       <td className="px-6 py-4 text-right text-lg text-primary">
-                        ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(quotation.total)}
                       </td>
                     </tr>
                   </tbody>
@@ -612,7 +685,7 @@ export default function QuotationDetailsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-base sm:text-lg font-semibold text-secondary">Total Amount</span>
                   <span className="text-base sm:text-lg font-bold text-primary">
-                    ₹{quotation.total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(quotation.total)}
                   </span>
                 </div>
               </div>
@@ -637,12 +710,18 @@ export default function QuotationDetailsPage() {
                         <span className="font-medium">Payment Amount:</span> {quotation.advancePaymentPercentage}% of total amount
                       </p>
                       <p className="text-xl sm:text-2xl font-bold text-primary">
-                        ₹{((quotation.total * quotation.advancePaymentPercentage / 100) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency((quotation.total * quotation.advancePaymentPercentage / 100) || 0)}
                       </p>
                       {quotation.status === 'sent' && (
                         <p className="text-xs sm:text-sm text-orange-700 mt-2 sm:mt-3 p-2 sm:p-3 bg-orange-100 rounded">
                           <strong>Note:</strong> This advance payment must be completed before the quotation can be approved and processed further.
                         </p>
+                      )}
+                      {quotation.razorpayFee > 0 && ['admin', 'accounts_department'].includes(user?.role) && (
+                        <div className="mt-2 sm:mt-3 p-2 sm:p-3 bg-gray-50 border border-gray-200 rounded text-xs sm:text-sm text-gray-700">
+                          <p className="font-medium mb-1">Gateway Charges (Company Absorbed)</p>
+                          <p>Fee: {formatCurrency(quotation.razorpayFee / 100)} &middot; Tax: {formatCurrency(quotation.razorpayTax / 100)} &middot; Net settled: {formatCurrency((quotation.total * quotation.advancePaymentPercentage / 100) - (quotation.razorpayFee + quotation.razorpayTax) / 100)}</p>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -707,16 +786,18 @@ export default function QuotationDetailsPage() {
           setConfirmActionType(null);
         }}
         title={
-          confirmActionType === 'send'
-            ? "Send Quotation"
+          confirmActionType === 'send' ? "Send Quotation"
+            : confirmActionType === 'resend' ? "Resend Quotation"
             : "Approve Quotation"
         }
         message={
           confirmActionType === 'send'
             ? "Are you sure you want to send this quotation to the lead? This action cannot be undone."
+            : confirmActionType === 'resend'
+            ? "Resend this quotation to the lead with the same details and payment link?"
             : "Are you sure you want to approve this quotation? This may create related records and change its status."
         }
-        confirmText={confirmActionType === 'send' ? "Yes, Send" : "Yes, Approve"}
+        confirmText={confirmActionType === 'send' ? "Yes, Send" : confirmActionType === 'resend' ? "Yes, Resend" : "Yes, Approve"}
       />
 
       {showToast && (

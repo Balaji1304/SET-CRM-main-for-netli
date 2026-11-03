@@ -7,6 +7,7 @@ import { getLeads } from '../../../services/leadService';
 import { getProducts } from '../../../services/productService';
 import { getAllCustomizedProducts, updateCustomizedProduct } from '../../../services/customizedProductService';
 import { getBundles, getBundleWithComponents } from '../../../services/bundleService';
+import { formatCurrency } from '../../../utils/formatNumber';
 
 export default function CreateQuotationPage() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function CreateQuotationPage() {
       bundleId: '',
       quantity: '',
       unitPrice: '',
+      basePrice: 0,
       discount: ''
     }],
     terms: "", // Initially empty, will be set based on selected products
@@ -259,12 +261,13 @@ export default function CreateQuotationPage() {
   const handleAddItem = () => {
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, { 
-        productId: '', 
+      items: [...prev.items, {
+        productId: '',
         customizedProductId: '',
         bundleId: '',
-        quantity: '', 
-        unitPrice: '', 
+        quantity: '',
+        unitPrice: '',
+        basePrice: 0,
         discount: '' 
       }]
     }));
@@ -323,7 +326,9 @@ export default function CreateQuotationPage() {
               } else {
                 updatedItem.productId = value;
               }
-              updatedItem.unitPrice = parseFloat(leadProduct.unitPrice || leadProduct.price) || 0;
+              const catalogPrice = parseFloat(leadProduct.unitPrice || leadProduct.price) || 0;
+              updatedItem.unitPrice = catalogPrice;
+              updatedItem.basePrice = catalogPrice;
               updatedItem.quantity = parseInt(leadProduct.quantity) || 1;
             } else {
               // Check if it's from all products, all customized products, or all bundles
@@ -334,10 +339,12 @@ export default function CreateQuotationPage() {
               if (regularProduct) {
                 updatedItem.productId = value;
                 updatedItem.unitPrice = regularProduct.price || 0;
+                updatedItem.basePrice = regularProduct.price || 0;
                 updatedItem.quantity = item.quantity === '' ? 1 : item.quantity;
               } else if (customizedProduct) {
                 updatedItem.customizedProductId = value;
                 updatedItem.unitPrice = customizedProduct.unitPrice || 0;
+                updatedItem.basePrice = customizedProduct.unitPrice || 0;
                 updatedItem.quantity = item.quantity === '' ? 1 : item.quantity;
                 
                 // Add customized product details to state if not already present
@@ -360,16 +367,20 @@ export default function CreateQuotationPage() {
               } else if (bundle) {
                 updatedItem.bundleId = value;
                 updatedItem.unitPrice = bundle.price || 0;
+                updatedItem.basePrice = bundle.price || 0;
                 updatedItem.quantity = item.quantity === '' ? 1 : item.quantity;
-                
+
                 // Fetch bundle component details for any bundle
                 fetchBundleComponents(value, index);
               }
             }
+          } else if (field === 'unitPrice') {
+            const val = value === '' ? '' : parseFloat(value);
+            updatedItem.unitPrice = val === '' ? '' : (val >= 0 ? val : item.unitPrice);
           } else if (field === 'quantity') {
             updatedItem.quantity = value ? parseInt(value) : '';
           } else if (field === 'discount') {
-            updatedItem.discount = value === '' ? '' : (parseInt(value) >= 0 && parseInt(value) <= 5 ? parseInt(value) : item.discount);
+            updatedItem.discount = value === '' ? '' : (parseInt(value) >= 0 && parseInt(value) <= 9 ? parseInt(value) : item.discount);
           } else {
             updatedItem[field] = value;
           }
@@ -498,7 +509,7 @@ export default function CreateQuotationPage() {
         ...prev,
         leadId: '',
         terms: '', // Clear terms when no lead is selected
-        items: [{ productId: '', customizedProductId: '', bundleId: '', quantity: '', unitPrice: '', discount: '' }]
+        items: [{ productId: '', customizedProductId: '', bundleId: '', quantity: '', unitPrice: '', basePrice: 0, discount: '' }]
       }));
       setCustomizedProductDetails({});
     }
@@ -521,6 +532,11 @@ export default function CreateQuotationPage() {
     }
     if (formData.items.some(item => parseFloat(item.quantity) <= 0 || parseFloat(item.unitPrice) < 0)) {
       setError("Quantity must be positive and price must not be negative.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.items.some(item => item.basePrice > 0 && parseFloat(item.unitPrice) < item.basePrice)) {
+      setError("Unit price cannot be below the catalog base price.");
       setIsSubmitting(false);
       return;
     }
@@ -559,6 +575,7 @@ export default function CreateQuotationPage() {
             customizedProductId: item.customizedProductId || null,
             bundleId: item.bundleId || null,
             quantity: parseInt(item.quantity),
+            basePrice: parseFloat(item.basePrice) || parseFloat(item.unitPrice),
             unitPrice: parseFloat(item.unitPrice),
             discount: item.discount === '' ? 0 : parseInt(item.discount)
           };
@@ -1029,10 +1046,10 @@ export default function CreateQuotationPage() {
                     />
                   </div>
 
-                  {/* Unit Price Input - Now Read Only */}
+                  {/* Unit Price Input */}
                   <div className="md:col-span-2">
                     <label htmlFor={`unit_price_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
-                      Unit Price
+                      Unit Price {item.basePrice > 0 && item.unitPrice !== item.basePrice && <span className="text-xs text-gray-400">(base: ₹{Number(item.basePrice).toLocaleString('en-IN')})</span>}
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm font-medium z-10">₹</span>
@@ -1040,22 +1057,22 @@ export default function CreateQuotationPage() {
                         type="number"
                         id={`unit_price_${index}`}
                         value={item.unitPrice}
-                        readOnly
-                        min="0"
+                        onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
+                        min={item.basePrice || 0}
                         step="0.01"
                         placeholder="0.00"
-                        className="mt-1 block w-full pl-8 pr-8 py-2 bg-gray-50 border border-fourth rounded-lg shadow-sm text-sm text-secondary font-medium cursor-not-allowed"
+                        className={`mt-1 block w-full pl-8 pr-3 py-2 border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary font-medium ${item.unitPrice !== '' && item.basePrice > 0 && parseFloat(item.unitPrice) < item.basePrice ? 'border-red-400 bg-red-50' : 'bg-white'}`}
                       />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                        <div className="w-2 h-2 bg-blue-400 rounded-full" title="Auto-filled from product selection"></div>
-                      </div>
                     </div>
+                    {item.unitPrice !== '' && item.basePrice > 0 && parseFloat(item.unitPrice) < item.basePrice && (
+                      <p className="mt-1 text-xs text-red-500">Cannot be below catalog price (₹{Number(item.basePrice).toLocaleString('en-IN')})</p>
+                    )}
                   </div>
 
                   {/* Discount Input */}
                   <div className="md:col-span-2">
                     <label htmlFor={`discount_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
-                      Discount (%)
+                      Discount (%, optional)
                     </label>
                     <input
                       type="number"
@@ -1063,10 +1080,13 @@ export default function CreateQuotationPage() {
                       value={item.discount}
                       onChange={(e) => handleItemChange(index, 'discount', e.target.value)}
                       min="0"
-                      max="5"
-                      placeholder="e.g. 2"
+                      max="9"
+                      placeholder="0"
                       className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400"
                     />
+                    {item.discount > 0 && parseFloat(item.unitPrice) > 0 && parseFloat(item.quantity) > 0 && (
+                      <p className="mt-1 text-xs text-gray-500">₹{(parseFloat(item.quantity) * parseFloat(item.unitPrice) * parseFloat(item.discount) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                    )}
                   </div>
 
                   {/* Item Total - New Field */}
@@ -1425,7 +1445,7 @@ export default function CreateQuotationPage() {
           <div className="flex justify-end items-center border-t border-fourth pt-4 mt-6">
             <span className="text-sm font-medium text-gray-700">Total Amount:</span>
             <span className="text-xl font-bold text-primary ml-2">
-              ₹{calculateTotalAmount().toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(calculateTotalAmount())}
             </span>
           </div>
 

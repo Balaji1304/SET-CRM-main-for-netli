@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { getMyOrderTracking } from '../../services/trackingService';
 import { STATUS_LABELS, PHASE_LABELS, STATUS_COLORS, PHASE_COLORS } from '../../services/trackingService';
-import { formatNumber } from '../../utils/formatNumber';
+import { formatNumber, formatDate, formatCurrency } from '../../utils/formatNumber';
 import { getMyPurchases, downloadOrderFormPDF } from '../../services/customerService';
 import { useAuth } from '../../context/AuthContext';
 import ExportButton from '../../components/ExportButton';
@@ -121,18 +121,10 @@ const customStyles = `
 `;
 
 const OrderTrackingCard = ({ tracking, onViewDetails, isAdmin = false }) => {
-  const formatDate = (date) => {
-    if (!date) return 'TBD';
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
 
   const formatDateTime = (date) => {
     if (!date) return null;
-    return new Date(date).toLocaleString('en-US', {
+    return new Date(date).toLocaleString('en-IN', {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
@@ -302,7 +294,7 @@ const OrderTrackingCard = ({ tracking, onViewDetails, isAdmin = false }) => {
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3">
           <div className="flex items-center space-x-2">
             <span className="text-xs text-gray-500 uppercase tracking-wider">Amount</span>
-            <span className="font-bold text-gray-900">₹{formatNumber(tracking.purchaseId?.totalAmount || 0)}</span>
+            <span className="font-bold text-gray-900">{formatCurrency(tracking.purchaseId?.totalAmount || 0)}</span>
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-xs text-gray-500 uppercase tracking-wider">Progress</span>
@@ -474,22 +466,13 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose, isAdmin = false }) => 
 
   const formatDateTime = (date) => {
     if (!date) return 'Not set';
-    return new Date(date).toLocaleString('en-US', {
+    return new Date(date).toLocaleString('en-IN', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
-    });
-  };
-
-  const formatDateOnly = (date) => {
-    if (!date) return 'TBD';
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
     });
   };
 
@@ -631,7 +614,7 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose, isAdmin = false }) => 
               </h2>
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-orange-100 text-xs sm:text-sm">
                 <span className="mobile-truncate">#{tracking.trackingNumber}</span>
-                <span className="mobile-truncate">₹{formatNumber(tracking.purchaseId?.totalAmount || 0)}</span>
+                <span className="mobile-truncate">{formatCurrency(tracking.purchaseId?.totalAmount || 0)}</span>
               </div>
             </div>
             <button
@@ -782,12 +765,12 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose, isAdmin = false }) => 
               <div className="space-y-2 sm:space-y-3">
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                   <span className="text-xs sm:text-sm text-gray-600 font-medium">Estimated Delivery</span>
-                  <span className="text-xs sm:text-sm font-medium">{formatDateOnly(tracking.estimatedDelivery)}</span>
+                  <span className="text-xs sm:text-sm font-medium">{formatDate(tracking.estimatedDelivery)}</span>
                 </div>
                 {tracking.actualDelivery && (
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                     <span className="text-xs sm:text-sm text-gray-600 font-medium">Actual Delivery</span>
-                    <span className="text-xs sm:text-sm font-medium text-green-600">{formatDateOnly(tracking.actualDelivery)}</span>
+                    <span className="text-xs sm:text-sm font-medium text-green-600">{formatDate(tracking.actualDelivery)}</span>
                   </div>
                 )}
               </div>
@@ -805,13 +788,13 @@ const TrackingDetailModal = ({ tracking, isOpen, onClose, isAdmin = false }) => 
                 {tracking.estimatedInstallation && (
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                     <span className="text-xs sm:text-sm text-gray-600 font-medium">Estimated Installation</span>
-                    <span className="text-xs sm:text-sm font-medium">{formatDateOnly(tracking.estimatedInstallation)}</span>
+                    <span className="text-xs sm:text-sm font-medium">{formatDate(tracking.estimatedInstallation)}</span>
                   </div>
                 )}
                 {tracking.actualInstallation && (
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                     <span className="text-xs sm:text-sm text-gray-600 font-medium">Completed On</span>
-                    <span className="text-xs sm:text-sm font-medium text-green-600">{formatDateOnly(tracking.actualInstallation)}</span>
+                    <span className="text-xs sm:text-sm font-medium text-green-600">{formatDate(tracking.actualInstallation)}</span>
                   </div>
                 )}
               </div>

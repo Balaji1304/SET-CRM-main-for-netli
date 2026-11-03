@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Check, AlertCircle, Loader, ArrowRight } from 'lucide-react';
 import { verifyRazorpayPayment } from '../../../services/customerService';
 import { getAuthHeaders } from '../../../services/apiConfig';
+import { formatCurrency } from '../../../utils/formatNumber';
 
 export default function PaymentSuccessPage() {
   const [searchParams] = useSearchParams();
@@ -110,7 +111,7 @@ export default function PaymentSuccessPage() {
             <h3 className="font-medium mb-2">Payment Details</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="text-gray-600">Amount Paid:</div>
-              <div className="font-medium">₹{payment.amountPaid.toLocaleString('en-IN')}</div>
+              <div className="font-medium">{formatCurrency(payment.amountPaid)}</div>
               
               <div className="text-gray-600">Payment Method:</div>
               <div className="font-medium">Razorpay</div>

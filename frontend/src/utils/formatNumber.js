@@ -19,9 +19,22 @@ export const formatNumber = (num) => {
  * @returns {string} Formatted currency string
  */
 export const formatCurrency = (amount) => {
-  const formattedAmount = formatNumber(amount);
-  if (formattedAmount === 'N/A') return 'N/A';
-  return `₹${formattedAmount}`;
+  if (amount == null || amount === 'N/A') return 'N/A';
+  const num = typeof amount === 'number' ? amount : parseFloat(amount);
+  if (isNaN(num)) return 'N/A';
+  return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+/**
+ * Formats a date for display in Indian locale
+ * @param {string|Date} date - The date to format
+ * @returns {string} Formatted date string (e.g. "31 Oct 2026")
+ */
+export const formatDate = (date) => {
+  if (!date) return '—';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 /**

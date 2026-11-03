@@ -318,7 +318,7 @@ const CasesPage = () => {
               ticket.priority === 'medium' ? 'bg-yellow-400' :
               'bg-green-400'
             }`}></div>
-            <h3 className={`mobile-header-text font-semibold cursor-pointer hover:text-[#FF7300] transition-colors duration-150 line-clamp-2 leading-tight text-gray-900`}
+            <h3 className={`mobile-header-text font-semibold cursor-pointer hover:text-primary transition-colors duration-150 line-clamp-2 leading-tight text-gray-900`}
                 onClick={() => handleTicketClick(ticket)}
                 title="Click to view details">
               {ticket.title}
@@ -332,7 +332,7 @@ const CasesPage = () => {
         <div className="mobile-action-buttons flex items-center gap-1 flex-shrink-0">
           <button
             onClick={() => handleTicketClick(ticket)}
-            className="mobile-action-compact p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+            className="mobile-action-compact p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
             title="View Details"
           >
             <Eye className="w-4 h-4" />

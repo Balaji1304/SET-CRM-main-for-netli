@@ -7,6 +7,7 @@ import { getProducts, deleteProduct, exportProducts } from '../../services/produ
 import ExportButton from '../../components/ExportButton';
 import { downloadCSV } from '../../utils/csv';
 import { useAuth } from '../../context/AuthContext';
+import { formatDate } from '../../utils/formatNumber';
 
 // Custom styles for better mobile experience
 const customStyles = `
@@ -287,7 +288,7 @@ export default function ProductListPage() {
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4">
         <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full mobile-modal-content transform transition-all duration-300 ease-out">
           {/* Modal Header */}
-          <div className="bg-gradient-to-r from-[#FF7300] to-[#FF8800] px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-primary to-orange-500 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
               <div className="bg-white/20 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
                 <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
@@ -463,7 +464,7 @@ export default function ProductListPage() {
                       <div className="flex justify-between items-center py-1 sm:py-2">
                         <span className="text-xs sm:text-sm font-medium text-gray-600">Last Updated</span>
                         <span className="text-xs sm:text-sm text-gray-900">
-                          {new Date(product.updatedAt).toLocaleDateString('en-IN')}
+                          {formatDate(product.updatedAt)}
                         </span>
                       </div>
                     )}
@@ -488,7 +489,7 @@ export default function ProductListPage() {
                       onClose();
                       handleEditProduct(product._id);
                     }}
-                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[#FF7300] text-white rounded-lg font-medium hover:bg-[#FF8800] transition-colors duration-150 touch-target text-sm sm:text-base"
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-orange-600 transition-colors duration-150 touch-target text-sm sm:text-base"
                   >
                     <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                     Edit Product
@@ -565,7 +566,7 @@ export default function ProductListPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-1 sm:gap-2">
           <div className="flex-1 min-w-0 max-w-[calc(100%-140px)] sm:max-w-[calc(100%-160px)]">
-            <h3 className="mobile-header-text text-base sm:text-lg font-semibold text-gray-900 mb-1 cursor-pointer hover:text-[#FF7300] transition-colors duration-150 line-clamp-2 leading-tight"
+            <h3 className="mobile-header-text text-base sm:text-lg font-semibold text-gray-900 mb-1 cursor-pointer hover:text-primary transition-colors duration-150 line-clamp-2 leading-tight"
                 onClick={() => handleViewProduct(product)}
                 title={product.name}>
               {product.name}
@@ -578,7 +579,7 @@ export default function ProductListPage() {
           <div className="mobile-action-buttons flex items-center gap-0.5 sm:gap-1 flex-shrink-0 w-[140px] sm:w-[160px] justify-end">
             <button
               onClick={() => handleViewProduct(product)}
-              className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+              className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
               title="View Details"
             >
               <Info className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -586,7 +587,7 @@ export default function ProductListPage() {
             {product.brochureUrl && (
               <button
                 onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
-                className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+                className="mobile-action-compact p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
                 title="View Brochure"
               >
                 <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -667,7 +668,7 @@ export default function ProductListPage() {
       <>
         <style>{customStyles}</style>
         <div className="flex flex-col flex-1 items-center justify-center min-h-[300px] p-6">
-          <Loader2 className="w-12 h-12 text-[#FF7300] animate-spin mb-4" />
+          <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
           <p className="text-lg text-gray-600">Loading products...</p>
         </div>
       </>
@@ -684,7 +685,7 @@ export default function ProductListPage() {
           <p className="text-sm text-gray-600 mb-4">{error}</p>
           <button 
             onClick={() => { setError(null); fetchProducts(); }}
-            className="px-4 py-2 bg-[#FF7300] text-white rounded-lg text-sm font-medium hover:bg-[#FF8800] transition-colors touch-target"
+            className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors touch-target"
           >
             Try Again
           </button>
@@ -888,7 +889,7 @@ export default function ProductListPage() {
                           >
                             <td className="px-2 lg:px-4 xl:px-6 py-4 text-sm font-medium text-gray-900 w-32 lg:w-40">
                               <div 
-                                className="truncate cursor-pointer hover:text-[#FF7300] transition-colors duration-150"
+                                className="truncate cursor-pointer hover:text-primary transition-colors duration-150"
                                 onClick={() => handleViewProduct(product)}
                                 title="Click to view details"
                               >
@@ -923,7 +924,7 @@ export default function ProductListPage() {
                               <div className="flex items-center justify-center space-x-1 lg:space-x-2">
                                 <button
                                   onClick={() => handleViewProduct(product)}
-                                  className="p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+                                  className="p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
                                   title="View Details"
                                 >
                                   <Info className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -931,7 +932,7 @@ export default function ProductListPage() {
                                 {product.brochureUrl && (
                                   <button
                                     onClick={() => navigate(`/dashboard/products/${product._id}/brochure`)}
-                                    className="p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-[#FF7300] hover:bg-orange-50 transition-colors duration-150"
+                                    className="p-1 sm:p-1.5 rounded-md text-gray-500 hover:text-primary hover:bg-orange-50 transition-colors duration-150"
                                     title="View Brochure"
                                   >
                                     <Eye className="w-3 h-3 sm:w-4 sm:h-4" />

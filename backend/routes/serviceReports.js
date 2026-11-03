@@ -7,12 +7,11 @@ const {
   getServiceReport,
   deleteServiceReport
 } = require('../controllers/serviceReportsController');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-// All routes require authentication
-router.use(protect);
+router.use(protect, authorize('service_engineer', 'product_head', 'admin'));
 
 // @route   GET /api/reports/service/dashboard
 // @desc    Get service dashboard summary

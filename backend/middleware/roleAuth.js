@@ -8,7 +8,7 @@ const rolePermissions = {
   sales_head: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders', '/api/notifications', '/api/tracking', '/api/reports/sales'],
   accounts_department: ['/api/quotations', '/api/customer-purchases', '/api/notifications', '/api/tracking', '/api/payments'],
   marketing_coordinator: ['/api/leads', '/api/quotations', '/api/invoices', '/api/purchase-orders', '/api/notifications', '/api/tracking', '/api/reports/sales'],
-  admin: ['/api/tickets', '/api/payments', '/api/quotations', '/api/notifications', '/api/tracking', '/api/installations', '/api/customer-purchases', '/api/invoices', '/api/leads', '/api/reports', '/api/enquiries', '/api/maintenance', '/api/bundles', '/api/performance', '/api/purchase-orders', '/api/dashboard', '/api/knowledge-base', '/api/products', '/api/users', '/api/auth']
+  admin: ['/api/tickets', '/api/payments', '/api/quotations', '/api/notifications', '/api/tracking', '/api/installations', '/api/customer-purchases', '/api/invoices', '/api/leads', '/api/reports', '/api/enquiries', '/api/maintenance', '/api/bundles', '/api/performance', '/api/purchase-orders', '/api/dashboard', '/api/products', '/api/users', '/api/auth']
 
 };
 
@@ -22,7 +22,7 @@ exports.checkRolePermission = (req, res, next) => {
   }
 
   // Allow access to common routes for all authenticated users
-  const commonRoutes = ['/api/dashboard', '/api/reports', '/api/knowledge-base'];
+  const commonRoutes = ['/api/dashboard', '/api/reports'];
   if (commonRoutes.includes(requestPath)) {
     return next();
   }

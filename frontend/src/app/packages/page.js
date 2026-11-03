@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import packageService from '../../services/packageService';
-import { toast } from 'react-toastify';
+import { toast } from '../../components/Toast';
 import KanbanBoard from './KanbanBoard';
 import CreatePackageModal from './CreatePackageModal';
 import { PlusCircle } from 'lucide-react';
