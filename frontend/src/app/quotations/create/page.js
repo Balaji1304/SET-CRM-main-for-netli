@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Loader2, ChevronDown, Upload, X } from 'lucide-react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import SearchableSelect from '../../../components/SearchableSelect';
 import { createQuotation } from '../../../services/quotationService';
 import { getLeads } from '../../../services/leadService';
 import { getProducts } from '../../../services/productService';
@@ -122,7 +123,7 @@ export default function CreateQuotationPage() {
       }
 
       // Process leads data to properly handle both regular and customized products
-      setLeads(leadsData.data.map(lead => ({
+      setLeads([...leadsData.data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(lead => ({
         ...lead,
         products: lead.products.map(product => {
           // For customized products (has customizedProductId and isCustomizedProduct = true)
@@ -854,24 +855,18 @@ export default function CreateQuotationPage() {
               <label htmlFor="leadId" className="block text-sm font-medium text-gray-700 mb-1">
                 Select Lead <span className="text-red-500">*</span>
               </label>
-              <div className="relative mt-1">
-                <select
-                  id="leadId"
-                  name="leadId"
-                  value={formData.leadId}
-                  onChange={(e) => handleLeadSelect(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm appearance-none text-secondary"
-                  required
-                >
-                  <option value="">Select a lead</option>
-                  {leads.map(lead => (
-                    <option key={lead._id} value={lead._id}>
-                      {lead.firstName} {lead.lastName} - {lead.businessName || 'N/A'} ({lead.products.length} interested product(s))
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
-              </div>
+              <SearchableSelect
+                id="leadId"
+                value={formData.leadId}
+                onChange={(val) => handleLeadSelect(val)}
+                options={leads.map(lead => ({
+                  value: lead._id,
+                  label: `${lead.firstName} ${lead.lastName} - ${lead.businessName || 'N/A'} (${lead.products.length} interested product(s))`
+                }))}
+                placeholder="Search leads by name or business..."
+                required
+                className="mt-1"
+              />
             </div>
           </section>
 
