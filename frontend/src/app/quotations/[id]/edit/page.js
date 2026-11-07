@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Loader2, ChevronDown, AlertTriangle, Upload, X } from 'lucide-react';
 import ConfirmDialog from '../../../../components/ConfirmDialog';
+import SearchableSelect from '../../../../components/SearchableSelect';
 import { getQuotation, updateQuotation } from '../../../../services/quotationService';
 import { getProducts } from '../../../../services/productService';
 import { getAllCustomizedProducts, updateCustomizedProduct } from '../../../../services/customizedProductService';
@@ -729,61 +730,35 @@ export default function EditQuotationPage() {
                     <label htmlFor={`product_id_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
                       Product <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative mt-1">
-                      <select
-                        id={`product_id_${index}`}
-                        value={item.productId || (item.customizedProductId ? `custom_${item.customizedProductId}` : '') || (item.bundleId ? `bundle_${item.bundleId}` : '') || ''}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          // Check if it's a customized product (starts with 'custom_')
-                          if (value.startsWith('custom_')) {
-                            const customizedProductId = value.replace('custom_', '');
-                            handleItemChange(index, 'customizedProductId', customizedProductId);
-                          } else if (value.startsWith('bundle_')) {
-                            const bundleId = value.replace('bundle_', '');
-                            handleItemChange(index, 'bundleId', bundleId);
-                          } else {
-                            handleItemChange(index, 'productId', value);
-                          }
-                        }}
-                        className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm appearance-none text-secondary"
-                        required
-                      >
-                        <option value="">Select Product</option>
-                        {/* Show only products of the same type as the quotation's original products */}
-                        {leadProductType === 'individual' && (
-                          <optgroup label="Individual Products">
-                            {originalProducts.map(product => (
-                              <option key={product._id} value={product._id}>
-                                {product.name} ({product.category || 'General'})
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {leadProductType === 'customized' && (
-                          <optgroup label="Customized Products">
-                            {allCustomizedProducts.map(customizedProduct => (
-                              <option key={`custom_${customizedProduct._id}`} value={`custom_${customizedProduct._id}`}>
-                                {customizedProduct.name} (Customized) - ₹{customizedProduct.unitPrice}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {leadProductType === 'bundle' && (
-                          <optgroup label="Bundle Products">
-                            {allBundles.map(bundle => (
-                              <option key={`bundle_${bundle._id}`} value={`bundle_${bundle._id}`}>
-                                {bundle.name} (Bundle) - ₹{bundle.price}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                        {!leadProductType && (
-                          <option disabled>Unable to determine product type</option>
-                        )}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
-                    </div>
+                    <SearchableSelect
+                      id={`product_id_${index}`}
+                      value={item.productId || (item.customizedProductId ? `custom_${item.customizedProductId}` : '') || (item.bundleId ? `bundle_${item.bundleId}` : '') || ''}
+                      onChange={(val) => {
+                        if (val.startsWith('custom_')) {
+                          handleItemChange(index, 'customizedProductId', val.replace('custom_', ''));
+                        } else if (val.startsWith('bundle_')) {
+                          handleItemChange(index, 'bundleId', val.replace('bundle_', ''));
+                        } else {
+                          handleItemChange(index, 'productId', val);
+                        }
+                      }}
+                      groups={(() => {
+                        const g = [];
+                        if (leadProductType === 'individual') {
+                          g.push({ label: 'Individual Products', options: originalProducts.map(p => ({ value: p._id, label: `${p.name} (${p.category || 'General'})` })) });
+                        }
+                        if (leadProductType === 'customized') {
+                          g.push({ label: 'Customized Products', options: allCustomizedProducts.map(p => ({ value: `custom_${p._id}`, label: `${p.name} (Customized) - ₹${p.unitPrice}` })) });
+                        }
+                        if (leadProductType === 'bundle') {
+                          g.push({ label: 'Bundle Products', options: allBundles.map(b => ({ value: `bundle_${b._id}`, label: `${b.name} (Bundle) - ₹${b.price}` })) });
+                        }
+                        return g;
+                      })()}
+                      placeholder="Search products..."
+                      required
+                      className="mt-1"
+                    />
                   </div>
 
                   <div className="md:col-span-2">
