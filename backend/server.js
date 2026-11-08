@@ -58,9 +58,9 @@ const getAllowedOrigins = () => {
 // CORS Configuration with optimized settings
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl)
-    if (!origin) return callback(null, true);
-    
+    // Allow requests with no origin (mobile apps, curl) but not null origin
+    if (origin === undefined) return callback(null, true);
+
     const allowedOrigins = getAllowedOrigins();
     if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
       callback(null, true);

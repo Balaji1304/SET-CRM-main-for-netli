@@ -20,7 +20,7 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASSWORD
   },
   tls: {
-    rejectUnauthorized: false
+    rejectUnauthorized: true
   },
   socketTimeout: 30000
 });

@@ -1,4 +1,8 @@
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+
+// Pre-hashed dummy for constant-time login regardless of user existence
+const DUMMY_HASH = bcrypt.hashSync('dummy', 10);
 
 exports.register = async (req, res) => {
   try {
@@ -104,6 +108,7 @@ exports.login = async (req, res) => {
     }
 
     if (!user) {
+      await bcrypt.compare(password, DUMMY_HASH);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'

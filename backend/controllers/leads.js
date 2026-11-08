@@ -445,8 +445,15 @@ exports.updateLead = async (req, res) => {
       req.body.email = undefined;
     }
     
+    const allowedFields = [
+      'firstName', 'lastName', 'phone', 'whatsapp', 'whatsappSameAsPhone',
+      'businessName', 'address', 'billingAddress', 'shippingAddress',
+      'source', 'customSource', 'notes', 'products', 'countryCode',
+      'leadStatus', 'leadType', 'customLeadType', 'email',
+      'interestedProducts'
+    ];
     Object.keys(req.body).forEach(key => {
-      lead[key] = req.body[key];
+      if (allowedFields.includes(key)) lead[key] = req.body[key];
     });
 
     // Save the lead (this will trigger pre-save middleware)

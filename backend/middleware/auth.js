@@ -26,7 +26,7 @@ exports.protect = async (req, res, next) => {
 
   try {
     // Verify token (jwt.verify also rejects expired tokens)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 
     // Find user
     req.user = await User.findById(decoded.id);

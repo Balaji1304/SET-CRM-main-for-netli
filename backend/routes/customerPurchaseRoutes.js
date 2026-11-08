@@ -82,10 +82,10 @@ router.put('/:purchaseId/payments/:paymentId/reject', protect, authorize(ROLES.A
 router.get('/payments/history', protect, authorize('customer', 'admin'), getAllPaymentHistory);
 
 // Get payment history for a purchase
-router.get('/:purchaseId/payments', protect, getPaymentHistory);
+router.get('/:purchaseId/payments', protect, authorize('customer', 'admin', 'accounts_department', 'sales_person', 'sales_head', 'front_office_executive'), getPaymentHistory);
 
 // Get purchase details with quotation items
-router.get('/:purchaseId', protect, getPurchaseDetails);
+router.get('/:purchaseId', protect, authorize('customer', 'admin', 'accounts_department', 'sales_person', 'sales_head', 'front_office_executive'), getPurchaseDetails);
 
 // Routes for Product Head - Service Task Assignment
 router.get(
@@ -134,12 +134,14 @@ router.put(
 router.get(
   '/:id/order-form/pdf',
   protect,
+  authorize('customer', 'admin', 'accounts_department', 'sales_person', 'sales_head', 'front_office_executive'),
   generateOrderFormPDF
 );
 
 router.get(
   '/:id/order-form/data',
   protect,
+  authorize('customer', 'admin', 'accounts_department', 'sales_person', 'sales_head', 'front_office_executive'),
   getOrderFormData
 );
 

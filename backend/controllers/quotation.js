@@ -1376,7 +1376,7 @@ const approveQuotation = async (quotationInstance) => {
       leadUserId = user._id;
       console.log(`Existing user found: ${leadUserId} for phone ${lead.phone}`);
     } else {
-      const password = Math.random().toString(36).slice(-8);
+      const password = require('crypto').randomBytes(10).toString('base64url');
       const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'Customer';
       
       // Determine whatsapp number - use whatsapp field or phone if whatsappSameAsPhone is true
