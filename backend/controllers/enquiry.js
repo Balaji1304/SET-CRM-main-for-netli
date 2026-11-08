@@ -21,7 +21,14 @@ exports.createEnquiry = async (req, res) => {
       delete req.body.customLeadType;
     }
 
-    const enquiry = await Enquiry.create(req.body);
+    const allowedCreateFields = [
+      'firstName', 'lastName', 'email', 'phone', 'countryCode',
+      'leadSource', 'customLeadSource', 'leadType', 'customLeadType',
+      'notes', 'interestedProducts', 'address', 'createdBy'
+    ];
+    const createData = {};
+    allowedCreateFields.forEach(k => { if (req.body[k] !== undefined) createData[k] = req.body[k]; });
+    const enquiry = await Enquiry.create(createData);
 
     // Create notification for new enquiry
     try {
@@ -128,9 +135,17 @@ exports.updateEnquiry = async (req, res) => {
       delete req.body.customLeadType;
     }
 
+    const allowedFields = [
+      'firstName', 'lastName', 'email', 'phone', 'countryCode',
+      'leadSource', 'customLeadSource', 'leadType', 'customLeadType',
+      'notes', 'interestedProducts', 'address'
+    ];
+    const update = {};
+    allowedFields.forEach(k => { if (req.body[k] !== undefined) update[k] = req.body[k]; });
+
     const enquiry = await Enquiry.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      update,
       {
         new: true,
         runValidators: true

@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const multer = require('multer');
 const router = express.Router();
 
@@ -13,7 +14,7 @@ const {
   deleteCustomizedProduct
 } = require('../controllers/customizedProduct');
 
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 
 // Multer configuration for image uploads
 const storage = multer.diskStorage({
@@ -21,7 +22,8 @@ const storage = multer.diskStorage({
     cb(null, 'uploads/temp/');
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + '-' + file.originalname);
+    const safeName = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, '_');
+    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + '-' + safeName);
   }
 });
 
@@ -39,8 +41,9 @@ const upload = multer({
   }
 });
 
-// All routes require authentication
+// All routes require authentication + staff role
 router.use(protect);
+router.use(authorize('admin', 'sales_person', 'sales_head', 'product_head', 'front_office_executive', 'marketing_coordinator'));
 
 // Routes
 router.route('/')

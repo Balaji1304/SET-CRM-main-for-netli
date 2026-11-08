@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Loader2, ChevronDown, Upload, X } from 'lucide-react';
 import ConfirmDialog from '../../../components/ConfirmDialog';
+import SearchableSelect from '../../../components/SearchableSelect';
 import { createQuotation } from '../../../services/quotationService';
 import { getLeads } from '../../../services/leadService';
 import { getProducts } from '../../../services/productService';
@@ -122,7 +123,7 @@ export default function CreateQuotationPage() {
       }
 
       // Process leads data to properly handle both regular and customized products
-      setLeads(leadsData.data.map(lead => ({
+      setLeads([...leadsData.data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(lead => ({
         ...lead,
         products: lead.products.map(product => {
           // For customized products (has customizedProductId and isCustomizedProduct = true)
@@ -854,24 +855,18 @@ export default function CreateQuotationPage() {
               <label htmlFor="leadId" className="block text-sm font-medium text-gray-700 mb-1">
                 Select Lead <span className="text-red-500">*</span>
               </label>
-              <div className="relative mt-1">
-                <select
-                  id="leadId"
-                  name="leadId"
-                  value={formData.leadId}
-                  onChange={(e) => handleLeadSelect(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm appearance-none text-secondary"
-                  required
-                >
-                  <option value="">Select a lead</option>
-                  {leads.map(lead => (
-                    <option key={lead._id} value={lead._id}>
-                      {lead.firstName} {lead.lastName} - {lead.businessName || 'N/A'} ({lead.products.length} interested product(s))
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
-              </div>
+              <SearchableSelect
+                id="leadId"
+                value={formData.leadId}
+                onChange={(val) => handleLeadSelect(val)}
+                options={leads.map(lead => ({
+                  value: lead._id,
+                  label: `${lead.firstName} ${lead.lastName} - ${lead.businessName || 'N/A'} (${lead.products.length} interested product(s))`
+                }))}
+                placeholder="Search leads by name or business..."
+                required
+                className="mt-1"
+              />
             </div>
           </section>
 
@@ -889,144 +884,66 @@ export default function CreateQuotationPage() {
                     <label htmlFor={`product_id_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
                       Product <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative mt-1">
-                      <select
-                        id={`product_id_${index}`}
-                        value={item.productId || item.customizedProductId || item.bundleId || ''}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          const selectedLead = leads.find(lead => lead._id === formData.leadId);
-                          
-                          // Check if the selected value is from lead's products
-                          const leadProduct = selectedLead?.products.find(p => p.id === value);
-                          
-                          if (leadProduct) {
-                            if (leadProduct.isCustomizedProduct) {
-                              handleItemChange(index, 'customizedProductId', value);
-                            } else if (leadProduct.isBundleItem) {
-                              handleItemChange(index, 'bundleId', value);
-                            } else {
-                              handleItemChange(index, 'productId', value);
-                            }
-                          } else {
-                            // Check if it's from all products, customized products, or bundles
-                            const regularProduct = allProducts.find(p => p._id === value);
-                            const customizedProduct = allCustomizedProducts.find(p => p._id === value);
-                            const bundle = allBundles.find(b => b._id === value);
-                            
-                            if (regularProduct) {
-                              handleItemChange(index, 'productId', value);
-                            } else if (customizedProduct) {
-                              handleItemChange(index, 'customizedProductId', value);
-                            } else if (bundle) {
-                              handleItemChange(index, 'bundleId', value);
-                            }
+                    <SearchableSelect
+                      id={`product_id_${index}`}
+                      value={item.productId || item.customizedProductId || item.bundleId || ''}
+                      onChange={(val) => {
+                        const sl = leads.find(lead => lead._id === formData.leadId);
+                        const leadProduct = sl?.products.find(p => p.id === val);
+                        if (leadProduct) {
+                          if (leadProduct.isCustomizedProduct) handleItemChange(index, 'customizedProductId', val);
+                          else if (leadProduct.isBundleItem) handleItemChange(index, 'bundleId', val);
+                          else handleItemChange(index, 'productId', val);
+                        } else {
+                          const regularProduct = allProducts.find(p => p._id === val);
+                          const customizedProduct = allCustomizedProducts.find(p => p._id === val);
+                          const bundle = allBundles.find(b => b._id === val);
+                          if (regularProduct) handleItemChange(index, 'productId', val);
+                          else if (customizedProduct) handleItemChange(index, 'customizedProductId', val);
+                          else if (bundle) handleItemChange(index, 'bundleId', val);
+                        }
+                      }}
+                      groups={(() => {
+                        const g = [];
+                        if (selectedLead?.products.length > 0) {
+                          g.push({
+                            label: "Lead's Interested Products",
+                            options: selectedLead.products.map(p => ({
+                              value: p.id,
+                              label: `${p.name}${p.isBundleItem ? ' (Bundle)' : ''}${p.isCustomizedProduct ? ' (Customized)' : ''}`
+                            }))
+                          });
+                          if (selectedLead.products.some(p => !p.isCustomizedProduct && !p.isBundleItem)) {
+                            const opts = allProducts
+                              .filter(p => !selectedLead.products.some(sp => sp.id === p._id))
+                              .map(p => ({ value: p._id, label: `${p.name} (${p.category})` }));
+                            if (opts.length) g.push({ label: 'Other Individual Products', options: opts });
                           }
-                        }}
-                        className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm appearance-none text-secondary"
-                        required
-                        disabled={!formData.leadId && !allProducts.length && !allCustomizedProducts.length && !allBundles.length}
-                      >
-                        <option value="">Select Product</option>
-                        {selectedLead?.products.length > 0 && (
-                          <optgroup key="lead-products" label="Lead's Interested Products">
-                            {selectedLead.products.map((product, productIndex) => {
-                              let uniqueKey;
-                              if (product.isCustomizedProduct) {
-                                uniqueKey = `lead-custom-${product.id || productIndex}`;
-                              } else if (product.isBundleItem) {
-                                uniqueKey = `lead-bundle-${product.id || productIndex}`;
-                              } else {
-                                uniqueKey = `lead-regular-${product.id || productIndex}`;
-                              }
-                              
-                              return (
-                                <option 
-                                  key={uniqueKey}
-                                  value={product.id}
-                                  className={product.isBundleItem ? 'text-blue-600' : ''}
-                                >
-                                  {product.name}
-                                  {product.isBundleItem ? ' (Bundle)' : ''}
-                                  {product.isCustomizedProduct ? ' (Customized)' : ''}
-                                </option>
-                              );
-                            })}
-                          </optgroup>
-                        )}
-                        
-                        {/* Show available products based on lead's product type */}
-                        {selectedLead && (
-                          <>
-                            {/* If lead has individual products, show other individual products */}
-                            {selectedLead.products.some(p => !p.isCustomizedProduct && !p.isBundleItem) && (
-                              <optgroup key="other-individual-products" label="Other Individual Products">
-                                {allProducts
-                                  .filter(p => !selectedLead.products.some(sp => sp.id === p._id))
-                                  .map(product => (
-                                    <option key={`individual-${product._id}`} value={product._id}>
-                                      {product.name} ({product.category})
-                                    </option>
-                                  ))}
-                              </optgroup>
-                            )}
-                            
-                            {/* If lead has customized products, show other customized products */}
-                            {selectedLead.products.some(p => p.isCustomizedProduct) && (
-                              <optgroup key="other-customized-products" label="Other Customized Products">
-                                {allCustomizedProducts
-                                  .filter(p => !selectedLead.products.some(sp => sp.id === p._id))
-                                  .map(product => (
-                                    <option key={`customized-${product._id}`} value={product._id}>
-                                      {product.name} (Customized - {product.leadId?.firstName || 'Unknown'} {product.leadId?.lastName || ''})
-                                    </option>
-                                  ))}
-                              </optgroup>
-                            )}
-                            {/* If lead has bundle products, show other bundles */}
-                            {selectedLead.products.some(p => p.isBundleItem) && (
-                              <optgroup key="other-bundle-products" label="Other Bundle Products">
-                                {allBundles
-                                  .filter(b => !selectedLead.products.some(sp => sp.id === b._id || sp.name === b.name))
-                                  .map(bundle => (
-                                    <option key={`bundle-${bundle._id}`} value={bundle._id}>
-                                      {bundle.name} (Bundle - ₹{bundle.price})
-                                    </option>
-                                  ))}
-                              </optgroup>
-                            )}
-                          </>
-                        )}
-                        
-                        {/* When no lead is selected, show all products */}
-                        {!selectedLead && (
-                          <>
-                            <optgroup key="all-individual-products" label="Individual Products">
-                              {allProducts.map(product => (
-                                <option key={`all-individual-${product._id}`} value={product._id}>
-                                  {product.name} ({product.category})
-                                </option>
-                              ))}
-                            </optgroup>
-                            <optgroup key="all-customized-products" label="Customized Products">
-                              {allCustomizedProducts.map(product => (
-                                <option key={`all-customized-${product._id}`} value={product._id}>
-                                  {product.name} (Customized - {product.leadId?.firstName || 'Unknown'} {product.leadId?.lastName || ''})
-                                </option>
-                              ))}
-                            </optgroup>
-                            <optgroup key="all-bundle-products" label="Bundle Products">
-                              {allBundles.map(bundle => (
-                                <option key={`all-bundle-${bundle._id}`} value={bundle._id}>
-                                  {bundle.name} (Bundle - ₹{bundle.price})
-                                </option>
-                              ))}
-                            </optgroup>
-                          </>
-                        )}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
-                    </div>
+                          if (selectedLead.products.some(p => p.isCustomizedProduct)) {
+                            const opts = allCustomizedProducts
+                              .filter(p => !selectedLead.products.some(sp => sp.id === p._id))
+                              .map(p => ({ value: p._id, label: `${p.name} (Customized - ${p.leadId?.firstName || 'Unknown'} ${p.leadId?.lastName || ''})` }));
+                            if (opts.length) g.push({ label: 'Other Customized Products', options: opts });
+                          }
+                          if (selectedLead.products.some(p => p.isBundleItem)) {
+                            const opts = allBundles
+                              .filter(b => !selectedLead.products.some(sp => sp.id === b._id || sp.name === b.name))
+                              .map(b => ({ value: b._id, label: `${b.name} (Bundle - ₹${b.price})` }));
+                            if (opts.length) g.push({ label: 'Other Bundle Products', options: opts });
+                          }
+                        }
+                        if (!selectedLead) {
+                          g.push({ label: 'Individual Products', options: allProducts.map(p => ({ value: p._id, label: `${p.name} (${p.category})` })) });
+                          g.push({ label: 'Customized Products', options: allCustomizedProducts.map(p => ({ value: p._id, label: `${p.name} (Customized - ${p.leadId?.firstName || 'Unknown'} ${p.leadId?.lastName || ''})` })) });
+                          g.push({ label: 'Bundle Products', options: allBundles.map(b => ({ value: b._id, label: `${b.name} (Bundle - ₹${b.price})` })) });
+                        }
+                        return g;
+                      })()}
+                      placeholder="Search products..."
+                      required
+                      disabled={!formData.leadId && !allProducts.length && !allCustomizedProducts.length && !allBundles.length}
+                      className="mt-1"
+                    />
                   </div>
 
                   {/* Quantity Input */}
