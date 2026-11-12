@@ -130,6 +130,12 @@ const sendLibraryTemplate = async (options) => {
     throw new Error('Template name is required to send from the library');
   }
 
+  // In dev mode, skip template lookup (it returns [] in dev) and go straight to the mock
+  if (skipActualSending) {
+    const result = await sendWhatsAppTemplate({ to, templateName, components: [], countryCode });
+    return { ...result, source: 'library', templateName };
+  }
+
   const template = await findWabaTemplate(templateName);
   if (!template) {
     throw new Error(`Template "${templateName}" not found in the WhatsApp template library`);
