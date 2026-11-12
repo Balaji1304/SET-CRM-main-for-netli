@@ -6,6 +6,7 @@
     "dev": "nodemon server.js",
     "tunnel": "ngrok http 5000",
     "import-products": "node scripts/importProducts.js",
+    "migrate-specs": "node scripts/migrateSpecifications.js",
     "test": "jest"
   },
   "engines": {
