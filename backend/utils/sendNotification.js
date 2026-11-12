@@ -19,20 +19,6 @@ const {
   sendAccountCreatedWhatsApp,
   sendWhatsAppDocument,
   sendWhatsAppText,
-  sendInstallationAssignmentWhatsApp,
-  sendInstallationScheduledWhatsApp,
-  sendInstallationReminderWhatsApp,
-  sendUrgentCustomerContactWhatsApp,
-  // Sales Team WhatsApp Functions
-  sendLeadAssignmentWhatsApp,
-  sendFollowUpReminderWhatsApp,
-  sendQuotationPendingWhatsApp,
-  sendHotLeadAlertWhatsApp,
-  // Accounts Department WhatsApp Functions
-  sendPaymentReceivedWhatsApp,
-  sendPaymentPendingWhatsApp,
-  sendInvoiceDueWhatsApp,
-  // Template library support
   sendLibraryTemplate
 } = require('./sendWhatsApp');
 
@@ -626,8 +612,6 @@ const sendServiceEngineerWhatsApp = async (type, engineer, data) => {
     const phone = engineer.whatsapp || engineer.phone;
     const countryCode = engineer.countryCode || '+91';
 
-    // First try the approved templates from the WhatsApp template library.
-    // Falls back to free-form text when the template is missing/pending approval.
     const libraryTemplateMap = {
       installation_assignment: { name: 'installation_assignment', values: [data.orderNumber, data.customerName, data.customerAddress, data.installationDate] },
       installation_scheduled: { name: 'installation_scheduled', values: [engineer.name, data.customerName, data.installationDate, data.orderNumber] },
@@ -636,85 +620,18 @@ const sendServiceEngineerWhatsApp = async (type, engineer, data) => {
     };
 
     const libraryEntry = libraryTemplateMap[type];
-    if (libraryEntry) {
-      try {
-        const libraryResult = await sendLibraryTemplate({
-          to: phone,
-          templateName: libraryEntry.name,
-          values: libraryEntry.values,
-          countryCode
-        });
-        console.log(`WhatsApp template (library) sent to engineer ${engineer.name}: ${type}`);
-        return { success: true, result: libraryResult };
-      } catch (libraryError) {
-        console.log(`Template "${libraryEntry.name}" unavailable, falling back to text for engineer ${engineer.name}: ${libraryError.message}`);
-      }
+    if (!libraryEntry) {
+      throw new Error(`Unknown service engineer notification type: ${type}`);
     }
 
-    let result;
-    switch (type) {
-      case 'installation_assignment':
-        result = await sendInstallationAssignmentWhatsApp({
-          to: phone,
-          engineerName: engineer.name,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          customerAddress: data.customerAddress,
-          installationDate: data.installationDate,
-          orderNumber: data.orderNumber,
-          countryCode
-        });
-        break;
-
-      case 'installation_scheduled':
-        result = await sendInstallationScheduledWhatsApp({
-          to: phone,
-          engineerName: engineer.name,
-          customerName: data.customerName,
-          installationDate: data.installationDate,
-          orderNumber: data.orderNumber,
-          countryCode
-        });
-        break;
-
-      case 'installation_reminder':
-        result = await sendInstallationReminderWhatsApp({
-          to: phone,
-          engineerName: engineer.name,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          installationDate: data.installationDate,
-          orderNumber: data.orderNumber,
-          countryCode
-        });
-        break;
-
-      case 'urgent_customer_contact':
-        result = await sendUrgentCustomerContactWhatsApp({
-          to: phone,
-          engineerName: engineer.name,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          message: data.message,
-          orderNumber: data.orderNumber,
-          countryCode
-        });
-        break;
-
-      case 'custom_message':
-        result = await sendWhatsAppText({
-          to: phone,
-          text: data.message,
-          countryCode
-        });
-        break;
-
-      default:
-        throw new Error(`Unknown service engineer notification type: ${type}`);
-    }
-
-    console.log(`WhatsApp notification sent to engineer ${engineer.name}: ${type}`);
-    return { success: true, result };
+    const libraryResult = await sendLibraryTemplate({
+      to: phone,
+      templateName: libraryEntry.name,
+      values: libraryEntry.values,
+      countryCode
+    });
+    console.log(`WhatsApp template sent to engineer ${engineer.name}: ${type}`);
+    return { success: true, result: libraryResult };
 
   } catch (error) {
     console.error(`Failed to send WhatsApp to engineer ${engineer.name}:`, error.message);
@@ -767,8 +684,6 @@ const sendSalesTeamWhatsApp = async (type, salesTeamUser, data) => {
     const phone = salesTeamUser.whatsapp || salesTeamUser.phone;
     const countryCode = salesTeamUser.countryCode || '+91';
 
-    // First try the approved templates from the WhatsApp template library.
-    // Falls back to free-form text when the template is missing/pending approval.
     const libraryTemplateMap = {
       lead_assignment: { name: 'lead_assignment', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.leadEmail, data.leadSource, data.priority || 'medium'] },
       follow_up_reminder: { name: 'follow_up_reminder', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.daysSinceLastContact] },
@@ -777,76 +692,18 @@ const sendSalesTeamWhatsApp = async (type, salesTeamUser, data) => {
     };
 
     const libraryEntry = libraryTemplateMap[type];
-    if (libraryEntry) {
-      try {
-        const libraryResult = await sendLibraryTemplate({
-          to: phone,
-          templateName: libraryEntry.name,
-          values: libraryEntry.values,
-          countryCode
-        });
-        console.log(`WhatsApp template (library) sent to sales person ${salesTeamUser.name}: ${type}`);
-        return { success: true, result: libraryResult };
-      } catch (libraryError) {
-        console.log(`Template "${libraryEntry.name}" unavailable, falling back to text for sales person ${salesTeamUser.name}: ${libraryError.message}`);
-      }
+    if (!libraryEntry) {
+      throw new Error(`Unknown sales team notification type: ${type}`);
     }
 
-    let result;
-    switch (type) {
-      case 'lead_assignment':
-        result = await sendLeadAssignmentWhatsApp({
-          to: phone,
-          salesPersonName: salesTeamUser.name,
-          leadName: data.leadName,
-          leadPhone: data.leadPhone,
-          leadEmail: data.leadEmail,
-          leadSource: data.leadSource,
-          priority: data.priority || 'medium',
-          countryCode
-        });
-        break;
-
-      case 'follow_up_reminder':
-        result = await sendFollowUpReminderWhatsApp({
-          to: phone,
-          salesPersonName: salesTeamUser.name,
-          leadName: data.leadName,
-          leadPhone: data.leadPhone,
-          daysSinceLastContact: data.daysSinceLastContact,
-          countryCode
-        });
-        break;
-
-      case 'quotation_pending':
-        result = await sendQuotationPendingWhatsApp({
-          to: phone,
-          salesPersonName: salesTeamUser.name,
-          quotationNumber: data.quotationNumber,
-          customerName: data.customerName,
-          amount: data.amount,
-          daysWaiting: data.daysWaiting,
-          countryCode
-        });
-        break;
-
-      case 'hot_lead_alert':
-        result = await sendHotLeadAlertWhatsApp({
-          to: phone,
-          salesPersonName: salesTeamUser.name,
-          leadName: data.leadName,
-          leadPhone: data.leadPhone,
-          reason: data.reason,
-          countryCode
-        });
-        break;
-
-      default:
-        throw new Error(`Unknown sales team notification type: ${type}`);
-    }
-
-    console.log(`WhatsApp notification sent to sales person ${salesTeamUser.name}: ${type}`);
-    return { success: true, result };
+    const libraryResult = await sendLibraryTemplate({
+      to: phone,
+      templateName: libraryEntry.name,
+      values: libraryEntry.values,
+      countryCode
+    });
+    console.log(`WhatsApp template sent to sales person ${salesTeamUser.name}: ${type}`);
+    return { success: true, result: libraryResult };
 
   } catch (error) {
     console.error(`Failed to send WhatsApp to sales person ${salesTeamUser.name}:`, error.message);
@@ -872,8 +729,6 @@ const sendAccountsTeamWhatsApp = async (type, accountsUser, data) => {
     const phone = accountsUser.whatsapp || accountsUser.phone;
     const countryCode = accountsUser.countryCode || '+91';
 
-    // First try the approved templates from the WhatsApp template library.
-    // Falls back to free-form text when the template is missing/pending approval.
     const libraryTemplateMap = {
       payment_received: { name: 'payment_received', values: [accountsUser.name, data.customerName, data.amount, data.paymentMethod, data.invoiceNumber] },
       payment_pending: { name: 'payment_pending', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.daysOverdue] },
@@ -881,67 +736,18 @@ const sendAccountsTeamWhatsApp = async (type, accountsUser, data) => {
     };
 
     const libraryEntry = libraryTemplateMap[type];
-    if (libraryEntry) {
-      try {
-        const libraryResult = await sendLibraryTemplate({
-          to: phone,
-          templateName: libraryEntry.name,
-          values: libraryEntry.values,
-          countryCode
-        });
-        console.log(`WhatsApp template (library) sent to accounts person ${accountsUser.name}: ${type}`);
-        return { success: true, result: libraryResult };
-      } catch (libraryError) {
-        console.log(`Template "${libraryEntry.name}" unavailable, falling back to text for accounts person ${accountsUser.name}: ${libraryError.message}`);
-      }
+    if (!libraryEntry) {
+      throw new Error(`Unknown accounts team notification type: ${type}`);
     }
 
-    let result;
-    switch (type) {
-      case 'payment_received':
-        result = await sendPaymentReceivedWhatsApp({
-          to: phone,
-          accountsPersonName: accountsUser.name,
-          customerName: data.customerName,
-          amount: data.amount,
-          paymentMethod: data.paymentMethod,
-          invoiceNumber: data.invoiceNumber,
-          countryCode
-        });
-        break;
-
-      case 'payment_pending':
-        result = await sendPaymentPendingWhatsApp({
-          to: phone,
-          accountsPersonName: accountsUser.name,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          amount: data.amount,
-          invoiceNumber: data.invoiceNumber,
-          daysOverdue: data.daysOverdue,
-          countryCode
-        });
-        break;
-
-      case 'invoice_due':
-        result = await sendInvoiceDueWhatsApp({
-          to: phone,
-          accountsPersonName: accountsUser.name,
-          customerName: data.customerName,
-          amount: data.amount,
-          invoiceNumber: data.invoiceNumber,
-          dueDate: data.dueDate,
-          daysUntilDue: data.daysUntilDue,
-          countryCode
-        });
-        break;
-
-      default:
-        throw new Error(`Unknown accounts team notification type: ${type}`);
-    }
-
-    console.log(`WhatsApp notification sent to accounts person ${accountsUser.name}: ${type}`);
-    return { success: true, result };
+    const libraryResult = await sendLibraryTemplate({
+      to: phone,
+      templateName: libraryEntry.name,
+      values: libraryEntry.values,
+      countryCode
+    });
+    console.log(`WhatsApp template sent to accounts person ${accountsUser.name}: ${type}`);
+    return { success: true, result: libraryResult };
 
   } catch (error) {
     console.error(`Failed to send WhatsApp to accounts person ${accountsUser.name}:`, error.message);
