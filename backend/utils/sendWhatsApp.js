@@ -881,5 +881,11 @@ module.exports = {
   sendLibraryTemplate,
   createWhatsAppTemplate,
   testWhatsAppConfig,
-  formatPhoneNumber
-}; 
+  formatPhoneNumber,
+  isWindowOpen
+};
+
+function isWindowOpen(lastInboundAt) {
+  if (!lastInboundAt) return false;
+  return (Date.now() - new Date(lastInboundAt).getTime()) < 24 * 60 * 60 * 1000;
+} 

@@ -7,15 +7,38 @@ const Lead = require('../models/Lead');
 const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'opt out', 'optout'];
 const OPT_IN_KEYWORDS = ['start', 'subscribe', 'opt in', 'optin'];
 
-const handleOptChange = async (phone, optIn) => {
+const findLeadByPhone = async (phone) => {
   const digits = phone.replace(/\D/g, '');
   const local = digits.length > 10 ? digits.slice(-10) : digits;
-  const lead = await Lead.findOne({ $or: [{ phone: local }, { whatsapp: local }, { phone: digits }, { whatsapp: digits }] });
+  return Lead.findOne({ $or: [{ phone: local }, { whatsapp: local }, { phone: digits }, { whatsapp: digits }] });
+};
+
+const handleOptChange = async (phone, optIn) => {
+  const lead = await findLeadByPhone(phone);
   if (lead) {
     lead.whatsappOptIn = optIn;
     await lead.save();
     console.log(`WhatsApp ${optIn ? 'opt-in' : 'opt-out'}: ${lead.firstName} (${phone})`);
   }
+};
+
+const handleInboundMessage = async (m, displayPhone) => {
+  const lead = await findLeadByPhone(m.from);
+  const msgDoc = {
+    wamid: m.id,
+    direction: 'inbound',
+    to: displayPhone || '',
+    from: m.from,
+    type: m.type || 'text',
+    status: 'delivered',
+    meta: { body: m.text?.body, timestamp: m.timestamp }
+  };
+  if (lead) {
+    msgDoc.lead = lead._id;
+    lead.lastInboundAt = new Date();
+    await lead.save();
+  }
+  await WhatsAppMessage.create(msgDoc);
 };
 
 // @desc    Webhook for WhatsApp Business API
@@ -72,15 +95,9 @@ router.post('/webhook', (req, res) => {
         if (value.messages) {
           value.messages.forEach(m => {
             console.log('Incoming message:', m.type, 'from', m.from);
-            WhatsAppMessage.create({
-              wamid: m.id,
-              direction: 'inbound',
-              to: value.metadata?.display_phone_number || '',
-              from: m.from,
-              type: m.type || 'text',
-              status: 'delivered',
-              meta: { body: m.text?.body, timestamp: m.timestamp }
-            }).catch(e => console.error('WA inbound log failed:', e.message));
+            handleInboundMessage(m, value.metadata?.display_phone_number).catch(e =>
+              console.error('WA inbound log failed:', e.message)
+            );
 
             const body = (m.text?.body || '').trim().toLowerCase();
             if (OPT_OUT_KEYWORDS.includes(body)) {
