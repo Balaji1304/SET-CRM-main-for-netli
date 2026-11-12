@@ -205,7 +205,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
         customerName: `${customer.firstName} ${customer.lastName}`,
         invoiceNumber: data.invoiceNumber,
         amount: `₹${data.total}`,
-        invoiceUrl: data.invoiceUrl || 'Portal login required',
+        dueDate: data.dueDate || '-',
         countryCode
       });
 

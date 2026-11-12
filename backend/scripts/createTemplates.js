@@ -17,6 +17,41 @@ const { createWhatsAppTemplate, getWhatsAppTemplates } = require('../utils/sendW
 // Each entry maps 1:1 to the names the role/team senders look up.
 // The {{N}} placeholders MUST match the order of the values arrays in sendNotification.js.
 const TEMPLATES = [
+  // ---------- Customer-facing ----------
+  {
+    name: 'quotation_ready',
+    category: 'UTILITY',
+    components: [
+      {
+        type: 'BODY',
+        text: 'Hello {{1}},\n\nYour quotation {{2}} is ready for review. Please log in to the portal to view and approve it.\n\nThank you.',
+        example: { body_text: [['Ravi Kumar', 'Q-2026-0001']] }
+      }
+    ]
+  },
+  {
+    name: 'invoice_generated',
+    category: 'UTILITY',
+    components: [
+      {
+        type: 'BODY',
+        text: 'Hello {{1}},\n\nYour invoice {{2}} for Rs. {{3}} has been generated.\n\nDue date: {{4}}\n\nPlease log in to the portal to view and download it.\n\nThank you.',
+        example: { body_text: [['Ravi Kumar', 'INV-20260801-0001', '250000', '2026-08-15']] }
+      }
+    ]
+  },
+  {
+    name: 'account_created',
+    category: 'UTILITY',
+    components: [
+      {
+        type: 'BODY',
+        text: 'Hello {{1}},\n\nYour account has been created.\n\nUsername: {{2}}\nPortal: {{3}}\n\nPlease log in to get started.',
+        example: { body_text: [['Ravi Kumar', 'ravi@example.com', 'https://set-crm.sriethirajatechnologies.com']] }
+      }
+    ]
+  },
+
   // ---------- Sales team ----------
   {
     name: 'lead_assignment',
