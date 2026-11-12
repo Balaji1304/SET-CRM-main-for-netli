@@ -20,7 +20,7 @@ const TEMPLATES = [
   // ---------- Sales team ----------
   {
     name: 'lead_assignment',
-    category: 'MARKETING',
+    category: 'UTILITY',
     components: [
       {
         type: 'BODY',
@@ -31,7 +31,7 @@ const TEMPLATES = [
   },
   {
     name: 'follow_up_reminder',
-    category: 'MARKETING',
+    category: 'UTILITY',
     components: [
       {
         type: 'BODY',
@@ -42,7 +42,7 @@ const TEMPLATES = [
   },
   {
     name: 'quotation_pending',
-    category: 'MARKETING',
+    category: 'UTILITY',
     components: [
       {
         type: 'BODY',
@@ -53,7 +53,7 @@ const TEMPLATES = [
   },
   {
     name: 'hot_lead_alert',
-    category: 'MARKETING',
+    category: 'UTILITY',
     components: [
       {
         type: 'BODY',
@@ -134,7 +134,7 @@ const TEMPLATES = [
   },
   {
     name: 'urgent_customer_contact',
-    category: 'MARKETING',
+    category: 'UTILITY',
     components: [
       {
         type: 'BODY',
