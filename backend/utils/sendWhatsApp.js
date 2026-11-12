@@ -1,4 +1,5 @@
 const axios = require('axios');
+const FormData = require('form-data');
 const NodeCache = require('node-cache');
 const tokenManager = require('./whatsappTokenManager');
 const waConfig = require('../config/whatsapp');
@@ -271,27 +272,49 @@ const sendWhatsAppTemplate = async (options) => {
   }
 };
 
-// Send WhatsApp document message
+const uploadWhatsAppMedia = async (buffer, filename, mimeType = 'application/pdf') => {
+  if (skipActualSending) {
+    console.log(`📤 [WHATSAPP DEV] Media upload skipped (dev mode): ${filename}`);
+    return { mediaId: 'dev-media-id', filename };
+  }
+
+  const accessToken = tokenManager.getAccessToken();
+  const form = new FormData();
+  form.append('messaging_product', 'whatsapp');
+  form.append('file', buffer, { filename, contentType: mimeType });
+  form.append('type', mimeType);
+
+  const response = await axios.post(
+    `${WHATSAPP_BASE_URL}/${waConfig.phoneNumberId}/media`,
+    form,
+    {
+      headers: { ...form.getHeaders(), Authorization: `Bearer ${accessToken}` },
+      timeout: 60000
+    }
+  );
+
+  return { mediaId: response.data.id, filename };
+};
+
+// Send WhatsApp document message (accepts documentUrl OR mediaId)
 const sendWhatsAppDocument = async (options) => {
   try {
     const {
       to,
       documentUrl,
+      mediaId,
       filename,
       caption,
       countryCode = '+91'
     } = options;
 
-    // Format phone number
     const formattedPhone = formatPhoneNumber(to, countryCode);
 
-    // Development mode - just log and return mock response
     if (skipActualSending) {
       console.log(`📄 [WHATSAPP DEV] Document would be sent:`);
       console.log(`   To: ${formattedPhone}`);
       console.log(`   Document: ${filename}`);
-      console.log(`   URL: ${documentUrl}`);
-      console.log(`   Caption: ${caption}`);
+      console.log(`   Source: ${mediaId ? 'uploaded media' : documentUrl}`);
       return createMockResponse(formattedPhone, 'document');
     }
 
@@ -301,25 +324,15 @@ const sendWhatsAppDocument = async (options) => {
       throw new Error('WHATSAPP_PHONE_NUMBER_ID not configured');
     }
 
-    const messageData = {
-      messaging_product: "whatsapp",
-      to: formattedPhone,
-      type: "document",
-      document: {
-        link: documentUrl,
-        filename: filename,
-        caption: caption
-      }
-    };
+    const doc = mediaId ? { id: mediaId } : { link: documentUrl };
+    doc.filename = filename;
+    if (caption) doc.caption = caption;
 
     const response = await axios.post(
       `${WHATSAPP_BASE_URL}/${waConfig.phoneNumberId}/messages`,
-      messageData,
+      { messaging_product: 'whatsapp', to: formattedPhone, type: 'document', document: doc },
       {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         timeout: 30000
       }
     );
@@ -803,6 +816,7 @@ const testWhatsAppConfig = async () => {
 
 module.exports = {
   sendWhatsAppTemplate,
+  uploadWhatsAppMedia,
   sendWhatsAppDocument,
   sendWhatsAppText,
   sendQuotationWhatsApp,

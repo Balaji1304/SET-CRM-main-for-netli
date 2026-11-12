@@ -17,6 +17,7 @@ const {
   sendQuotationWhatsApp,
   sendInvoiceWhatsApp,
   sendAccountCreatedWhatsApp,
+  uploadWhatsAppMedia,
   sendWhatsAppDocument,
   sendWhatsAppText,
   sendLibraryTemplate
@@ -46,7 +47,9 @@ const sendNotification = async (options) => {
     data, // Template data
     preferences = ['email', 'whatsapp'], // Preferred channels
     attachments = [], // For email attachments
-    documentUrl = null // For WhatsApp documents
+    documentUrl = null, // For WhatsApp documents (public URL)
+    pdfBuffer = null, // For WhatsApp documents (uploaded via media API)
+    pdfFilename = null // Filename when using pdfBuffer
   } = options;
 
   const results = {
@@ -74,7 +77,7 @@ const sendNotification = async (options) => {
   if (availableMethods.includes('whatsapp') && preferences.includes('whatsapp')) {
     results.whatsapp.attempted = true;
     try {
-      await sendWhatsAppNotification(type, customer, data, documentUrl);
+      await sendWhatsAppNotification(type, customer, data, documentUrl, pdfBuffer, pdfFilename);
       results.whatsapp.success = true;
       console.log(`WhatsApp notification sent successfully to ${customer.whatsapp || customer.phone}`);
     } catch (error) {
@@ -139,7 +142,7 @@ const sendEmailNotification = async (type, customer, data, attachments = []) => 
 };
 
 // Send WhatsApp notification based on type
-const sendWhatsAppNotification = async (type, customer, data, documentUrl = null) => {
+const sendWhatsAppNotification = async (type, customer, data, documentUrl = null, pdfBuffer = null, pdfFilename = null) => {
   // Determine the correct WhatsApp number to use
   let whatsappNumber = null;
   
@@ -171,21 +174,16 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
         countryCode
       });
 
-      // If document URL is provided, send the PDF as well
-      if (documentUrl) {
-        await sendWhatsAppDocument({
-          to: whatsappNumber,
-          documentUrl,
-          filename: `Quotation_${data.quotationNumber}.pdf`,
-          caption: `Your quotation ${data.quotationNumber} is attached.`,
-          countryCode
-        });
+      if (pdfBuffer) {
+        const uploaded = await uploadWhatsAppMedia(pdfBuffer, pdfFilename || `Quotation_${data.quotationNumber}.pdf`);
+        await sendWhatsAppDocument({ to: whatsappNumber, mediaId: uploaded.mediaId, filename: uploaded.filename, caption: `Your quotation ${data.quotationNumber} is attached.`, countryCode });
+      } else if (documentUrl) {
+        await sendWhatsAppDocument({ to: whatsappNumber, documentUrl, filename: `Quotation_${data.quotationNumber}.pdf`, caption: `Your quotation ${data.quotationNumber} is attached.`, countryCode });
       }
 
       return quotationResult;
 
     case 'invoice':
-      // Send template message for invoice
       const invoiceResult = await sendInvoiceWhatsApp({
         to: whatsappNumber,
         customerName: `${customer.firstName} ${customer.lastName}`,
@@ -195,23 +193,18 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
         countryCode
       });
 
-      // If document URL is provided, send the PDF as well
-      if (documentUrl) {
-        await sendWhatsAppDocument({
-          to: whatsappNumber,
-          documentUrl,
-          filename: `Invoice_${data.invoiceNumber}.pdf`,
-          caption: `Your invoice ${data.invoiceNumber} is attached.`,
-          countryCode
-        });
+      if (pdfBuffer) {
+        const uploaded = await uploadWhatsAppMedia(pdfBuffer, pdfFilename || `Invoice_${data.invoiceNumber}.pdf`);
+        await sendWhatsAppDocument({ to: whatsappNumber, mediaId: uploaded.mediaId, filename: uploaded.filename, caption: `Your invoice ${data.invoiceNumber} is attached.`, countryCode });
+      } else if (documentUrl) {
+        await sendWhatsAppDocument({ to: whatsappNumber, documentUrl, filename: `Invoice_${data.invoiceNumber}.pdf`, caption: `Your invoice ${data.invoiceNumber} is attached.`, countryCode });
       }
 
       return invoiceResult;
 
     case 'orderform':
-      // Send order confirmation template (works with test numbers)
       const { sendWhatsAppTemplate } = require('./sendWhatsApp');
-      
+
       const orderFormResult = await sendWhatsAppTemplate({
         to: whatsappNumber,
         templateName: 'order_confirmation',
@@ -220,27 +213,20 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
           {
             type: "body",
             parameters: [
-              {
-                type: "text",
-                text: `${customer.firstName} ${customer.lastName || ''}`.trim()
-              },
-              {
-                type: "text",
-                text: data.orderNumber
-              },
-              {
-                type: "text",
-                text: data.totalAmount.toLocaleString('en-IN')
-              },
-              {
-                type: "text",
-                text: data.advanceAmount.toLocaleString('en-IN')
-              }
+              { type: "text", text: `${customer.firstName} ${customer.lastName || ''}`.trim() },
+              { type: "text", text: data.orderNumber },
+              { type: "text", text: data.totalAmount.toLocaleString('en-IN') },
+              { type: "text", text: data.advanceAmount.toLocaleString('en-IN') }
             ]
           }
         ],
         countryCode
       });
+
+      if (pdfBuffer) {
+        const uploaded = await uploadWhatsAppMedia(pdfBuffer, pdfFilename || `Order_Form_${data.orderNumber}.pdf`);
+        await sendWhatsAppDocument({ to: whatsappNumber, mediaId: uploaded.mediaId, filename: uploaded.filename, caption: `Your order form ${data.orderNumber} is attached.`, countryCode });
+      }
 
       return orderFormResult;
 
@@ -409,7 +395,8 @@ const sendQuotationNotification = async (quotation, quotationItems, pdfBuffer = 
     type: 'quotation',
     data: emailData,
     attachments,
-    documentUrl: null // PDF will be handled differently for WhatsApp if needed
+    pdfBuffer,
+    pdfFilename: pdfBuffer ? `Quotation_${quotation.quotationNumber}.pdf` : null
   });
 };
 
@@ -461,7 +448,8 @@ const sendInvoiceNotification = async (invoice, pdfBuffer = null) => {
     type: 'invoice',
     data: emailData,
     attachments,
-    documentUrl: null // PDF will be handled differently for WhatsApp if needed
+    pdfBuffer,
+    pdfFilename: pdfBuffer ? `Invoice_${invoice.invoiceNumber}.pdf` : null
   });
 };
 
@@ -546,7 +534,8 @@ const sendOrderFormNotification = async (customerPurchase, pdfBuffer = null) => 
       type: 'orderform',
       data: emailData,
       attachments,
-      documentUrl: null // PDF will be handled as attachment for email
+      pdfBuffer,
+      pdfFilename: pdfBuffer ? `Order_Form_${purchase.purchaseID}.pdf` : null
     });
 
   } catch (error) {
