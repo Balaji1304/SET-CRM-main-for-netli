@@ -5,10 +5,19 @@ jest.mock('../utils/whatsappTokenManager', () => ({
   getValidAccessToken: async () => 'test-token',
   getTokenInfo: async () => null
 }));
+jest.mock('../config/whatsapp', () => ({
+  accessToken: 'test-token',
+  phoneNumberId: 'test-phone',
+  wabaId: 'test-waba',
+  appId: 'test-app',
+  appSecret: 'test-secret',
+  apiVersion: 'v19.0',
+  baseUrl: 'https://graph.facebook.com/v19.0',
+  devMode: false
+}));
 
 beforeAll(() => {
   delete process.env.WHATSAPP_DEV_MODE;
-  process.env.WHATSAPP_PHONE_NUMBER_ID = 'test-phone';
 });
 
 const { uploadWhatsAppMedia, sendWhatsAppDocument } = require('../utils/sendWhatsApp');
