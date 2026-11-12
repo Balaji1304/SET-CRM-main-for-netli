@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const WhatsAppMessage = require('../models/WhatsAppMessage');
 
 // @desc    Webhook for WhatsApp Business API
 // @route   POST /api/whatsapp/webhook
@@ -26,10 +27,8 @@ router.post('/webhook', (req, res) => {
     return res.sendStatus(403);
   }
 
-  // Respond 200 immediately so Meta doesn't retry
   res.status(200).json({ status: 'success' });
 
-  // Process asynchronously
   const body = req.body;
   if (body.entry && Array.isArray(body.entry)) {
     body.entry.forEach(entry => {
@@ -37,11 +36,37 @@ router.post('/webhook', (req, res) => {
       entry.changes.forEach(change => {
         if (change.field !== 'messages') return;
         const value = change.value;
+
         if (value.statuses) {
-          value.statuses.forEach(s => console.log(`Message ${s.id} status: ${s.status}`));
+          value.statuses.forEach(s => {
+            console.log(`Message ${s.id} status: ${s.status}`);
+            const statusField = `statusTimestamps.${s.status}`;
+            const update = { status: s.status, [statusField]: new Date(s.timestamp * 1000) };
+            if (s.status === 'failed' && s.errors?.[0]) {
+              update.error = { code: s.errors[0].code, title: s.errors[0].title, message: s.errors[0].message };
+            }
+            if (s.pricing) {
+              update.pricing = { model: s.pricing.pricing_model, category: s.pricing.category };
+            }
+            WhatsAppMessage.findOneAndUpdate({ wamid: s.id }, { $set: update }).catch(e =>
+              console.error('WA status update failed:', e.message)
+            );
+          });
         }
+
         if (value.messages) {
-          value.messages.forEach(m => console.log('Incoming message:', m));
+          value.messages.forEach(m => {
+            console.log('Incoming message:', m.type, 'from', m.from);
+            WhatsAppMessage.create({
+              wamid: m.id,
+              direction: 'inbound',
+              to: value.metadata?.display_phone_number || '',
+              from: m.from,
+              type: m.type || 'text',
+              status: 'delivered',
+              meta: { body: m.text?.body, timestamp: m.timestamp }
+            }).catch(e => console.error('WA inbound log failed:', e.message));
+          });
         }
       });
     });
