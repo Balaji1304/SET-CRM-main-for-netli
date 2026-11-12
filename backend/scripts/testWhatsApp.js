@@ -9,6 +9,7 @@
 require('dotenv').config();
 const { testWhatsAppConfig } = require('../utils/sendWhatsApp');
 const axios = require('axios');
+const waConfig = require('../config/whatsapp');
 
 async function runWhatsAppTest() {
   console.log('🔍 Testing WhatsApp Configuration...\n');
@@ -46,9 +47,9 @@ async function runWhatsAppTest() {
   console.log('\n🔑 Testing Access Token Validity...');
   
   try {
-    const response = await axios.get(`https://graph.facebook.com/v19.0/me`, {
+    const response = await axios.get(`${waConfig.baseUrl}/me`, {
       headers: {
-        'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`
+        'Authorization': `Bearer ${waConfig.accessToken}`
       }
     });
     
@@ -65,10 +66,10 @@ async function runWhatsAppTest() {
   
   try {
     const response = await axios.get(
-      `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}`,
+      `${waConfig.baseUrl}/${waConfig.phoneNumberId}`,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`
+          'Authorization': `Bearer ${waConfig.accessToken}`
         }
       }
     );
