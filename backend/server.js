@@ -89,6 +89,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Strip MongoDB operators ($ne, $gt, ...) from user input
 app.use(sanitizeInput);
 
+// WhatsApp webhook: mounted before rate limiting so Meta callbacks are never throttled
+app.use('/api/whatsapp', require('./routes/whatsappWebhook.js'));
+
 // Rate limiting
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
@@ -120,7 +123,6 @@ app.use('/api/notifications', require('./routes/notifications.js'));
 app.use('/api/invoices', require('./routes/invoices.js'));
 app.use('/api/whatsapp', require('./routes/whatsapp.js'));
 app.use('/api/whatsapp-test', require('./routes/whatsappTest.js'));
-app.use('/api/whatsapp', require('./routes/whatsappWebhook.js'));
 app.use('/api/tracking', require('./routes/orderTracking.js'));
 app.use('/api/installations', require('./routes/installations.js'));
 app.use(
