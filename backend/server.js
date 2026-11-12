@@ -152,12 +152,8 @@ app.use((err, req, res, next) => {
 // Initialize WebSocket
 initWebSocket(server);
 
-// Initialize WhatsApp Token Manager
-const tokenManager = require('./utils/whatsappTokenManager');
-if (process.env.WHATSAPP_ACCESS_TOKEN) {
-  tokenManager.setupAutoRefresh();
-  console.log('WhatsApp Token Manager initialized with auto-refresh');
-}
+// WhatsApp token is now a permanent System User token read from config.
+// No auto-refresh needed. See backend/config/whatsapp.js.
 
 // Initialize reminder scheduler (lead follow-ups, payment overdue checks)
 const reminderScheduler = require('./utils/reminderScheduler');

@@ -73,7 +73,7 @@ const login = async (email, password) => (await req('POST', '/auth/login', { bod
   check('Login with {$ne:null} operators is rejected', inj.status >= 400 && !inj.data?.token, `status ${inj.status}`);
 
   // 3. WhatsApp admin endpoints need auth
-  for (const [m, u] of [['GET', '/whatsapp/status'], ['GET', '/whatsapp/test-config'], ['POST', '/whatsapp/refresh-token']]) {
+  for (const [m, u] of [['GET', '/whatsapp/status'], ['GET', '/whatsapp/test-config']]) {
     const r = await req(m, u);
     check(`${m} ${u} without login -> 401`, r.status === 401, `status ${r.status}`);
     const r2 = await req(m, u, { token: cust1.token });

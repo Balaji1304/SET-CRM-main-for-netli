@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const waConfig = require('../config/whatsapp');
 const { testWhatsAppConfig, getWhatsAppTemplates, createWhatsAppTemplate } = require('../utils/sendWhatsApp');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -94,12 +95,12 @@ router.get('/test-config', protect, authorize('admin'), async (req, res) => {
 // @access  Public (in development mode)
 router.get('/status', protect, authorize('admin'), async (req, res) => {
   try {
-    const hasAccessToken = !!process.env.WHATSAPP_ACCESS_TOKEN;
-    const hasPhoneNumberId = !!process.env.WHATSAPP_PHONE_NUMBER_ID;
-    const hasWabaId = !!process.env.WABA_ID;
-    
+    const hasAccessToken = !!waConfig.accessToken;
+    const hasPhoneNumberId = !!waConfig.phoneNumberId;
+    const hasWabaId = !!waConfig.wabaId;
+
     const isConfigured = hasAccessToken && hasPhoneNumberId;
-    
+
     res.json({
       success: true,
       data: {
@@ -107,8 +108,8 @@ router.get('/status', protect, authorize('admin'), async (req, res) => {
         hasAccessToken,
         hasPhoneNumberId,
         hasWabaId,
-        phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ? 
-          `${process.env.WHATSAPP_PHONE_NUMBER_ID.substring(0, 8)}...` : null,
+        phoneNumberId: waConfig.phoneNumberId ?
+          `${waConfig.phoneNumberId.substring(0, 8)}...` : null,
         configurationSteps: {
           step1: 'Create WhatsApp Business Account',
           step2: 'Generate permanent access token',
