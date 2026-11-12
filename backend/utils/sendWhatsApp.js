@@ -113,11 +113,21 @@ const buildWhatsAppComponents = (template, values) => {
   const body = (template.components || []).find((c) => c.type === 'BODY');
   if (!body) return components;
 
+  const placeholderCount = ((body.text || '').match(/\{\{\d+\}\}/g) || []).length;
   const templateValues = Array.isArray(values) ? values : [];
-  const parameters = [];
-  for (let i = 0; i < templateValues.length; i++) {
-    parameters.push({ type: 'text', text: String(templateValues[i]) });
+
+  if (templateValues.length !== placeholderCount) {
+    const err = new Error(
+      `Template "${template.name}" expects ${placeholderCount} parameter(s) but received ${templateValues.length}`
+    );
+    err.code = 'TEMPLATE_PARAM_MISMATCH';
+    throw err;
   }
+
+  const parameters = templateValues.map((v) => ({
+    type: 'text',
+    text: String(v == null || v === '' ? '-' : v)
+  }));
 
   if (parameters.length > 0) {
     components.push({ type: 'body', parameters });
@@ -424,116 +434,32 @@ const sendWhatsAppText = async (options) => {
   }
 };
 
-// Helper function to send quotation via WhatsApp
 const sendQuotationWhatsApp = async (options) => {
-  const { 
-    to, 
-    customerName, 
-    quotationNumber, 
-    quotationUrl,
-    countryCode 
-  } = options;
-
-  // Use pre-approved template for quotation (simplified for testing)
-  const components = [
-    {
-      type: "body",
-      parameters: [
-        {
-          type: "text",
-          text: customerName
-        },
-        {
-          type: "text", 
-          text: quotationNumber
-        }
-      ]
-    }
-  ];
-
-  return await sendWhatsAppTemplate({
+  const { to, customerName, quotationNumber, countryCode } = options;
+  return sendLibraryTemplate({
     to,
-    templateName: 'quotation_ready', // This template needs to be approved by Meta
-    components,
+    templateName: 'quotation_ready',
+    values: [customerName, quotationNumber],
     countryCode
   });
 };
 
-// Helper function to send invoice via WhatsApp
 const sendInvoiceWhatsApp = async (options) => {
-  const { 
-    to, 
-    customerName, 
-    invoiceNumber, 
-    invoiceUrl,
-    amount,
-    countryCode 
-  } = options;
-
-  // Use pre-approved template for invoice (3 parameters)
-  const components = [
-    {
-      type: "body",
-      parameters: [
-        {
-          type: "text",
-          text: customerName
-        },
-        {
-          type: "text",
-          text: invoiceNumber
-        },
-        {
-          type: "text",
-          text: amount
-        }
-      ]
-    }
-  ];
-
-  return await sendWhatsAppTemplate({
+  const { to, customerName, invoiceNumber, amount, dueDate, countryCode } = options;
+  return sendLibraryTemplate({
     to,
-    templateName: 'invoice_generated', // This template needs to be approved by Meta
-    components,
+    templateName: 'invoice_generated',
+    values: [customerName, invoiceNumber, amount, dueDate],
     countryCode
   });
 };
 
-// Helper function to send account creation notification (Utility template)
 const sendAccountCreatedWhatsApp = async (options) => {
-  const { 
-    to, 
-    customerName, 
-    loginUsername, // Account identifier/username
-    loginUrl, // Portal URL
-    countryCode 
-  } = options;
-
-  // Use Utility template for account creation notification with username as account identifier
-  const components = [
-    {
-      type: "body",
-      parameters: [
-        {
-          type: "text",
-          text: customerName
-        },
-        {
-          type: "text",
-          text: loginUsername // Username as account identifier
-        },
-        {
-          type: "text",
-          text: loginUrl || process.env.FRONTEND_URL || "your portal"
-        }
-      ]
-    }
-  ];
-
-  return await sendWhatsAppTemplate({
+  const { to, customerName, loginUsername, loginUrl, countryCode } = options;
+  return sendLibraryTemplate({
     to,
-    templateName: 'account_created', // Utility template name
-    components,
+    templateName: 'account_created',
+    values: [customerName, loginUsername, loginUrl || process.env.FRONTEND_URL || 'your portal'],
     countryCode
   });
 };
