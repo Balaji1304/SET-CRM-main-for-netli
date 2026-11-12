@@ -2,6 +2,7 @@ const Lead = require('../models/Lead');
 const CustomerPurchase = require('../models/CustomerPurchase');
 const Notification = require('../models/Notification');
 const NotificationService = require('./notificationService');
+const { sendDailyInstallationReminders } = require('./installationReminders');
 
 // Check if an unread notification of the same type already exists for a recipient + entity.
 // When recipientId is null, the check is done across all recipients (team fan-out dedup).
@@ -99,12 +100,32 @@ const runScheduledReminders = async () => {
   await runPaymentOverdueCheck();
 };
 
+// Schedule a callback to run once daily at a fixed IST hour.
+const scheduleDailyIST = (hour, minute, fn) => {
+  const tick = () => {
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + istOffset);
+    const next = new Date(istNow);
+    next.setUTCHours(hour, minute, 0, 0);
+    if (next <= istNow) next.setUTCDate(next.getUTCDate() + 1);
+    const delay = next.getTime() - istNow.getTime();
+    const h = setTimeout(() => { fn().catch(e => console.error(e.message)); tick(); }, delay);
+    if (h.unref) h.unref();
+  };
+  tick();
+};
+
 // Start periodic scheduler. Returns the interval handle.
 const startReminderScheduler = (intervalMs = 6 * 60 * 60 * 1000) => {
   // Fire once shortly after boot, then every interval
   setTimeout(() => runScheduledReminders(), 60 * 1000);
   const handle = setInterval(runScheduledReminders, intervalMs);
-  if (handle.unref) handle.unref(); // Do not keep the process alive on its own
+  if (handle.unref) handle.unref();
+
+  // Installation reminders at 18:00 IST daily
+  scheduleDailyIST(18, 0, sendDailyInstallationReminders);
+
   return handle;
 };
 

@@ -166,64 +166,6 @@ class WhatsAppTokenManager {
     }
   }
 
-  /**
-   * Setup automatic token refresh
-   */
-  setupAutoRefresh() {
-    // Check token validity every hour
-    setInterval(async () => {
-      try {
-        const isValid = await this.validateToken(this.accessToken);
-        if (!isValid) {
-          console.log('Auto-refresh: Token invalid, refreshing...');
-          const newToken = await this.refreshToken();
-          if (newToken) {
-            this.accessToken = newToken;
-            // Update environment variable if needed
-            process.env.WHATSAPP_ACCESS_TOKEN = newToken;
-            console.log('Auto-refresh: Token successfully refreshed');
-          }
-        }
-      } catch (error) {
-        console.error('Auto-refresh error:', error.message);
-      }
-    }, 3600000); // Check every hour (3600000 ms)
-  }
-
-  /**
-   * Handle webhook events related to tokens
-   */
-  handleTokenWebhook(webhookData) {
-    const { entry } = webhookData;
-    
-    if (!entry || !Array.isArray(entry)) return;
-
-    entry.forEach(entryItem => {
-      if (entryItem.changes) {
-        entryItem.changes.forEach(change => {
-          if (change.field === 'whatsapp_business_account') {
-            const value = change.value;
-            
-            // Handle different webhook events
-            if (value.errors) {
-              value.errors.forEach(error => {
-                if (error.code === 190 || error.error_subcode === 463) {
-                  console.error('Token error detected via webhook:', error);
-                  // Trigger token refresh
-                  this.refreshToken().then(newToken => {
-                    if (newToken) {
-                      this.accessToken = newToken;
-                      console.log('Token refreshed due to webhook error');
-                    }
-                  });
-                }
-              });
-            }
-          }
-        });
-      }
-    });
-  }
 }
 
 module.exports = new WhatsAppTokenManager();
