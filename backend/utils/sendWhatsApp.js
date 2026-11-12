@@ -1,31 +1,13 @@
 const axios = require('axios');
 const NodeCache = require('node-cache');
 const tokenManager = require('./whatsappTokenManager');
-
-/**
- * WhatsApp Business API Integration
- * 
- * ACTIVE TEMPLATES (Business verification not required):
- * 1. quotation_ready (UTILITY) - 2 parameters: customerName, quotationNumber
- * 2. invoice_generated (UTILITY) - 4 parameters: customerName, invoiceNumber, amount, dueDate
- * 3. account_created (UTILITY) - 3 parameters: customerName, username, portalUrl
- * 
- * REMOVED TEMPLATES (Requires business verification):
- * - user_verification (AUTHENTICATION) - Removed until business verification complete
- * 
- * TODO: After business verification, re-implement authentication templates for OTP/password delivery
- */
+const waConfig = require('../config/whatsapp');
 
 // Cache for API responses and rate limiting (5 mins expiry)
 const whatsappCache = new NodeCache({ stdTTL: 300 });
 
-// WhatsApp Cloud API configuration
-const WHATSAPP_API_VERSION = 'v19.0';
-const WHATSAPP_BASE_URL = `https://graph.facebook.com/${WHATSAPP_API_VERSION}`;
-
-// Development mode check
-const isDevelopmentMode = process.env.NODE_ENV === 'development';
-const skipActualSending = process.env.WHATSAPP_DEV_MODE === 'true';
+const { baseUrl: WHATSAPP_BASE_URL } = waConfig;
+const skipActualSending = waConfig.devMode;
 
 // Utility function to format phone number for WhatsApp
 const formatPhoneNumber = (phone, countryCode = '+91') => {

@@ -23,6 +23,8 @@ services:
         sync: false
       - key: WHATSAPP_DEV_MODE
         sync: false
+      - key: WHATSAPP_API_VERSION
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: RAZORPAY_WEBHOOK_SECRET

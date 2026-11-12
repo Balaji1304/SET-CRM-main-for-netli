@@ -1,16 +1,17 @@
 const axios = require('axios');
 const NodeCache = require('node-cache');
+const waConfig = require('../config/whatsapp');
 
 // Cache for storing token information
 const tokenCache = new NodeCache({ stdTTL: 86400 }); // 24 hours cache
 
 class WhatsAppTokenManager {
   constructor() {
-    this.accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
-    this.appId = process.env.WHATSAPP_APP_ID;
-    this.appSecret = process.env.WHATSAPP_APP_SECRET;
-    this.systemUserId = process.env.WHATSAPP_SYSTEM_USER_ID;
-    this.businessAccountId = process.env.WABA_ID;
+    this.accessToken = waConfig.accessToken;
+    this.appId = waConfig.appId;
+    this.appSecret = waConfig.appSecret;
+    this.systemUserId = waConfig.systemUserId;
+    this.businessAccountId = waConfig.wabaId;
   }
 
   /**
@@ -47,7 +48,7 @@ class WhatsAppTokenManager {
    */
   async validateToken(token) {
     try {
-      const response = await axios.get(`https://graph.facebook.com/v19.0/me`, {
+      const response = await axios.get(`${waConfig.baseUrl}/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
         },
@@ -72,7 +73,7 @@ class WhatsAppTokenManager {
 
       // Generate app access token first
       const appTokenResponse = await axios.get(
-        `https://graph.facebook.com/oauth/access_token?client_id=${this.appId}&client_secret=${this.appSecret}&grant_type=client_credentials`
+        `https://graph.facebook.com/oauth/access_token?client_id=${this.appId}&client_secret=${this.appSecret}&grant_type=client_credentials` // oauth endpoint is version-independent
       );
 
       const appAccessToken = appTokenResponse.data.access_token;
@@ -83,7 +84,7 @@ class WhatsAppTokenManager {
         console.log(`Generating system user token for user: ${this.systemUserId}`);
         
         const systemUserTokenResponse = await axios.post(
-          `https://graph.facebook.com/v19.0/${this.systemUserId}/access_tokens`,
+          `${waConfig.baseUrl}/${this.systemUserId}/access_tokens`,
           {
             business_app: this.appId,
             scope: ['whatsapp_business_messaging', 'whatsapp_business_management']
@@ -114,7 +115,7 @@ class WhatsAppTokenManager {
         
         try {
           const wabaTokenResponse = await axios.post(
-            `https://graph.facebook.com/v19.0/${this.businessAccountId}/access_tokens`,
+            `${waConfig.baseUrl}/${this.businessAccountId}/access_tokens`,
             {
               scope: 'whatsapp_business_messaging,whatsapp_business_management'
             },
@@ -156,7 +157,7 @@ class WhatsAppTokenManager {
   async getTokenInfo(token) {
     try {
       const response = await axios.get(
-        `https://graph.facebook.com/v19.0/debug_token?input_token=${token}&access_token=${this.appId}|${this.appSecret}`
+        `${waConfig.baseUrl}/debug_token?input_token=${token}&access_token=${this.appId}|${this.appSecret}`
       );
 
       return response.data.data;
