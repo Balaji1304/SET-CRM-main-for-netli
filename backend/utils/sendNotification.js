@@ -149,6 +149,11 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
   if (customer.hasWhatsapp === false) {
     throw new Error('Customer has no WhatsApp number');
   }
+
+  if (customer.whatsappOptIn === false) {
+    console.log(`WhatsApp opt-out: skipping ${type} for ${customer.firstName} (opted out)`);
+    return { success: false, reason: 'opted_out' };
+  }
   
   if (customer.whatsappSameAsPhone && customer.phone) {
     whatsappNumber = customer.phone;

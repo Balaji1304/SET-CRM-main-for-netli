@@ -142,6 +142,10 @@ const leadSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  whatsappOptIn: {
+    type: Boolean,
+    default: true
+  },
   preferredContactMethod: {
     type: String,
     enum: ['email', 'whatsapp', 'both'],

@@ -2,6 +2,21 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const WhatsAppMessage = require('../models/WhatsAppMessage');
+const Lead = require('../models/Lead');
+
+const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'opt out', 'optout'];
+const OPT_IN_KEYWORDS = ['start', 'subscribe', 'opt in', 'optin'];
+
+const handleOptChange = async (phone, optIn) => {
+  const digits = phone.replace(/\D/g, '');
+  const local = digits.length > 10 ? digits.slice(-10) : digits;
+  const lead = await Lead.findOne({ $or: [{ phone: local }, { whatsapp: local }, { phone: digits }, { whatsapp: digits }] });
+  if (lead) {
+    lead.whatsappOptIn = optIn;
+    await lead.save();
+    console.log(`WhatsApp ${optIn ? 'opt-in' : 'opt-out'}: ${lead.firstName} (${phone})`);
+  }
+};
 
 // @desc    Webhook for WhatsApp Business API
 // @route   POST /api/whatsapp/webhook
@@ -66,6 +81,13 @@ router.post('/webhook', (req, res) => {
               status: 'delivered',
               meta: { body: m.text?.body, timestamp: m.timestamp }
             }).catch(e => console.error('WA inbound log failed:', e.message));
+
+            const body = (m.text?.body || '').trim().toLowerCase();
+            if (OPT_OUT_KEYWORDS.includes(body)) {
+              handleOptChange(m.from, false).catch(e => console.error('Opt-out failed:', e.message));
+            } else if (OPT_IN_KEYWORDS.includes(body)) {
+              handleOptChange(m.from, true).catch(e => console.error('Opt-in failed:', e.message));
+            }
           });
         }
       });
