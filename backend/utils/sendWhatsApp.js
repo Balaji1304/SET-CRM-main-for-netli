@@ -853,6 +853,35 @@ const testWhatsAppConfig = async () => {
   }
 };
 
+// Customer lifecycle templates
+const sendTicketCreatedWhatsApp = async ({ to, customerName, ticketNumber, countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'ticket_created', values: [customerName, ticketNumber], countryCode });
+};
+
+const sendTicketUpdatedWhatsApp = async ({ to, customerName, ticketNumber, status, details = '', countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'ticket_updated', values: [customerName, ticketNumber, status, details], countryCode });
+};
+
+const sendTicketResolvedWhatsApp = async ({ to, customerName, ticketNumber, countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'ticket_resolved', values: [customerName, ticketNumber], countryCode });
+};
+
+const sendOrderTrackingWhatsApp = async ({ to, customerName, orderNumber, status, expectedDelivery = '-', countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'order_tracking_update', values: [customerName, orderNumber, status, expectedDelivery], countryCode });
+};
+
+const sendPaymentReceiptWhatsApp = async ({ to, customerName, amount, reference, transactionRef = '-', countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'payment_receipt', values: [customerName, amount, reference, transactionRef], countryCode });
+};
+
+const sendPaymentReminderWhatsApp = async ({ to, customerName, amount, reference, dueDate, countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'payment_reminder', values: [customerName, amount, reference, dueDate], countryCode });
+};
+
+const sendInstallationCompletedWhatsApp = async ({ to, customerName, orderNumber, countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'installation_completed', values: [customerName, orderNumber], countryCode });
+};
+
 module.exports = {
   sendWhatsAppTemplate,
   uploadWhatsAppMedia,
@@ -874,6 +903,14 @@ module.exports = {
   sendPaymentReceivedWhatsApp,
   sendPaymentPendingWhatsApp,
   sendInvoiceDueWhatsApp,
+  // Customer Lifecycle
+  sendTicketCreatedWhatsApp,
+  sendTicketUpdatedWhatsApp,
+  sendTicketResolvedWhatsApp,
+  sendOrderTrackingWhatsApp,
+  sendPaymentReceiptWhatsApp,
+  sendPaymentReminderWhatsApp,
+  sendInstallationCompletedWhatsApp,
   // Template library support
   getWhatsAppTemplates,
   getCachedWhatsAppTemplates,

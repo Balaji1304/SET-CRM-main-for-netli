@@ -20,7 +20,14 @@ const {
   uploadWhatsAppMedia,
   sendWhatsAppDocument,
   sendWhatsAppText,
-  sendLibraryTemplate
+  sendLibraryTemplate,
+  sendTicketCreatedWhatsApp,
+  sendTicketUpdatedWhatsApp,
+  sendTicketResolvedWhatsApp,
+  sendOrderTrackingWhatsApp,
+  sendPaymentReceiptWhatsApp,
+  sendPaymentReminderWhatsApp,
+  sendInstallationCompletedWhatsApp
 } = require('./sendWhatsApp');
 
 // Determine available contact methods for a customer using preferredContactMethod
@@ -243,6 +250,70 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
         customerName: `${customer.firstName} ${customer.lastName}`,
         loginUsername: data.loginUsername || data.email || data.phone,
         loginUrl: process.env.FRONTEND_URL || 'your-crm-portal.com',
+        countryCode
+      });
+
+    case 'ticket_created':
+      return await sendTicketCreatedWhatsApp({
+        to: whatsappNumber,
+        customerName: `${customer.firstName} ${customer.lastName}`,
+        ticketNumber: data.ticketNumber,
+        countryCode
+      });
+
+    case 'ticket_updated':
+      return await sendTicketUpdatedWhatsApp({
+        to: whatsappNumber,
+        customerName: `${customer.firstName} ${customer.lastName}`,
+        ticketNumber: data.ticketNumber,
+        status: data.status,
+        details: data.details || '',
+        countryCode
+      });
+
+    case 'ticket_resolved':
+      return await sendTicketResolvedWhatsApp({
+        to: whatsappNumber,
+        customerName: `${customer.firstName} ${customer.lastName}`,
+        ticketNumber: data.ticketNumber,
+        countryCode
+      });
+
+    case 'order_tracking':
+      return await sendOrderTrackingWhatsApp({
+        to: whatsappNumber,
+        customerName: `${customer.firstName} ${customer.lastName}`,
+        orderNumber: data.orderNumber,
+        status: data.status,
+        expectedDelivery: data.expectedDelivery || '-',
+        countryCode
+      });
+
+    case 'payment_receipt':
+      return await sendPaymentReceiptWhatsApp({
+        to: whatsappNumber,
+        customerName: `${customer.firstName} ${customer.lastName}`,
+        amount: data.amount,
+        reference: data.reference,
+        transactionRef: data.transactionRef || '-',
+        countryCode
+      });
+
+    case 'payment_reminder':
+      return await sendPaymentReminderWhatsApp({
+        to: whatsappNumber,
+        customerName: `${customer.firstName} ${customer.lastName}`,
+        amount: data.amount,
+        reference: data.reference,
+        dueDate: data.dueDate,
+        countryCode
+      });
+
+    case 'installation_completed':
+      return await sendInstallationCompletedWhatsApp({
+        to: whatsappNumber,
+        customerName: `${customer.firstName} ${customer.lastName}`,
+        orderNumber: data.orderNumber,
         countryCode
       });
 
