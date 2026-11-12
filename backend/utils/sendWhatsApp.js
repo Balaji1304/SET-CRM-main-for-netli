@@ -27,21 +27,15 @@ const WHATSAPP_BASE_URL = `https://graph.facebook.com/${WHATSAPP_API_VERSION}`;
 const isDevelopmentMode = process.env.NODE_ENV === 'development';
 const skipActualSending = process.env.WHATSAPP_DEV_MODE === 'true';
 
-// Utility function to format phone number for WhatsApp
 const formatPhoneNumber = (phone, countryCode = '+91') => {
-  // Remove all non-numeric characters
-  let cleanPhone = phone.replace(/\D/g, '');
-  
-  // Handle country code
-  if (countryCode) {
-    const countryCodeClean = countryCode.replace(/\D/g, '');
-    // If phone doesn't start with country code, add it
-    if (!cleanPhone.startsWith(countryCodeClean)) {
-      cleanPhone = countryCodeClean + cleanPhone;
-    }
-  }
-  
-  return cleanPhone;
+  let digits = phone.replace(/\D/g, '');
+  const cc = countryCode.replace(/\D/g, '');
+  // Strip leading 0 (trunk prefix)
+  if (digits.startsWith('0')) digits = digits.slice(1);
+  const localLen = 10; // India default; works for most countries with 10-digit locals
+  if (digits.length === localLen) return cc + digits;
+  if (digits.length === cc.length + localLen && digits.startsWith(cc)) return digits;
+  return digits;
 };
 
 // Mock response for development
