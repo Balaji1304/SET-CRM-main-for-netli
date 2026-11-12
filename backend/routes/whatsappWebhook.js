@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const waConfig = require('../config/whatsapp');
 const tokenManager = require('../utils/whatsappTokenManager');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -62,9 +63,8 @@ router.post('/webhook', async (req, res) => {
                 });
               }
               
-              // Handle token-related errors
               if (value.errors) {
-                tokenManager.handleTokenWebhook(body);
+                console.error('WhatsApp webhook errors:', value.errors);
               }
             }
           });
@@ -102,18 +102,17 @@ router.get('/webhook', (req, res) => {
 // @access  Public (in development mode)
 router.get('/test-config', protect, authorize('admin'), async (req, res) => {
   try {
-    // Test token validity
-    const validToken = await tokenManager.getValidAccessToken();
-    const tokenInfo = await tokenManager.getTokenInfo(validToken);
-    
+    const hasToken = !!waConfig.accessToken;
+    const tokenInfo = hasToken ? await tokenManager.getTokenInfo() : null;
+
     res.json({
       success: true,
       message: 'WhatsApp configuration is valid',
       data: {
-        tokenValid: !!validToken,
-        tokenInfo: tokenInfo,
-        phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ? 
-          `${process.env.WHATSAPP_PHONE_NUMBER_ID.substring(0, 8)}...` : null
+        tokenValid: hasToken,
+        tokenInfo,
+        phoneNumberId: waConfig.phoneNumberId ?
+          `${waConfig.phoneNumberId.substring(0, 8)}...` : null
       }
     });
   } catch (error) {
@@ -130,21 +129,11 @@ router.get('/test-config', protect, authorize('admin'), async (req, res) => {
 // @access  Public (in development mode)
 router.get('/status', protect, authorize('admin'), async (req, res) => {
   try {
-    const hasAccessToken = !!process.env.WHATSAPP_ACCESS_TOKEN;
-    const hasPhoneNumberId = !!process.env.WHATSAPP_PHONE_NUMBER_ID;
-    const hasWabaId = !!process.env.WABA_ID;
-    const hasAppCredentials = !!(process.env.WHATSAPP_APP_ID && process.env.WHATSAPP_APP_SECRET);
-    
-    let tokenValid = false;
-    try {
-      const validToken = await tokenManager.getValidAccessToken();
-      tokenValid = !!validToken;
-    } catch (error) {
-      console.log('Token validation failed in status check:', error.message);
-    }
-    
-    const isConfigured = hasPhoneNumberId && tokenValid;
-    
+    const hasAccessToken = !!waConfig.accessToken;
+    const hasPhoneNumberId = !!waConfig.phoneNumberId;
+    const hasWabaId = !!waConfig.wabaId;
+    const isConfigured = hasAccessToken && hasPhoneNumberId;
+
     res.json({
       success: true,
       data: {
@@ -152,21 +141,13 @@ router.get('/status', protect, authorize('admin'), async (req, res) => {
         hasAccessToken,
         hasPhoneNumberId,
         hasWabaId,
-        hasAppCredentials,
-        tokenValid,
-        phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID ? 
-          `${process.env.WHATSAPP_PHONE_NUMBER_ID.substring(0, 8)}...` : null,
-        configurationSteps: {
-          step1: 'Create WhatsApp Business Account and App',
-          step2: 'Generate permanent access token (System User recommended)',
-          step3: 'Get phone number ID from Meta Business',
-          step4: 'Add environment variables to .env file',
-          step5: 'Create and approve message templates',
-          step6: 'Setup webhook endpoint for status updates'
-        },
+        apiVersion: waConfig.apiVersion,
+        devMode: waConfig.devMode,
+        phoneNumberId: waConfig.phoneNumberId ?
+          `${waConfig.phoneNumberId.substring(0, 8)}...` : null,
         webhookInfo: {
           url: `${process.env.BACKEND_URL || 'your-backend-url'}/api/whatsapp/webhook`,
-          verifyToken: process.env.WHATSAPP_VERIFY_TOKEN ? 'Configured' : 'Not set'
+          verifyToken: waConfig.verifyToken ? 'Configured' : 'Not set'
         }
       }
     });
@@ -174,34 +155,6 @@ router.get('/status', protect, authorize('admin'), async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error checking WhatsApp status',
-      error: error.message
-    });
-  }
-});
-
-// @desc    Refresh WhatsApp token manually
-// @route   POST /api/whatsapp/refresh-token
-// @access  Private (admin only)
-router.post('/refresh-token', protect, authorize('admin'), async (req, res) => {
-  try {
-    const newToken = await tokenManager.refreshToken();
-    
-    if (newToken) {
-      res.json({
-        success: true,
-        message: 'Token refreshed successfully',
-        tokenPreview: `${newToken.substring(0, 20)}...`
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to refresh token'
-      });
-    }
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error refreshing token',
       error: error.message
     });
   }

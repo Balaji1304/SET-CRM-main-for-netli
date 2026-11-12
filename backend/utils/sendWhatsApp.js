@@ -45,20 +45,20 @@ const createMockResponse = (to, type, templateName = null) => {
 
 // Fetch message templates directly from the WhatsApp Business API template library
 const getWhatsAppTemplates = async () => {
-  if (skipActualSending || !process.env.WABA_ID) {
+  if (skipActualSending || !waConfig.wabaId) {
     if (skipActualSending) {
       console.log('📚 [WHATSAPP DEV] Skipping template library fetch (dev mode)');
     }
     return [];
   }
 
-  const validAccessToken = await tokenManager.getValidAccessToken();
+  const accessToken = tokenManager.getAccessToken();
 
   const response = await axios.get(
-    `${WHATSAPP_BASE_URL}/${process.env.WABA_ID}/message_templates`,
+    `${WHATSAPP_BASE_URL}/${waConfig.wabaId}/message_templates`,
     {
       headers: {
-        'Authorization': `Bearer ${validAccessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
       params: { limit: 1000 },
@@ -168,14 +168,14 @@ const createWhatsAppTemplate = async ({
     return { success: true, isDevelopmentMode: true, name };
   }
 
-  if (!process.env.WABA_ID) {
+  if (!waConfig.wabaId) {
     throw new Error('WABA_ID not configured; cannot create WhatsApp templates');
   }
 
-  const validAccessToken = await tokenManager.getValidAccessToken();
+  const accessToken = tokenManager.getAccessToken();
 
   const response = await axios.post(
-    `${WHATSAPP_BASE_URL}/${process.env.WABA_ID}/message_templates`,
+    `${WHATSAPP_BASE_URL}/${waConfig.wabaId}/message_templates`,
     {
       name,
       language,
@@ -184,7 +184,7 @@ const createWhatsAppTemplate = async ({
     },
     {
       headers: {
-        'Authorization': `Bearer ${validAccessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
       params: allowCategoryChange ? { 'allow_category_change': 'true' } : {},
@@ -222,14 +222,12 @@ const sendWhatsAppTemplate = async (options) => {
       return createMockResponse(formattedPhone, 'template', templateName);
     }
 
-    if (!process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    if (!waConfig.phoneNumberId) {
       throw new Error('WHATSAPP_PHONE_NUMBER_ID not configured');
     }
 
-    // Get a valid access token
-    const validAccessToken = await tokenManager.getValidAccessToken();
+    const accessToken = tokenManager.getAccessToken();
 
-    // Prepare the message payload
     const messageData = {
       messaging_product: "whatsapp",
       to: formattedPhone,
@@ -243,13 +241,12 @@ const sendWhatsAppTemplate = async (options) => {
       }
     };
 
-    // Make API call to WhatsApp
     const response = await axios.post(
-      `${WHATSAPP_BASE_URL}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      `${WHATSAPP_BASE_URL}/${waConfig.phoneNumberId}/messages`,
       messageData,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         timeout: 30000
@@ -294,15 +291,12 @@ const sendWhatsAppDocument = async (options) => {
       return createMockResponse(formattedPhone, 'document');
     }
 
-    if (!process.env.WHATSAPP_ACCESS_TOKEN) {
-      throw new Error('WHATSAPP_ACCESS_TOKEN not configured');
-    }
+    const accessToken = tokenManager.getAccessToken();
 
-    if (!process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    if (!waConfig.phoneNumberId) {
       throw new Error('WHATSAPP_PHONE_NUMBER_ID not configured');
     }
 
-    // Prepare the message payload
     const messageData = {
       messaging_product: "whatsapp",
       to: formattedPhone,
@@ -314,13 +308,12 @@ const sendWhatsAppDocument = async (options) => {
       }
     };
 
-    // Make API call to WhatsApp
     const response = await axios.post(
-      `${WHATSAPP_BASE_URL}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      `${WHATSAPP_BASE_URL}/${waConfig.phoneNumberId}/messages`,
       messageData,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         timeout: 30000
@@ -361,15 +354,12 @@ const sendWhatsAppText = async (options) => {
       return createMockResponse(formattedPhone, 'text');
     }
 
-    if (!process.env.WHATSAPP_ACCESS_TOKEN) {
-      throw new Error('WHATSAPP_ACCESS_TOKEN not configured');
-    }
+    const accessToken = tokenManager.getAccessToken();
 
-    if (!process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    if (!waConfig.phoneNumberId) {
       throw new Error('WHATSAPP_PHONE_NUMBER_ID not configured');
     }
 
-    // Prepare the message payload
     const messageData = {
       messaging_product: "whatsapp",
       to: formattedPhone,
@@ -379,13 +369,12 @@ const sendWhatsAppText = async (options) => {
       }
     };
 
-    // Make API call to WhatsApp
     const response = await axios.post(
-      `${WHATSAPP_BASE_URL}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      `${WHATSAPP_BASE_URL}/${waConfig.phoneNumberId}/messages`,
       messageData,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         timeout: 30000
@@ -853,15 +842,14 @@ const sendInvoiceDueWhatsApp = async (options) => {
 // Test WhatsApp configuration
 const testWhatsAppConfig = async () => {
   try {
-    if (!process.env.WHATSAPP_ACCESS_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    if (!waConfig.accessToken || !waConfig.phoneNumberId) {
       throw new Error('WhatsApp configuration missing');
     }
 
-    // In development mode, just return success
     if (skipActualSending) {
       return {
         success: true,
-        phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+        phoneNumberId: waConfig.phoneNumberId,
         status: {
           mode: 'development',
           message: 'WhatsApp API configured but in development mode (not sending actual messages)'
@@ -869,19 +857,19 @@ const testWhatsAppConfig = async () => {
       };
     }
 
-    // Test API endpoint
+    const accessToken = tokenManager.getAccessToken();
     const response = await axios.get(
-      `${WHATSAPP_BASE_URL}/${process.env.WHATSAPP_PHONE_NUMBER_ID}`,
+      `${WHATSAPP_BASE_URL}/${waConfig.phoneNumberId}`,
       {
         headers: {
-          'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`
+          'Authorization': `Bearer ${accessToken}`
         }
       }
     );
 
     return {
       success: true,
-      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+      phoneNumberId: waConfig.phoneNumberId,
       status: response.data
     };
   } catch (error) {
