@@ -22,6 +22,8 @@ const { generateOrderFormPDF } = require('../utils/generateOrderForm');
 const { sendOrderFormNotification } = require('../utils/sendNotification');
 const NotificationService = require('../utils/notificationService');
 
+const parseSpecs = require('../utils/parseSpecs');
+
 // Register handlebars helpers
 registerHelpers();
 
@@ -617,7 +619,7 @@ exports.sendQuotation = async (req, res) => {
         if (item.productId) {
           product = {
             ...item.productId.toObject(),
-            specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
+            specifications: Object.entries(parseSpecs(item.productId.specifications)).map(([key, value]) => ({
               name: key,
               value: value
             })),
@@ -627,23 +629,23 @@ exports.sendQuotation = async (req, res) => {
         // Handle customized products
         else if (item.customizedProductId) {
           const customizedProduct = item.customizedProductId;
-          
+
           // Build specifications from the customized product
           const specifications = [];
           if (customizedProduct.modelNumber) {
             specifications.push({ name: 'Model Number', value: customizedProduct.modelNumber });
           }
-          
+
           // Add all specifications from the customized product
-          Object.entries(customizedProduct.specifications || {}).forEach(([key, value]) => {
+          Object.entries(parseSpecs(customizedProduct.specifications)).forEach(([key, value]) => {
             if (value && value.trim()) {
-              specifications.push({ 
-                name: key.charAt(0).toUpperCase() + key.slice(1), 
-                value: value 
+              specifications.push({
+                name: key.charAt(0).toUpperCase() + key.slice(1),
+                value: value
               });
             }
           });
-          
+
           product = {
             _id: customizedProduct._id,
             name: customizedProduct.name || 'Customized Product',
@@ -655,11 +657,11 @@ exports.sendQuotation = async (req, res) => {
         // Handle bundle products
         else if (item.bundleId) {
           const bundleProduct = item.bundleId;
-          
+
           // Build specifications from the bundle product (only for non-solar bundles)
           const specifications = [];
           if (bundleProduct.specifications && bundleProduct.category !== 'power_plants_system') {
-            Object.entries(bundleProduct.specifications).forEach(([key, value]) => {
+            Object.entries(parseSpecs(bundleProduct.specifications)).forEach(([key, value]) => {
               if (value && value.toString().trim()) {
                 specifications.push({ 
                   name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'), 
@@ -815,7 +817,7 @@ exports.sendQuotation = async (req, res) => {
             if (item.productId) {
               product = {
                 ...item.productId.toObject(),
-                specifications: Object.entries(item.productId.specifications || {}).map(([key, value]) => ({
+                specifications: Object.entries(parseSpecs(item.productId.specifications)).map(([key, value]) => ({
                   name: key,
                   value: value
                 })),
@@ -825,23 +827,23 @@ exports.sendQuotation = async (req, res) => {
             // Handle customized products
             else if (item.customizedProductId) {
               const customizedProduct = item.customizedProductId;
-              
+
               // Build specifications from the customized product
               const specifications = [];
               if (customizedProduct.modelNumber) {
                 specifications.push({ name: 'Model Number', value: customizedProduct.modelNumber });
               }
-              
+
               // Add all specifications from the customized product
-              Object.entries(customizedProduct.specifications || {}).forEach(([key, value]) => {
+              Object.entries(parseSpecs(customizedProduct.specifications)).forEach(([key, value]) => {
                 if (value && value.trim()) {
-                  specifications.push({ 
-                    name: key.charAt(0).toUpperCase() + key.slice(1), 
-                    value: value 
+                  specifications.push({
+                    name: key.charAt(0).toUpperCase() + key.slice(1),
+                    value: value
                   });
                 }
               });
-              
+
               product = {
                 _id: customizedProduct._id,
                 name: customizedProduct.name || 'Customized Product',
@@ -853,11 +855,11 @@ exports.sendQuotation = async (req, res) => {
             // Handle bundle products with enhanced data
             else if (item.bundleId) {
               const bundleProduct = item.bundleId;
-              
+
               // Build specifications from the bundle product (only for non-solar bundles)
               const specifications = [];
               if (bundleProduct.specifications && bundleProduct.category !== 'power_plants_system') {
-                Object.entries(bundleProduct.specifications).forEach(([key, value]) => {
+                Object.entries(parseSpecs(bundleProduct.specifications)).forEach(([key, value]) => {
                   if (value && value.toString().trim()) {
                     specifications.push({ 
                       name: key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1'), 
@@ -1049,18 +1051,18 @@ exports.resendQuotation = async (req, res) => {
     const formattedItems = quotationItems.map(item => {
       let product = {};
       if (item.productId) {
-        product = { ...item.productId.toObject(), specifications: Object.entries(item.productId.specifications || {}).map(([k, v]) => ({ name: k, value: v })), images: (item.productId.imageUrls || []).map(url => ({ url })) };
+        product = { ...item.productId.toObject(), specifications: Object.entries(parseSpecs(item.productId.specifications)).map(([k, v]) => ({ name: k, value: v })), images: (item.productId.imageUrls || []).map(url => ({ url })) };
       } else if (item.customizedProductId) {
         const cp = item.customizedProductId;
         const specs = [];
         if (cp.modelNumber) specs.push({ name: 'Model Number', value: cp.modelNumber });
-        Object.entries(cp.specifications || {}).forEach(([k, v]) => { if (v && v.trim()) specs.push({ name: k.charAt(0).toUpperCase() + k.slice(1), value: v }); });
+        Object.entries(parseSpecs(cp.specifications)).forEach(([k, v]) => { if (v && v.trim()) specs.push({ name: k.charAt(0).toUpperCase() + k.slice(1), value: v }); });
         product = { _id: cp._id, name: cp.name || 'Customized Product', description: cp.description || '', specifications: specs, images: (cp.imageUrls || []).map(url => ({ url })) };
       } else if (item.bundleId) {
         const bp = item.bundleId;
         const specs = [];
         if (bp.specifications && bp.category !== 'power_plants_system') {
-          Object.entries(bp.specifications).forEach(([k, v]) => { if (v && v.toString().trim()) specs.push({ name: k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1'), value: v.toString() }); });
+          Object.entries(parseSpecs(bp.specifications)).forEach(([k, v]) => { if (v && v.toString().trim()) specs.push({ name: k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1'), value: v.toString() }); });
         }
         product = { _id: bp._id, name: bp.name || 'Bundle Product', category: bp.category || 'Bundle', description: bp.description || '', specifications: specs, images: (bp.imageUrls || []).map(url => ({ url: url.toString() })), bundleCode: bp.bundleCode, subcategory: bp.subcategory, systemConfiguration: bp.systemConfiguration ? JSON.parse(JSON.stringify(bp.systemConfiguration)) : {}, bundleComponents: (item.bundleComponents || []).map(c => ({ name: c.name || '', quantity: c.quantity || 0, make: c.make || '', componentType: c.componentType || '', warranty: c.warranty || '', sortOrder: c.sortOrder || 0 })) };
       }

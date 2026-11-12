@@ -30,7 +30,12 @@ exports.getProducts = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const { images, brochure, ...productData } = req.body;
-    
+
+    // Ensure specifications is an object (frontend sends JSON.stringify'd string via FormData)
+    if (typeof productData.specifications === 'string') {
+      try { productData.specifications = JSON.parse(productData.specifications); } catch { productData.specifications = {}; }
+    }
+
     // Auto-fill terms and conditions if not provided
     if (!productData.termsAndConditions && productData.category) {
       productData.termsAndConditions = getProductTerms(productData.category);
@@ -223,7 +228,10 @@ exports.updateProduct = async (req, res) => {
       productData.imageUrls = uploadedImages;
     }
 
-    // Ensure specifications is an object
+    // Ensure specifications is an object (frontend sends JSON.stringify'd string via FormData)
+    if (typeof productData.specifications === 'string') {
+      try { productData.specifications = JSON.parse(productData.specifications); } catch { productData.specifications = {}; }
+    }
     productData.specifications = productData.specifications || {};
     
     const updatedProduct = await Product.findByIdAndUpdate(
