@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const WhatsAppMessage = require('../models/WhatsAppMessage');
 
 beforeAll(async () => {
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/solar-crm-test');
+  await mongoose.connect(require('./testDb'));
 });
 
 afterAll(async () => {
