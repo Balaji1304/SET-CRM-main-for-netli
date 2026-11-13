@@ -164,7 +164,7 @@ router.get('/messages/stats', protect, authorize('admin'), async (req, res) => {
 
     const [byStatus, byDay] = await Promise.all([
       WhatsAppMessage.aggregate([
-        { $match: { createdAt: { $gte: since } } },
+        { $match: { createdAt: { $gte: since }, direction: 'outbound' } },
         { $group: { _id: '$status', count: { $sum: 1 } } }
       ]),
       WhatsAppMessage.aggregate([

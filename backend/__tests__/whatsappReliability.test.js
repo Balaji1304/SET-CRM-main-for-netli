@@ -112,29 +112,25 @@ describe('status update idempotency', () => {
   });
 });
 
-describe('queue retry', () => {
-  test('enqueue calls send function and logs', async () => {
-    const { enqueue } = require('../utils/whatsappQueue');
-    const mockSend = jest.fn().mockResolvedValue({ success: true, messageId: 'wamid.queue_test' });
+describe('sendWithRetry', () => {
+  const { sendWithRetry } = require('../utils/whatsappQueue');
+  const fast = { baseDelayMs: 1 };
 
-    const msg = await enqueue(mockSend, { to: 'test_queue_999' }, { type: 'template', templateName: 'test' });
-    // Wait for async processing
-    await new Promise(r => setTimeout(r, 200));
-
-    expect(mockSend).toHaveBeenCalledTimes(1);
-    const updated = await WhatsAppMessage.findById(msg._id);
-    expect(updated.status).toBe('sent');
-    expect(updated.wamid).toBe('wamid.queue_test');
+  test('returns the first successful result without retrying', async () => {
+    const send = jest.fn().mockResolvedValue({ messageId: 'wamid.ok' });
+    await expect(sendWithRetry(send, { to: 'x' }, fast)).resolves.toEqual({ messageId: 'wamid.ok' });
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
-  test('marks as failed after max retries', async () => {
-    const { enqueue } = require('../utils/whatsappQueue');
-    const mockSend = jest.fn().mockRejectedValue(new Error('Permanent failure'));
+  test('retries after a failure, then succeeds', async () => {
+    const send = jest.fn().mockRejectedValueOnce(new Error('timeout')).mockResolvedValue({ messageId: 'wamid.retry' });
+    await expect(sendWithRetry(send, { to: 'x' }, fast)).resolves.toEqual({ messageId: 'wamid.retry' });
+    expect(send).toHaveBeenCalledTimes(2);
+  });
 
-    const msg = await enqueue(mockSend, { to: 'test_fail_999' }, { type: 'template' });
-
-    // The queue will exhaust retries but with real delays; check the initial state
-    expect(msg.status).toBe('queued');
-    expect(msg.meta.retries).toBe(0);
+  test('throws the last error after the retry limit', async () => {
+    const send = jest.fn().mockRejectedValue(new Error('down'));
+    await expect(sendWithRetry(send, { to: 'x' }, { ...fast, retries: 3 })).rejects.toThrow('down');
+    expect(send).toHaveBeenCalledTimes(4);
   });
 });
