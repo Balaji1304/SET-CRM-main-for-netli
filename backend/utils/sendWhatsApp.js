@@ -455,7 +455,7 @@ const sendQuotationWhatsApp = async (options) => {
   const { to, customerName, quotationNumber, countryCode } = options;
   return sendLibraryTemplate({
     to,
-    templateName: 'quotation_ready',
+    templateName: 'quotation_ready_v2',
     values: [customerName, quotationNumber],
     countryCode
   });
@@ -465,7 +465,7 @@ const sendInvoiceWhatsApp = async (options) => {
   const { to, customerName, invoiceNumber, amount, dueDate, countryCode } = options;
   return sendLibraryTemplate({
     to,
-    templateName: 'invoice_generated',
+    templateName: 'invoice_generated_v2',
     values: [customerName, invoiceNumber, amount, dueDate],
     countryCode
   });

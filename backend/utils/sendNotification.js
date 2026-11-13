@@ -682,10 +682,10 @@ const sendServiceEngineerWhatsApp = async (type, engineer, data) => {
     const countryCode = engineer.countryCode || '+91';
 
     const libraryTemplateMap = {
-      installation_assignment: { name: 'installation_assignment', values: [data.orderNumber, data.customerName, data.customerAddress, data.installationDate] },
-      installation_scheduled: { name: 'installation_scheduled', values: [engineer.name, data.customerName, data.installationDate, data.orderNumber] },
-      installation_reminder: { name: 'installation_reminder', values: [engineer.name, data.customerName, data.customerPhone, data.installationDate, data.orderNumber] },
-      urgent_customer_contact: { name: 'urgent_customer_contact', values: [engineer.name, data.customerName, data.customerPhone, data.message, data.orderNumber] }
+      installation_assignment: { name: 'installation_assignment_v2', values: [data.orderNumber, data.customerName, data.customerAddress, data.installationDate] },
+      installation_scheduled: { name: 'installation_scheduled_v2', values: [engineer.name, data.customerName, data.installationDate, data.orderNumber] },
+      installation_reminder: { name: 'installation_reminder_v2', values: [engineer.name, data.customerName, data.customerPhone, data.installationDate, data.orderNumber] },
+      urgent_customer_contact: { name: 'urgent_customer_contact_v2', values: [engineer.name, data.customerName, data.customerPhone, data.message, data.orderNumber] }
     };
 
     const libraryEntry = libraryTemplateMap[type];
@@ -754,10 +754,10 @@ const sendSalesTeamWhatsApp = async (type, salesTeamUser, data) => {
     const countryCode = salesTeamUser.countryCode || '+91';
 
     const libraryTemplateMap = {
-      lead_assignment: { name: 'lead_assignment', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.leadEmail, data.leadSource, data.priority || 'medium'] },
-      follow_up_reminder: { name: 'follow_up_reminder', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.daysSinceLastContact] },
-      quotation_pending: { name: 'quotation_pending', values: [salesTeamUser.name, data.quotationNumber, data.customerName, data.amount, data.daysWaiting || 0] },
-      hot_lead_alert: { name: 'hot_lead_alert', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.reason] }
+      lead_assignment: { name: 'lead_assignment_v2', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.leadEmail, data.leadSource, data.priority || 'medium'] },
+      follow_up_reminder: { name: 'follow_up_reminder_v2', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.daysSinceLastContact] },
+      quotation_pending: { name: 'quotation_pending_v2', values: [salesTeamUser.name, data.quotationNumber, data.customerName, data.amount, data.daysWaiting || 0] },
+      hot_lead_alert: { name: 'hot_lead_alert_v2', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.reason] }
     };
 
     const libraryEntry = libraryTemplateMap[type];
@@ -799,9 +799,9 @@ const sendAccountsTeamWhatsApp = async (type, accountsUser, data) => {
     const countryCode = accountsUser.countryCode || '+91';
 
     const libraryTemplateMap = {
-      payment_received: { name: 'payment_received', values: [accountsUser.name, data.customerName, data.amount, data.paymentMethod, data.invoiceNumber] },
-      payment_pending: { name: 'payment_pending', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.daysOverdue] },
-      invoice_due: { name: 'invoice_due', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.dueDate, data.daysUntilDue] }
+      payment_received: { name: 'payment_received_v2', values: [accountsUser.name, data.customerName, data.amount, data.paymentMethod, data.invoiceNumber] },
+      payment_pending: { name: 'payment_pending_v2', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.daysOverdue] },
+      invoice_due: { name: 'invoice_due_v2', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.dueDate, data.daysUntilDue] }
     };
 
     const libraryEntry = libraryTemplateMap[type];

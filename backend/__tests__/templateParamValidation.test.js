@@ -17,8 +17,8 @@ jest.mock('../config/whatsapp', () => ({
 }));
 
 const fakeTemplates = [
-  { name: 'quotation_ready', language: 'en_US', status: 'APPROVED', components: [{ type: 'BODY', text: 'Hello {{1}}, quotation {{2}} is ready.' }] },
-  { name: 'invoice_generated', language: 'en_US', status: 'APPROVED', components: [{ type: 'BODY', text: 'Hello {{1}}, invoice {{2}} for {{3}}, due {{4}}.' }] },
+  { name: 'quotation_ready_v2', language: 'en_US', status: 'APPROVED', components: [{ type: 'BODY', text: 'Hello {{1}}, quotation {{2}} is ready.' }] },
+  { name: 'invoice_generated_v2', language: 'en_US', status: 'APPROVED', components: [{ type: 'BODY', text: 'Hello {{1}}, invoice {{2}} for {{3}}, due {{4}}.' }] },
   { name: 'account_created', language: 'en_US', status: 'APPROVED', components: [{ type: 'BODY', text: 'Hello {{1}}, username {{2}}, portal {{3}}.' }] }
 ];
 
@@ -58,7 +58,7 @@ describe('template param validation', () => {
   test('param count mismatch throws TEMPLATE_PARAM_MISMATCH', async () => {
     // Override to return a template with only 2 placeholders for invoice_generated
     axios.get.mockResolvedValue({ data: { data: [
-      { name: 'invoice_generated', language: 'en_US', status: 'APPROVED', components: [{ type: 'BODY', text: 'Hello {{1}}, invoice {{2}}.' }] }
+      { name: 'invoice_generated_v2', language: 'en_US', status: 'APPROVED', components: [{ type: 'BODY', text: 'Hello {{1}}, invoice {{2}}.' }] }
     ] } });
     // Clear the template cache so it re-fetches
     const NodeCache = require('node-cache');
