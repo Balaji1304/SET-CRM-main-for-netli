@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const waConfig = require('../config/whatsapp');
 const { testWhatsAppConfig, getWhatsAppTemplates, createWhatsAppTemplate } = require('../utils/sendWhatsApp');
+const WhatsAppMessage = require('../models/WhatsAppMessage');
 const { protect, authorize } = require('../middleware/auth');
 
 // @desc    List message templates from the WhatsApp template library
@@ -125,6 +126,57 @@ router.get('/status', protect, authorize('admin'), async (req, res) => {
       message: 'Error checking WhatsApp status',
       error: error.message
     });
+  }
+});
+
+// @desc    Get WhatsApp message logs
+// @route   GET /api/whatsapp/messages
+// @access  Private (admin only)
+router.get('/messages', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { page = 1, limit = 50, status, direction, templateName, phone, from, to } = req.query;
+    const query = {};
+    if (status) query.status = status;
+    if (direction) query.direction = direction;
+    if (templateName) query.templateName = templateName;
+    if (phone) query.$or = [{ to: { $regex: phone } }, { from: { $regex: phone } }];
+    if (from) query.createdAt = { ...query.createdAt, $gte: new Date(from) };
+    if (to) query.createdAt = { ...query.createdAt, $lte: new Date(to) };
+
+    const [messages, total] = await Promise.all([
+      WhatsAppMessage.find(query).sort({ createdAt: -1 }).limit(Number(limit)).skip((Number(page) - 1) * Number(limit)).lean(),
+      WhatsAppMessage.countDocuments(query)
+    ]);
+
+    res.json({ success: true, data: messages, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch message logs', error: error.message });
+  }
+});
+
+// @desc    Get WhatsApp message stats (counts by status, per day)
+// @route   GET /api/whatsapp/messages/stats
+// @access  Private (admin only)
+router.get('/messages/stats', protect, authorize('admin'), async (req, res) => {
+  try {
+    const days = Number(req.query.days) || 7;
+    const since = new Date(Date.now() - days * 86400000);
+
+    const [byStatus, byDay] = await Promise.all([
+      WhatsAppMessage.aggregate([
+        { $match: { createdAt: { $gte: since }, direction: 'outbound' } },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+      ]),
+      WhatsAppMessage.aggregate([
+        { $match: { createdAt: { $gte: since } } },
+        { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ])
+    ]);
+
+    res.json({ success: true, data: { byStatus, byDay } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch stats', error: error.message });
   }
 });
 

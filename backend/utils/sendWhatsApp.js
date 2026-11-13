@@ -3,6 +3,28 @@ const FormData = require('form-data');
 const NodeCache = require('node-cache');
 const tokenManager = require('./whatsappTokenManager');
 const waConfig = require('../config/whatsapp');
+const WhatsAppMessage = require('../models/WhatsAppMessage');
+
+const logOutbound = (phone, type, templateName, result, error) => {
+  const doc = {
+    direction: 'outbound',
+    to: phone,
+    from: waConfig.phoneNumberId,
+    type,
+    templateName: templateName || undefined,
+    wamid: result?.messageId || result?.response?.messages?.[0]?.id,
+    status: error ? 'failed' : 'sent',
+    context: result?.context
+  };
+  if (error) {
+    doc.error = { message: error.message || String(error) };
+  }
+  if (result?.isDevelopmentMode) {
+    doc.status = 'sent';
+    doc.meta = { devMode: true };
+  }
+  WhatsAppMessage.create(doc).catch(e => console.error('WA log write failed:', e.message));
+};
 
 // Cache for API responses and rate limiting (5 mins expiry)
 const whatsappCache = new NodeCache({ stdTTL: 300 });
@@ -230,7 +252,9 @@ const sendWhatsAppTemplate = async (options) => {
       console.log(`   To: ${formattedPhone}`);
       console.log(`   Template: ${templateName}`);
       console.log(`   Components:`, JSON.stringify(components, null, 2));
-      return createMockResponse(formattedPhone, 'template', templateName);
+      const mockResult = createMockResponse(formattedPhone, 'template', templateName);
+      logOutbound(formattedPhone, 'template', templateName, mockResult);
+      return mockResult;
     }
 
     if (!waConfig.phoneNumberId) {
@@ -265,14 +289,17 @@ const sendWhatsAppTemplate = async (options) => {
     );
 
     console.log(`WhatsApp template message sent successfully to ${formattedPhone}:`, response.data);
-    return {
+    const result = {
       success: true,
       messageId: response.data.messages[0]?.id,
       phone: formattedPhone,
       response: response.data
     };
+    logOutbound(formattedPhone, 'template', templateName, result);
+    return result;
 
   } catch (error) {
+    logOutbound(formatPhoneNumber(options.to, options.countryCode), 'template', options.templateName, null, error);
     console.error('WhatsApp template message failed:', error.response?.data || error.message);
     throw new Error(`WhatsApp message could not be sent: ${error.response?.data?.error?.message || error.message}`);
   }
@@ -344,14 +371,17 @@ const sendWhatsAppDocument = async (options) => {
     );
 
     console.log(`WhatsApp document sent successfully to ${formattedPhone}:`, response.data);
-    return {
+    const result = {
       success: true,
       messageId: response.data.messages[0]?.id,
       phone: formattedPhone,
       response: response.data
     };
+    logOutbound(formattedPhone, 'document', null, result);
+    return result;
 
   } catch (error) {
+    logOutbound(formatPhoneNumber(options.to, options.countryCode), 'document', null, null, error);
     console.error('WhatsApp document message failed:', error.response?.data || error.message);
     throw new Error(`WhatsApp document could not be sent: ${error.response?.data?.error?.message || error.message}`);
   }
@@ -405,14 +435,17 @@ const sendWhatsAppText = async (options) => {
     );
 
     console.log(`WhatsApp text message sent successfully to ${formattedPhone}:`, response.data);
-    return {
+    const result = {
       success: true,
       messageId: response.data.messages[0]?.id,
       phone: formattedPhone,
       response: response.data
     };
+    logOutbound(formattedPhone, 'text', null, result);
+    return result;
 
   } catch (error) {
+    logOutbound(formatPhoneNumber(options.to, options.countryCode), 'text', null, null, error);
     console.error('WhatsApp text message failed:', error.response?.data || error.message);
     throw new Error(`WhatsApp text message could not be sent: ${error.response?.data?.error?.message || error.message}`);
   }
@@ -422,7 +455,7 @@ const sendQuotationWhatsApp = async (options) => {
   const { to, customerName, quotationNumber, countryCode } = options;
   return sendLibraryTemplate({
     to,
-    templateName: 'quotation_ready',
+    templateName: 'quotation_ready_v2',
     values: [customerName, quotationNumber],
     countryCode
   });
@@ -432,7 +465,7 @@ const sendInvoiceWhatsApp = async (options) => {
   const { to, customerName, invoiceNumber, amount, dueDate, countryCode } = options;
   return sendLibraryTemplate({
     to,
-    templateName: 'invoice_generated',
+    templateName: 'invoice_generated_v2',
     values: [customerName, invoiceNumber, amount, dueDate],
     countryCode
   });
@@ -820,6 +853,35 @@ const testWhatsAppConfig = async () => {
   }
 };
 
+// Customer lifecycle templates
+const sendTicketCreatedWhatsApp = async ({ to, customerName, ticketNumber, countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'ticket_created', values: [customerName, ticketNumber], countryCode });
+};
+
+const sendTicketUpdatedWhatsApp = async ({ to, customerName, ticketNumber, status, details = '', countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'ticket_updated', values: [customerName, ticketNumber, status, details], countryCode });
+};
+
+const sendTicketResolvedWhatsApp = async ({ to, customerName, ticketNumber, countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'ticket_resolved', values: [customerName, ticketNumber], countryCode });
+};
+
+const sendOrderTrackingWhatsApp = async ({ to, customerName, orderNumber, status, expectedDelivery = '-', countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'order_tracking_update', values: [customerName, orderNumber, status, expectedDelivery], countryCode });
+};
+
+const sendPaymentReceiptWhatsApp = async ({ to, customerName, amount, reference, transactionRef = '-', countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'payment_receipt', values: [customerName, amount, reference, transactionRef], countryCode });
+};
+
+const sendPaymentReminderWhatsApp = async ({ to, customerName, amount, reference, dueDate, countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'payment_reminder', values: [customerName, amount, reference, dueDate], countryCode });
+};
+
+const sendInstallationCompletedWhatsApp = async ({ to, customerName, orderNumber, countryCode = '+91' }) => {
+  return sendLibraryTemplate({ to, templateName: 'installation_completed', values: [customerName, orderNumber], countryCode });
+};
+
 module.exports = {
   sendWhatsAppTemplate,
   uploadWhatsAppMedia,
@@ -841,6 +903,14 @@ module.exports = {
   sendPaymentReceivedWhatsApp,
   sendPaymentPendingWhatsApp,
   sendInvoiceDueWhatsApp,
+  // Customer Lifecycle
+  sendTicketCreatedWhatsApp,
+  sendTicketUpdatedWhatsApp,
+  sendTicketResolvedWhatsApp,
+  sendOrderTrackingWhatsApp,
+  sendPaymentReceiptWhatsApp,
+  sendPaymentReminderWhatsApp,
+  sendInstallationCompletedWhatsApp,
   // Template library support
   getWhatsAppTemplates,
   getCachedWhatsAppTemplates,
@@ -848,5 +918,11 @@ module.exports = {
   sendLibraryTemplate,
   createWhatsAppTemplate,
   testWhatsAppConfig,
-  formatPhoneNumber
-}; 
+  formatPhoneNumber,
+  isWindowOpen
+};
+
+function isWindowOpen(lastInboundAt) {
+  if (!lastInboundAt) return false;
+  return (Date.now() - new Date(lastInboundAt).getTime()) < 24 * 60 * 60 * 1000;
+} 

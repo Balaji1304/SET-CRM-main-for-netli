@@ -70,6 +70,12 @@ exports.convertLeadToCustomer = async (req, res) => {
         lastName: lead.lastName,
         email: lead.email,
         phone: lead.phone,
+        whatsapp: lead.whatsapp,
+        whatsappSameAsPhone: lead.whatsappSameAsPhone,
+        hasWhatsapp: lead.hasWhatsapp,
+        whatsappOptIn: lead.whatsappOptIn,
+        preferredContactMethod: lead.preferredContactMethod,
+        countryCode: lead.countryCode || '+91',
         businessName: lead.businessName,
         address: lead.address,
         customerType: lead.leadType || 'end_user'

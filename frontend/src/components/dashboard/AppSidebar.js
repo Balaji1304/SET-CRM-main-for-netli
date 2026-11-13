@@ -25,7 +25,8 @@ import {
   Settings,
   Plus,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  MessageSquare
 } from 'lucide-react';
 
 // Custom styles for mobile sidebar
@@ -168,6 +169,7 @@ const getNavigation = (userRole) => {
       { name: 'Approved Payments', href: '/dashboard/quotations/approved-payments', icon: CreditCard },
       // System Administration
       { name: 'User Management', href: '/dashboard/user-management', icon: Users },
+      { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageSquare },
       { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
     ],
     // NOTE: accounts_department is defined above to include both pages

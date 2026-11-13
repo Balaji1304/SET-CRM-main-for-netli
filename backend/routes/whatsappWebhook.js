@@ -1,6 +1,59 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const WhatsAppMessage = require('../models/WhatsAppMessage');
+const Lead = require('../models/Lead');
+const Customer = require('../models/Customer');
+const User = require('../models/User');
+
+const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'opt out', 'optout'];
+const OPT_IN_KEYWORDS = ['start', 'subscribe', 'opt in', 'optin'];
+
+const STATUS_RANK = { queued: 0, sent: 1, delivered: 2, read: 3, failed: 4 };
+
+// Meta can send statuses out of order, so timestamps always record but status only moves forward
+const applyStatus = async (s) => {
+  const details = { [`statusTimestamps.${s.status}`]: new Date(s.timestamp * 1000) };
+  if (s.status === 'failed' && s.errors?.[0]) {
+    details.error = { code: s.errors[0].code, title: s.errors[0].title, message: s.errors[0].message };
+  }
+  if (s.pricing) {
+    details.pricing = { model: s.pricing.pricing_model, category: s.pricing.category };
+  }
+  await WhatsAppMessage.updateOne({ wamid: s.id }, { $set: details });
+  const lower = Object.keys(STATUS_RANK).filter(k => STATUS_RANK[k] < STATUS_RANK[s.status]);
+  await WhatsAppMessage.updateOne({ wamid: s.id, status: { $in: lower } }, { $set: { status: s.status } });
+};
+
+// shortcut: matches numbers stored as 10 digits or with country code, not ones with spaces or dashes; normalise stored numbers if that matters
+const phoneQuery = (phone) => {
+  const digits = phone.replace(/\D/g, '');
+  const local = digits.length > 10 ? digits.slice(-10) : digits;
+  return { $or: [{ phone: local }, { whatsapp: local }, { phone: digits }, { whatsapp: digits }] };
+};
+
+// Direct updates so an incomplete lead failing validation can never block an opt-out
+const handleOptChange = async (phone, optIn) => {
+  const q = phoneQuery(phone);
+  const [leads, customers, users] = await Promise.all(
+    [Lead, Customer, User].map(M => M.updateMany(q, { $set: { whatsappOptIn: optIn } }))
+  );
+  console.log(`WhatsApp ${optIn ? 'opt-in' : 'opt-out'}: ${phone} (leads ${leads.matchedCount}, customers ${customers.matchedCount}, users ${users.matchedCount})`);
+};
+
+const handleInboundMessage = async (m, displayPhone) => {
+  const lead = await Lead.findOneAndUpdate(phoneQuery(m.from), { $set: { lastInboundAt: new Date() } }, { projection: { _id: 1 } });
+  await WhatsAppMessage.create({
+    wamid: m.id,
+    direction: 'inbound',
+    to: displayPhone || '',
+    from: m.from,
+    type: m.type || 'text',
+    status: 'delivered',
+    lead: lead?._id,
+    meta: { body: m.text?.body, timestamp: m.timestamp }
+  });
+};
 
 // @desc    Webhook for WhatsApp Business API
 // @route   POST /api/whatsapp/webhook
@@ -26,10 +79,8 @@ router.post('/webhook', (req, res) => {
     return res.sendStatus(403);
   }
 
-  // Respond 200 immediately so Meta doesn't retry
   res.status(200).json({ status: 'success' });
 
-  // Process asynchronously
   const body = req.body;
   if (body.entry && Array.isArray(body.entry)) {
     body.entry.forEach(entry => {
@@ -37,11 +88,28 @@ router.post('/webhook', (req, res) => {
       entry.changes.forEach(change => {
         if (change.field !== 'messages') return;
         const value = change.value;
+
         if (value.statuses) {
-          value.statuses.forEach(s => console.log(`Message ${s.id} status: ${s.status}`));
+          value.statuses.forEach(s => {
+            console.log(`Message ${s.id} status: ${s.status}`);
+            applyStatus(s).catch(e => console.error('WA status update failed:', e.message));
+          });
         }
+
         if (value.messages) {
-          value.messages.forEach(m => console.log('Incoming message:', m));
+          value.messages.forEach(m => {
+            console.log('Incoming message:', m.type, 'from', m.from);
+            handleInboundMessage(m, value.metadata?.display_phone_number).catch(e =>
+              console.error('WA inbound log failed:', e.message)
+            );
+
+            const body = (m.text?.body || '').trim().toLowerCase();
+            if (OPT_OUT_KEYWORDS.includes(body)) {
+              handleOptChange(m.from, false).catch(e => console.error('Opt-out failed:', e.message));
+            } else if (OPT_IN_KEYWORDS.includes(body)) {
+              handleOptChange(m.from, true).catch(e => console.error('Opt-in failed:', e.message));
+            }
+          });
         }
       });
     });
@@ -66,3 +134,5 @@ router.get('/webhook', (req, res) => {
 });
 
 module.exports = router;
+module.exports.applyStatus = applyStatus;
+module.exports.handleOptChange = handleOptChange;

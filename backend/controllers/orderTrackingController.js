@@ -3,6 +3,7 @@ const CustomerPurchase = require('../models/CustomerPurchase');
 const User = require('../models/User');
 const { errorHandler, AppError } = require('../utils/errorHandler');
 const NotificationService = require('../utils/notificationService');
+const { sendCustomerWhatsApp } = require('../utils/sendNotification');
 
 // @desc    Create initial tracking record for a purchase
 // @route   POST /api/tracking/create
@@ -163,6 +164,13 @@ exports.updateTrackingStatus = async (req, res) => {
             trackingNumber: tracking.trackingNumber,
             status: status
           }
+        });
+        sendCustomerWhatsApp('order_tracking', purchase.customerId, {
+          orderNumber: purchase.purchaseID,
+          status: title || status,
+          expectedDelivery: tracking.estimatedDelivery
+            ? new Date(tracking.estimatedDelivery).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+            : 'To be confirmed'
         });
       }
     }

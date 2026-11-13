@@ -49,6 +49,7 @@ import InstallationComplete from './app/installations/[id]/complete/page';
 import InstallationCompletedSummary from './app/installations/[id]/completed/page';
 import CustomerSignoff from './app/installations/[id]/signoff/page';
 import UserManagementPage from './app/user-management/page';
+import WhatsAppPage from './app/whatsapp/page';
 
 
 function App() {
@@ -290,6 +291,11 @@ function App() {
             <Route path="user-management" element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <UserManagementPage />
+              </ProtectedRoute>
+            } />
+            <Route path="whatsapp" element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <WhatsAppPage />
               </ProtectedRoute>
             } />
           </Route>

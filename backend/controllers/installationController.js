@@ -3,6 +3,7 @@ const OrderTracking = require('../models/OrderTracking');
 const User = require('../models/User');
 const { AppError, errorHandler } = require('../utils/errorHandler');
 const NotificationService = require('../utils/notificationService');
+const { sendCustomerWhatsApp } = require('../utils/sendNotification');
 const { updateCustomerStatus } = require('./customerPurchaseController');
 const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
@@ -208,7 +209,7 @@ exports.completeInstallation = async (req, res) => {
     const purchase = await CustomerPurchase.findOne({
       _id: req.params.purchaseId,
       assignedEngineerId: req.user._id
-    }).populate('customerId', 'firstName lastName email phone address businessName');
+    }).populate('customerId', 'firstName lastName email phone whatsapp whatsappSameAsPhone hasWhatsapp whatsappOptIn preferredContactMethod countryCode address businessName');
 
     if (!purchase) {
       throw new AppError('Assignment not found or not assigned to you', 404);
@@ -299,6 +300,7 @@ exports.completeInstallation = async (req, res) => {
     } catch (notificationError) {
       console.error('Failed to create completion notification:', notificationError);
     }
+    sendCustomerWhatsApp('installation_completed', purchase.customerId, { orderNumber: purchase.purchaseID });
 
     // Build summary payload
     let products = [];

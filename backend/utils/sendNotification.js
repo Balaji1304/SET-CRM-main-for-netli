@@ -20,7 +20,14 @@ const {
   uploadWhatsAppMedia,
   sendWhatsAppDocument,
   sendWhatsAppText,
-  sendLibraryTemplate
+  sendLibraryTemplate,
+  sendTicketCreatedWhatsApp,
+  sendTicketUpdatedWhatsApp,
+  sendTicketResolvedWhatsApp,
+  sendOrderTrackingWhatsApp,
+  sendPaymentReceiptWhatsApp,
+  sendPaymentReminderWhatsApp,
+  sendInstallationCompletedWhatsApp
 } = require('./sendWhatsApp');
 
 // Determine available contact methods for a customer using preferredContactMethod
@@ -57,11 +64,21 @@ const sendNotification = async (options) => {
     whatsapp: { attempted: false, success: false, error: null }
   };
 
-  const availableMethods = getAvailableContactMethods(customer);
+  let availableMethods = getAvailableContactMethods(customer);
+  let channels = preferences;
+  // Opted-out contacts never get WhatsApp; email replaces it when they have an address
+  if (customer.whatsappOptIn === false) {
+    availableMethods = availableMethods.filter(m => m !== 'whatsapp');
+    if (customer.email && preferences.includes('whatsapp')) {
+      if (!availableMethods.includes('email')) availableMethods.push('email');
+      channels = [...new Set([...preferences, 'email'])];
+    }
+    console.log(`WhatsApp opt-out: skipping WhatsApp ${type} for ${customer.firstName || 'customer'}`);
+  }
   console.log(`Available contact methods for ${customer.firstName || 'customer'}: ${availableMethods.join(', ')}`);
 
   // Send via Email if available and preferred
-  if (availableMethods.includes('email') && preferences.includes('email')) {
+  if (availableMethods.includes('email') && channels.includes('email')) {
     results.email.attempted = true;
     try {
       await sendEmailNotification(type, customer, data, attachments);
@@ -74,7 +91,7 @@ const sendNotification = async (options) => {
   }
 
   // Send via WhatsApp if available and preferred
-  if (availableMethods.includes('whatsapp') && preferences.includes('whatsapp')) {
+  if (availableMethods.includes('whatsapp') && channels.includes('whatsapp')) {
     results.whatsapp.attempted = true;
     try {
       await sendWhatsAppNotification(type, customer, data, documentUrl, pdfBuffer, pdfFilename);
@@ -148,8 +165,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
   
   if (customer.hasWhatsapp === false) {
     throw new Error('Customer has no WhatsApp number');
-  }
-  
+  }  
   if (customer.whatsappSameAsPhone && customer.phone) {
     whatsappNumber = customer.phone;
   } else if (customer.whatsapp) {
@@ -162,13 +178,14 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
   }
 
   const countryCode = customer.countryCode || '+91';
+  const customerName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Customer';
 
   switch (type) {
     case 'quotation':
       // Send template message for quotation
       const quotationResult = await sendQuotationWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         quotationNumber: data.quotationNumber,
         quotationUrl: data.paymentLink || data.quotationUrl || 'Portal login required',
         countryCode
@@ -186,7 +203,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'invoice':
       const invoiceResult = await sendInvoiceWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         invoiceNumber: data.invoiceNumber,
         amount: `₹${data.total}`,
         dueDate: data.dueDate || '-',
@@ -235,9 +252,73 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
       // Authentication template removed - requires business verification
       return await sendAccountCreatedWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         loginUsername: data.loginUsername || data.email || data.phone,
         loginUrl: process.env.FRONTEND_URL || 'your-crm-portal.com',
+        countryCode
+      });
+
+    case 'ticket_created':
+      return await sendTicketCreatedWhatsApp({
+        to: whatsappNumber,
+        customerName,
+        ticketNumber: data.ticketNumber,
+        countryCode
+      });
+
+    case 'ticket_updated':
+      return await sendTicketUpdatedWhatsApp({
+        to: whatsappNumber,
+        customerName,
+        ticketNumber: data.ticketNumber,
+        status: data.status,
+        details: data.details || '',
+        countryCode
+      });
+
+    case 'ticket_resolved':
+      return await sendTicketResolvedWhatsApp({
+        to: whatsappNumber,
+        customerName,
+        ticketNumber: data.ticketNumber,
+        countryCode
+      });
+
+    case 'order_tracking':
+      return await sendOrderTrackingWhatsApp({
+        to: whatsappNumber,
+        customerName,
+        orderNumber: data.orderNumber,
+        status: data.status,
+        expectedDelivery: data.expectedDelivery || '-',
+        countryCode
+      });
+
+    case 'payment_receipt':
+      return await sendPaymentReceiptWhatsApp({
+        to: whatsappNumber,
+        customerName,
+        amount: data.amount,
+        reference: data.reference,
+        transactionRef: data.transactionRef || '-',
+        countryCode
+      });
+
+    case 'payment_reminder':
+      return await sendPaymentReminderWhatsApp({
+        to: whatsappNumber,
+        customerName,
+        amount: data.amount,
+        reference: data.reference,
+        dueDate: data.dueDate,
+        countryCode
+      });
+
+    case 'installation_completed':
+      return await sendInstallationCompletedWhatsApp({
+        to: whatsappNumber,
+        customerName,
+        orderNumber: data.orderNumber,
         countryCode
       });
 
@@ -602,10 +683,10 @@ const sendServiceEngineerWhatsApp = async (type, engineer, data) => {
     const countryCode = engineer.countryCode || '+91';
 
     const libraryTemplateMap = {
-      installation_assignment: { name: 'installation_assignment', values: [data.orderNumber, data.customerName, data.customerAddress, data.installationDate] },
-      installation_scheduled: { name: 'installation_scheduled', values: [engineer.name, data.customerName, data.installationDate, data.orderNumber] },
-      installation_reminder: { name: 'installation_reminder', values: [engineer.name, data.customerName, data.customerPhone, data.installationDate, data.orderNumber] },
-      urgent_customer_contact: { name: 'urgent_customer_contact', values: [engineer.name, data.customerName, data.customerPhone, data.message, data.orderNumber] }
+      installation_assignment: { name: 'installation_assignment_v2', values: [data.orderNumber, data.customerName, data.customerAddress, data.installationDate] },
+      installation_scheduled: { name: 'installation_scheduled_v2', values: [engineer.name, data.customerName, data.installationDate, data.orderNumber] },
+      installation_reminder: { name: 'installation_reminder_v2', values: [engineer.name, data.customerName, data.customerPhone, data.installationDate, data.orderNumber] },
+      urgent_customer_contact: { name: 'urgent_customer_contact_v2', values: [engineer.name, data.customerName, data.customerPhone, data.message, data.orderNumber] }
     };
 
     const libraryEntry = libraryTemplateMap[type];
@@ -674,10 +755,10 @@ const sendSalesTeamWhatsApp = async (type, salesTeamUser, data) => {
     const countryCode = salesTeamUser.countryCode || '+91';
 
     const libraryTemplateMap = {
-      lead_assignment: { name: 'lead_assignment', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.leadEmail, data.leadSource, data.priority || 'medium'] },
-      follow_up_reminder: { name: 'follow_up_reminder', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.daysSinceLastContact] },
-      quotation_pending: { name: 'quotation_pending', values: [salesTeamUser.name, data.quotationNumber, data.customerName, data.amount, data.daysWaiting || 0] },
-      hot_lead_alert: { name: 'hot_lead_alert', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.reason] }
+      lead_assignment: { name: 'lead_assignment_v2', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.leadEmail, data.leadSource, data.priority || 'medium'] },
+      follow_up_reminder: { name: 'follow_up_reminder_v2', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.daysSinceLastContact] },
+      quotation_pending: { name: 'quotation_pending_v2', values: [salesTeamUser.name, data.quotationNumber, data.customerName, data.amount, data.daysWaiting || 0] },
+      hot_lead_alert: { name: 'hot_lead_alert_v2', values: [salesTeamUser.name, data.leadName, data.leadPhone, data.reason] }
     };
 
     const libraryEntry = libraryTemplateMap[type];
@@ -719,9 +800,9 @@ const sendAccountsTeamWhatsApp = async (type, accountsUser, data) => {
     const countryCode = accountsUser.countryCode || '+91';
 
     const libraryTemplateMap = {
-      payment_received: { name: 'payment_received', values: [accountsUser.name, data.customerName, data.amount, data.paymentMethod, data.invoiceNumber] },
-      payment_pending: { name: 'payment_pending', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.daysOverdue] },
-      invoice_due: { name: 'invoice_due', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.dueDate, data.daysUntilDue] }
+      payment_received: { name: 'payment_received_v2', values: [accountsUser.name, data.customerName, data.amount, data.paymentMethod, data.invoiceNumber] },
+      payment_pending: { name: 'payment_pending_v2', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.daysOverdue] },
+      invoice_due: { name: 'invoice_due_v2', values: [accountsUser.name, data.customerName, data.amount, data.invoiceNumber, data.dueDate, data.daysUntilDue] }
     };
 
     const libraryEntry = libraryTemplateMap[type];
@@ -744,7 +825,25 @@ const sendAccountsTeamWhatsApp = async (type, accountsUser, data) => {
   }
 };
 
+// Customer lifecycle WhatsApp (tickets, orders, payments). Never throws, so it can't break the request that triggered it.
+const sendCustomerWhatsApp = async (type, contact, data) => {
+  try {
+    if (!contact) return { skipped: 'no_contact' };
+    const c = typeof contact.toObject === 'function' ? contact.toObject() : contact;
+    if (c.whatsappOptIn === false || c.hasWhatsapp === false || c.preferredContactMethod === 'email') {
+      return { skipped: 'not_whatsapp' };
+    }
+    // User accounts have a single `name`; Leads and Customers have first/last
+    const customer = c.firstName ? c : { ...c, firstName: c.name, lastName: '' };
+    return await sendWhatsAppNotification(type, customer, data);
+  } catch (error) {
+    console.error(`Customer WhatsApp ${type} failed:`, error.message);
+    return { error: error.message };
+  }
+};
+
 module.exports = {
+  sendCustomerWhatsApp,
   sendNotification,
   sendQuotationNotification,
   sendInvoiceNotification,
