@@ -64,11 +64,21 @@ const sendNotification = async (options) => {
     whatsapp: { attempted: false, success: false, error: null }
   };
 
-  const availableMethods = getAvailableContactMethods(customer);
+  let availableMethods = getAvailableContactMethods(customer);
+  let channels = preferences;
+  // Opted-out contacts never get WhatsApp; email replaces it when they have an address
+  if (customer.whatsappOptIn === false) {
+    availableMethods = availableMethods.filter(m => m !== 'whatsapp');
+    if (customer.email && preferences.includes('whatsapp')) {
+      if (!availableMethods.includes('email')) availableMethods.push('email');
+      channels = [...new Set([...preferences, 'email'])];
+    }
+    console.log(`WhatsApp opt-out: skipping WhatsApp ${type} for ${customer.firstName || 'customer'}`);
+  }
   console.log(`Available contact methods for ${customer.firstName || 'customer'}: ${availableMethods.join(', ')}`);
 
   // Send via Email if available and preferred
-  if (availableMethods.includes('email') && preferences.includes('email')) {
+  if (availableMethods.includes('email') && channels.includes('email')) {
     results.email.attempted = true;
     try {
       await sendEmailNotification(type, customer, data, attachments);
@@ -81,7 +91,7 @@ const sendNotification = async (options) => {
   }
 
   // Send via WhatsApp if available and preferred
-  if (availableMethods.includes('whatsapp') && preferences.includes('whatsapp')) {
+  if (availableMethods.includes('whatsapp') && channels.includes('whatsapp')) {
     results.whatsapp.attempted = true;
     try {
       await sendWhatsAppNotification(type, customer, data, documentUrl, pdfBuffer, pdfFilename);
@@ -155,13 +165,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
   
   if (customer.hasWhatsapp === false) {
     throw new Error('Customer has no WhatsApp number');
-  }
-
-  if (customer.whatsappOptIn === false) {
-    console.log(`WhatsApp opt-out: skipping ${type} for ${customer.firstName} (opted out)`);
-    return { success: false, reason: 'opted_out' };
-  }
-  
+  }  
   if (customer.whatsappSameAsPhone && customer.phone) {
     whatsappNumber = customer.phone;
   } else if (customer.whatsapp) {
