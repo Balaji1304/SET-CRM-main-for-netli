@@ -7,6 +7,22 @@ const Lead = require('../models/Lead');
 const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'opt out', 'optout'];
 const OPT_IN_KEYWORDS = ['start', 'subscribe', 'opt in', 'optin'];
 
+const STATUS_RANK = { queued: 0, sent: 1, delivered: 2, read: 3, failed: 4 };
+
+// Meta can send statuses out of order, so timestamps always record but status only moves forward
+const applyStatus = async (s) => {
+  const details = { [`statusTimestamps.${s.status}`]: new Date(s.timestamp * 1000) };
+  if (s.status === 'failed' && s.errors?.[0]) {
+    details.error = { code: s.errors[0].code, title: s.errors[0].title, message: s.errors[0].message };
+  }
+  if (s.pricing) {
+    details.pricing = { model: s.pricing.pricing_model, category: s.pricing.category };
+  }
+  await WhatsAppMessage.updateOne({ wamid: s.id }, { $set: details });
+  const lower = Object.keys(STATUS_RANK).filter(k => STATUS_RANK[k] < STATUS_RANK[s.status]);
+  await WhatsAppMessage.updateOne({ wamid: s.id, status: { $in: lower } }, { $set: { status: s.status } });
+};
+
 const findLeadByPhone = async (phone) => {
   const digits = phone.replace(/\D/g, '');
   const local = digits.length > 10 ? digits.slice(-10) : digits;
@@ -78,17 +94,7 @@ router.post('/webhook', (req, res) => {
         if (value.statuses) {
           value.statuses.forEach(s => {
             console.log(`Message ${s.id} status: ${s.status}`);
-            const statusField = `statusTimestamps.${s.status}`;
-            const update = { status: s.status, [statusField]: new Date(s.timestamp * 1000) };
-            if (s.status === 'failed' && s.errors?.[0]) {
-              update.error = { code: s.errors[0].code, title: s.errors[0].title, message: s.errors[0].message };
-            }
-            if (s.pricing) {
-              update.pricing = { model: s.pricing.pricing_model, category: s.pricing.category };
-            }
-            WhatsAppMessage.findOneAndUpdate({ wamid: s.id }, { $set: update }).catch(e =>
-              console.error('WA status update failed:', e.message)
-            );
+            applyStatus(s).catch(e => console.error('WA status update failed:', e.message));
           });
         }
 
@@ -130,3 +136,4 @@ router.get('/webhook', (req, res) => {
 });
 
 module.exports = router;
+module.exports.applyStatus = applyStatus;

@@ -112,6 +112,28 @@ describe('status update idempotency', () => {
   });
 });
 
+describe('webhook status ordering', () => {
+  const { applyStatus } = require('../routes/whatsappWebhook');
+  const ts = Math.floor(Date.now() / 1000);
+
+  test('a late delivered event does not move a read message back', async () => {
+    await WhatsAppMessage.create({ direction: 'outbound', to: 'test_order_999', type: 'template', wamid: 'wamid.order_test', status: 'sent' });
+    await applyStatus({ id: 'wamid.order_test', status: 'read', timestamp: ts });
+    await applyStatus({ id: 'wamid.order_test', status: 'delivered', timestamp: ts });
+    const row = await WhatsAppMessage.findOne({ wamid: 'wamid.order_test' });
+    expect(row.status).toBe('read');
+    expect(row.statusTimestamps.delivered).toBeDefined();
+  });
+
+  test('failed records its error', async () => {
+    await WhatsAppMessage.create({ direction: 'outbound', to: 'test_order_999', type: 'template', wamid: 'wamid.order_fail', status: 'sent' });
+    await applyStatus({ id: 'wamid.order_fail', status: 'failed', timestamp: ts, errors: [{ code: 131049, title: 'x', message: 'y' }] });
+    const row = await WhatsAppMessage.findOne({ wamid: 'wamid.order_fail' });
+    expect(row.status).toBe('failed');
+    expect(row.error.code).toBe(131049);
+  });
+});
+
 describe('sendWithRetry', () => {
   const { sendWithRetry } = require('../utils/whatsappQueue');
   const fast = { baseDelayMs: 1 };
