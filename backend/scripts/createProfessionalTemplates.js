@@ -25,7 +25,8 @@ const TEMPLATES = [
     `Dear {{1}},\n\nInvoice *{{2}}* for {{3}} has been issued by ${COMPANY}. Payment is due by {{4}}.\n\nFor any billing queries, please reply to this message.\n\nRegards,\nAccounts Team`,
     ['Ravi Kumar', 'INV-1024', '₹3,59,964', '15 Dec 2026']],
   ['account_created_v2',
-    `Dear {{1}},\n\nYour customer account with ${COMPANY} has been created successfully.\n\nUsername: {{2}}\nPortal: {{3}}\n\nSign in to track your orders, payments and service requests. Please do not share your login details with anyone.\n\nRegards,\nCustomer Care Team`,
+    // Meta rejected a version mentioning login secrecy and order tracking as INCORRECT_CATEGORY
+    `Dear {{1}},\n\nYour account with ${COMPANY} has been created successfully.\n\nUsername: {{2}}\nPortal link: {{3}}\n\nYou can log in to view your details and manage your account.\n\nRegards,\nCustomer Care Team`,
     ['Ravi Kumar', 'ravi@example.com', 'https://portal.example.com']],
 
   // Internal team replacements
