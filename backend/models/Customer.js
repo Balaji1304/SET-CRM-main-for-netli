@@ -67,6 +67,10 @@ const customerSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  whatsappOptIn: {
+    type: Boolean,
+    default: true
+  },
   countryCode: {
     type: String,
     default: '+91'

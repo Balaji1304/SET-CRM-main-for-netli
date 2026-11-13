@@ -55,6 +55,10 @@ const userSchema = new mongoose.Schema({
       message: 'Please enter a valid 10-digit WhatsApp number'
     }
   },
+  whatsappOptIn: {
+    type: Boolean,
+    default: true
+  },
   countryCode: {
     type: String,
     default: '+91'

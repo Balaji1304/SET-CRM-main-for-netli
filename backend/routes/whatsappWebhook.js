@@ -3,6 +3,8 @@ const router = express.Router();
 const crypto = require('crypto');
 const WhatsAppMessage = require('../models/WhatsAppMessage');
 const Lead = require('../models/Lead');
+const Customer = require('../models/Customer');
+const User = require('../models/User');
 
 const OPT_OUT_KEYWORDS = ['stop', 'unsubscribe', 'opt out', 'optout'];
 const OPT_IN_KEYWORDS = ['start', 'subscribe', 'opt in', 'optin'];
@@ -23,38 +25,34 @@ const applyStatus = async (s) => {
   await WhatsAppMessage.updateOne({ wamid: s.id, status: { $in: lower } }, { $set: { status: s.status } });
 };
 
-const findLeadByPhone = async (phone) => {
+// shortcut: matches numbers stored as 10 digits or with country code, not ones with spaces or dashes; normalise stored numbers if that matters
+const phoneQuery = (phone) => {
   const digits = phone.replace(/\D/g, '');
   const local = digits.length > 10 ? digits.slice(-10) : digits;
-  return Lead.findOne({ $or: [{ phone: local }, { whatsapp: local }, { phone: digits }, { whatsapp: digits }] });
+  return { $or: [{ phone: local }, { whatsapp: local }, { phone: digits }, { whatsapp: digits }] };
 };
 
+// Direct updates so an incomplete lead failing validation can never block an opt-out
 const handleOptChange = async (phone, optIn) => {
-  const lead = await findLeadByPhone(phone);
-  if (lead) {
-    lead.whatsappOptIn = optIn;
-    await lead.save();
-    console.log(`WhatsApp ${optIn ? 'opt-in' : 'opt-out'}: ${lead.firstName} (${phone})`);
-  }
+  const q = phoneQuery(phone);
+  const [leads, customers, users] = await Promise.all(
+    [Lead, Customer, User].map(M => M.updateMany(q, { $set: { whatsappOptIn: optIn } }))
+  );
+  console.log(`WhatsApp ${optIn ? 'opt-in' : 'opt-out'}: ${phone} (leads ${leads.matchedCount}, customers ${customers.matchedCount}, users ${users.matchedCount})`);
 };
 
 const handleInboundMessage = async (m, displayPhone) => {
-  const lead = await findLeadByPhone(m.from);
-  const msgDoc = {
+  const lead = await Lead.findOneAndUpdate(phoneQuery(m.from), { $set: { lastInboundAt: new Date() } }, { projection: { _id: 1 } });
+  await WhatsAppMessage.create({
     wamid: m.id,
     direction: 'inbound',
     to: displayPhone || '',
     from: m.from,
     type: m.type || 'text',
     status: 'delivered',
+    lead: lead?._id,
     meta: { body: m.text?.body, timestamp: m.timestamp }
-  };
-  if (lead) {
-    msgDoc.lead = lead._id;
-    lead.lastInboundAt = new Date();
-    await lead.save();
-  }
-  await WhatsAppMessage.create(msgDoc);
+  });
 };
 
 // @desc    Webhook for WhatsApp Business API
@@ -137,3 +135,4 @@ router.get('/webhook', (req, res) => {
 
 module.exports = router;
 module.exports.applyStatus = applyStatus;
+module.exports.handleOptChange = handleOptChange;

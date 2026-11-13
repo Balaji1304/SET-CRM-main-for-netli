@@ -1429,6 +1429,8 @@ const approveQuotation = async (quotationInstance) => {
         whatsapp: lead.whatsapp || undefined,
         whatsappSameAsPhone: lead.whatsappSameAsPhone,
         hasWhatsapp: lead.hasWhatsapp,
+        whatsappOptIn: lead.whatsappOptIn,
+        preferredContactMethod: lead.preferredContactMethod,
         countryCode: lead.countryCode || '+91',
         businessName: lead.businessName || '',
         address: lead.billingAddress || lead.address || '',

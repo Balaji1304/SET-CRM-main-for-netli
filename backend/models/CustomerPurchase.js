@@ -74,6 +74,10 @@ const customerPurchaseSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  paymentReminderSentAt: {
+    type: Date,
+    default: null
+  },
   estimatedDispatchDate: {
     type: Date,
     default: null

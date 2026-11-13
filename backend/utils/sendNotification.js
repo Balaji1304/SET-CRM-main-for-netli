@@ -178,13 +178,14 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
   }
 
   const countryCode = customer.countryCode || '+91';
+  const customerName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'Customer';
 
   switch (type) {
     case 'quotation':
       // Send template message for quotation
       const quotationResult = await sendQuotationWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         quotationNumber: data.quotationNumber,
         quotationUrl: data.paymentLink || data.quotationUrl || 'Portal login required',
         countryCode
@@ -202,7 +203,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'invoice':
       const invoiceResult = await sendInvoiceWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         invoiceNumber: data.invoiceNumber,
         amount: `₹${data.total}`,
         dueDate: data.dueDate || '-',
@@ -251,7 +252,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
       // Authentication template removed - requires business verification
       return await sendAccountCreatedWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         loginUsername: data.loginUsername || data.email || data.phone,
         loginUrl: process.env.FRONTEND_URL || 'your-crm-portal.com',
         countryCode
@@ -260,7 +261,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'ticket_created':
       return await sendTicketCreatedWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         ticketNumber: data.ticketNumber,
         countryCode
       });
@@ -268,7 +269,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'ticket_updated':
       return await sendTicketUpdatedWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         ticketNumber: data.ticketNumber,
         status: data.status,
         details: data.details || '',
@@ -278,7 +279,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'ticket_resolved':
       return await sendTicketResolvedWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         ticketNumber: data.ticketNumber,
         countryCode
       });
@@ -286,7 +287,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'order_tracking':
       return await sendOrderTrackingWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         orderNumber: data.orderNumber,
         status: data.status,
         expectedDelivery: data.expectedDelivery || '-',
@@ -296,7 +297,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'payment_receipt':
       return await sendPaymentReceiptWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         amount: data.amount,
         reference: data.reference,
         transactionRef: data.transactionRef || '-',
@@ -306,7 +307,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'payment_reminder':
       return await sendPaymentReminderWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         amount: data.amount,
         reference: data.reference,
         dueDate: data.dueDate,
@@ -316,7 +317,7 @@ const sendWhatsAppNotification = async (type, customer, data, documentUrl = null
     case 'installation_completed':
       return await sendInstallationCompletedWhatsApp({
         to: whatsappNumber,
-        customerName: `${customer.firstName} ${customer.lastName}`,
+        customerName,
         orderNumber: data.orderNumber,
         countryCode
       });
@@ -824,7 +825,25 @@ const sendAccountsTeamWhatsApp = async (type, accountsUser, data) => {
   }
 };
 
+// Customer lifecycle WhatsApp (tickets, orders, payments). Never throws, so it can't break the request that triggered it.
+const sendCustomerWhatsApp = async (type, contact, data) => {
+  try {
+    if (!contact) return { skipped: 'no_contact' };
+    const c = typeof contact.toObject === 'function' ? contact.toObject() : contact;
+    if (c.whatsappOptIn === false || c.hasWhatsapp === false || c.preferredContactMethod === 'email') {
+      return { skipped: 'not_whatsapp' };
+    }
+    // User accounts have a single `name`; Leads and Customers have first/last
+    const customer = c.firstName ? c : { ...c, firstName: c.name, lastName: '' };
+    return await sendWhatsAppNotification(type, customer, data);
+  } catch (error) {
+    console.error(`Customer WhatsApp ${type} failed:`, error.message);
+    return { error: error.message };
+  }
+};
+
 module.exports = {
+  sendCustomerWhatsApp,
   sendNotification,
   sendQuotationNotification,
   sendInvoiceNotification,

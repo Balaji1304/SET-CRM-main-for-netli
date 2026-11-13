@@ -3,6 +3,9 @@ const CustomerPurchase = require('../models/CustomerPurchase');
 const Notification = require('../models/Notification');
 const NotificationService = require('./notificationService');
 const { sendDailyInstallationReminders } = require('./installationReminders');
+const { sendCustomerWhatsApp } = require('./sendNotification');
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Check if an unread notification of the same type already exists for a recipient + entity.
 // When recipientId is null, the check is done across all recipients (team fan-out dedup).
@@ -63,12 +66,11 @@ const runPaymentOverdueCheck = async () => {
       isFullyPaid: false,
       remainingAmount: { $gt: 0 },
       purchaseDate: { $lte: cutoffDate }
-    }).populate('customerId', 'firstName lastName name businessName');
+    }).populate('customerId', 'firstName lastName name businessName phone whatsapp whatsappSameAsPhone hasWhatsapp whatsappOptIn preferredContactMethod countryCode');
 
     let sent = 0;
+    let reminded = 0;
     for (const purchase of overduePurchases) {
-      if (await alreadyNotified(null, 'payment_overdue', purchase._id)) continue;
-
       const customer = purchase.customerId;
       const customerName = customer
         ? (customer.firstName ? `${customer.firstName} ${customer.lastName || ''}`.trim() : customer.name) || customer.businessName
@@ -76,19 +78,35 @@ const runPaymentOverdueCheck = async () => {
 
       const daysOverdue = Math.floor((now - purchase.purchaseDate) / (24 * 60 * 60 * 1000));
 
-      await NotificationService.createAccountsNotification('payment_overdue', {
-        customerName,
-        amount: purchase.remainingAmount,
-        daysOverdue,
-        customerPhone: customer?.phone || '',
-        invoiceNumber: String(purchase.purchaseID || ''),
-        entityId: purchase._id
-      });
+      if (!(await alreadyNotified(null, 'payment_overdue', purchase._id))) {
+        await NotificationService.createAccountsNotification('payment_overdue', {
+          customerName,
+          amount: purchase.remainingAmount,
+          daysOverdue,
+          customerPhone: customer?.phone || '',
+          invoiceNumber: String(purchase.purchaseID || ''),
+          entityId: purchase._id
+        });
+        sent += 1;
+      }
 
-      sent += 1;
+      // Customer reminder at most once a week per order; failures also wait a week so a bad number isn't retried every run
+      if (!purchase.paymentReminderSentAt || now - purchase.paymentReminderSentAt >= WEEK_MS) {
+        const dueDate = new Date(purchase.purchaseDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const result = await sendCustomerWhatsApp('payment_reminder', customer, {
+          amount: Number(purchase.remainingAmount).toLocaleString('en-IN'),
+          reference: `order ${purchase.purchaseID}`,
+          dueDate: dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        });
+        if (!result.skipped) {
+          await CustomerPurchase.updateOne({ _id: purchase._id }, { $set: { paymentReminderSentAt: now } });
+          reminded += 1;
+        }
+      }
     }
 
     if (sent > 0) console.log(`[reminderScheduler] Sent payment overdue alerts for ${sent} purchases`);
+    if (reminded > 0) console.log(`[reminderScheduler] Sent customer payment reminders for ${reminded} purchases`);
   } catch (error) {
     console.error('[reminderScheduler] runPaymentOverdueCheck error:', error.message);
   }

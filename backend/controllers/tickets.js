@@ -3,6 +3,31 @@ const User = require('../models/User');
 const { AppError, errorHandler } = require('../utils/errorHandler');
 const cloudinary = require('../config/cloudinary');
 const NotificationService = require('../utils/notificationService');
+const { sendCustomerWhatsApp } = require('../utils/sendNotification');
+
+const ticketRef = (ticket) => `TKT-${String(ticket._id).slice(-6).toUpperCase()}`;
+
+const TICKET_STATUS_MESSAGES = {
+  assigned: ['Engineer assigned', 'A service engineer has been assigned to your request.'],
+  in_progress: ['In progress', 'Our engineer is working on your request.'],
+  awaiting_customer: ['Awaiting your response', 'Our engineer needs more information from you. Please check the ticket in the customer portal.'],
+  closed: ['Closed', 'Your ticket has been closed.'],
+  reopened: ['Reopened', 'Your ticket has been reopened and our team will follow up.']
+};
+
+// previousStatus null means the ticket was just created. Not awaited: WhatsApp must never delay or fail the response.
+const notifyTicketCustomer = (ticket, previousStatus) => {
+  if (previousStatus === ticket.status) return;
+  User.findById(ticket.user?._id || ticket.user).select('name phone whatsapp countryCode whatsappOptIn').lean()
+    .then(user => {
+      const data = { ticketNumber: ticketRef(ticket) };
+      if (previousStatus == null) return sendCustomerWhatsApp('ticket_created', user, data);
+      if (ticket.status === 'resolved') return sendCustomerWhatsApp('ticket_resolved', user, data);
+      const msg = TICKET_STATUS_MESSAGES[ticket.status];
+      if (msg) return sendCustomerWhatsApp('ticket_updated', user, { ...data, status: msg[0], details: msg[1] });
+    })
+    .catch(e => console.error('Ticket WhatsApp failed:', e.message));
+};
 
 // @desc    Get all tickets
 // @route   GET /api/tickets
@@ -80,7 +105,8 @@ exports.createTicket = async (req, res) => {
       console.error('Failed to create ticket notification:', notificationError);
       // Continue without failing the ticket creation
     }
-    
+    notifyTicketCustomer(ticket, null);
+
     res.status(201).json({ success: true, data: populatedTicket });
   } catch (error) {
     errorHandler(res, error);
@@ -148,7 +174,8 @@ exports.assignTicket = async (req, res) => {
     if (!ticket) throw new AppError('Ticket not found', 404);
     
     const wasAssigned = ticket.assignedEngineerId;
-    
+    const previousStatus = ticket.status;
+
     // Prevent unassigning if ticket already has an engineer assigned
     if (!engineerId && wasAssigned) {
       throw new AppError('Engineer assignment cannot be reverted once assigned', 400);
@@ -170,7 +197,8 @@ exports.assignTicket = async (req, res) => {
         console.error('Failed to create assignment notification:', notificationError);
       }
     }
-    
+    notifyTicketCustomer(ticket, previousStatus);
+
     // Populate and return the complete ticket data
     const populatedTicket = await Ticket.findById(ticket._id)
       .populate('user', 'name email phone')
@@ -190,11 +218,13 @@ exports.updateTicketMeta = async (req, res) => {
     const { priority, category, action } = req.body;
     const ticket = await Ticket.findById(req.params.id);
     if (!ticket) throw new AppError('Ticket not found', 404);
+    const previousStatus = ticket.status;
     if (priority && ['low', 'medium', 'high'].includes(priority)) ticket.priority = priority;
     if (category) ticket.category = String(category);
     if (action === 'close') ticket.status = 'closed';
     if (action === 'reopen' && ['resolved', 'closed'].includes(ticket.status)) ticket.status = 'reopened';
     await ticket.save();
+    notifyTicketCustomer(ticket, previousStatus);
     
     // Populate and return the complete ticket data
     const populatedTicket = await Ticket.findById(ticket._id)
@@ -234,8 +264,10 @@ exports.updateTicketStatus = async (req, res) => {
     if (!ticket) throw new AppError('Ticket not found or not assigned to you', 404);
     const order = ['open', 'assigned', 'in_progress', 'awaiting_customer', 'resolved', 'closed'];
     if (order.indexOf(status) < order.indexOf(ticket.status)) throw new AppError('Cannot move ticket to an earlier state', 400);
+    const previousStatus = ticket.status;
     ticket.status = status;
     await ticket.save();
+    notifyTicketCustomer(ticket, previousStatus);
     
     // Populate and return the complete ticket data
     const populatedTicket = await Ticket.findById(ticket._id)

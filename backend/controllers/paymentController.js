@@ -10,6 +10,7 @@ const { assertCanAccessPurchase, findCustomerForUser } = require('../utils/acces
 const razorpay = require('../config/razorpay');
 const shortid = require('shortid');
 const NotificationService = require('../utils/notificationService');
+const { sendCustomerWhatsApp } = require('../utils/sendNotification');
 
 // Get customer's products and purchases
 exports.getCustomerProducts = async (req, res) => {
@@ -184,6 +185,7 @@ exports.recordPayment = async (req, res) => {
     }
 
     // Route is restricted to accounts/admin; no customer ownership check needed here.
+    const customer = await Customer.findById(purchase.customerId);
     const amountNumber = Number(amount);
     if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
       throw new AppError('Invalid payment amount', 400);
@@ -235,6 +237,11 @@ exports.recordPayment = async (req, res) => {
       console.error('Failed to create payment notification:', notificationError);
       // Don't break the payment flow if notification fails
     }
+    sendCustomerWhatsApp('payment_receipt', customer, {
+      amount: amountNumber.toLocaleString('en-IN'),
+      reference: `order ${purchase.purchaseID}`,
+      transactionRef: payment.transactionId || String(payment._id)
+    });
 
     res.json({
       success: true,
@@ -444,7 +451,7 @@ exports.verifyRazorpayPayment = async (req, res) => {
             const customerName = customer ? `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || customer.businessName || customer.name : 'Customer';
             await NotificationService.createAccountsNotification('payment_received', {
               customerName,
-              amount: purchase.remainingAmount,
+              amount: payment.amountPaid,
               paymentMethod: 'razorpay',
               invoiceNumber: ''
             }, req.user);
@@ -452,6 +459,11 @@ exports.verifyRazorpayPayment = async (req, res) => {
             console.error('Failed to create payment notification (Razorpay):', notificationError);
             // Don't break the payment flow if notification fails
           }
+          sendCustomerWhatsApp('payment_receipt', customer, {
+            amount: Number(payment.amountPaid).toLocaleString('en-IN'),
+            reference: `order ${purchase.purchaseID}`,
+            transactionRef: paymentLinkId
+          });
 
           return res.json({
             success: true,
