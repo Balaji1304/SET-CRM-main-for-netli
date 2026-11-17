@@ -285,7 +285,7 @@
                 <th>Item</th>
                 <th class="text-center">Qty</th>
                 <th class="text-right">Unit Price</th>
-                <th class="text-right">Discount</th>
+                {{#if hasDiscount}}<th class="text-right">Discount</th>{{/if}}
                 <th class="text-right">Amount</th>
             </tr>
         </thead>
@@ -298,7 +298,7 @@
                 </td>
                 <td class="text-center">{{quantity}}</td>
                 <td class="text-right">{{formatCurrency unitPrice}}</td>
-                <td class="text-right">{{discountPercentage}}%</td>
+                {{#if @root.hasDiscount}}<td class="text-right">{{#if discountAmount}}{{formatCurrency discountAmount}}{{else}}-{{/if}}</td>{{/if}}
                 <td class="text-right">{{formatCurrency itemTotal}}</td>
             </tr>
             {{/each}}
@@ -312,9 +312,15 @@
           <span class="summary-label">Total Amount:</span>
           <span class="summary-value">{{formatCurrency totalAmount}}</span>
         </div>
+        {{#if onlinePaymentCharges}}
+        <div class="summary-row">
+          <span class="summary-label">Online Payment Charges (2%):</span>
+          <span class="summary-value">{{formatCurrency onlinePaymentCharges}}</span>
+        </div>
+        {{/if}}
         <div class="summary-row">
           <span class="summary-label">Amount Paid:</span>
-          <span class="summary-value amount-paid-value">{{formatCurrency paidAmount}}</span>
+          <span class="summary-value amount-paid-value">{{formatCurrency amountPaidTotal}}</span>
         </div>
         <div class="summary-row">
           <span class="summary-label">Status:</span>

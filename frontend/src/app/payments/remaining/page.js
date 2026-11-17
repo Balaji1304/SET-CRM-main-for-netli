@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AlertCircle, Check, CreditCard, ArrowLeft, IndianRupee, Calendar, FileText, Loader2 } from 'lucide-react';
 import { getPurchaseDetails, makePayment, createRazorpayPaymentLink, verifyRazorpayPayment, recordManualPayment } from '../../../services/customerService';
 import { formatCurrency } from '../../../utils/formatNumber';
+import { onlineCharge, withOnlineCharge, ONLINE_CHARGE_PERCENT } from '../../../utils/pricing';
 
 // Custom styles for mobile responsive design
 const customStyles = `
@@ -490,6 +491,9 @@ export default function RemainingPaymentPage() {
             <div className="p-4 md:p-6 bg-blue-50 border-b border-fourth">
               <h3 className="text-lg sm:text-xl font-semibold text-secondary">Pay Online (Recommended)</h3>
               <p className="text-sm text-gray-600 mt-1">Secure payment via Razorpay - Pay using Credit/Debit Card, Net Banking, UPI, and more</p>
+              <p className="text-sm text-gray-700 mt-2">
+                Online payment will be {ONLINE_CHARGE_PERCENT}% of the amount included: {formatCurrency(purchase?.remainingAmount || 0)} + {formatCurrency(onlineCharge(purchase?.remainingAmount || 0))} online payment charge
+              </p>
             </div>
             <div className="p-4 md:p-6 flex justify-center">
               <button
@@ -502,7 +506,7 @@ export default function RemainingPaymentPage() {
                 ) : (
                   <CreditCard className="h-4 w-4 sm:h-5 sm:w-5" />
                 )}
-                <span className="text-sm">Pay {formatCurrency(purchase?.remainingAmount)} Online</span>
+                <span className="text-sm">Pay {formatCurrency(withOnlineCharge(purchase?.remainingAmount || 0))} Online</span>
               </button>
             </div>
           </div>

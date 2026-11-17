@@ -8,6 +8,10 @@ const generatePDF = require('../utils/generatePDF');
 const mongoose = require('mongoose');
 const { AppError } = require('../utils/errorHandler');
 const errorHandler = require('../utils/errorHandler');
+const { itemDiscount, itemTotal, round2 } = require('../utils/pricing');
+
+// Invoices created before #67 only stored discountPercentage
+const invoiceItemDiscount = (item) => item.discountAmount || round2((item.quantity || 0) * (item.unitPrice || 0) * (item.discountPercentage || 0) / 100);
 
 exports.createInvoice = async (req, res) => {
   try {
@@ -52,7 +56,8 @@ exports.createInvoice = async (req, res) => {
         product: item.productId._id,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        discount: item.discount || 0
+        discountAmount: itemDiscount(item),
+        itemTotal: itemTotal(item)
       })),
       totalAmount: quotation.total,
       dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days due date
@@ -72,8 +77,8 @@ exports.createInvoice = async (req, res) => {
         name: item.product.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        discount: item.discount,
-        total: item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)
+        discountAmount: item.discountAmount || 0,
+        total: item.itemTotal
       })),
       total: invoice.totalAmount,
       dueDate: invoice.dueDate.toLocaleDateString(),
@@ -301,11 +306,14 @@ exports.sendExistingInvoiceEmail = async (req, res) => {
         name: item.name || item.product?.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        discountPercentage: item.discountPercentage || 0,
+        discountAmount: invoiceItemDiscount(item),
         itemTotal: item.itemTotal
       })),
+      hasDiscount: invoice.items.some(item => invoiceItemDiscount(item) > 0),
       totalAmount: invoice.totalAmount,
-      paidAmount: invoice.paidAmount || 0, 
+      paidAmount: invoice.paidAmount || 0,
+      onlinePaymentCharges: invoice.onlinePaymentCharges || 0,
+      amountPaidTotal: round2((invoice.paidAmount || 0) + (invoice.onlinePaymentCharges || 0)),
       paymentStatus: invoice.paymentStatus || 'N/A', 
       notes: invoice.notes,
       quotation: {

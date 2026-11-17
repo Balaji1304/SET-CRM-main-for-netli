@@ -53,6 +53,11 @@ const customerPurchaseSchema = new mongoose.Schema({
   razorpayPaymentLink: {
     type: String
   },
+  // 2% online payment charge included in the current remaining-payment link (rupees)
+  onlineChargeAmount: {
+    type: Number,
+    default: 0
+  },
   razorpayPaymentId: {
     type: String
   },

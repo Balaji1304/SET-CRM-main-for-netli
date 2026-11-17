@@ -3,6 +3,7 @@ import { Package, AlertCircle, ChevronDown, ExternalLink, ShoppingBag, FileText,
 import { getCustomerPurchasesByUser } from '../../services/purchaseOrderService';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatCurrency } from '../../utils/formatNumber';
+import { itemDiscount, itemTotal } from '../../utils/pricing';
 
 export default function MyProductsPage() {
   const [quotations, setQuotations] = useState({});
@@ -488,10 +489,10 @@ export default function MyProductsPage() {
                               <span className="text-gray-500">Unit Price: </span>
                               <span className="font-medium text-secondary">{formatCurrency(item.unitPrice)}</span>
                             </div>
-                            {item.discount > 0 && (
+                            {itemDiscount(item) > 0 && (
                                 <div>
                                     <span className="text-gray-500">Discount: </span>
-                                    <span className="font-medium text-secondary">{item.discount}%</span>
+                                    <span className="font-medium text-secondary">{formatCurrency(itemDiscount(item))}</span>
                                 </div>
                             )}
                           </div>
@@ -499,7 +500,7 @@ export default function MyProductsPage() {
                         
                         {/* Price */}
                         <div className="text-right md:text-base text-lg font-semibold text-primary pt-2 md:pt-0">
-                            {formatCurrency(item.total || (item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)))}
+                            {formatCurrency(item.total || itemTotal(item))}
                           </div>
                         </div>
                     </div>

@@ -16,11 +16,15 @@ const invoiceItemSchema = new mongoose.Schema({
       type: Number,
       required: true
     },
-  discountPercentage: { // Renamed from discount for clarity
+  discountPercentage: { // Legacy: invoices created before issue #67
       type: Number,
       default: 0
   },
-  itemTotal: { // Calculated (quantity * unitPrice * (1 - discountPercentage/100))
+  discountAmount: { // Discount in rupees for this line (issue #67)
+      type: Number,
+      default: 0
+  },
+  itemTotal: { // quantity * unitPrice - discountAmount
     type: Number,
     required: true
   }
@@ -57,6 +61,10 @@ const invoiceSchema = new mongoose.Schema({
   paidAmount: { // Amount paid, should equal totalAmount for these invoices
     type: Number,
     required: true
+  },
+  onlinePaymentCharges: { // Sum of 2% online payment charges paid on top of totalAmount
+    type: Number,
+    default: 0
   },
   paymentStatus: {
     type: String,

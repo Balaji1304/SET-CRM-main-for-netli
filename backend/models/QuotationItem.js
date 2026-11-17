@@ -39,9 +39,15 @@ const quotationItemSchema = new mongoose.Schema({
     required: true,
     min: [0, 'Unit price cannot be negative']
   },
+  // Legacy: percentage discount on items created before issue #67. New items use discountAmount.
   discount: {
     type: Number,
     default: 0,
+    min: [0, 'Discount cannot be negative']
+  },
+  // Discount in rupees for this line (issue #67)
+  discountAmount: {
+    type: Number,
     min: [0, 'Discount cannot be negative']
   },
   total: { 
