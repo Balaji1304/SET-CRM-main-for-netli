@@ -44,6 +44,11 @@ const paymentSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // 2% online payment charge paid on top of amountPaid (rupees); never counts toward the balance
+  onlineCharge: {
+    type: Number,
+    default: 0
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

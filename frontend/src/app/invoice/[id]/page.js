@@ -448,11 +448,15 @@ export default function ProformaInvoicePage() {
     items,
     totalAmount,
     paidAmount,
+    onlinePaymentCharges,
     paymentStatus,
     notes,
     quotation,
     customerPurchase
   } = invoiceData;
+  // Rupee discount per line; invoices created before #67 only stored discountPercentage
+  const lineDiscount = (item) => (item.discountAmount || Math.round((item.quantity || 0) * (item.unitPrice || 0) * (item.discountPercentage || 0)) / 100);
+  const hasDiscount = (items || []).some(i => lineDiscount(i) > 0);
 
   return (
     <div className="bg-gray-100 min-h-screen p-4 md:p-8 print:p-0">
@@ -565,7 +569,7 @@ export default function ProformaInvoicePage() {
                   <th className="p-3 font-semibold text-sm">Product</th>
                   <th className="p-3 font-semibold text-sm text-right">Qty</th>
                   <th className="p-3 font-semibold text-sm text-right">Unit Price</th>
-                  <th className="p-3 font-semibold text-sm text-right">Discount</th>
+                  {hasDiscount && <th className="p-3 font-semibold text-sm text-right">Discount</th>}
                   <th className="p-3 font-semibold text-sm text-right">Total</th>
                 </tr>
               </thead>
@@ -578,7 +582,7 @@ export default function ProformaInvoicePage() {
                     </td>
                     <td className="p-3 text-sm text-gray-700 text-right">{getSafe(() => item.quantity)}</td>
                     <td className="p-3 text-sm text-gray-700 text-right">{formatCurrency(getSafe(() => item.unitPrice, 0))}</td>
-                    <td className="p-3 text-sm text-gray-700 text-right">{getSafe(() => item.discountPercentage, 0)}%</td>
+                    {hasDiscount && <td className="p-3 text-sm text-gray-700 text-right">{lineDiscount(item) > 0 ? formatCurrency(lineDiscount(item)) : '-'}</td>}
                     <td className="p-3 text-sm text-gray-700 text-right font-medium">{formatCurrency(getSafe(() => item.itemTotal, 0))}</td>
                   </tr>
                 ))}
@@ -593,9 +597,15 @@ export default function ProformaInvoicePage() {
               <span>Total Amount:</span>
               <span>{formatCurrency(getSafe(() => totalAmount, 0))}</span>
             </div>
+            {onlinePaymentCharges > 0 && (
+              <div className="flex justify-between text-gray-700">
+                <span>Online Payment Charges (2%):</span>
+                <span>{formatCurrency(onlinePaymentCharges)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-green-600 font-semibold">
               <span>Amount Paid:</span>
-              <span>{formatCurrency(getSafe(() => paidAmount, 0))}</span>
+              <span>{formatCurrency(getSafe(() => paidAmount, 0) + (onlinePaymentCharges || 0))}</span>
             </div>
             <div className="flex justify-between text-gray-700 font-semibold">
                 <span>Status:</span>

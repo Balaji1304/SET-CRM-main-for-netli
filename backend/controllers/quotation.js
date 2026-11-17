@@ -21,6 +21,7 @@ const Payment = require('../models/Payment');
 const { generateOrderFormPDF } = require('../utils/generateOrderForm');
 const { sendOrderFormNotification } = require('../utils/sendNotification');
 const NotificationService = require('../utils/notificationService');
+const { itemDiscount, itemTotal, parseItemDiscount, onlineCharge, withOnlineCharge, quotationSummary } = require('../utils/pricing');
 
 // Register handlebars helpers
 registerHelpers();
@@ -210,11 +211,11 @@ exports.createQuotation = async (req, res) => {
     for (const item of quotationItems) {
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
-      const discountPercentage = Number(item.discount || 0);
-      if (isNaN(quantity) || isNaN(unitPrice) || isNaN(discountPercentage)) {
-        throw new AppError('Invalid item quantity, unit price, or discount percentage.', 400);
+      if (isNaN(quantity) || isNaN(unitPrice)) {
+        throw new AppError('Invalid item quantity or unit price.', 400);
       }
-      calculatedTotal += quantity * unitPrice * (1 - discountPercentage / 100);
+      parseItemDiscount(item);
+      calculatedTotal += itemTotal(item);
     }
     const total = Number(calculatedTotal.toFixed(2));
 
@@ -255,14 +256,14 @@ exports.createQuotation = async (req, res) => {
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
       const basePrice = Number(item.basePrice || item.unitPrice);
-      const discountPercentage = Number(item.discount || 0);
+      const discountAmount = parseItemDiscount(item);
 
       if (unitPrice < basePrice) {
         throw new AppError('Unit price cannot be lower than the catalog base price', 400);
       }
 
       // Calculate total for this specific QuotationItem
-      const itemTotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
+      const lineTotal = itemTotal({ quantity, unitPrice, discountAmount });
 
       const quotationItemData = {
         quotationId: quotation._id,
@@ -270,8 +271,9 @@ exports.createQuotation = async (req, res) => {
         quantity: quantity,
         basePrice: basePrice,
         unitPrice: unitPrice,
-        discount: discountPercentage,
-        total: itemTotal
+        discount: 0,
+        discountAmount,
+        total: lineTotal
       };
 
       // Set the appropriate reference field
@@ -381,11 +383,11 @@ exports.updateQuotation = async (req, res) => {
     for (const item of quotationItems) {
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
-      const discountPercentage = Number(item.discount || 0);
-      if (isNaN(quantity) || isNaN(unitPrice) || isNaN(discountPercentage)) {
-        throw new AppError('Invalid item quantity, unit price, or discount percentage.', 400);
+      if (isNaN(quantity) || isNaN(unitPrice)) {
+        throw new AppError('Invalid item quantity or unit price.', 400);
       }
-      calculatedTotal += quantity * unitPrice * (1 - discountPercentage / 100);
+      parseItemDiscount(item);
+      calculatedTotal += itemTotal(item);
     }
     const total = Number(calculatedTotal.toFixed(2));
 
@@ -418,14 +420,14 @@ exports.updateQuotation = async (req, res) => {
       const quantity = Number(item.quantity);
       const unitPrice = Number(item.unitPrice);
       const basePrice = Number(item.basePrice || item.unitPrice);
-      const discountPercentage = Number(item.discount || 0);
+      const discountAmount = parseItemDiscount(item);
 
       if (unitPrice < basePrice) {
         throw new AppError('Unit price cannot be lower than the catalog base price', 400);
       }
 
       // Calculate total for this specific QuotationItem
-      const itemTotal = Number((quantity * unitPrice * (1 - discountPercentage / 100)).toFixed(2));
+      const lineTotal = itemTotal({ quantity, unitPrice, discountAmount });
 
       // Determine item type
       let itemType = '';
@@ -443,8 +445,9 @@ exports.updateQuotation = async (req, res) => {
         quantity: quantity,
         basePrice: basePrice,
         unitPrice: unitPrice,
-        discount: discountPercentage,
-        total: itemTotal
+        discount: 0,
+        discountAmount,
+        total: lineTotal
       };
 
       // Add productId, customizedProductId, or bundleId
@@ -587,10 +590,10 @@ exports.sendQuotation = async (req, res) => {
         : `https://${frontendDomain}/quotations/${quotation._id}/payment-status`;
       
       const paymentLinkOptions = {
-        amount: Math.round(advanceAmount * 100), // in paise, rounded to ensure integer
+        amount: Math.round(withOnlineCharge(advanceAmount) * 100), // paise: advance + 2% online payment charge
         currency: "INR",
         accept_partial: false,
-        description: `Advance Payment (${advancePercentage}%) for Quotation #${quotation.quotationNumber}`,
+        description: `Advance Payment (${advancePercentage}%) + 2% online payment charge for Quotation #${quotation.quotationNumber}`,
         customer: {
           name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
           email: quotation.lead.email || undefined, // Only include email if available
@@ -694,20 +697,16 @@ exports.sendQuotation = async (req, res) => {
           };
         }
         
-        const disc = item.discount || 0;
-        const discAmt = Number((item.quantity * item.unitPrice * disc / 100).toFixed(2));
         return {
           product: product || {},
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          discount: disc,
-          discountAmount: discAmt,
-          total: Number((item.quantity * item.unitPrice * (1 - disc / 100)).toFixed(2))
+          discountAmount: itemDiscount(item),
+          total: itemTotal(item)
         };
       })
     );
 
-      const totalDiscount = formattedItems.reduce((sum, i) => sum + (i.discountAmount || 0), 0);
 
       // Process email data
       const emailData = {
@@ -728,8 +727,7 @@ exports.sendQuotation = async (req, res) => {
         },
       items: formattedItems,
         total: quotation.total,
-        totalDiscount: totalDiscount,
-        subTotal: quotation.total + totalDiscount,
+        ...quotationSummary(formattedItems, quotation.total, advanceAmount),
         terms: quotation.terms,
         notes: quotation.notes,
         advanceAmount: advanceAmount,
@@ -782,6 +780,7 @@ exports.sendQuotation = async (req, res) => {
         {
           status: 'sent',
           advancePaymentAmount: advanceAmount,
+          onlineChargeAmount: onlineCharge(advanceAmount),
           razorpayPaymentLinkId: paymentLink.id,
           razorpayPaymentLink: paymentLink.short_url,
           paymentLinkExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
@@ -892,15 +891,12 @@ exports.sendQuotation = async (req, res) => {
               };
             }
             
-            const disc = item.discount || 0;
-            const discAmt = Number((item.quantity * item.unitPrice * disc / 100).toFixed(2));
             return {
               product: product,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
-              discount: disc,
-              discountAmount: discAmt,
-              total: Number((item.quantity * item.unitPrice * (1 - disc / 100)).toFixed(2))
+              discountAmount: itemDiscount(item),
+              total: itemTotal(item)
             };
           }),
           total: updatedQuotation.total,
@@ -910,6 +906,7 @@ exports.sendQuotation = async (req, res) => {
           advancePercentage: advancePercentage,
           paymentLink: updatedQuotation.razorpayPaymentLink
         };
+        Object.assign(quotationData, quotationSummary(quotationData.items, quotationData.total, advanceAmount));
 
         const notificationResult = await sendSmartNotification(
           updatedQuotation.lead,
@@ -1009,13 +1006,13 @@ exports.resendQuotation = async (req, res) => {
 
       const advancePercentage = quotation.advancePaymentPercentage || 20;
       const advanceAmount = Number((quotation.total * advancePercentage / 100).toFixed(2));
-      const amountPaise = Math.max(Math.round(advanceAmount * 100), 100);
+      const amountPaise = Math.max(Math.round(withOnlineCharge(advanceAmount) * 100), 100); // advance + 2% online payment charge
 
       try {
         const newLink = await razorpay.paymentLink.create({
           amount: amountPaise,
           currency: 'INR',
-          description: `Advance payment for Quotation ${quotation.quotationNumber}`,
+          description: `Advance payment + 2% online payment charge for Quotation ${quotation.quotationNumber}`,
           customer: {
             name: `${quotation.lead.firstName} ${quotation.lead.lastName}`,
             email: quotation.lead.email || undefined,
@@ -1030,6 +1027,7 @@ exports.resendQuotation = async (req, res) => {
         paymentLinkUrl = newLink.short_url;
         quotation.razorpayPaymentLinkId = newLink.id;
         quotation.razorpayPaymentLink = newLink.short_url;
+        quotation.onlineChargeAmount = onlineCharge(advanceAmount);
         quotation.paymentLinkExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
         await quotation.save();
       } catch (err) {
@@ -1064,12 +1062,9 @@ exports.resendQuotation = async (req, res) => {
         }
         product = { _id: bp._id, name: bp.name || 'Bundle Product', category: bp.category || 'Bundle', description: bp.description || '', specifications: specs, images: (bp.imageUrls || []).map(url => ({ url: url.toString() })), bundleCode: bp.bundleCode, subcategory: bp.subcategory, systemConfiguration: bp.systemConfiguration ? JSON.parse(JSON.stringify(bp.systemConfiguration)) : {}, bundleComponents: (item.bundleComponents || []).map(c => ({ name: c.name || '', quantity: c.quantity || 0, make: c.make || '', componentType: c.componentType || '', warranty: c.warranty || '', sortOrder: c.sortOrder || 0 })) };
       }
-      const disc = item.discount || 0;
-      const discAmt = Number((item.quantity * item.unitPrice * disc / 100).toFixed(2));
-      return { product, quantity: item.quantity, unitPrice: item.unitPrice, discount: disc, discountAmount: discAmt, total: Number((item.quantity * item.unitPrice * (1 - disc / 100)).toFixed(2)) };
+      return { product, quantity: item.quantity, unitPrice: item.unitPrice, discountAmount: itemDiscount(item), total: itemTotal(item) };
     });
 
-    const totalDiscount = formattedItems.reduce((s, i) => s + (i.discountAmount || 0), 0);
 
     const pdfData = {
       quotationNumber: quotation.quotationNumber,
@@ -1079,8 +1074,7 @@ exports.resendQuotation = async (req, res) => {
       lead: { firstName: quotation.lead.firstName, lastName: quotation.lead.lastName, businessName: quotation.lead.businessName, billingAddress: quotation.lead.billingAddress, shippingAddress: quotation.lead.shippingAddress, address: quotation.lead.address, email: quotation.lead.email, phone: quotation.lead.phone, countryCode: quotation.lead.countryCode },
       items: formattedItems,
       total: quotation.total,
-      totalDiscount,
-      subTotal: quotation.total + totalDiscount,
+      ...quotationSummary(formattedItems, quotation.total, advanceAmount),
       terms: quotation.terms,
       notes: quotation.notes,
       advanceAmount,
@@ -1507,6 +1501,7 @@ const approveQuotation = async (quotationInstance) => {
         paymentDate: quotationInstance.advancePaymentConfirmedAt || new Date(),
         razorpayFee: quotationInstance.razorpayFee || 0,
         razorpayTax: quotationInstance.razorpayTax || 0,
+        onlineCharge: quotationInstance.razorpayPaymentId ? (quotationInstance.onlineChargeAmount || 0) : 0,
         createdBy: quotationInstance.createdBy
       });
       
@@ -1817,9 +1812,8 @@ exports.getCustomerProducts = async (req, res) => {
             product: productDisplayData,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            discount: item.discount || 0,
-            discountAmount: Number((item.quantity * item.unitPrice * (item.discount || 0) / 100).toFixed(2)),
-            total: item.quantity * item.unitPrice * (1 - (item.discount || 0)/100),
+            discountAmount: itemDiscount(item),
+            total: itemTotal(item),
             isFullyPaid: purchaseData.isFullyPaid,
             advancePaymentPercentage: purchaseData.advancePaymentPercentage,
             advancePaymentAmount: purchaseData.advancePaid,
@@ -2158,7 +2152,8 @@ exports.manualConfirmPayment = async (req, res) => {
       // 4. The amount paid must cover the required advance.
       const advancePercentage = quotation.advancePaymentPercentage || 20;
       const minimumAdvance = Number((quotation.total * (advancePercentage / 100)).toFixed(2));
-      if (Number(paymentVerification.payment.amount) + 0.01 < minimumAdvance) {
+      // The link also carries the 2% online payment charge on top of the advance
+      if (Number(paymentVerification.payment.amount) + 0.01 < minimumAdvance + (quotation.onlineChargeAmount || 0)) {
         return res.status(400).json({
           success: false,
           message: `Payment amount is below the required advance of ₹${minimumAdvance.toFixed(2)}`
@@ -2342,7 +2337,7 @@ exports.exportQuotations = async (req, res) => {
 
     quotations.forEach(q => {
       const items = itemsByQuotation[q._id.toString()] || [];
-      const totalDisc = items.reduce((s, i) => s + (i.quantity * i.unitPrice * (i.discount || 0) / 100), 0);
+      const totalDisc = items.reduce((s, i) => s + itemDiscount(i), 0);
       const row = ws1.addRow({
         number: q.quotationNumber,
         date: q.createdAt,
@@ -2377,7 +2372,6 @@ exports.exportQuotations = async (req, res) => {
       { header: 'Brand', key: 'brand', width: 16 },
       { header: 'Qty', key: 'qty', width: 8 },
       { header: 'Unit Price', key: 'unitPrice', width: 16 },
-      { header: 'Discount %', key: 'discPct', width: 12 },
       { header: 'Discount ₹', key: 'discAmt', width: 14 },
       { header: 'Line Total', key: 'lineTotal', width: 16 }
     ];
@@ -2401,12 +2395,10 @@ exports.exportQuotations = async (req, res) => {
           brand,
           qty: item.quantity,
           unitPrice: item.unitPrice,
-          discPct: item.discount || 0,
-          discAmt: { formula: `E${lineRow}*F${lineRow}*G${lineRow}/100` },
-          lineTotal: { formula: `E${lineRow}*F${lineRow}*(1-G${lineRow}/100)` }
+          discAmt: itemDiscount(item),
+          lineTotal: { formula: `E${lineRow}*F${lineRow}-G${lineRow}` }
         });
         ['unitPrice', 'discAmt', 'lineTotal'].forEach(k => { r.getCell(k).numFmt = currencyFmt; });
-        r.getCell('discPct').numFmt = '0"%"';
         lineRow++;
       });
     });

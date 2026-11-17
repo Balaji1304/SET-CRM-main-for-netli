@@ -1,4 +1,5 @@
 const generatePDF = require('./generatePDF');
+const { itemDiscount, itemTotal } = require('./pricing');
 const CustomerPurchase = require('../models/CustomerPurchase');
 const Customer = require('../models/Customer');
 const Quotation = require('../models/Quotation');
@@ -88,8 +89,8 @@ const generateOrderFormPDF = async (purchaseId) => {
         },
         quantity: item.quantity,
         unitPrice: item.unitPrice.toLocaleString('en-IN'),
-        discount: item.discount || 0,
-        total: (item.total || (item.quantity * item.unitPrice * (1 - (item.discount || 0)/100))).toLocaleString('en-IN')
+        discountAmount: itemDiscount(item),
+        total: (item.total || itemTotal(item)).toLocaleString('en-IN')
       };
     });
 

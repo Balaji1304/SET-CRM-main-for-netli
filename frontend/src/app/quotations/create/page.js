@@ -381,7 +381,9 @@ export default function CreateQuotationPage() {
           } else if (field === 'quantity') {
             updatedItem.quantity = value ? parseInt(value) : '';
           } else if (field === 'discount') {
-            updatedItem.discount = value === '' ? '' : (parseInt(value) >= 0 && parseInt(value) <= 9 ? parseInt(value) : item.discount);
+            // Discount is a rupee amount for the whole line (issue #67)
+            const val = parseFloat(value);
+            updatedItem.discount = value === '' ? '' : (val >= 0 ? val : item.discount);
           } else {
             updatedItem[field] = value;
           }
@@ -398,9 +400,7 @@ export default function CreateQuotationPage() {
     const discount = parseFloat(item.discount) || 0;
     
     if (quantity > 0 && unitPrice >= 0) {
-      const itemTotal = quantity * unitPrice;
-      const discountAmount = itemTotal * (discount / 100);
-      return itemTotal - discountAmount;
+      return quantity * unitPrice - discount;
     }
     return 0;
   };
@@ -541,6 +541,11 @@ export default function CreateQuotationPage() {
       setIsSubmitting(false);
       return;
     }
+    if (formData.items.some(item => (parseFloat(item.discount) || 0) > (parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0))) {
+      setError("Discount cannot be more than the item total (quantity × unit price).");
+      setIsSubmitting(false);
+      return;
+    }
     if (!formData.advancePaymentPercentage || formData.advancePaymentPercentage < 1 || formData.advancePaymentPercentage > 100) {
         setError("Advance Payment Percentage must be between 1 and 100.");
         setIsSubmitting(false);
@@ -578,7 +583,7 @@ export default function CreateQuotationPage() {
             quantity: parseInt(item.quantity),
             basePrice: parseFloat(item.basePrice) || parseFloat(item.unitPrice),
             unitPrice: parseFloat(item.unitPrice),
-            discount: item.discount === '' ? 0 : parseInt(item.discount)
+            discountAmount: item.discount === '' ? 0 : parseFloat(item.discount)
           };
 
           // Add bundle components if this is a bundle item
@@ -615,9 +620,7 @@ export default function CreateQuotationPage() {
       const unitPrice = parseFloat(item.unitPrice) || 0;
       const discount = parseFloat(item.discount) || 0;
       if (quantity > 0 && unitPrice >= 0) {
-        const itemTotal = quantity * unitPrice;
-        const discountAmount = itemTotal * (discount / 100);
-        return total + (itemTotal - discountAmount);
+        return total + (quantity * unitPrice - discount);
       }
       return total;
     }, 0);
@@ -989,7 +992,7 @@ export default function CreateQuotationPage() {
                   {/* Discount Input */}
                   <div className="md:col-span-2">
                     <label htmlFor={`discount_${index}`} className="block text-sm font-medium text-gray-700 mb-1">
-                      Discount (%, optional)
+                      Discount (₹, optional)
                     </label>
                     <input
                       type="number"
@@ -997,12 +1000,12 @@ export default function CreateQuotationPage() {
                       value={item.discount}
                       onChange={(e) => handleItemChange(index, 'discount', e.target.value)}
                       min="0"
-                      max="9"
+                      step="0.01"
                       placeholder="0"
                       className="mt-1 block w-full px-3 py-2 bg-white border border-fourth rounded-lg shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm text-secondary placeholder-gray-400"
                     />
-                    {item.discount > 0 && parseFloat(item.unitPrice) > 0 && parseFloat(item.quantity) > 0 && (
-                      <p className="mt-1 text-xs text-gray-500">₹{(parseFloat(item.quantity) * parseFloat(item.unitPrice) * parseFloat(item.discount) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                    {parseFloat(item.discount) > (parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0) && (
+                      <p className="mt-1 text-xs text-red-500">Cannot be more than the item total</p>
                     )}
                   </div>
 

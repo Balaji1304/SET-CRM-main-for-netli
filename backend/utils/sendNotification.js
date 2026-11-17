@@ -13,6 +13,7 @@
  */
 
 const sendEmail = require('./sendEmail');
+const { itemDiscount, itemTotal, quotationSummary } = require('./pricing');
 const {
   sendQuotationWhatsApp,
   sendInvoiceWhatsApp,
@@ -399,8 +400,8 @@ const sendQuotationNotification = async (quotation, quotationItems, pdfBuffer = 
         product: product,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        discount: item.discount || 0,
-        total: Number((item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)).toFixed(2))
+        discountAmount: itemDiscount(item),
+        total: itemTotal(item)
       };
     }),
     total: quotation.total,
@@ -410,6 +411,7 @@ const sendQuotationNotification = async (quotation, quotationItems, pdfBuffer = 
     advancePercentage: quotation.advancePaymentPercentage || 20,
     paymentLink: quotation.razorpayPaymentLink
   };
+  Object.assign(emailData, quotationSummary(emailData.items, emailData.total, emailData.advanceAmount));
 
   // Prepare attachments for email
   const attachments = pdfBuffer ? [{
@@ -445,8 +447,8 @@ const sendInvoiceNotification = async (invoice, pdfBuffer = null) => {
       name: item.product.name,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
-      discount: item.discount,
-      total: item.quantity * item.unitPrice * (1 - (item.discount || 0)/100)
+      discountAmount: item.discountAmount || 0,
+      total: item.itemTotal
     })),
     total: invoice.totalAmount,
     dueDate: invoice.dueDate?.toLocaleDateString(),

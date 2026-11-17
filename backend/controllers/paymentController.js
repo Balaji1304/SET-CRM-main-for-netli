@@ -10,6 +10,7 @@ const { assertCanAccessPurchase, findCustomerForUser } = require('../utils/acces
 const razorpay = require('../config/razorpay');
 const shortid = require('shortid');
 const NotificationService = require('../utils/notificationService');
+const { itemDiscount, onlineCharge, withOnlineCharge, round2 } = require('../utils/pricing');
 
 // Get customer's products and purchases
 exports.getCustomerProducts = async (req, res) => {
@@ -280,14 +281,15 @@ exports.createRemainingPaymentLink = async (req, res) => {
     if (!user) {
       throw new AppError('User not found', 404);
     }
+    const customer = await findCustomerForUser(req.user);
     
     // Create a unique reference ID (shortened to avoid Razorpay's 40 char limit)
     // Use only the last 8 chars of the purchase ID to keep it short
     const purchaseIdShort = purchase._id.toString().slice(-8);
     const referenceId = `rem_${purchaseIdShort}_${shortid.generate().substring(0, 8)}`;
     
-    // Convert amount to paise (Razorpay uses smallest currency unit)
-    const amountInPaise = Math.round(purchase.remainingAmount * 100);
+    // Convert amount to paise (Razorpay uses smallest currency unit); online payments add a 2% charge on top
+    const amountInPaise = Math.round(withOnlineCharge(purchase.remainingAmount) * 100);
     
     // Validate the amount is above Razorpay minimum
     if (amountInPaise < 100) {
@@ -300,11 +302,11 @@ exports.createRemainingPaymentLink = async (req, res) => {
         amount: amountInPaise,
         currency: "INR",
         accept_partial: false,
-        description: `Remaining payment for Order #${purchase.quotationId.quotationNumber}`,
+        description: `Remaining payment + 2% online payment charge for Order #${purchase.quotationId.quotationNumber}`,
         customer: {
           name: user.name,
           email: user.email,
-          contact: customer.phone || ''
+          contact: (customer && customer.phone) || user.phone || ''
         },
         notify: {
           sms: true,
@@ -324,6 +326,7 @@ exports.createRemainingPaymentLink = async (req, res) => {
       // Update purchase with payment link details
       purchase.razorpayPaymentLink = paymentLink.short_url;
       purchase.razorpayPaymentId = paymentLink.id;
+      purchase.onlineChargeAmount = onlineCharge(purchase.remainingAmount);
       await purchase.save();
       
       res.json({
@@ -334,6 +337,8 @@ exports.createRemainingPaymentLink = async (req, res) => {
           purchase: {
             id: purchase._id,
             remainingAmount: purchase.remainingAmount,
+            onlineCharge: purchase.onlineChargeAmount,
+            payableOnline: withOnlineCharge(purchase.remainingAmount),
             quotationNumber: purchase.quotationId.quotationNumber
           }
         }
@@ -404,9 +409,10 @@ exports.verifyRazorpayPayment = async (req, res) => {
       // Verify payment status with Razorpay
       const verification = await razorpay.verifyPaymentLinkStatus(paymentLinkId);
       
-      // The paid link amount must cover the outstanding balance
+      // The paid link amount must cover the outstanding balance plus the online charge on that link
       const paidAmount = Number(verification.paymentLink && verification.paymentLink.amount);
-      if (verification.verified && !(paidAmount + 0.01 >= purchase.remainingAmount)) {
+      const charge = purchase.onlineChargeAmount || 0;
+      if (verification.verified && !(paidAmount + 0.01 >= purchase.remainingAmount + charge)) {
         throw new AppError('Paid amount does not cover the remaining balance', 400);
       }
 
@@ -416,6 +422,7 @@ exports.verifyRazorpayPayment = async (req, res) => {
           const payment = await Payment.create({
             customerPurchaseId: purchaseId,
             amountPaid: purchase.remainingAmount,
+            onlineCharge: charge,
             paymentMethod: 'razorpay',
             transactionId: paymentLinkId,
             notes: `Razorpay payment for remaining amount of order #${purchase.quotationId}`,
@@ -542,11 +549,14 @@ async function createInvoiceIfFullyPaid(purchaseId, userId) {
     description: qItem.productId.description,
     quantity: qItem.quantity,
     unitPrice: qItem.unitPrice,
-    discountPercentage: qItem.discount || 0,
+    discountPercentage: qItem.discountAmount == null ? (qItem.discount || 0) : 0,
+    discountAmount: itemDiscount(qItem),
     itemTotal: qItem.total
   }));
 
   const invoiceTotalAmount = purchase.totalAmount;
+  const purchasePayments = await Payment.find({ customerPurchaseId: purchaseId }).select('onlineCharge');
+  const onlinePaymentCharges = round2(purchasePayments.reduce((s, p) => s + (p.onlineCharge || 0), 0));
   
   const sumOfItemTotals = itemsForInvoice.reduce((sum, item) => sum + (item.itemTotal || 0), 0);
   if (Math.abs(sumOfItemTotals - invoiceTotalAmount) > 0.01) {
@@ -586,6 +596,7 @@ async function createInvoiceIfFullyPaid(purchaseId, userId) {
     items: itemsForInvoice,
     totalAmount: invoiceTotalAmount,
     paidAmount: invoiceTotalAmount,
+    onlinePaymentCharges,
     paymentStatus: 'PAID',
     issueDate: new Date(),
     companyDetails,

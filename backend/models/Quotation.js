@@ -104,6 +104,11 @@ const quotationSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // 2% online payment charge added on top of the advance in the current payment link (rupees)
+  onlineChargeAmount: {
+    type: Number,
+    default: 0
+  },
   auditLogs: [
     {
       action: { type: String, required: true },
